@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dettagli messaggio</title>
+  <link rel="stylesheet" href="taskpane.css">
+  <script src="https://officeapis.public.onecdn.static.microsoft/1/office.js"></script>
+  <script src="taskpane.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <img src="icon-32.png" width="32" height="32" alt="">
+    <div>
+      <h1>Dettagli messaggio</h1>
+      <p>Outlook · Office.js</p>
+    </div>
+  </header>
+
+  <main>
+    <div id="loading" class="notice" role="status" aria-live="polite">
+      Lettura del messaggio selezionato…
+    </div>
+
+    <div id="error" class="notice notice-error" role="alert" hidden></div>
+
+    <section id="message-data" aria-label="Dati del messaggio" hidden>
+      <dl class="message-fields">
+        <div class="field">
+          <dt>ID del messaggio</dt>
+          <dd id="message-id" class="monospace selectable"></dd>
+        </div>
+
+        <div class="field">
+          <dt>Oggetto</dt>
+          <dd id="message-subject"></dd>
+        </div>
+
+        <div class="field">
+          <dt>Mittente</dt>
+          <dd id="message-sender"></dd>
+        </div>
+
+        <div class="field">
+          <dt>Data e ora di ricezione</dt>
+          <dd id="message-received"></dd>
+        </div>
+
+        <div class="field field-body">
+          <dt>Corpo</dt>
+          <dd id="message-body" class="message-body selectable"></dd>
+        </div>
+      </dl>
+    </section>
+  </main>
+
+  <footer>
+    I dati restano nel task pane e non vengono inviati a servizi esterni.
+  </footer>
+</body>
+</html>
