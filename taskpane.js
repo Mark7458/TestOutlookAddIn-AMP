@@ -8,6 +8,7 @@
     error: "error",
     data: "message-data",
     id: "message-id",
+    conversationId: "conversationId",
     subject: "message-subject",
     sender: "message-sender",
     received: "message-received",
@@ -114,6 +115,7 @@
       }
 
       setText(elementIds.id, item.itemId);
+      setText(elementIds.conversationId, item.conversationId);
       setText(elementIds.subject, item.subject, "(Nessun oggetto)");
       setText(elementIds.sender, formatAddress(sender));
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
