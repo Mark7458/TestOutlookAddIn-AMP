@@ -182,8 +182,9 @@ footer {
   }
 
   .function-result {
+    position: relative;
     margin-top: 12px;
-    padding: 12px;
+    padding: 12px 38px 12px 12px;
     border: 1px solid #edebe9;
     border-radius: 6px;
     background: #faf9f8;
@@ -197,6 +198,22 @@ footer {
     font-size: 13px;
   }
 
+  .result-close-button {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    padding: 2px 6px;
+    border: 0;
+    background: transparent;
+    color: #605e5c;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .result-close-button:hover {
+    color: #323130;
+  }
   .status-success {
     color: #107c10;
   }

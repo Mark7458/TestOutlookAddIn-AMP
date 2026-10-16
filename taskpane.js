@@ -3,6 +3,7 @@
 
   let loadSequence = 0;
   let healthSequence = 0;
+  let healthResultTimer = null;
 
   const elementIds = {
     loading: "loading",
@@ -15,6 +16,21 @@
     received: "message-received",
     body: "message-body"
   };
+
+  function clearHealthResultTimer() {
+    if (healthResultTimer !== null) {
+      clearTimeout(healthResultTimer);
+      healthResultTimer = null;
+    }
+  }
+
+  function scheduleHealthResultReset(delayMilliseconds) {
+    clearHealthResultTimer();
+
+    healthResultTimer = setTimeout(() => {
+      resetHealthResult();
+    }, delayMilliseconds);
+  }
 
   function setHealthButtonLoading(isLoading) {
   const button =
@@ -76,7 +92,13 @@ function showHealthResult(result) {
     );
 
     resultContainer.hidden = false;
-    resultContainer.style.display = "block";
+    resultContainer.style.removeProperty("display");
+
+    scheduleHealthResultReset(
+      result.ok
+        ? 8000
+        : 15000
+    );
   } catch {
     // Risposta non JSON: viene mostrata così com'è.
   }
@@ -146,14 +168,27 @@ function showHealthError(error) {
   );
 
   resultContainer.hidden = false;
+  resultContainer.style.removeProperty("display");
+
+  scheduleHealthResultReset(30000);
+}
+
+function registerHealthResultCloseButton() {
+  const button =
+    document.getElementById("close-function-result");
+
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener(
+    "click",
+    resetHealthResult
+  );
 }
 
 function resetHealthResult() {
-  /*
-   * Invalida eventuali chiamate Health ancora in corso.
-   * Se una vecchia chiamata termina successivamente,
-   * non potrà più aggiornare la schermata.
-   */
+  clearHealthResultTimer();
   healthSequence++;
 
   const resultContainer =
@@ -183,11 +218,6 @@ function resetHealthResult() {
 
   if (resultContainer) {
     resultContainer.hidden = true;
-
-    /*
-     * Ridondante ma utile contro eventuali regole CSS
-     * che non rispettino correttamente hidden.
-     */
     resultContainer.style.display = "none";
   }
 
@@ -391,6 +421,7 @@ function registerHealthButton() {
 
     registerItemChangedHandler();
     registerHealthButton();
+    registerHealthResultCloseButton();
     loadSelectedMessage();
   });
 })();
