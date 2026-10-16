@@ -109,10 +109,37 @@ function showHealthError(error) {
   authModeElement.textContent =
     "Autenticazione o connessione non completata";
 
-  responseElement.textContent =
-    error?.message ||
-    String(error) ||
-    "Errore sconosciuto";
+  const errorDetails = {
+    authenticationPhase:
+      error?.authenticationPhase ?? null,
+
+    name:
+      error?.name ?? null,
+
+    message:
+      error?.message ?? String(error),
+
+    errorCode:
+      error?.errorCode ?? null,
+
+    subError:
+      error?.subError ?? null,
+
+    correlationId:
+      error?.correlationId ?? null,
+
+    timestamp:
+      error?.timestamp ?? null,
+
+    silentError:
+      error?.silentError ?? null
+  };
+
+  responseElement.textContent = JSON.stringify(
+    errorDetails,
+    null,
+    2
+  );
 
   resultContainer.hidden = false;
 }

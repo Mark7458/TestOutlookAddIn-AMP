@@ -40,7 +40,14 @@ async function initializeMsal() {
 }
 
 async function getWorkflowAccessToken() {
-  const client = await initializeMsal();
+  let client;
+
+  try {
+    client = await initializeMsal();
+  } catch (error) {
+    error.authenticationPhase = "initializeMsal";
+    throw error;
+  }
 
   const tokenRequest = {
     scopes: [AUTH_CONFIG.scope]
@@ -55,21 +62,42 @@ async function getWorkflowAccessToken() {
       acquisitionMode: "silent"
     };
   } catch (silentError) {
-    if (
-      !(silentError instanceof InteractionRequiredAuthError)
-    ) {
-      throw silentError;
+    console.error(
+      "acquireTokenSilent failed",
+      silentError
+    );
+
+    /*
+     * Test diagnostico:
+     * proviamo comunque l'interazione, anche quando
+     * MSAL non classifica l'errore come
+     * InteractionRequiredAuthError.
+     */
+    try {
+      const result =
+        await client.acquireTokenPopup(tokenRequest);
+
+      return {
+        accessToken: result.accessToken,
+        acquisitionMode: "interactive"
+      };
+    } catch (popupError) {
+      popupError.authenticationPhase =
+        "acquireTokenPopup";
+
+      popupError.silentError = {
+        name: silentError?.name,
+        message: silentError?.message,
+        errorCode: silentError?.errorCode,
+        subError: silentError?.subError,
+        correlationId: silentError?.correlationId
+      };
+
+      throw popupError;
     }
-
-    const result =
-      await client.acquireTokenPopup(tokenRequest);
-
-    return {
-      accessToken: result.accessToken,
-      acquisitionMode: "interactive"
-    };
   }
 }
+
 
 async function callHealth() {
   const authentication =
