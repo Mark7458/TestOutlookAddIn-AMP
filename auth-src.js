@@ -91,6 +91,30 @@ function acquireTokenWithOfficeDialog() {
         const dialog = result.value;
         let completed = false;
 
+        /*
+         * Se non riceviamo alcun messaggio dal dialogo
+         * entro cinque minuti, terminiamo il tentativo.
+         */
+        const authenticationTimeout =
+          setTimeout(() => {
+            completeWithError(
+              createDialogError(
+                "Tempo massimo per l'autenticazione superato.",
+                {
+                  errorCode:
+                    "authentication_timeout",
+
+                  authenticationPhase:
+                    "officeDialog"
+                }
+              )
+            );
+          }, 5 * 60 * 1000);
+
+        function clearAuthenticationTimeout() {
+          clearTimeout(authenticationTimeout);
+        }
+
         function closeDialog() {
           try {
             dialog.close();
@@ -105,6 +129,8 @@ function acquireTokenWithOfficeDialog() {
           }
 
           completed = true;
+
+          clearAuthenticationTimeout();
           closeDialog();
           reject(error);
         }
@@ -115,24 +141,34 @@ function acquireTokenWithOfficeDialog() {
           }
 
           completed = true;
+
+          clearAuthenticationTimeout();
           closeDialog();
           resolve(tokenResult);
         }
 
+        /*
+         * Questo è l'evento autorevole:
+         * il dialogo invia un JSON tramite messageParent().
+         */
         dialog.addEventHandler(
           Office.EventType.DialogMessageReceived,
           (event) => {
             let message;
 
             try {
-              message = JSON.parse(event.message);
+              message =
+                JSON.parse(event.message);
             } catch {
               completeWithError(
                 createDialogError(
                   "Il dialogo ha restituito una risposta non valida.",
                   {
                     errorCode:
-                      "invalid_dialog_message"
+                      "invalid_dialog_message",
+
+                    authenticationPhase:
+                      "officeDialog"
                   }
                 )
               );
@@ -182,27 +218,23 @@ function acquireTokenWithOfficeDialog() {
           }
         );
 
+        /*
+         * In questo ambiente DialogEventReceived viene
+         * emesso anche mentre la finestra di autenticazione
+         * è ancora visibile.
+         *
+         * Non lo usiamo quindi per chiudere la Promise.
+         * Lo registriamo soltanto a fini diagnostici.
+         */
         dialog.addEventHandler(
           Office.EventType.DialogEventReceived,
           (event) => {
-            if (completed) {
-              return;
-            }
-
-            completeWithError(
-              createDialogError(
-                "La finestra di autenticazione è stata chiusa prima del completamento.",
-                {
-                  errorCode:
-                    "dialog_closed",
-
-                  dialogEvent:
-                    event.error,
-
-                  authenticationPhase:
-                    "officeDialog"
-                }
-              )
+            console.warn(
+              "Evento Office Dialog ricevuto:",
+              {
+                error:
+                  event?.error
+              }
             );
           }
         );
