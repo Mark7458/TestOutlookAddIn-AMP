@@ -2,6 +2,7 @@
   "use strict";
 
   let loadSequence = 0;
+  let healthSequence = 0;
 
   const elementIds = {
     loading: "loading",
@@ -73,6 +74,9 @@ function showHealthResult(result) {
       null,
       2
     );
+
+    resultContainer.hidden = false;
+    resultContainer.style.display = "block";
   } catch {
     // Risposta non JSON: viene mostrata così com'è.
   }
@@ -145,6 +149,13 @@ function showHealthError(error) {
 }
 
 function resetHealthResult() {
+  /*
+   * Invalida eventuali chiamate Health ancora in corso.
+   * Se una vecchia chiamata termina successivamente,
+   * non potrà più aggiornare la schermata.
+   */
+  healthSequence++;
+
   const resultContainer =
     document.getElementById("function-result");
 
@@ -172,6 +183,12 @@ function resetHealthResult() {
 
   if (resultContainer) {
     resultContainer.hidden = true;
+
+    /*
+     * Ridondante ma utile contro eventuali regole CSS
+     * che non rispettino correttamente hidden.
+     */
+    resultContainer.style.display = "none";
   }
 
   setHealthButtonLoading(false);
@@ -179,6 +196,9 @@ function resetHealthResult() {
 
 async function testHealthFunction() {
   resetHealthResult();
+
+  const sequence = ++healthSequence;
+
   setHealthButtonLoading(true);
 
   try {
@@ -191,8 +211,20 @@ async function testHealthFunction() {
     const result =
       await window.WorkflowHealth.callHealth();
 
+    /*
+     * Nel frattempo è cambiato il messaggio
+     * oppure è iniziato un altro test Health.
+     */
+    if (sequence !== healthSequence) {
+      return;
+    }
+
     showHealthResult(result);
   } catch (error) {
+    if (sequence !== healthSequence) {
+      return;
+    }
+
     console.error(
       "Errore durante il test Health:",
       error
@@ -200,7 +232,9 @@ async function testHealthFunction() {
 
     showHealthError(error);
   } finally {
-    setHealthButtonLoading(false);
+    if (sequence === healthSequence) {
+      setHealthButtonLoading(false);
+    }
   }
 }
 
@@ -296,6 +330,7 @@ function registerHealthButton() {
 
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
+    
     resetHealthResult();
     showLoading();
 
