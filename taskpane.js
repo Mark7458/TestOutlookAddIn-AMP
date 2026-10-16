@@ -15,6 +15,148 @@
     body: "message-body"
   };
 
+  function setHealthButtonLoading(isLoading) {
+  const button =
+    document.getElementById("test-function-button");
+
+  if (!button) {
+    return;
+  }
+
+  button.disabled = isLoading;
+
+  button.textContent = isLoading
+    ? "Connessione in corso..."
+    : "Chiama Health";
+}
+
+function showHealthResult(result) {
+  const resultContainer =
+    document.getElementById("function-result");
+
+  const statusElement =
+    document.getElementById("function-status");
+
+  const authModeElement =
+    document.getElementById("function-auth-mode");
+
+  const responseElement =
+    document.getElementById("function-response");
+
+  if (
+    !resultContainer ||
+    !statusElement ||
+    !authModeElement ||
+    !responseElement
+  ) {
+    return;
+  }
+
+  statusElement.textContent =
+    `${result.status} ${result.statusText || ""}`.trim();
+
+  statusElement.className =
+    result.ok
+      ? "status-success"
+      : "status-error";
+
+  authModeElement.textContent =
+    result.authenticationMode === "silent"
+      ? "Token ottenuto silenziosamente"
+      : "Login interattivo";
+
+  let formattedBody = result.body;
+
+  try {
+    formattedBody = JSON.stringify(
+      JSON.parse(result.body),
+      null,
+      2
+    );
+  } catch {
+    // Risposta non JSON: viene mostrata così com'è.
+  }
+
+  responseElement.textContent = formattedBody;
+  resultContainer.hidden = false;
+}
+
+function showHealthError(error) {
+  const resultContainer =
+    document.getElementById("function-result");
+
+  const statusElement =
+    document.getElementById("function-status");
+
+  const authModeElement =
+    document.getElementById("function-auth-mode");
+
+  const responseElement =
+    document.getElementById("function-response");
+
+  if (
+    !resultContainer ||
+    !statusElement ||
+    !authModeElement ||
+    !responseElement
+  ) {
+    return;
+  }
+
+  statusElement.textContent = "Errore";
+  statusElement.className = "status-error";
+
+  authModeElement.textContent =
+    "Autenticazione o connessione non completata";
+
+  responseElement.textContent =
+    error?.message ||
+    String(error) ||
+    "Errore sconosciuto";
+
+  resultContainer.hidden = false;
+}
+
+async function testHealthFunction() {
+  setHealthButtonLoading(true);
+
+  try {
+    if (!window.WorkflowHealth) {
+      throw new Error(
+        "Il modulo di autenticazione non è stato caricato."
+      );
+    }
+
+    const result =
+      await window.WorkflowHealth.callHealth();
+
+    showHealthResult(result);
+  } catch (error) {
+    console.error(
+      "Errore durante il test Health:",
+      error
+    );
+
+    showHealthError(error);
+  } finally {
+    setHealthButtonLoading(false);
+  }
+}
+
+function registerHealthButton() {
+  const button =
+    document.getElementById("test-function-button");
+
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener(
+    "click",
+    testHealthFunction
+  );
+}
+
   function byId(id) {
     return document.getElementById(id);
   }
@@ -151,6 +293,7 @@
     }
 
     registerItemChangedHandler();
+    registerHealthButton();
     loadSelectedMessage();
   });
 })();

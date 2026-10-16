@@ -6,6 +6,11 @@
   <title>Dettagli messaggio</title>
   <link rel="stylesheet" href="taskpane.css">
   <script src="https://officeapis.public.onecdn.static.microsoft/1/office.js"></script>
+  <script
+    src="auth.bundle.js"
+    type="text/javascript"
+    defer>
+</script>
   <script src="taskpane.js" defer></script>
 </head>
 <body>
@@ -23,6 +28,41 @@
     </div>
 
     <div id="error" class="notice notice-error" role="alert" hidden></div>
+
+    <section class="card health-card">
+      <h2>Test Azure Function</h2>
+
+      <p class="health-description">
+        Verifica l'autenticazione e la connessione
+        con la Function protetta.
+      </p>
+
+      <button
+        id="test-function-button"
+        class="primary-button"
+        type="button">
+        Chiama Health
+      </button>
+
+      <div
+        id="function-result"
+        class="function-result"
+        hidden>
+
+        <div class="function-result-row">
+          <span>Stato HTTP</span>
+          <strong id="function-status"></strong>
+        </div>
+
+        <div class="function-result-row">
+          <span>Autenticazione</span>
+          <strong id="function-auth-mode"></strong>
+        </div>
+
+        <pre id="function-response"></pre>
+      </div>
+    </section>
+
 
     <section id="message-data" aria-label="Dati del messaggio" hidden>
       <dl class="message-fields">

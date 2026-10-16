@@ -148,4 +148,76 @@ footer {
     border-color: #8f4045;
     background: #4a2023;
   }
+  
+  .health-card {
+    margin-top: 16px;
+  }
+
+  .health-description {
+    margin: 0 0 12px 0;
+    color: #605e5c;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .primary-button {
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 6px;
+    background: #0078d4;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .primary-button:hover {
+    background: #106ebe;
+  }
+
+  .primary-button:disabled {
+    background: #a19f9d;
+    cursor: wait;
+  }
+
+  .function-result {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #faf9f8;
+  }
+
+  .function-result-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .status-success {
+    color: #107c10;
+  }
+
+  .status-error {
+    color: #a4262c;
+  }
+
+  #function-response {
+    max-height: 220px;
+    margin: 12px 0 0;
+    padding: 10px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-radius: 4px;
+    background: #f3f2f1;
+    color: #323130;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+  }
+
+
 }
