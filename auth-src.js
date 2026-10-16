@@ -1,107 +1,219 @@
-import {
-  createNestablePublicClientApplication,
-  InteractionRequiredAuthError
-} from "@azure/msal-browser";
-
 const AUTH_CONFIG = {
-  clientId: "17be48ae-1d05-4233-ba98-654102bf76e0",
-
-  tenantId: "9284cd5c-ae26-4eb2-b079-a14b6df5f1aa",
-
-  scope:
-    "api://17be48ae-1d05-4233-ba98-654102bf76e0/Workflow.Access",
-
   healthUrl:
-    "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/health"
+    "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/health",
+
+  dialogUrl:
+    "https://jakdrizzt.github.io/TestOutlookAddIn/auth-dialog.html"
 };
 
-let msalInstance;
+function createDialogError(message, details = {}) {
+  const error = new Error(message);
 
-async function initializeMsal() {
-  if (msalInstance) {
-    return msalInstance;
-  }
+  error.name =
+    details.name ||
+    "DialogAuthenticationError";
 
-  msalInstance =
-    await createNestablePublicClientApplication({
-      auth: {
-        clientId: AUTH_CONFIG.clientId,
+  error.errorCode =
+    details.errorCode ||
+    null;
 
-        authority:
-          `https://login.microsoftonline.com/${AUTH_CONFIG.tenantId}`
-      },
+  error.subError =
+    details.subError ||
+    null;
 
-      cache: {
-        cacheLocation: "localStorage"
-      }
-    });
+  error.correlationId =
+    details.correlationId ||
+    null;
 
-  return msalInstance;
+  error.authenticationPhase =
+    details.authenticationPhase ||
+    "officeDialog";
+
+  error.dialogEvent =
+    details.dialogEvent ||
+    null;
+
+  return error;
 }
 
-async function getWorkflowAccessToken() {
-  let client;
+function acquireTokenWithOfficeDialog() {
+  return new Promise((resolve, reject) => {
+    if (
+      !window.Office ||
+      !Office.context ||
+      !Office.context.ui ||
+      typeof Office.context.ui.displayDialogAsync !==
+        "function"
+    ) {
+      reject(
+        createDialogError(
+          "Office Dialog API non è disponibile in questo client Outlook.",
+          {
+            errorCode:
+              "office_dialog_not_available"
+          }
+        )
+      );
 
-  try {
-    client = await initializeMsal();
-  } catch (error) {
-    error.authenticationPhase = "initializeMsal";
-    throw error;
-  }
-
-  const tokenRequest = {
-    scopes: [AUTH_CONFIG.scope]
-  };
-
-  try {
-    const result =
-      await client.acquireTokenSilent(tokenRequest);
-
-    return {
-      accessToken: result.accessToken,
-      acquisitionMode: "silent"
-    };
-  } catch (silentError) {
-    console.error(
-      "acquireTokenSilent failed",
-      silentError
-    );
-
-    /*
-     * Test diagnostico:
-     * proviamo comunque l'interazione, anche quando
-     * MSAL non classifica l'errore come
-     * InteractionRequiredAuthError.
-     */
-    try {
-      const result =
-        await client.acquireTokenPopup(tokenRequest);
-
-      return {
-        accessToken: result.accessToken,
-        acquisitionMode: "interactive"
-      };
-    } catch (popupError) {
-      popupError.authenticationPhase =
-        "acquireTokenPopup";
-
-      popupError.silentError = {
-        name: silentError?.name,
-        message: silentError?.message,
-        errorCode: silentError?.errorCode,
-        subError: silentError?.subError,
-        correlationId: silentError?.correlationId
-      };
-
-      throw popupError;
+      return;
     }
-  }
-}
 
+    Office.context.ui.displayDialogAsync(
+      AUTH_CONFIG.dialogUrl,
+      {
+        height: 65,
+        width: 45,
+        displayInIframe: false
+      },
+      (result) => {
+        if (
+          result.status ===
+          Office.AsyncResultStatus.Failed
+        ) {
+          reject(
+            createDialogError(
+              result.error?.message ||
+                "Impossibile aprire la finestra di autenticazione.",
+              {
+                errorCode:
+                  result.error?.code ||
+                  "dialog_open_failed",
+
+                authenticationPhase:
+                  "displayDialogAsync"
+              }
+            )
+          );
+
+          return;
+        }
+
+        const dialog = result.value;
+        let completed = false;
+
+        function closeDialog() {
+          try {
+            dialog.close();
+          } catch {
+            // Il dialogo potrebbe essere già chiuso.
+          }
+        }
+
+        function completeWithError(error) {
+          if (completed) {
+            return;
+          }
+
+          completed = true;
+          closeDialog();
+          reject(error);
+        }
+
+        function completeWithToken(tokenResult) {
+          if (completed) {
+            return;
+          }
+
+          completed = true;
+          closeDialog();
+          resolve(tokenResult);
+        }
+
+        dialog.addEventHandler(
+          Office.EventType.DialogMessageReceived,
+          (event) => {
+            let message;
+
+            try {
+              message = JSON.parse(event.message);
+            } catch {
+              completeWithError(
+                createDialogError(
+                  "Il dialogo ha restituito una risposta non valida.",
+                  {
+                    errorCode:
+                      "invalid_dialog_message"
+                  }
+                )
+              );
+
+              return;
+            }
+
+            if (
+              message.type === "auth-success" &&
+              message.accessToken
+            ) {
+              completeWithToken({
+                accessToken:
+                  message.accessToken,
+
+                acquisitionMode:
+                  message.acquisitionMode ||
+                  "interactive"
+              });
+
+              return;
+            }
+
+            completeWithError(
+              createDialogError(
+                message.message ||
+                  "Autenticazione non completata.",
+                {
+                  name:
+                    message.name,
+
+                  errorCode:
+                    message.errorCode,
+
+                  subError:
+                    message.subError,
+
+                  correlationId:
+                    message.correlationId,
+
+                  authenticationPhase:
+                    message.authenticationPhase ||
+                    "authDialog"
+                }
+              )
+            );
+          }
+        );
+
+        dialog.addEventHandler(
+          Office.EventType.DialogEventReceived,
+          (event) => {
+            if (completed) {
+              return;
+            }
+
+            completeWithError(
+              createDialogError(
+                "La finestra di autenticazione è stata chiusa prima del completamento.",
+                {
+                  errorCode:
+                    "dialog_closed",
+
+                  dialogEvent:
+                    event.error,
+
+                  authenticationPhase:
+                    "officeDialog"
+                }
+              )
+            );
+          }
+        );
+      }
+    );
+  });
+}
 
 async function callHealth() {
   const authentication =
-    await getWorkflowAccessToken();
+    await acquireTokenWithOfficeDialog();
 
   const response = await fetch(
     AUTH_CONFIG.healthUrl,
@@ -112,19 +224,28 @@ async function callHealth() {
         Authorization:
           `Bearer ${authentication.accessToken}`,
 
-        Accept: "application/json"
+        Accept:
+          "application/json"
       }
     }
   );
 
-  const body = await response.text();
+  const body =
+    await response.text();
 
   return {
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
+    ok:
+      response.ok,
+
+    status:
+      response.status,
+
+    statusText:
+      response.statusText,
+
     authenticationMode:
       authentication.acquisitionMode,
+
     body
   };
 }

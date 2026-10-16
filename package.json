@@ -4,7 +4,7 @@
   "description": "",
   "main": "taskpane.js",
   "scripts": {
-  "build": "esbuild auth-src.js --bundle --format=iife --outfile=auth.bundle.js --minify"
+  "build": "esbuild auth-src.js --bundle --format=iife --outfile=auth.bundle.js --minify && esbuild auth-dialog-src.js --bundle --format=iife --outfile=auth-dialog.bundle.js --minify"
 },
   "repository": {
     "type": "git",
