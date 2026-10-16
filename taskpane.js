@@ -144,7 +144,41 @@ function showHealthError(error) {
   resultContainer.hidden = false;
 }
 
+function resetHealthResult() {
+  const resultContainer =
+    document.getElementById("function-result");
+
+  const statusElement =
+    document.getElementById("function-status");
+
+  const authModeElement =
+    document.getElementById("function-auth-mode");
+
+  const responseElement =
+    document.getElementById("function-response");
+
+  if (statusElement) {
+    statusElement.textContent = "";
+    statusElement.className = "";
+  }
+
+  if (authModeElement) {
+    authModeElement.textContent = "";
+  }
+
+  if (responseElement) {
+    responseElement.textContent = "";
+  }
+
+  if (resultContainer) {
+    resultContainer.hidden = true;
+  }
+
+  setHealthButtonLoading(false);
+}
+
 async function testHealthFunction() {
+  resetHealthResult();
   setHealthButtonLoading(true);
 
   try {
@@ -262,6 +296,7 @@ function registerHealthButton() {
 
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
+    resetHealthResult();
     showLoading();
 
     try {
