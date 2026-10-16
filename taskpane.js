@@ -2,7 +2,6 @@
   "use strict";
 
   let loadSequence = 0;
-  let healthSequence = 0;
   let healthResultTimer = null;
 
   const elementIds = {
@@ -90,21 +89,20 @@ function showHealthResult(result) {
       null,
       2
     );
-
-    resultContainer.hidden = false;
-    resultContainer.style.removeProperty("display");
-
-    scheduleHealthResultReset(
-      result.ok
-        ? 8000
-        : 15000
-    );
   } catch {
-    // Risposta non JSON: viene mostrata così com'è.
+    // La risposta non è JSON: viene mostrata così com'è.
   }
 
   responseElement.textContent = formattedBody;
+
   resultContainer.hidden = false;
+  resultContainer.style.removeProperty("display");
+
+  scheduleHealthResultReset(
+    result.ok
+      ? 8000
+      : 15000
+  );
 }
 
 function showHealthError(error) {
@@ -170,6 +168,10 @@ function showHealthError(error) {
   resultContainer.hidden = false;
   resultContainer.style.removeProperty("display");
 
+  /*
+   * Durante la PoC conserviamo i dettagli diagnostici
+   * per 30 secondi.
+   */
   scheduleHealthResultReset(30000);
 }
 
@@ -189,7 +191,6 @@ function registerHealthResultCloseButton() {
 
 function resetHealthResult() {
   clearHealthResultTimer();
-  healthSequence++;
 
   const resultContainer =
     document.getElementById("function-result");
@@ -225,10 +226,11 @@ function resetHealthResult() {
 }
 
 async function testHealthFunction() {
+  /*
+   * Ripulisce un risultato precedente prima di iniziare
+   * una nuova operazione.
+   */
   resetHealthResult();
-
-  const sequence = ++healthSequence;
-
   setHealthButtonLoading(true);
 
   try {
@@ -241,30 +243,20 @@ async function testHealthFunction() {
     const result =
       await window.WorkflowHealth.callHealth();
 
-    /*
-     * Nel frattempo è cambiato il messaggio
-     * oppure è iniziato un altro test Health.
-     */
-    if (sequence !== healthSequence) {
-      return;
-    }
-
     showHealthResult(result);
   } catch (error) {
-    if (sequence !== healthSequence) {
-      return;
-    }
-
     console.error(
       "Errore durante il test Health:",
       error
     );
 
+    /*
+     * Mostra sempre l'errore restituito dopo la chiusura
+     * del popup MFA.
+     */
     showHealthError(error);
   } finally {
-    if (sequence === healthSequence) {
-      setHealthButtonLoading(false);
-    }
+    setHealthButtonLoading(false);
   }
 }
 

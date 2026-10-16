@@ -117,6 +117,104 @@ footer {
   display: none !important;
 }
 
+/*
+ * Componenti Health.
+ * Queste regole devono valere sia in modalità chiara
+ * sia in modalità scura.
+ */
+
+.health-card {
+  margin-top: 16px;
+}
+
+.health-description {
+  margin: 0 0 12px;
+  color: #605e5c;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #0078d4;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  background: #106ebe;
+}
+
+.primary-button:disabled {
+  background: #a19f9d;
+  cursor: wait;
+}
+
+.function-result {
+  position: relative;
+  margin-top: 12px;
+  padding: 12px 38px 12px 12px;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  background: #faf9f8;
+}
+
+.function-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.result-close-button {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  color: #605e5c;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.result-close-button:hover {
+  color: #323130;
+}
+
+.status-success {
+  color: #107c10;
+}
+
+.status-error {
+  color: #a4262c;
+}
+
+#function-response {
+  max-height: 220px;
+  margin: 12px 0 0;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+  background: #f3f2f1;
+  color: #323130;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+/*
+ * Correzioni per modalità scura.
+ */
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -148,93 +246,26 @@ footer {
     border-color: #8f4045;
     background: #4a2023;
   }
-  
-  .health-card {
-    margin-top: 16px;
-  }
 
   .health-description {
-    margin: 0 0 12px 0;
-    color: #605e5c;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-
-  .primary-button {
-    width: 100%;
-    padding: 10px 14px;
-    border: 0;
-    border-radius: 6px;
-    background: #0078d4;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .primary-button:hover {
-    background: #106ebe;
-  }
-
-  .primary-button:disabled {
-    background: #a19f9d;
-    cursor: wait;
+    color: #c8c6c4;
   }
 
   .function-result {
-    position: relative;
-    margin-top: 12px;
-    padding: 12px 38px 12px 12px;
-    border: 1px solid #edebe9;
-    border-radius: 6px;
-    background: #faf9f8;
-  }
-
-  .function-result-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-    font-size: 13px;
+    border-color: #484644;
+    background: #2d2c2b;
   }
 
   .result-close-button {
-    position: absolute;
-    top: 6px;
-    right: 8px;
-    padding: 2px 6px;
-    border: 0;
-    background: transparent;
-    color: #605e5c;
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
+    color: #c8c6c4;
   }
 
   .result-close-button:hover {
-    color: #323130;
-  }
-  .status-success {
-    color: #107c10;
-  }
-
-  .status-error {
-    color: #a4262c;
+    color: #ffffff;
   }
 
   #function-response {
-    max-height: 220px;
-    margin: 12px 0 0;
-    padding: 10px;
-    overflow: auto;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    border-radius: 4px;
-    background: #f3f2f1;
-    color: #323130;
-    font-family: Consolas, monospace;
-    font-size: 12px;
+    color: #f3f2f1;
+    background: #201f1e;
   }
-
-
 }
