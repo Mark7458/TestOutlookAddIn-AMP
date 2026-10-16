@@ -2,7 +2,6 @@
   "use strict";
 
   let loadSequence = 0;
-  let healthResultTimer = null;
 
   const elementIds = {
     loading: "loading",
@@ -15,21 +14,6 @@
     received: "message-received",
     body: "message-body"
   };
-
-  function clearHealthResultTimer() {
-    if (healthResultTimer !== null) {
-      clearTimeout(healthResultTimer);
-      healthResultTimer = null;
-    }
-  }
-
-  function scheduleHealthResultReset(delayMilliseconds) {
-    clearHealthResultTimer();
-
-    healthResultTimer = setTimeout(() => {
-      resetHealthResult();
-    }, delayMilliseconds);
-  }
 
   function setHealthButtonLoading(isLoading) {
   const button =
@@ -97,13 +81,8 @@ function showHealthResult(result) {
 
   resultContainer.hidden = false;
   resultContainer.style.removeProperty("display");
-
-  scheduleHealthResultReset(
-    result.ok
-      ? 8000
-      : 15000
-  );
 }
+
 
 function showHealthError(error) {
   const resultContainer =
@@ -167,12 +146,6 @@ function showHealthError(error) {
 
   resultContainer.hidden = false;
   resultContainer.style.removeProperty("display");
-
-  /*
-   * Durante la PoC conserviamo i dettagli diagnostici
-   * per 30 secondi.
-   */
-  scheduleHealthResultReset(30000);
 }
 
 function registerHealthResultCloseButton() {
@@ -190,8 +163,6 @@ function registerHealthResultCloseButton() {
 }
 
 function resetHealthResult() {
-  clearHealthResultTimer();
-
   const resultContainer =
     document.getElementById("function-result");
 
