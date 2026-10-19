@@ -474,6 +474,96 @@ function registerHealthButton() {
     });
   }
 
+  function loadRoamingOperator() {
+    const value =
+        Office.context.roamingSettings.get("operatorTest");
+
+    const valueElement =
+        document.getElementById("roaming-operator-value");
+
+    const inputElement =
+        document.getElementById("roaming-operator-input");
+
+    if (valueElement) {
+        valueElement.textContent =
+            value || "Non impostato";
+    }
+
+    if (inputElement && value) {
+        inputElement.value = value;
+    }
+
+    console.log(
+        "Roaming setting operatorTest:",
+        value
+    );
+  }
+
+  function saveRoamingOperator() {
+    const inputElement =
+        document.getElementById("roaming-operator-input");
+
+    const statusElement =
+        document.getElementById("roaming-operator-status");
+
+    if (!inputElement || !statusElement) {
+        return;
+    }
+
+    const value = inputElement.value.trim();
+
+    if (!value) {
+        statusElement.textContent =
+            "Inserisci un valore prima di salvare.";
+        return;
+    }
+
+    Office.context.roamingSettings.set(
+        "operatorTest",
+        value
+    );
+
+    Office.context.roamingSettings.saveAsync((result) => {
+        if (
+            result.status ===
+            Office.AsyncResultStatus.Succeeded
+        ) {
+            statusElement.textContent =
+                "Valore salvato.";
+
+            loadRoamingOperator();
+
+            console.log(
+                "Roaming setting salvato:",
+                value
+            );
+        } else {
+            statusElement.textContent =
+                "Errore durante il salvataggio: " +
+                result.error.message;
+
+            console.error(
+                "Errore saveAsync:",
+                result.error
+            );
+        }
+    });
+  }
+
+  function registerRoamingSettingsControls() {
+    const saveButton =
+        document.getElementById("roaming-operator-save");
+
+    if (saveButton) {
+        saveButton.addEventListener(
+            "click",
+            saveRoamingOperator
+        );
+    }
+
+    loadRoamingOperator();
+  }
+
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
     
@@ -545,6 +635,7 @@ function registerHealthButton() {
     registerHealthButton();
     registerHealthResultCloseButton();
     loadDiagnostics();
+    registerRoamingSettingsControls();
     loadSelectedMessage();
   });
 })();
