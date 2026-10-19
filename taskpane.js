@@ -9,6 +9,7 @@
     data: "message-data",
     id: "message-id",
     conversationId: "conversationId",
+    categories: "message-categories",
     subject: "message-subject",
     sender: "message-sender",
     received: "message-received",
@@ -331,6 +332,148 @@ function registerHealthButton() {
     });
   }
 
+  function getCategories(item) {
+    return new Promise((resolve, reject) => {
+        if (
+            !item.categories ||
+            typeof item.categories.getAsync !== "function"
+        ) {
+            resolve([]);
+            return;
+        }
+
+        item.categories.getAsync((result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                resolve(result.value || []);
+                return;
+            }
+
+            const details =
+                result.error && result.error.message
+                    ? result.error.message
+                    : "Office.js non ha restituito le categorie.";
+
+            reject(new Error(details));
+        });
+    });
+  }
+
+  function formatCategories(categories) {
+    if (!Array.isArray(categories) || categories.length === 0) {
+        return "Nessuna";
+    }
+
+    return categories
+        .map(category => category.displayName || String(category))
+        .filter(Boolean)
+        .join(", ");
+  }
+
+  function loadDiagnostics() {
+    const mailbox = Office.context && Office.context.mailbox;
+    const diagnostics = mailbox && mailbox.diagnostics;
+    const userProfile = mailbox && mailbox.userProfile;
+    const requirements = Office.context && Office.context.requirements;
+
+    setText(
+        "diagnostic-host",
+        diagnostics && diagnostics.hostName
+    );
+
+    setText(
+        "diagnostic-host-version",
+        diagnostics && diagnostics.hostVersion
+    );
+
+    setText(
+        "diagnostic-platform",
+        Office.context && Office.context.platform
+    );
+
+    setText(
+        "diagnostic-user",
+        userProfile && userProfile.displayName
+    );
+
+    setText(
+        "diagnostic-email",
+        userProfile && userProfile.emailAddress
+    );
+
+    setText(
+        "diagnostic-account-type",
+        userProfile && userProfile.accountType
+    );
+
+    setText(
+        "diagnostic-timezone",
+        userProfile && userProfile.timeZone
+    );
+
+    if (requirements) {
+        setText(
+            "diagnostic-mailbox-18",
+            requirements.isSetSupported("Mailbox", "1.8")
+        );
+
+        setText(
+            "diagnostic-mailbox-113",
+            requirements.isSetSupported("Mailbox", "1.13")
+        );
+
+        setText(
+            "diagnostic-mailbox-114",
+            requirements.isSetSupported("Mailbox", "1.14")
+        );
+    }
+  }
+
+  function loadSharedDiagnostics(item) {
+    return new Promise((resolve) => {
+        if (
+            !item ||
+            typeof item.getSharedPropertiesAsync !== "function"
+        ) {
+            setText("diagnostic-shared", "API non disponibile");
+            setText("diagnostic-target-mailbox", "");
+            setText("diagnostic-owner", "");
+            setText("diagnostic-delegate-permissions", "");
+            resolve();
+            return;
+        }
+
+        item.getSharedPropertiesAsync((result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                const shared = result.value;
+
+                setText("diagnostic-shared", "Sì");
+                setText(
+                    "diagnostic-target-mailbox",
+                    shared.targetMailbox
+                );
+                setText(
+                    "diagnostic-owner",
+                    shared.owner
+                );
+                setText(
+                    "diagnostic-delegate-permissions",
+                    shared.delegatePermissions
+                );
+
+                resolve();
+                return;
+            }
+
+            setText("diagnostic-shared", "No");
+            setText("diagnostic-target-mailbox", "");
+            setText("diagnostic-owner", "");
+            setText("diagnostic-delegate-permissions", "");
+
+            resolve();
+        });
+    });
+  }
+
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
     
@@ -345,11 +488,13 @@ function registerHealthButton() {
         throw new Error("Seleziona un messaggio nella visualizzazione di lettura e riapri il task pane.");
       }
 
-      // In Message Read, Office.js espone itemId, subject, from/sender e
-      // dateTimeCreated direttamente. Per i messaggi ricevuti, la data è
-      // presentata all'utente come data/ora di ricezione.
+      await loadSharedDiagnostics(item);
+
       const sender = item.from || item.sender;
-      const bodyText = await getBodyAsText(item);
+      const [bodyText, categories] = await Promise.all([
+        getBodyAsText(item),
+        getCategories(item)
+      ]);
 
       // Ignora risultati asincroni appartenenti al messaggio precedente.
       if (sequence !== loadSequence) {
@@ -365,6 +510,7 @@ function registerHealthButton() {
       setText(elementIds.sender, formatAddress(sender));
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
+      setText(elementIds.categories, formatCategories(categories),"Nessuna");
       showData();
     } catch (error) {
       if (sequence !== loadSequence) {
@@ -398,6 +544,7 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerHealthButton();
     registerHealthResultCloseButton();
+    loadDiagnostics();
     loadSelectedMessage();
   });
 })();
