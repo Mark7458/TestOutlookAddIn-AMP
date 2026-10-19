@@ -255,6 +255,16 @@ function registerHealthButton() {
     element.textContent = text || fallback;
   }
 
+  function normalizeConversationId(conversationId) {
+    if (!conversationId) {
+        return "";
+    }
+
+    return String(conversationId)
+        .replace(/\//g, "-")
+        .replace(/\+/g, "_");
+}
+
   function showLoading() {
     byId(elementIds.loading).hidden = false;
     byId(elementIds.error).hidden = true;
@@ -347,7 +357,10 @@ function registerHealthButton() {
       }
 
       setText(elementIds.id, item.itemId);
-      setText(elementIds.conversationId, item.conversationId);
+      setText(
+        elementIds.conversationId,
+        normalizeConversationId(item.conversationId)
+      );
       setText(elementIds.subject, item.subject, "(Nessun oggetto)");
       setText(elementIds.sender, formatAddress(sender));
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
