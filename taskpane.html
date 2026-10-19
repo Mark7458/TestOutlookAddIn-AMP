@@ -23,6 +23,7 @@
   </header>
 
   <main>
+    <div id="main-view">
     <div id="loading" class="notice" role="status" aria-live="polite">
       Lettura del messaggio selezionato…
     </div>
@@ -101,6 +102,17 @@
         <div class="field">
           <dt>Data e ora di ricezione</dt>
           <dd id="message-received"></dd>
+        </div>
+
+        <div class="field field-attachments">
+          <dt>Allegati</dt>
+          <dd>
+            <div
+              id="message-attachments"
+              class="attachments-list"
+              aria-live="polite">
+            </div>
+          </dd>
         </div>
 
         <div class="field field-body">
@@ -212,6 +224,44 @@
           </div>
       </dl>
 </section>
+    </div>
+
+    <section
+      id="header-view"
+      class="header-view"
+      aria-label="Header del messaggio allegato"
+      hidden>
+      <div class="header-view-toolbar">
+        <button
+          id="header-back-button"
+          class="secondary-button"
+          type="button">
+          ← Indietro
+        </button>
+        <button
+          id="copy-header-button"
+          class="primary-button header-copy-button"
+          type="button">
+          Copia header
+        </button>
+      </div>
+
+      <div class="field header-content-field">
+        <dt>Header messaggio allegato</dt>
+        <dd>
+          <div id="header-attachment-name" class="header-attachment-name"></div>
+          <div
+            id="header-status"
+            class="header-status"
+            role="status"
+            aria-live="polite">
+          </div>
+          <pre
+            id="attachment-header-content"
+            class="attachment-header-content selectable"></pre>
+        </dd>
+      </div>
+    </section>
   </main>
 
   <footer>

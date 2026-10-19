@@ -211,6 +211,139 @@ footer {
   font-size: 12px;
 }
 
+
+/*
+ * Allegati e visualizzazione header EML.
+ */
+.attachments-list {
+  display: grid;
+  gap: 8px;
+}
+
+.attachments-empty {
+  color: #605e5c;
+}
+
+.attachment-card {
+  position: relative;
+  min-height: 62px;
+  overflow: hidden;
+  border: 1px solid #edebe9;
+  border-radius: 7px;
+  background: #faf9f8;
+}
+
+.attachment-summary {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+}
+
+.attachment-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-meta {
+  color: #605e5c;
+  font-size: 12px;
+}
+
+.attachment-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 0;
+  background: rgb(0 90 158 / 82%);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease-in-out;
+}
+
+.attachment-card:hover .attachment-overlay,
+.attachment-card:focus-within .attachment-overlay,
+.attachment-overlay:focus-visible {
+  opacity: 1;
+}
+
+.header-view {
+  display: grid;
+  gap: 12px;
+}
+
+.header-view-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.secondary-button {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #8a8886;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #323130;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #f3f2f1;
+}
+
+.header-copy-button {
+  width: 100%;
+}
+
+.header-attachment-name {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.header-status {
+  margin-bottom: 8px;
+  color: #605e5c;
+  font-size: 12px;
+}
+
+.header-status.status-error {
+  color: #a4262c;
+}
+
+.attachment-header-content {
+  max-height: 65vh;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+  background: #f3f2f1;
+  color: #323130;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (hover: none) {
+  .attachment-overlay {
+    position: static;
+    min-height: 38px;
+    border-radius: 0;
+    opacity: 1;
+  }
+}
+
 /*
  * Correzioni per modalità scura.
  */
@@ -265,6 +398,32 @@ footer {
   }
 
   #function-response {
+    color: #f3f2f1;
+    background: #201f1e;
+  }
+
+  .attachment-card {
+    border-color: #484644;
+    background: #252423;
+  }
+
+  .attachment-meta,
+  .attachments-empty,
+  .header-status {
+    color: #c8c6c4;
+  }
+
+  .secondary-button {
+    border-color: #8a8886;
+    background: #2d2c2b;
+    color: #f3f2f1;
+  }
+
+  .secondary-button:hover {
+    background: #3b3a39;
+  }
+
+  .attachment-header-content {
     color: #f3f2f1;
     background: #201f1e;
   }

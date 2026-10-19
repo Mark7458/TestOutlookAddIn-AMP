@@ -13,8 +13,11 @@
     subject: "message-subject",
     sender: "message-sender",
     received: "message-received",
-    body: "message-body"
+    body: "message-body",
+    attachments: "message-attachments"
   };
+
+  let currentHeaderText = "";
 
   function setHealthButtonLoading(isLoading) {
   const button =
@@ -369,6 +372,344 @@ function registerHealthButton() {
         .join(", ");
   }
 
+
+  function formatAttachmentSize(size) {
+    const bytes = Number(size);
+
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return "Dimensione non disponibile";
+    }
+
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function isMessageAttachment(attachment) {
+    const type = String(
+      attachment?.attachmentType || ""
+    ).toLowerCase();
+
+    const itemType = String(
+      Office.MailboxEnums?.AttachmentType?.Item || "item"
+    ).toLowerCase();
+
+    return type === itemType || type === "item";
+  }
+
+  function getAttachmentContent(item, attachmentId) {
+    return new Promise((resolve, reject) => {
+      if (
+        !item ||
+        typeof item.getAttachmentContentAsync !== "function"
+      ) {
+        reject(
+          new Error(
+            "Il client Outlook non espone il contenuto degli allegati."
+          )
+        );
+        return;
+      }
+
+      item.getAttachmentContentAsync(
+        attachmentId,
+        (result) => {
+          if (
+            result.status ===
+            Office.AsyncResultStatus.Succeeded
+          ) {
+            resolve(result.value);
+            return;
+          }
+
+          const details =
+            result.error && result.error.message
+              ? result.error.message
+              : "Office.js non ha restituito il contenuto dell'allegato.";
+
+          reject(new Error(details));
+        }
+      );
+    });
+  }
+
+  function extractMessageHeader(emlContent) {
+    const content = String(emlContent || "");
+    const separator = /\r?\n\r?\n/.exec(content);
+
+    if (!separator) {
+      return content.trim();
+    }
+
+    return content
+      .slice(0, separator.index)
+      .trim();
+  }
+
+  function setHeaderStatus(message, isError = false) {
+    const status = byId("header-status");
+
+    if (!status) {
+      return;
+    }
+
+    status.textContent = message || "";
+    status.className = isError
+      ? "header-status status-error"
+      : "header-status";
+  }
+
+  function showMainView() {
+    const mainView = byId("main-view");
+    const headerView = byId("header-view");
+
+    if (mainView) {
+      mainView.hidden = false;
+    }
+
+    if (headerView) {
+      headerView.hidden = true;
+    }
+  }
+
+  function showHeaderView() {
+    const mainView = byId("main-view");
+    const headerView = byId("header-view");
+
+    if (mainView) {
+      mainView.hidden = true;
+    }
+
+    if (headerView) {
+      headerView.hidden = false;
+    }
+  }
+
+  async function openAttachmentHeader(attachment) {
+    const item =
+      Office.context &&
+      Office.context.mailbox &&
+      Office.context.mailbox.item;
+
+    const contentElement =
+      byId("attachment-header-content");
+
+    const nameElement =
+      byId("header-attachment-name");
+
+    currentHeaderText = "";
+
+    if (nameElement) {
+      nameElement.textContent =
+        attachment.name || "Messaggio allegato";
+    }
+
+    if (contentElement) {
+      contentElement.textContent = "";
+    }
+
+    setHeaderStatus("Recupero dell'header in corso...");
+    showHeaderView();
+
+    try {
+      const attachmentContent =
+        await getAttachmentContent(
+          item,
+          attachment.id
+        );
+
+      const format = String(
+        attachmentContent?.format || ""
+      ).toLowerCase();
+
+      const emlFormat = String(
+        Office.MailboxEnums
+          ?.AttachmentContentFormat
+          ?.Eml || "eml"
+      ).toLowerCase();
+
+      if (format !== emlFormat && format !== "eml") {
+        throw new Error(
+          "L'allegato non è stato restituito in formato EML."
+        );
+      }
+
+      currentHeaderText =
+        extractMessageHeader(
+          attachmentContent.content
+        );
+
+      if (!currentHeaderText) {
+        throw new Error(
+          "L'EML non contiene un header leggibile."
+        );
+      }
+
+      contentElement.textContent = currentHeaderText;
+      setHeaderStatus("Header recuperato.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      if (contentElement) {
+        contentElement.textContent = "";
+      }
+
+      setHeaderStatus(
+        `Impossibile recuperare l'header: ${message}`,
+        true
+      );
+    }
+  }
+
+  function renderAttachments(attachments) {
+    const container = byId(elementIds.attachments);
+
+    if (!container) {
+      return;
+    }
+
+    container.replaceChildren();
+
+    if (
+      !Array.isArray(attachments) ||
+      attachments.length === 0
+    ) {
+      const empty = document.createElement("div");
+      empty.className = "attachments-empty";
+      empty.textContent = "Nessun allegato";
+      container.appendChild(empty);
+      return;
+    }
+
+    attachments.forEach((attachment) => {
+      const card = document.createElement("div");
+      card.className = "attachment-card";
+
+      const summary = document.createElement("div");
+      summary.className = "attachment-summary";
+
+      const name = document.createElement("div");
+      name.className = "attachment-name";
+      name.textContent =
+        attachment.name || "Allegato senza nome";
+
+      const meta = document.createElement("div");
+      meta.className = "attachment-meta";
+
+      const messageAttachment =
+        isMessageAttachment(attachment);
+
+      meta.textContent = [
+        messageAttachment
+          ? "Messaggio Outlook"
+          : "File",
+        formatAttachmentSize(attachment.size)
+      ].join(" · ");
+
+      summary.append(name, meta);
+      card.appendChild(summary);
+
+      if (messageAttachment) {
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "attachment-overlay";
+        action.textContent = "Mostra header";
+        action.setAttribute(
+          "aria-label",
+          `Mostra header di ${attachment.name || "messaggio allegato"}`
+        );
+        action.addEventListener(
+          "click",
+          () => openAttachmentHeader(attachment)
+        );
+        card.appendChild(action);
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  async function copyCurrentHeader() {
+    if (!currentHeaderText) {
+      setHeaderStatus(
+        "Nessun header disponibile da copiare.",
+        true
+      );
+      return;
+    }
+
+    try {
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(
+          currentHeaderText
+        );
+      } else {
+        const textarea =
+          document.createElement("textarea");
+        textarea.value = currentHeaderText;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        if (!document.execCommand("copy")) {
+          throw new Error(
+            "Il client non consente la copia automatica."
+          );
+        }
+
+        textarea.remove();
+      }
+
+      setHeaderStatus("Header copiato negli appunti.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      setHeaderStatus(
+        `Copia non riuscita: ${message}`,
+        true
+      );
+    }
+  }
+
+  function registerHeaderViewControls() {
+    const backButton =
+      byId("header-back-button");
+
+    const copyButton =
+      byId("copy-header-button");
+
+    if (backButton) {
+      backButton.addEventListener(
+        "click",
+        showMainView
+      );
+    }
+
+    if (copyButton) {
+      copyButton.addEventListener(
+        "click",
+        copyCurrentHeader
+      );
+    }
+  }
+
   function loadDiagnostics() {
     const mailbox = Office.context && Office.context.mailbox;
     const diagnostics = mailbox && mailbox.diagnostics;
@@ -636,6 +977,7 @@ function registerHealthButton() {
     registerHealthResultCloseButton();
     loadDiagnostics();
     registerRoamingSettingsControls();
+    registerHeaderViewControls();
     loadSelectedMessage();
   });
 })();
