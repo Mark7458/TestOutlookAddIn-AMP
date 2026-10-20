@@ -1,39 +1,138 @@
+import {
+  PublicClientApplication
+} from "@azure/msal-browser";
+
 const AUTH_CONFIG = {
+  clientId:
+    "17be48ae-1d05-4233-ba98-654102bf76e0",
+  tenantId:
+    "9284cd5c-ae26-4eb2-b079-a14b6df5f1aa",
+  scope:
+    "api://17be48ae-1d05-4233-ba98-654102bf76e0/Workflow.Access",
+  redirectUri:
+    "https://jakdrizzt.github.io/TestOutlookAddIn/auth-dialog.html",
   healthUrl:
     "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/health",
-
   dialogUrl:
     "https://jakdrizzt.github.io/TestOutlookAddIn/auth-dialog.html"
 };
 
+let msalInstance = null;
+
 function createDialogError(message, details = {}) {
   const error = new Error(message);
-
   error.name =
     details.name ||
     "DialogAuthenticationError";
-
   error.errorCode =
     details.errorCode ||
     null;
-
   error.subError =
     details.subError ||
     null;
-
   error.correlationId =
     details.correlationId ||
     null;
-
   error.authenticationPhase =
     details.authenticationPhase ||
     "officeDialog";
-
   error.dialogEvent =
     details.dialogEvent ||
     null;
-
   return error;
+}
+
+async function initializeMsal() {
+  if (msalInstance) {
+    return msalInstance;
+  }
+
+  msalInstance =
+    new PublicClientApplication({
+      auth: {
+        clientId:
+          AUTH_CONFIG.clientId,
+        authority:
+          `https://login.microsoftonline.com/${AUTH_CONFIG.tenantId}`,
+        redirectUri:
+          AUTH_CONFIG.redirectUri,
+        navigateToLoginRequestUrl:
+          false
+      },
+      cache: {
+        cacheLocation:
+          "localStorage",
+        storeAuthStateInCookie:
+          true
+      }
+    });
+
+  await msalInstance.initialize();
+  return msalInstance;
+}
+
+/*
+ * Cerca PRIMA un account e un token nella cache MSAL.
+ * Restituisce null soltanto quando serve il flusso interattivo.
+ */
+async function acquireTokenSilently() {
+  const client =
+    await initializeMsal();
+
+  const accounts =
+    client.getAllAccounts();
+
+  console.info(
+    "Account MSAL disponibili nella cache:",
+    accounts.length
+  );
+
+  if (accounts.length === 0) {
+    return null;
+  }
+
+  try {
+    const result =
+      await client.acquireTokenSilent({
+        account:
+          accounts[0],
+        scopes: [
+          AUTH_CONFIG.scope
+        ]
+      });
+
+    if (!result?.accessToken) {
+      return null;
+    }
+
+    console.info(
+      "Token MSAL ottenuto silenziosamente per:",
+      result.account?.username ||
+        accounts[0].username ||
+        "account non disponibile"
+    );
+
+    return {
+      accessToken:
+        result.accessToken,
+      acquisitionMode:
+        "silent"
+    };
+  } catch (error) {
+    console.warn(
+      "Token silent non disponibile; apro il dialogo interattivo.",
+      {
+        name:
+          error?.name,
+        errorCode:
+          error?.errorCode,
+        message:
+          error?.message
+      }
+    );
+
+    return null;
+  }
 }
 
 function acquireTokenWithOfficeDialog() {
@@ -54,7 +153,6 @@ function acquireTokenWithOfficeDialog() {
           }
         )
       );
-
       return;
     }
 
@@ -78,23 +176,17 @@ function acquireTokenWithOfficeDialog() {
                 errorCode:
                   result.error?.code ||
                   "dialog_open_failed",
-
                 authenticationPhase:
                   "displayDialogAsync"
               }
             )
           );
-
           return;
         }
 
         const dialog = result.value;
         let completed = false;
 
-        /*
-         * Se non riceviamo alcun messaggio dal dialogo
-         * entro cinque minuti, terminiamo il tentativo.
-         */
         const authenticationTimeout =
           setTimeout(() => {
             completeWithError(
@@ -103,7 +195,6 @@ function acquireTokenWithOfficeDialog() {
                 {
                   errorCode:
                     "authentication_timeout",
-
                   authenticationPhase:
                     "officeDialog"
                 }
@@ -129,7 +220,6 @@ function acquireTokenWithOfficeDialog() {
           }
 
           completed = true;
-
           clearAuthenticationTimeout();
           closeDialog();
           reject(error);
@@ -141,16 +231,11 @@ function acquireTokenWithOfficeDialog() {
           }
 
           completed = true;
-
           clearAuthenticationTimeout();
           closeDialog();
           resolve(tokenResult);
         }
 
-        /*
-         * Questo è l'evento autorevole:
-         * il dialogo invia un JSON tramite messageParent().
-         */
         dialog.addEventHandler(
           Office.EventType.DialogMessageReceived,
           (event) => {
@@ -166,29 +251,26 @@ function acquireTokenWithOfficeDialog() {
                   {
                     errorCode:
                       "invalid_dialog_message",
-
                     authenticationPhase:
                       "officeDialog"
                   }
                 )
               );
-
               return;
             }
 
             if (
-              message.type === "auth-success" &&
+              message.type ===
+                "auth-success" &&
               message.accessToken
             ) {
               completeWithToken({
                 accessToken:
                   message.accessToken,
-
                 acquisitionMode:
                   message.acquisitionMode ||
                   "interactive"
               });
-
               return;
             }
 
@@ -199,16 +281,12 @@ function acquireTokenWithOfficeDialog() {
                 {
                   name:
                     message.name,
-
                   errorCode:
                     message.errorCode,
-
                   subError:
                     message.subError,
-
                   correlationId:
                     message.correlationId,
-
                   authenticationPhase:
                     message.authenticationPhase ||
                     "authDialog"
@@ -218,14 +296,6 @@ function acquireTokenWithOfficeDialog() {
           }
         );
 
-        /*
-         * In questo ambiente DialogEventReceived viene
-         * emesso anche mentre la finestra di autenticazione
-         * è ancora visibile.
-         *
-         * Non lo usiamo quindi per chiudere la Promise.
-         * Lo registriamo soltanto a fini diagnostici.
-         */
         dialog.addEventHandler(
           Office.EventType.DialogEventReceived,
           (event) => {
@@ -243,19 +313,28 @@ function acquireTokenWithOfficeDialog() {
   });
 }
 
+async function getAuthentication() {
+  const silentAuthentication =
+    await acquireTokenSilently();
+
+  if (silentAuthentication) {
+    return silentAuthentication;
+  }
+
+  return acquireTokenWithOfficeDialog();
+}
+
 async function callHealth() {
   const authentication =
-    await acquireTokenWithOfficeDialog();
+    await getAuthentication();
 
   const response = await fetch(
     AUTH_CONFIG.healthUrl,
     {
       method: "GET",
-
       headers: {
         Authorization:
           `Bearer ${authentication.accessToken}`,
-
         Accept:
           "application/json"
       }
@@ -268,16 +347,12 @@ async function callHealth() {
   return {
     ok:
       response.ok,
-
     status:
       response.status,
-
     statusText:
       response.statusText,
-
     authenticationMode:
       authentication.acquisitionMode,
-
     body
   };
 }
