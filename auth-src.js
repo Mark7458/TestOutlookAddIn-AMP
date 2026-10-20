@@ -18,6 +18,7 @@ const AUTH_CONFIG = {
 };
 
 let msalInstance = null;
+let dialogOperationSequence = 0;
 
 function createDialogError(message, details = {}) {
   const error = new Error(message);
@@ -136,6 +137,7 @@ async function acquireTokenSilently() {
 }
 
 function acquireTokenWithOfficeDialog() {
+  const operationId = ++dialogOperationSequence;
   return new Promise((resolve, reject) => {
     if (
       !window.Office ||
@@ -215,22 +217,24 @@ function acquireTokenWithOfficeDialog() {
         }
 
         function completeWithError(error) {
-          if (completed) {
+          if (completed || operationId !== dialogOperationSequence) {
             return;
           }
 
           completed = true;
+          dialogOperationSequence += 1;
           clearAuthenticationTimeout();
           closeDialog();
           reject(error);
         }
 
         function completeWithToken(tokenResult) {
-          if (completed) {
+          if (completed || operationId !== dialogOperationSequence) {
             return;
           }
 
           completed = true;
+          dialogOperationSequence += 1;
           clearAuthenticationTimeout();
           closeDialog();
           resolve(tokenResult);
@@ -290,16 +294,17 @@ function acquireTokenWithOfficeDialog() {
                             : null
                       };
 
+                      console.info("Cache MSAL task pane prima di hydrateCache:", client.getAllAccounts().length);
                       await client.hydrateCache(
                         hydratedResult,
-                        {
-                          scopes: [
-                            AUTH_CONFIG.scope
-                          ],
-                          account:
-                            hydratedResult.account
-                        }
+                        { scopes: [AUTH_CONFIG.scope], account: hydratedResult.account }
                       );
+                      const accountsAfterHydrate = client.getAllAccounts();
+                      console.info("Cache MSAL task pane dopo hydrateCache:", accountsAfterHydrate.length,
+                        accountsAfterHydrate.map((account) => account.username));
+                      if (accountsAfterHydrate.length === 0) {
+                        throw new Error("hydrateCache completato ma nessun account è presente nella cache MSAL del task pane.");
+                      }
 
                       client.setActiveAccount(
                         hydratedResult.account

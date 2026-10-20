@@ -18,6 +18,8 @@ const DIAGNOSTIC_KEY =
 const MAX_DIAGNOSTIC_EVENTS = 60;
 const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
+const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
+const OFFICE_DIALOG_URL_KEY = "outlook-sogei-office-dialog-url";
 
 let msalInstance = null;
 
@@ -158,6 +160,44 @@ function delay(milliseconds) {
  * dopo i redirect. Aspettiamo quindi direttamente
  * e con timeout la sola API che ci serve.
  */
+function hasOfficeHostInfo() {
+  return new URL(window.location.href).searchParams.has("_host_Info");
+}
+function rememberOfficeDialogUrl() {
+  if (!hasOfficeHostInfo()) return;
+  localStorage.setItem(OFFICE_DIALOG_URL_KEY, window.location.href.split("#")[0]);
+  recordDiagnostic("office_dialog_url_saved");
+}
+function serializeAuthenticationResult(result, acquisitionMode) {
+  return {
+    acquisitionMode, authority: result.authority || null,
+    uniqueId: result.uniqueId || null, tenantId: result.tenantId || null,
+    scopes: result.scopes || [], account: result.account || null,
+    idToken: result.idToken || "", idTokenClaims: result.idTokenClaims || {},
+    accessToken: result.accessToken,
+    expiresOn: result.expiresOn ? result.expiresOn.toISOString() : null,
+    extExpiresOn: result.extExpiresOn ? result.extExpiresOn.toISOString() : null,
+    correlationId: result.correlationId || "", tokenType: result.tokenType || "Bearer",
+    fromPlatformBroker: Boolean(result.fromPlatformBroker),
+    cloudGraphHostName: result.cloudGraphHostName || "", msGraphHost: result.msGraphHost || ""
+  };
+}
+function savePendingAuthenticationResult(result, acquisitionMode) {
+  localStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(serializeAuthenticationResult(result, acquisitionMode)));
+  recordDiagnostic("pending_auth_saved", { mode: acquisitionMode, username: result.account?.username || null });
+}
+function readPendingAuthenticationResult() {
+  try { const raw = localStorage.getItem(PENDING_AUTH_KEY); return raw ? JSON.parse(raw) : null; }
+  catch (error) { recordDiagnostic("pending_auth_read_error", getSafeErrorDetails(error)); return null; }
+}
+function clearPendingAuthenticationResult() { localStorage.removeItem(PENDING_AUTH_KEY); }
+function returnToOfficeDialogPage() {
+  const url = localStorage.getItem(OFFICE_DIALOG_URL_KEY);
+  if (!url) throw new Error("URL del dialogo Office non disponibile dopo il redirect MSAL.");
+  recordDiagnostic("return_to_office_dialog");
+  window.location.replace(url);
+}
+
 async function waitForMessageParent() {
   const startedAt = Date.now();
   let attempts = 0;
@@ -314,87 +354,26 @@ async function initializeMsal() {
   return msalInstance;
 }
 
-async function sendTokenToParent(
-  authenticationResult,
-  acquisitionMode
-) {
-  if (!authenticationResult?.accessToken) {
-    throw new Error(
-      "MSAL non ha restituito un access token."
-    );
-  }
-
-  recordDiagnostic(
-    "token_ready",
-    {
-      mode:
-        acquisitionMode,
-      tokenPresent:
-        true,
-      tokenLength:
-        authenticationResult
-          .accessToken.length,
-      username:
-        authenticationResult
-          .account?.username ||
-        null,
-      homeAccountId:
-        authenticationResult
-          .account?.homeAccountId ||
-        null,
-      tenantId:
-        authenticationResult
-          .account?.tenantId ||
-        null
-    }
-  );
-
-  await sendMessageToParent({
-    type:
-      "auth-success",
-    acquisitionMode,
-    accessToken:
-      authenticationResult.accessToken,
-    authenticationResult: {
-      authority:
-        authenticationResult.authority || null,
-      uniqueId:
-        authenticationResult.uniqueId || null,
-      tenantId:
-        authenticationResult.tenantId || null,
-      scopes:
-        authenticationResult.scopes || [],
-      account:
-        authenticationResult.account || null,
-      idToken:
-        authenticationResult.idToken || "",
-      idTokenClaims:
-        authenticationResult.idTokenClaims || {},
-      accessToken:
-        authenticationResult.accessToken,
-      expiresOn:
-        authenticationResult.expiresOn
-          ? authenticationResult.expiresOn.toISOString()
-          : null,
-      extExpiresOn:
-        authenticationResult.extExpiresOn
-          ? authenticationResult.extExpiresOn.toISOString()
-          : null,
-      correlationId:
-        authenticationResult.correlationId || "",
-      tokenType:
-        authenticationResult.tokenType || "Bearer",
-      fromPlatformBroker:
-        Boolean(authenticationResult.fromPlatformBroker),
-      cloudGraphHostName:
-        authenticationResult.cloudGraphHostName || "",
-      msGraphHost:
-        authenticationResult.msGraphHost || ""
-    }
-  });
+async function sendTokenToParent(authenticationResult, acquisitionMode) {
+  if (!authenticationResult?.accessToken) throw new Error("MSAL non ha restituito un access token.");
+  recordDiagnostic("token_ready", { mode: acquisitionMode, tokenPresent: true, tokenLength: authenticationResult.accessToken.length,
+    username: authenticationResult.account?.username || null, homeAccountId: authenticationResult.account?.homeAccountId || null,
+    tenantId: authenticationResult.account?.tenantId || null });
+  const serialized = serializeAuthenticationResult(authenticationResult, acquisitionMode);
+  await sendMessageToParent({ type: "auth-success", acquisitionMode, accessToken: authenticationResult.accessToken, authenticationResult: serialized });
+}
+async function sendPendingTokenToParent(pendingResult) {
+  recordDiagnostic("pending_auth_send_start", { mode: pendingResult.acquisitionMode || "interactive", username: pendingResult.account?.username || null });
+  await sendMessageToParent({ type: "auth-success", acquisitionMode: pendingResult.acquisitionMode || "interactive",
+    accessToken: pendingResult.accessToken, authenticationResult: pendingResult });
+  clearPendingAuthenticationResult();
+  recordDiagnostic("pending_auth_cleared");
 }
 
 async function startAuthentication() {
+  const officeContextPage = hasOfficeHostInfo();
+  if (officeContextPage) rememberOfficeDialogUrl();
+
   recordDiagnostic(
     "script_start",
     {
@@ -411,6 +390,15 @@ async function startAuthentication() {
           .has("_host_Info")
     }
   );
+  if (officeContextPage) {
+    const pendingResult = readPendingAuthenticationResult();
+    if (pendingResult?.accessToken) {
+      recordDiagnostic("pending_auth_found");
+      await sendPendingTokenToParent(pendingResult);
+      return;
+    }
+  }
+
 
   const client =
     await initializeMsal();
@@ -450,10 +438,12 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
-    await sendTokenToParent(
-      redirectResult,
-      "interactive"
-    );
+    if (!officeContextPage) {
+      savePendingAuthenticationResult(redirectResult, "interactive");
+      returnToOfficeDialogPage();
+      return;
+    }
+    await sendTokenToParent(redirectResult, "interactive");
     return;
   }
 
