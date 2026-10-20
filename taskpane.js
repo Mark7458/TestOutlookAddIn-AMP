@@ -594,6 +594,64 @@ function registerHealthButton() {
     }
   }
 
+  function getAttachmentExtension(name) {
+    const match = String(name || "").trim().match(/\.([^.]+)$/);
+    return match ? match[1].toLowerCase() : "";
+  }
+
+  function getAttachmentMimeType(attachment) {
+    const knownTypes = {
+      pdf: "application/pdf", png: "image/png", jpg: "image/jpeg",
+      jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+      txt: "text/plain", csv: "text/csv", html: "text/html",
+      htm: "text/html", eml: "message/rfc822"
+    };
+    return knownTypes[getAttachmentExtension(attachment?.name)] || "application/octet-stream";
+  }
+
+  function base64ToBlob(base64Content, mimeType) {
+    const binary = atob(String(base64Content || ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
+  }
+
+  function triggerAttachmentDownload(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName || "allegato";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function downloadAttachment(attachment) {
+    try {
+      const cloudType = String(Office.MailboxEnums?.AttachmentType?.Cloud || "cloud").toLowerCase();
+      if (String(attachment?.attachmentType || "").toLowerCase() === cloudType) {
+        window.open(attachment.id, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const content = await getAttachmentContent(Office.context?.mailbox?.item, attachment.id);
+      const format = String(content?.format || "").toLowerCase();
+      let blob;
+      if (format === "base64") {
+        blob = base64ToBlob(content.content, getAttachmentMimeType(attachment));
+      } else if (format === "eml") {
+        blob = new Blob([content.content], { type: "message/rfc822" });
+      } else {
+        throw new Error(`Formato allegato non gestito: ${content?.format || "sconosciuto"}.`);
+      }
+      triggerAttachmentDownload(blob, attachment.name || "allegato");
+    } catch (error) {
+      console.error("Download allegato non riuscito:", error);
+      window.alert(`Impossibile scaricare l'allegato: ${error?.message || String(error)}`);
+    }
+  }
+
   function renderAttachments(attachments) {
     const container = byId(elementIds.attachments);
 
@@ -648,73 +706,65 @@ function registerHealthButton() {
       summary.append(name, meta);
       card.appendChild(summary);
 
+      const actions = document.createElement("div");
+      actions.className = "attachment-actions";
       if (canShowHeader) {
-        const action = document.createElement("button");
-        action.type = "button";
-        action.className = "attachment-overlay";
-        action.textContent = "Mostra header";
-        action.setAttribute(
-          "aria-label",
-          `Mostra header di ${attachment.name || "messaggio allegato"}`
-        );
-        action.addEventListener(
-          "click",
-          () => openAttachmentHeader(attachment)
-        );
-        card.appendChild(action);
+        const headerAction = document.createElement("button");
+        headerAction.type = "button";
+        headerAction.className = "attachment-action-button";
+        headerAction.textContent = "Mostra header";
+        headerAction.addEventListener("click", () => openAttachmentHeader(attachment));
+        actions.appendChild(headerAction);
       }
-
+      const downloadAction = document.createElement("button");
+      downloadAction.type = "button";
+      downloadAction.className = "attachment-action-button";
+      downloadAction.textContent = "Scarica";
+      downloadAction.addEventListener("click", () => downloadAttachment(attachment));
+      actions.appendChild(downloadAction);
+      card.appendChild(actions);
       container.appendChild(card);
     });
   }
 
+  function fallbackCopyText(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    let copied = false;
+    try { copied = document.execCommand("copy"); }
+    finally { textarea.remove(); }
+    return copied;
+  }
+
   async function copyCurrentHeader() {
     if (!currentHeaderText) {
-      setHeaderStatus(
-        "Nessun header disponibile da copiare.",
-        true
-      );
+      setHeaderStatus("Nessun header disponibile da copiare.", true);
       return;
     }
-
-    try {
-      if (
-        navigator.clipboard &&
-        typeof navigator.clipboard.writeText === "function"
-      ) {
-        await navigator.clipboard.writeText(
-          currentHeaderText
-        );
-      } else {
-        const textarea =
-          document.createElement("textarea");
-        textarea.value = currentHeaderText;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.select();
-
-        if (!document.execCommand("copy")) {
-          throw new Error(
-            "Il client non consente la copia automatica."
-          );
-        }
-
-        textarea.remove();
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try {
+        await navigator.clipboard.writeText(currentHeaderText);
+        setHeaderStatus("Header copiato negli appunti.");
+        return;
+      } catch (error) {
+        console.warn("Clipboard API bloccata; provo il fallback execCommand.", error);
       }
-
-      setHeaderStatus("Header copiato negli appunti.");
+    }
+    try {
+      if (!fallbackCopyText(currentHeaderText)) {
+        throw new Error("Il client non consente la copia automatica.");
+      }
+      setHeaderStatus("Header copiato negli appunti (modalità compatibile).");
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
-
-      setHeaderStatus(
-        `Copia non riuscita: ${message}`,
-        true
-      );
+      setHeaderStatus(`Copia non riuscita: ${error?.message || String(error)}`, true);
     }
   }
 
@@ -937,7 +987,9 @@ function registerHealthButton() {
 
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
-    
+
+    currentHeaderText = "";
+    showMainView();
     resetHealthResult();
     showLoading();
 
