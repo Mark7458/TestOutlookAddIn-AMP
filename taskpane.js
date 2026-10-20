@@ -403,6 +403,22 @@ function registerHealthButton() {
     return type === itemType || type === "item";
   }
 
+  function isEmlFileAttachment(attachment) {
+    const name = String(attachment?.name || "").trim().toLowerCase();
+    return name.endsWith(".eml");
+  }
+
+  function decodeBase64Text(base64Content) {
+    const binary = atob(String(base64Content || ""));
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+
+    try {
+      return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    } catch {
+      return binary;
+    }
+  }
+
   function getAttachmentContent(item, attachmentId) {
     return new Promise((resolve, reject) => {
       if (
@@ -534,16 +550,29 @@ function registerHealthButton() {
           ?.Eml || "eml"
       ).toLowerCase();
 
-      if (format !== emlFormat && format !== "eml") {
+      const base64Format = String(
+        Office.MailboxEnums
+          ?.AttachmentContentFormat
+          ?.Base64 || "base64"
+      ).toLowerCase();
+
+      let emlContent;
+
+      if (format === emlFormat || format === "eml") {
+        emlContent = attachmentContent.content;
+      } else if (
+        isEmlFileAttachment(attachment) &&
+        (format === base64Format || format === "base64")
+      ) {
+        emlContent = decodeBase64Text(attachmentContent.content);
+      } else {
         throw new Error(
-          "L'allegato non è stato restituito in formato EML."
+          "L'allegato non è stato restituito come messaggio EML leggibile."
         );
       }
 
       currentHeaderText =
-        extractMessageHeader(
-          attachmentContent.content
-        );
+        extractMessageHeader(emlContent);
 
       if (!currentHeaderText) {
         throw new Error(
@@ -585,7 +614,7 @@ function registerHealthButton() {
     ) {
       const empty = document.createElement("div");
       empty.className = "attachments-empty";
-      empty.textContent = "Nessuno";
+      empty.textContent = "Nessun allegato";
       container.appendChild(empty);
       return;
     }
@@ -607,18 +636,28 @@ function registerHealthButton() {
 
       const messageAttachment =
         isMessageAttachment(attachment);
+      const emlFileAttachment =
+        isEmlFileAttachment(attachment);
+      const canShowHeader =
+        messageAttachment || emlFileAttachment;
+
+      let attachmentLabel = "File";
+
+      if (messageAttachment) {
+        attachmentLabel = "Elemento Outlook";
+      } else if (emlFileAttachment) {
+        attachmentLabel = "Messaggio EML";
+      }
 
       meta.textContent = [
-        messageAttachment
-          ? "Messaggio Outlook"
-          : "File",
+        attachmentLabel,
         formatAttachmentSize(attachment.size)
       ].join(" · ");
 
       summary.append(name, meta);
       card.appendChild(summary);
 
-      if (messageAttachment) {
+      if (canShowHeader) {
         const action = document.createElement("button");
         action.type = "button";
         action.className = "attachment-overlay";
@@ -922,9 +961,6 @@ function registerHealthButton() {
       await loadSharedDiagnostics(item);
 
       const sender = item.from || item.sender;
-      const attachments = item.attachments
-        ? Array.from(item.attachments)
-        : [];
       const [bodyText, categories] = await Promise.all([
         getBodyAsText(item),
         getCategories(item)
@@ -945,7 +981,6 @@ function registerHealthButton() {
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
-      renderAttachments(attachments);
       showData();
     } catch (error) {
       if (sequence !== loadSequence) {
