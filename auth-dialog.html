@@ -2,22 +2,17 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0">
-
   <title>Accesso al servizio</title>
-
   <script
     src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js">
   </script>
-
   <script
     src="auth-dialog.bundle.js"
     defer>
   </script>
-
   <style>
     body {
       margin: 0;
@@ -31,7 +26,7 @@
     }
 
     .auth-card {
-      max-width: 420px;
+      max-width: 520px;
       margin: 0 auto;
       padding: 20px;
       border: 1px solid #edebe9;
@@ -65,22 +60,78 @@
         transform: rotate(360deg);
       }
     }
+
+    .diagnostics {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #edebe9;
+    }
+
+    .diagnostics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .diagnostics h2 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .diagnostics button {
+      padding: 5px 9px;
+      border: 1px solid #8a8886;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #323130;
+      cursor: pointer;
+    }
+
+    #auth-diagnostics {
+      max-height: 240px;
+      margin: 0;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border-radius: 4px;
+      background: #f3f2f1;
+      color: #323130;
+      font-family:
+        Consolas,
+        monospace;
+      font-size: 11px;
+      line-height: 1.45;
+    }
   </style>
 </head>
-
 <body>
   <main class="auth-card">
     <h1>Accesso al servizio</h1>
-
     <p>
       Seleziona l'account SOGEI e completa
       l'eventuale verifica MFA.
     </p>
-
     <div
       class="spinner"
       aria-label="Autenticazione in corso">
     </div>
+
+    <section
+      class="diagnostics"
+      aria-label="Diagnostica autenticazione">
+      <div class="diagnostics-header">
+        <h2>Diagnostica autenticazione</h2>
+        <button
+          id="clear-auth-diagnostics"
+          type="button">
+          Pulisci
+        </button>
+      </div>
+      <pre id="auth-diagnostics">Caricamento diagnostica...</pre>
+    </section>
   </main>
 </body>
 </html>
