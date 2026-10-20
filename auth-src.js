@@ -264,13 +264,80 @@ function acquireTokenWithOfficeDialog() {
                 "auth-success" &&
               message.accessToken
             ) {
-              completeWithToken({
-                accessToken:
-                  message.accessToken,
-                acquisitionMode:
-                  message.acquisitionMode ||
-                  "interactive"
-              });
+              const finishAuthentication =
+                async () => {
+                  if (
+                    message.authenticationResult
+                      ?.account
+                  ) {
+                    try {
+                      const client =
+                        await initializeMsal();
+
+                      const hydratedResult = {
+                        ...message.authenticationResult,
+                        expiresOn:
+                          message.authenticationResult.expiresOn
+                            ? new Date(
+                                message.authenticationResult.expiresOn
+                              )
+                            : null,
+                        extExpiresOn:
+                          message.authenticationResult.extExpiresOn
+                            ? new Date(
+                                message.authenticationResult.extExpiresOn
+                              )
+                            : null
+                      };
+
+                      await client.hydrateCache(
+                        hydratedResult,
+                        {
+                          scopes: [
+                            AUTH_CONFIG.scope
+                          ],
+                          account:
+                            hydratedResult.account
+                        }
+                      );
+
+                      client.setActiveAccount(
+                        hydratedResult.account
+                      );
+
+                      console.info(
+                        "Cache MSAL del task pane sincronizzata dal dialogo per:",
+                        hydratedResult.account
+                          ?.username ||
+                          "account non disponibile"
+                      );
+                    } catch (cacheError) {
+                      console.warn(
+                        "Impossibile sincronizzare la cache MSAL del task pane.",
+                        {
+                          name:
+                            cacheError?.name,
+                          errorCode:
+                            cacheError?.errorCode,
+                          message:
+                            cacheError?.message
+                        }
+                      );
+                    }
+                  }
+
+                  completeWithToken({
+                    accessToken:
+                      message.accessToken,
+                    acquisitionMode:
+                      message.acquisitionMode ||
+                      "interactive"
+                  });
+                };
+
+              finishAuthentication().catch(
+                completeWithError
+              );
               return;
             }
 

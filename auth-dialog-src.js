@@ -354,7 +354,43 @@ async function sendTokenToParent(
       "auth-success",
     acquisitionMode,
     accessToken:
-      authenticationResult.accessToken
+      authenticationResult.accessToken,
+    authenticationResult: {
+      authority:
+        authenticationResult.authority || null,
+      uniqueId:
+        authenticationResult.uniqueId || null,
+      tenantId:
+        authenticationResult.tenantId || null,
+      scopes:
+        authenticationResult.scopes || [],
+      account:
+        authenticationResult.account || null,
+      idToken:
+        authenticationResult.idToken || "",
+      idTokenClaims:
+        authenticationResult.idTokenClaims || {},
+      accessToken:
+        authenticationResult.accessToken,
+      expiresOn:
+        authenticationResult.expiresOn
+          ? authenticationResult.expiresOn.toISOString()
+          : null,
+      extExpiresOn:
+        authenticationResult.extExpiresOn
+          ? authenticationResult.extExpiresOn.toISOString()
+          : null,
+      correlationId:
+        authenticationResult.correlationId || "",
+      tokenType:
+        authenticationResult.tokenType || "Bearer",
+      fromPlatformBroker:
+        Boolean(authenticationResult.fromPlatformBroker),
+      cloudGraphHostName:
+        authenticationResult.cloudGraphHostName || "",
+      msGraphHost:
+        authenticationResult.msGraphHost || ""
+    }
   });
 }
 
