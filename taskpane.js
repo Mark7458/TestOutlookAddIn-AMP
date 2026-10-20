@@ -411,7 +411,6 @@ function registerHealthButton() {
   function decodeBase64Text(base64Content) {
     const binary = atob(String(base64Content || ""));
     const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-
     try {
       return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     } catch {
@@ -551,11 +550,8 @@ function registerHealthButton() {
       ).toLowerCase();
 
       const base64Format = String(
-        Office.MailboxEnums
-          ?.AttachmentContentFormat
-          ?.Base64 || "base64"
+        Office.MailboxEnums?.AttachmentContentFormat?.Base64 || "base64"
       ).toLowerCase();
-
       let emlContent;
 
       if (format === emlFormat || format === "eml") {
@@ -571,8 +567,7 @@ function registerHealthButton() {
         );
       }
 
-      currentHeaderText =
-        extractMessageHeader(emlContent);
+      currentHeaderText = extractMessageHeader(emlContent);
 
       if (!currentHeaderText) {
         throw new Error(
@@ -614,7 +609,7 @@ function registerHealthButton() {
     ) {
       const empty = document.createElement("div");
       empty.className = "attachments-empty";
-      empty.textContent = "Nessun allegato";
+      empty.textContent = "Nessuno";
       container.appendChild(empty);
       return;
     }
@@ -634,15 +629,11 @@ function registerHealthButton() {
       const meta = document.createElement("div");
       meta.className = "attachment-meta";
 
-      const messageAttachment =
-        isMessageAttachment(attachment);
-      const emlFileAttachment =
-        isEmlFileAttachment(attachment);
-      const canShowHeader =
-        messageAttachment || emlFileAttachment;
+      const messageAttachment = isMessageAttachment(attachment);
+      const emlFileAttachment = isEmlFileAttachment(attachment);
+      const canShowHeader = messageAttachment || emlFileAttachment;
 
       let attachmentLabel = "File";
-
       if (messageAttachment) {
         attachmentLabel = "Elemento Outlook";
       } else if (emlFileAttachment) {
@@ -961,6 +952,9 @@ function registerHealthButton() {
       await loadSharedDiagnostics(item);
 
       const sender = item.from || item.sender;
+      const attachments = item.attachments
+        ? Array.from(item.attachments)
+        : [];
       const [bodyText, categories] = await Promise.all([
         getBodyAsText(item),
         getCategories(item)
@@ -981,6 +975,7 @@ function registerHealthButton() {
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
+      renderAttachments(attachments);
       showData();
     } catch (error) {
       if (sequence !== loadSequence) {
