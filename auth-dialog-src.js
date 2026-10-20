@@ -16,13 +16,16 @@ const AUTH_CONFIG = {
 const DIAGNOSTIC_KEY =
   "outlook-sogei-auth-diagnostics";
 const MAX_DIAGNOSTIC_EVENTS = 60;
+
 let msalInstance = null;
+let officeReadyPromise = null;
 
 function readDiagnosticEvents() {
   try {
     const parsed = JSON.parse(
       localStorage.getItem(DIAGNOSTIC_KEY) || "[]"
     );
+
     return Array.isArray(parsed)
       ? parsed
       : [];
@@ -107,11 +110,63 @@ function getSafeErrorDetails(error) {
   };
 }
 
+function bindDiagnosticControls() {
+  refreshDiagnosticView();
+
+  const clearButton =
+    document.getElementById(
+      "clear-auth-diagnostics"
+    );
+
+  if (!clearButton) {
+    return;
+  }
+
+  clearButton.addEventListener(
+    "click",
+    () => {
+      localStorage.removeItem(
+        DIAGNOSTIC_KEY
+      );
+      refreshDiagnosticView();
+    }
+  );
+}
+
+function getOfficeReadyPromise() {
+  if (!officeReadyPromise) {
+    officeReadyPromise = Office.onReady()
+      .then(() => {
+        recordDiagnostic(
+          "office_ready_for_message_parent"
+        );
+      });
+  }
+
+  return officeReadyPromise;
+}
+
 /*
  * Invia un oggetto JSON dal dialogo
  * al task pane principale.
+ *
+ * Importante: l'elaborazione del redirect MSAL
+ * NON dipende da Office.onReady(). Attendiamo
+ * Office solo nel momento in cui dobbiamo
+ * comunicare con il task pane.
  */
-function sendMessageToParent(message) {
+async function sendMessageToParent(message) {
+  recordDiagnostic(
+    "message_parent_wait_office",
+    {
+      type:
+        message?.type ||
+        "unknown"
+    }
+  );
+
+  await getOfficeReadyPromise();
+
   recordDiagnostic(
     "message_parent_start",
     {
@@ -135,11 +190,7 @@ function sendMessageToParent(message) {
   );
 }
 
-/*
- * Restituisce al task pane un errore
- * serializzato e leggibile.
- */
-function sendErrorToParent(
+async function sendErrorToParent(
   error,
   authenticationPhase
 ) {
@@ -152,31 +203,35 @@ function sendErrorToParent(
     }
   );
 
-  sendMessageToParent({
-    type: "auth-error",
-    authenticationPhase:
-      authenticationPhase,
-    name:
-      error?.name ||
-      "AuthenticationError",
-    message:
-      error?.message ||
-      String(error),
-    errorCode:
-      error?.errorCode ||
-      null,
-    subError:
-      error?.subError ||
-      null,
-    correlationId:
-      error?.correlationId ||
-      null
-  });
+  try {
+    await sendMessageToParent({
+      type: "auth-error",
+      authenticationPhase:
+        authenticationPhase,
+      name:
+        error?.name ||
+        "AuthenticationError",
+      message:
+        error?.message ||
+        String(error),
+      errorCode:
+        error?.errorCode ||
+        null,
+      subError:
+        error?.subError ||
+        null,
+      correlationId:
+        error?.correlationId ||
+        null
+    });
+  } catch (messageError) {
+    recordDiagnostic(
+      "message_parent_error",
+      getSafeErrorDetails(messageError)
+    );
+  }
 }
 
-/*
- * Crea una sola istanza MSAL.
- */
 async function initializeMsal() {
   if (msalInstance) {
     return msalInstance;
@@ -215,11 +270,7 @@ async function initializeMsal() {
   return msalInstance;
 }
 
-/*
- * Restituisce il token al task pane.
- * Il token NON viene scritto nella diagnostica.
- */
-function sendTokenToParent(
+async function sendTokenToParent(
   authenticationResult,
   acquisitionMode
 ) {
@@ -250,7 +301,7 @@ function sendTokenToParent(
     }
   );
 
-  sendMessageToParent({
+  await sendMessageToParent({
     type:
       "auth-success",
     acquisitionMode:
@@ -260,21 +311,30 @@ function sendTokenToParent(
   });
 }
 
-/*
- * Avvia o completa l'autenticazione.
- */
 async function startAuthentication() {
   recordDiagnostic(
-    "authentication_start",
+    "script_start",
     {
       page:
-        window.location.href.split("#")[0]
+        window.location.href.split("#")[0],
+      hasHash:
+        Boolean(window.location.hash),
+      hasHostInfo:
+        new URL(window.location.href)
+          .searchParams
+          .has("_host_Info")
     }
   );
 
   const client =
     await initializeMsal();
 
+  /*
+   * Questa è ora la PRIMA operazione importante
+   * dopo il caricamento della pagina. In questo modo
+   * MSAL può processare la risposta Entra anche se
+   * Office.onReady() non si reinizializza dopo il redirect.
+   */
   recordDiagnostic(
     "handle_redirect_start"
   );
@@ -306,7 +366,7 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
-    sendTokenToParent(
+    await sendTokenToParent(
       redirectResult,
       "interactive"
     );
@@ -361,7 +421,7 @@ async function startAuthentication() {
         }
       );
 
-      sendTokenToParent(
+      await sendTokenToParent(
         silentResult,
         "silent"
       );
@@ -403,43 +463,33 @@ async function startAuthentication() {
 }
 
 /*
- * Office.js deve essere pronto prima
- * di poter usare messageParent().
+ * Non facciamo più dipendere MSAL da Office.onReady().
+ * Il DOM serve solo per mostrare la diagnostica;
+ * il flusso auth parte immediatamente dal bundle.
  */
-Office.onReady(() => {
-  refreshDiagnosticView();
-
-  recordDiagnostic(
-    "office_ready"
+if (document.readyState === "loading") {
+  document.addEventListener(
+    "DOMContentLoaded",
+    bindDiagnosticControls,
+    { once: true }
   );
+} else {
+  bindDiagnosticControls();
+}
 
-  const clearButton =
-    document.getElementById(
-      "clear-auth-diagnostics"
+recordDiagnostic(
+  "bundle_loaded"
+);
+
+startAuthentication()
+  .catch(async (error) => {
+    console.error(
+      "Errore nel dialogo di autenticazione.",
+      error
     );
 
-  if (clearButton) {
-    clearButton.addEventListener(
-      "click",
-      () => {
-        localStorage.removeItem(
-          DIAGNOSTIC_KEY
-        );
-        refreshDiagnosticView();
-      }
+    await sendErrorToParent(
+      error,
+      "authDialog"
     );
-  }
-
-  startAuthentication()
-    .catch((error) => {
-      console.error(
-        "Errore nel dialogo di autenticazione.",
-        error
-      );
-
-      sendErrorToParent(
-        error,
-        "authDialog"
-      );
-    });
-});
+  });
