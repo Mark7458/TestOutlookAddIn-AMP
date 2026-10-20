@@ -585,7 +585,7 @@ function registerHealthButton() {
     ) {
       const empty = document.createElement("div");
       empty.className = "attachments-empty";
-      empty.textContent = "Nessun allegato";
+      empty.textContent = "Nessuno";
       container.appendChild(empty);
       return;
     }
@@ -922,6 +922,9 @@ function registerHealthButton() {
       await loadSharedDiagnostics(item);
 
       const sender = item.from || item.sender;
+      const attachments = item.attachments
+        ? Array.from(item.attachments)
+        : [];
       const [bodyText, categories] = await Promise.all([
         getBodyAsText(item),
         getCategories(item)
@@ -942,6 +945,7 @@ function registerHealthButton() {
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
+      renderAttachments(attachments);
       showData();
     } catch (error) {
       if (sequence !== loadSequence) {
