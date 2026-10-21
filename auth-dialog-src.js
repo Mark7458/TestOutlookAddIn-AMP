@@ -535,14 +535,6 @@ async function startAuthentication() {
   }
 );
 
-recordOfficeState(
-  "before_acquire_token_popup"
-);
-
-probeOfficeReady(
-  "before_acquire_token_popup"
-);
-
 let popupResult;
 
 try {
@@ -568,13 +560,7 @@ try {
     }
   );
 
-  recordOfficeState(
-    "after_acquire_token_popup"
-  );
-
-  probeOfficeReady(
-    "after_acquire_token_popup"
-  );
+ 
 
 } catch (popupError) {
 
