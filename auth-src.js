@@ -19,6 +19,7 @@ const AUTH_CONFIG = {
 
 let msalInstance = null;
 let dialogOperationSequence = 0;
+let currentAuthentication = null;
 
 function createDialogError(message, details = {}) {
   const error = new Error(message);
@@ -76,6 +77,22 @@ async function initializeMsal() {
  * Cerca PRIMA un account e un token nella cache MSAL.
  * Restituisce null soltanto quando serve il flusso interattivo.
  */
+function isAuthenticationUsable(authentication) {
+  if (!authentication?.accessToken) {
+    return false;
+  }
+
+  if (!authentication.expiresOn) {
+    return true;
+  }
+
+  const expiresOn = new Date(authentication.expiresOn).getTime();
+  const safetyWindowMs = 2 * 60 * 1000;
+
+  return Number.isFinite(expiresOn) &&
+    expiresOn - Date.now() > safetyWindowMs;
+}
+
 async function acquireTokenSilently() {
   const client =
     await initializeMsal();
@@ -113,12 +130,16 @@ async function acquireTokenSilently() {
         "account non disponibile"
     );
 
-    return {
+    currentAuthentication = {
       accessToken:
         result.accessToken,
       acquisitionMode:
-        "silent"
+        "silent",
+      expiresOn:
+        result.expiresOn || null
     };
+
+    return currentAuthentication;
   } catch (error) {
     console.warn(
       "Token silent non disponibile; apro il dialogo interattivo.",
@@ -163,7 +184,8 @@ function acquireTokenWithOfficeDialog() {
       {
         height: 65,
         width: 45,
-        displayInIframe: false
+        displayInIframe: false,
+        promptBeforeOpen: false
       },
       (result) => {
         if (
@@ -237,6 +259,7 @@ function acquireTokenWithOfficeDialog() {
           dialogOperationSequence += 1;
           clearAuthenticationTimeout();
           closeDialog();
+          currentAuthentication = tokenResult;
           resolve(tokenResult);
         }
 
@@ -336,7 +359,10 @@ function acquireTokenWithOfficeDialog() {
                       message.accessToken,
                     acquisitionMode:
                       message.acquisitionMode ||
-                      "interactive"
+                      "interactive",
+                    expiresOn:
+                      message.authenticationResult?.expiresOn ||
+                      null
                   });
                 };
 
@@ -386,6 +412,15 @@ function acquireTokenWithOfficeDialog() {
 }
 
 async function getAuthentication() {
+  if (isAuthenticationUsable(currentAuthentication)) {
+    return {
+      ...currentAuthentication,
+      acquisitionMode: "memory"
+    };
+  }
+
+  currentAuthentication = null;
+
   const silentAuthentication =
     await acquireTokenSilently();
 
