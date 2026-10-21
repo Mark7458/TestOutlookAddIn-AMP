@@ -198,6 +198,63 @@ function returnToOfficeDialogPage() {
   window.location.replace(url);
 }
 
+function recordOfficeState(checkpoint) {
+  recordDiagnostic("office_state", {
+    checkpoint,
+    hasOffice:
+      typeof globalThis.Office !== "undefined",
+    hasContext:
+      Boolean(globalThis.Office?.context),
+    hasUi:
+      Boolean(globalThis.Office?.context?.ui),
+    hasMessageParent:
+      typeof globalThis.Office?.context?.ui?.messageParent === "function",
+    windowNameLength:
+      String(window.name || "").length,
+    hostInfo:
+      hasOfficeHostInfo(),
+    hasHash:
+      Boolean(window.location.hash)
+  });
+}
+
+function probeOfficeReady(checkpoint) {
+  if (
+    typeof globalThis.Office === "undefined" ||
+    typeof globalThis.Office.onReady !== "function"
+  ) {
+    recordDiagnostic("office_onready", {
+      checkpoint,
+      result: "office_unavailable"
+    });
+    return;
+  }
+
+  Promise.race([
+    globalThis.Office.onReady(),
+    delay(5000).then(() => "timeout")
+  ])
+    .then((result) => {
+      recordDiagnostic("office_onready", {
+        checkpoint,
+        result:
+          typeof result === "string"
+            ? result
+            : result?.host || "ready"
+      });
+      recordOfficeState(`${checkpoint}_after_onready`);
+    })
+    .catch((error) => {
+      recordDiagnostic(
+        "office_onready_error",
+        {
+          checkpoint,
+          ...getSafeErrorDetails(error)
+        }
+      );
+    });
+}
+
 async function waitForMessageParent() {
   const startedAt = Date.now();
   let attempts = 0;
@@ -247,6 +304,9 @@ async function waitForMessageParent() {
 }
 
 async function sendMessageToParent(message) {
+  recordOfficeState("before_message_parent_wait");
+  probeOfficeReady("before_message_parent_wait");
+
   await waitForMessageParent();
 
   recordDiagnostic(
@@ -403,6 +463,9 @@ async function startAuthentication() {
   }
 
 
+  recordOfficeState("script_start");
+  probeOfficeReady("script_start");
+
   const client =
     await initializeMsal();
 
@@ -439,6 +502,9 @@ async function startAuthentication() {
     );
     throw error;
   }
+
+  recordOfficeState("after_handle_redirect");
+  probeOfficeReady("after_handle_redirect");
 
   if (redirectResult?.accessToken) {
     if (!officeContextPage) {
@@ -536,6 +602,9 @@ async function startAuthentication() {
         AUTH_CONFIG.scope
     }
   );
+
+  recordOfficeState("before_acquire_token_redirect");
+  probeOfficeReady("before_acquire_token_redirect");
 
   await client.acquireTokenRedirect({
     scopes: [

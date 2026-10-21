@@ -207,6 +207,7 @@ async function testHealthFunction() {
    */
   resetHealthResult();
   setHealthButtonLoading(true);
+  refreshAuthDiagnostics();
 
   try {
     if (!window.WorkflowHealth) {
@@ -219,6 +220,7 @@ async function testHealthFunction() {
       await window.WorkflowHealth.callHealth();
 
     showHealthResult(result);
+    refreshAuthDiagnostics();
   } catch (error) {
     console.error(
       "Errore durante il test Health:",
@@ -230,6 +232,7 @@ async function testHealthFunction() {
      * del popup MFA.
      */
     showHealthError(error);
+    refreshAuthDiagnostics();
   } finally {
     setHealthButtonLoading(false);
   }
@@ -247,10 +250,24 @@ async function testHealthFunction() {
   function refreshAuthDiagnostics() {
     const output = document.getElementById("auth-diagnostics-output");
     if (!output) return;
+    const workflowHealthAvailable = Boolean(window.WorkflowHealth);
+    const diagnosticsApiAvailable = Boolean(
+      window.WorkflowHealth?.getDiagnostics
+    );
     const events = window.WorkflowHealth?.getDiagnostics?.() || [];
+    const lastEvent = events.at(-1)?.event || "nessuno";
+
+    const summary = [
+      `WorkflowHealth disponibile: ${workflowHealthAvailable}`,
+      `API diagnostica disponibile: ${diagnosticsApiAvailable}`,
+      `Eventi locali: ${events.length}`,
+      `Ultimo evento: ${lastEvent}`,
+      ""
+    ].join("\n");
+
     output.textContent = events.length
-      ? events.map(formatAuthDiagnosticEntry).join("\n")
-      : "Nessun evento registrato.";
+      ? summary + events.map(formatAuthDiagnosticEntry).join("\n")
+      : summary + "Nessun evento registrato.";
     output.scrollTop = output.scrollHeight;
   }
 
@@ -1111,6 +1128,7 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerHealthButton();
     registerHealthResultCloseButton();
+    registerAuthDiagnosticsControls();
     loadDiagnostics();
     registerRoamingSettingsControls();
     registerHeaderViewControls();
