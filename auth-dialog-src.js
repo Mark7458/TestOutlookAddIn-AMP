@@ -438,12 +438,12 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
-    if (!officeContextPage) {
-      savePendingAuthenticationResult(redirectResult, "interactive");
-      returnToOfficeDialogPage();
-      return;
-    }
-    await sendTokenToParent(redirectResult, "interactive");
+    savePendingAuthenticationResult(
+      redirectResult,
+      "interactive"
+    );
+
+    returnToOfficeDialogPage();
     return;
   }
 
