@@ -528,24 +528,76 @@ async function startAuthentication() {
   }
 
   recordDiagnostic(
-    "acquire_token_redirect_start",
-    {
-      redirectUri:
-        AUTH_CONFIG.redirectUri,
-      scope:
+  "acquire_token_popup_start",
+  {
+    scope:
+      AUTH_CONFIG.scope
+  }
+);
+
+recordOfficeState(
+  "before_acquire_token_popup"
+);
+
+probeOfficeReady(
+  "before_acquire_token_popup"
+);
+
+let popupResult;
+
+try {
+  popupResult =
+    await client.acquireTokenPopup({
+      scopes: [
         AUTH_CONFIG.scope
+      ],
+      prompt:
+        "select_account"
+    });
+
+  recordDiagnostic(
+    "acquire_token_popup_complete",
+    {
+      tokenPresent:
+        Boolean(
+          popupResult?.accessToken
+        ),
+      username:
+        popupResult?.account?.username ||
+        null
     }
   );
 
-  await client.acquireTokenRedirect({
-    scopes: [
-      AUTH_CONFIG.scope
-    ],
-    redirectUri:
-      AUTH_CONFIG.redirectUri,
-    prompt:
-      "select_account"
-  });
+  recordOfficeState(
+    "after_acquire_token_popup"
+  );
+
+  probeOfficeReady(
+    "after_acquire_token_popup"
+  );
+
+} catch (popupError) {
+
+  recordDiagnostic(
+    "acquire_token_popup_error",
+    getSafeErrorDetails(
+      popupError
+    )
+  );
+
+  throw popupError;
+}
+
+if (!popupResult?.accessToken) {
+  throw new Error(
+    "MSAL popup non ha restituito un access token."
+  );
+}
+
+await sendTokenToParent(
+  popupResult,
+  "interactive"
+);
 }
 
 if (document.readyState === "loading") {
