@@ -192,6 +192,7 @@ function acquireTokenWithOfficeDialog() {
           result.status ===
           Office.AsyncResultStatus.Failed
         ) {
+          dialogOperationSequence += 1;
           reject(
             createDialogError(
               result.error?.message ||

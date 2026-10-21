@@ -20,6 +20,9 @@ const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
 const OFFICE_DIALOG_URL_KEY = "outlook-sogei-office-dialog-url";
+const AUTH_FLOW_STATE_KEY = "outlook-sogei-auth-flow-state";
+const AUTH_FLOW_POLL_MS = 100;
+const AUTH_FLOW_TIMEOUT_MS = 30000;
 
 let msalInstance = null;
 
@@ -198,6 +201,40 @@ function returnToOfficeDialogPage() {
   window.location.replace(url);
 }
 
+function setAuthFlowState(state) {
+  localStorage.setItem(AUTH_FLOW_STATE_KEY, state);
+  recordDiagnostic("auth_flow_state", { state });
+}
+
+function getAuthFlowState() {
+  return localStorage.getItem(AUTH_FLOW_STATE_KEY) || "idle";
+}
+
+function clearAuthFlowState() {
+  localStorage.removeItem(AUTH_FLOW_STATE_KEY);
+}
+
+async function waitForPendingAuthenticationResult() {
+  const startedAt = Date.now();
+  recordDiagnostic("pending_auth_wait_start", {
+    timeoutMs: AUTH_FLOW_TIMEOUT_MS,
+    pollMs: AUTH_FLOW_POLL_MS
+  });
+
+  while (Date.now() - startedAt < AUTH_FLOW_TIMEOUT_MS) {
+    const pendingResult = readPendingAuthenticationResult();
+    if (pendingResult?.accessToken) {
+      recordDiagnostic("pending_auth_wait_complete", {
+        elapsedMs: Date.now() - startedAt
+      });
+      return pendingResult;
+    }
+    await delay(AUTH_FLOW_POLL_MS);
+  }
+
+  throw new Error("Il risultato MSAL interattivo non è diventato disponibile entro il timeout.");
+}
+
 async function waitForMessageParent() {
   const startedAt = Date.now();
   let attempts = 0;
@@ -372,176 +409,122 @@ async function sendPendingTokenToParent(pendingResult) {
 
 async function startAuthentication() {
   const officeContextPage = hasOfficeHostInfo();
-  if (officeContextPage) rememberOfficeDialogUrl();
+  const callbackPage = !officeContextPage && Boolean(window.location.hash);
 
-  recordDiagnostic(
-    "script_start",
-    {
-      page:
-        window.location.href
-          .split("#")[0],
-      hasHash:
-        Boolean(
-          window.location.hash
-        ),
-      hasHostInfo:
-        new URL(window.location.href)
-          .searchParams
-          .has("_host_Info")
-    }
-  );
   if (officeContextPage) {
-    const pendingResult = readPendingAuthenticationResult();
-    if (pendingResult?.accessToken) {
-      recordDiagnostic("pending_auth_found");
-      await sendPendingTokenToParent(pendingResult);
-      return;
-    }
+    rememberOfficeDialogUrl();
   }
 
+  recordDiagnostic("script_start", {
+    page: window.location.href.split("#")[0],
+    hasHash: Boolean(window.location.hash),
+    hasHostInfo: officeContextPage,
+    flowState: getAuthFlowState()
+  });
 
-  const client =
-    await initializeMsal();
+  /*
+   * CALLBACK MSAL: è l'unica pagina autorizzata a consumare
+   * il redirect interattivo. Produce un risultato pendente e
+   * ritorna alla pagina Office con _host_Info.
+   */
+  if (callbackPage) {
+    setAuthFlowState("callback-processing");
+    const client = await initializeMsal();
 
-  recordDiagnostic(
-    "handle_redirect_start"
-  );
+    recordDiagnostic("callback_handle_redirect_start");
+    const redirectResult = await client.handleRedirectPromise();
+    recordDiagnostic("callback_handle_redirect_complete", {
+      resultPresent: Boolean(redirectResult),
+      tokenPresent: Boolean(redirectResult?.accessToken),
+      username: redirectResult?.account?.username || null
+    });
 
-  let redirectResult;
-
-  try {
-    redirectResult =
-      await client
-        .handleRedirectPromise();
-
-    recordDiagnostic(
-      "handle_redirect_complete",
-      {
-        resultPresent:
-          Boolean(redirectResult),
-        tokenPresent:
-          Boolean(
-            redirectResult?.accessToken
-          ),
-        username:
-          redirectResult
-            ?.account?.username ||
-          null
-      }
-    );
-  } catch (error) {
-    recordDiagnostic(
-      "handle_redirect_error",
-      getSafeErrorDetails(error)
-    );
-    throw error;
-  }
-
-  if (redirectResult?.accessToken) {
-    if (!officeContextPage) {
-      savePendingAuthenticationResult(redirectResult, "interactive");
-      returnToOfficeDialogPage();
-      return;
+    if (!redirectResult?.accessToken) {
+      throw new Error("La callback MSAL non ha restituito un access token.");
     }
-    await sendTokenToParent(redirectResult, "interactive");
+
+    savePendingAuthenticationResult(redirectResult, "interactive");
+    setAuthFlowState("result-ready");
+    returnToOfficeDialogPage();
     return;
   }
 
-  const accounts =
-    client.getAllAccounts();
+  /*
+   * PAGINA OFFICE: se c'è un risultato pending lo consuma.
+   * Se la callback è ancora in corso aspetta solo il pending:
+   * NON chiama handleRedirectPromise e NON compete con MSAL.
+   */
+  if (officeContextPage) {
+    let pendingResult = readPendingAuthenticationResult();
 
-  recordDiagnostic(
-    "accounts_from_cache",
-    {
-      count:
-        accounts.length,
-      usernames:
-        accounts
-          .map((account) =>
-            account.username || ""
-          )
-          .filter(Boolean)
-          .join(", ")
-    }
-  );
-
-  if (accounts.length > 0) {
-    let silentResult = null;
-
-    /*
-     * Il catch comprende SOLO acquireTokenSilent.
-     * Un eventuale errore di messageParent non deve
-     * trasformarsi in un nuovo redirect interattivo.
-     */
-    try {
-      recordDiagnostic(
-        "silent_token_start",
-        {
-          username:
-            accounts[0].username ||
-            null
-        }
-      );
-
-      silentResult =
-        await client.acquireTokenSilent({
-          account:
-            accounts[0],
-          scopes: [
-            AUTH_CONFIG.scope
-          ]
-        });
-
-      recordDiagnostic(
-        "silent_token_complete",
-        {
-          tokenPresent:
-            Boolean(
-              silentResult?.accessToken
-            )
-        }
-      );
-    } catch (silentError) {
-      console.warn(
-        "Acquisizione silenziosa non riuscita.",
-        silentError
-      );
-
-      recordDiagnostic(
-        "silent_token_error",
-        getSafeErrorDetails(
-          silentError
-        )
-      );
+    if (!pendingResult?.accessToken && getAuthFlowState() === "callback-processing") {
+      pendingResult = await waitForPendingAuthenticationResult();
     }
 
-    if (silentResult?.accessToken) {
-      await sendTokenToParent(
-        silentResult,
-        "silent"
-      );
+    if (pendingResult?.accessToken) {
+      recordDiagnostic("pending_auth_found");
+      await sendPendingTokenToParent(pendingResult);
+      setAuthFlowState("result-sent");
+      clearAuthFlowState();
       return;
     }
   }
 
-  recordDiagnostic(
-    "acquire_token_redirect_start",
-    {
-      redirectUri:
-        AUTH_CONFIG.redirectUri,
-      scope:
-        AUTH_CONFIG.scope
+  const client = await initializeMsal();
+
+  /*
+   * Nessun redirect interattivo da consumare in questa pagina.
+   * Cerchiamo prima un account/token silent.
+   */
+  const accounts = client.getAllAccounts();
+  recordDiagnostic("accounts_from_cache", {
+    count: accounts.length,
+    usernames: accounts
+      .map((account) => account.username || "")
+      .filter(Boolean)
+      .join(", ")
+  });
+
+  if (accounts.length > 0) {
+    let silentResult = null;
+    try {
+      recordDiagnostic("silent_token_start", {
+        username: accounts[0].username || null
+      });
+      silentResult = await client.acquireTokenSilent({
+        account: accounts[0],
+        scopes: [AUTH_CONFIG.scope]
+      });
+      recordDiagnostic("silent_token_complete", {
+        tokenPresent: Boolean(silentResult?.accessToken)
+      });
+    } catch (silentError) {
+      recordDiagnostic("silent_token_error", getSafeErrorDetails(silentError));
     }
-  );
+
+    if (silentResult?.accessToken) {
+      await sendTokenToParent(silentResult, "silent");
+      return;
+    }
+  }
+
+  /*
+   * Solo adesso serve interazione. Puliamo eventuali residui,
+   * salviamo il contesto Office e avviamo il redirect Entra.
+   */
+  clearPendingAuthenticationResult();
+  setAuthFlowState("interactive-starting");
+  rememberOfficeDialogUrl();
+
+  recordDiagnostic("acquire_token_redirect_start", {
+    redirectUri: AUTH_CONFIG.redirectUri,
+    scope: AUTH_CONFIG.scope
+  });
 
   await client.acquireTokenRedirect({
-    scopes: [
-      AUTH_CONFIG.scope
-    ],
-    redirectUri:
-      AUTH_CONFIG.redirectUri,
-    prompt:
-      "select_account"
+    scopes: [AUTH_CONFIG.scope],
+    redirectUri: AUTH_CONFIG.redirectUri,
+    prompt: "select_account"
   });
 }
 
