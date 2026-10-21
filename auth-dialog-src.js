@@ -594,27 +594,94 @@ async function startAuthentication() {
   }
 
   recordDiagnostic(
-    "acquire_token_redirect_start",
+    "acquire_token_popup_start",
     {
-      redirectUri:
-        AUTH_CONFIG.redirectUri,
       scope:
         AUTH_CONFIG.scope
     }
   );
 
-  recordOfficeState("before_acquire_token_redirect");
-  probeOfficeReady("before_acquire_token_redirect");
+  recordOfficeState(
+    "before_acquire_token_popup"
+  );
 
-  await client.acquireTokenRedirect({
-    scopes: [
-      AUTH_CONFIG.scope
-    ],
-    redirectUri:
-      AUTH_CONFIG.redirectUri,
-    prompt:
-      "select_account"
-  });
+  probeOfficeReady(
+    "before_acquire_token_popup"
+  );
+
+  let popupResult;
+
+  try {
+
+    popupResult =
+      await client.acquireTokenPopup({
+        scopes: [
+          AUTH_CONFIG.scope
+        ],
+        prompt:
+          "select_account"
+      });
+
+    recordDiagnostic(
+      "acquire_token_popup_complete",
+      {
+        tokenPresent:
+          Boolean(
+            popupResult?.accessToken
+          ),
+
+        username:
+          popupResult?.account?.username ||
+          null
+      }
+    );
+
+    recordOfficeState(
+      "after_acquire_token_popup"
+    );
+
+    probeOfficeReady(
+      "after_acquire_token_popup"
+    );
+
+  } catch (popupError) {
+
+    recordDiagnostic(
+      "acquire_token_popup_error",
+      getSafeErrorDetails(
+        popupError
+      )
+    );
+
+    throw popupError;
+  }
+
+
+  if (!popupResult?.accessToken) {
+
+    throw new Error(
+      "MSAL popup non ha restituito un access token."
+    );
+  }
+
+
+  /*
+   * Il dialog Office originale non e mai stato
+   * abbandonato.
+   *
+   * Quindi a questo punto ci aspettiamo che:
+   *
+   *   window.name
+   *   Office.context.ui
+   *   messageParent()
+   *
+   * siano ancora validi.
+   */
+
+  await sendTokenToParent(
+    popupResult,
+    "interactive"
+  );
 }
 
 if (document.readyState === "loading") {
@@ -643,3 +710,4 @@ startAuthentication()
       "authDialog"
     );
   });
+
