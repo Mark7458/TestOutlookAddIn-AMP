@@ -20,9 +20,6 @@ const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
 const OFFICE_DIALOG_URL_KEY = "outlook-sogei-office-dialog-url";
-const AUTH_OPERATION_KEY = "outlook-sogei-auth-operation";
-const AUTH_OPERATION_MAX_AGE_MS = 60000;
-const PENDING_AUTH_WAIT_MS = 30000;
 
 let msalInstance = null;
 
@@ -185,134 +182,18 @@ function serializeAuthenticationResult(result, acquisitionMode) {
     cloudGraphHostName: result.cloudGraphHostName || "", msGraphHost: result.msGraphHost || ""
   };
 }
-function createOperationId() {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function savePendingAuthenticationResult(result, acquisitionMode) {
+  localStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(serializeAuthenticationResult(result, acquisitionMode)));
+  recordDiagnostic("pending_auth_saved", { mode: acquisitionMode, username: result.account?.username || null });
 }
-
-function readAuthOperation() {
-  try {
-    const raw = localStorage.getItem(AUTH_OPERATION_KEY);
-    if (!raw) return null;
-
-    const operation = JSON.parse(raw);
-    const ageMs = Date.now() - Number(operation.startedAt || 0);
-
-    if (
-      !operation.id ||
-      !Number.isFinite(ageMs) ||
-      ageMs < 0 ||
-      ageMs > AUTH_OPERATION_MAX_AGE_MS
-    ) {
-      localStorage.removeItem(AUTH_OPERATION_KEY);
-      localStorage.removeItem(PENDING_AUTH_KEY);
-      recordDiagnostic("auth_operation_stale_removed", { ageMs });
-      return null;
-    }
-
-    return operation;
-  } catch (error) {
-    localStorage.removeItem(AUTH_OPERATION_KEY);
-    localStorage.removeItem(PENDING_AUTH_KEY);
-    recordDiagnostic("auth_operation_read_error", getSafeErrorDetails(error));
-    return null;
-  }
+function readPendingAuthenticationResult() {
+  try { const raw = localStorage.getItem(PENDING_AUTH_KEY); return raw ? JSON.parse(raw) : null; }
+  catch (error) { recordDiagnostic("pending_auth_read_error", getSafeErrorDetails(error)); return null; }
 }
-
-function startAuthOperation() {
-  const operation = {
-    id: createOperationId(),
-    startedAt: Date.now()
-  };
-
-  localStorage.setItem(AUTH_OPERATION_KEY, JSON.stringify(operation));
-  localStorage.removeItem(PENDING_AUTH_KEY);
-  recordDiagnostic("auth_operation_started", { operationId: operation.id });
-  return operation;
-}
-
-function clearAuthOperation() {
-  localStorage.removeItem(AUTH_OPERATION_KEY);
-  localStorage.removeItem(PENDING_AUTH_KEY);
-}
-
-function savePendingAuthenticationResult(result, acquisitionMode, operationId) {
-  const envelope = {
-    operationId,
-    createdAt: Date.now(),
-    result: serializeAuthenticationResult(result, acquisitionMode)
-  };
-
-  localStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(envelope));
-  recordDiagnostic("pending_auth_saved", {
-    operationId,
-    mode: acquisitionMode,
-    username: result.account?.username || null
-  });
-}
-
-function readPendingAuthenticationResult(operationId) {
-  try {
-    const raw = localStorage.getItem(PENDING_AUTH_KEY);
-    if (!raw) return null;
-
-    const envelope = JSON.parse(raw);
-    const ageMs = Date.now() - Number(envelope.createdAt || 0);
-
-    if (
-      envelope.operationId !== operationId ||
-      !envelope.result?.accessToken ||
-      !Number.isFinite(ageMs) ||
-      ageMs < 0 ||
-      ageMs > AUTH_OPERATION_MAX_AGE_MS
-    ) {
-      return null;
-    }
-
-    return envelope.result;
-  } catch (error) {
-    recordDiagnostic("pending_auth_read_error", getSafeErrorDetails(error));
-    return null;
-  }
-}
-
-async function waitForPendingAuthenticationResult(operation) {
-  const startedAt = Date.now();
-  recordDiagnostic("pending_auth_wait_start", {
-    operationId: operation.id,
-    timeoutMs: PENDING_AUTH_WAIT_MS
-  });
-
-  while (Date.now() - startedAt < PENDING_AUTH_WAIT_MS) {
-    const pendingResult = readPendingAuthenticationResult(operation.id);
-    if (pendingResult?.accessToken) {
-      recordDiagnostic("pending_auth_wait_complete", {
-        operationId: operation.id,
-        elapsedMs: Date.now() - startedAt
-      });
-      return pendingResult;
-    }
-
-    await delay(MESSAGE_PARENT_POLL_MS);
-  }
-
-  /* Recovery: mai lasciare uno stato persistente bloccante. */
-  clearAuthOperation();
-  recordDiagnostic("pending_auth_wait_timeout_recovered", {
-    operationId: operation.id
-  });
-  return null;
-}
-
+function clearPendingAuthenticationResult() { localStorage.removeItem(PENDING_AUTH_KEY); }
 function returnToOfficeDialogPage() {
   const url = localStorage.getItem(OFFICE_DIALOG_URL_KEY);
-  if (!url) {
-    throw new Error("URL del dialogo Office non disponibile dopo il redirect MSAL.");
-  }
-
+  if (!url) throw new Error("URL del dialogo Office non disponibile dopo il redirect MSAL.");
   recordDiagnostic("return_to_office_dialog");
   window.location.replace(url);
 }
@@ -485,133 +366,182 @@ async function sendPendingTokenToParent(pendingResult) {
   recordDiagnostic("pending_auth_send_start", { mode: pendingResult.acquisitionMode || "interactive", username: pendingResult.account?.username || null });
   await sendMessageToParent({ type: "auth-success", acquisitionMode: pendingResult.acquisitionMode || "interactive",
     accessToken: pendingResult.accessToken, authenticationResult: pendingResult });
-  clearAuthOperation();
+  clearPendingAuthenticationResult();
   recordDiagnostic("pending_auth_cleared");
 }
 
 async function startAuthentication() {
   const officeContextPage = hasOfficeHostInfo();
-  const callbackPage = !officeContextPage && Boolean(window.location.hash);
+  if (officeContextPage) rememberOfficeDialogUrl();
 
+  recordDiagnostic(
+    "script_start",
+    {
+      page:
+        window.location.href
+          .split("#")[0],
+      hasHash:
+        Boolean(
+          window.location.hash
+        ),
+      hasHostInfo:
+        new URL(window.location.href)
+          .searchParams
+          .has("_host_Info")
+    }
+  );
   if (officeContextPage) {
-    rememberOfficeDialogUrl();
-  }
-
-  recordDiagnostic("script_start", {
-    page: window.location.href.split("#")[0],
-    hasHash: Boolean(window.location.hash),
-    hasHostInfo: officeContextPage
-  });
-
-  /*
-   * La callback MSAL è l'unica pagina che consuma il redirect.
-   */
-  if (callbackPage) {
-    const operation = readAuthOperation();
-    const client = await initializeMsal();
-
-    recordDiagnostic("callback_handle_redirect_start", {
-      operationId: operation?.id || null
-    });
-
-    const redirectResult = await client.handleRedirectPromise();
-
-    recordDiagnostic("callback_handle_redirect_complete", {
-      operationId: operation?.id || null,
-      resultPresent: Boolean(redirectResult),
-      tokenPresent: Boolean(redirectResult?.accessToken),
-      username: redirectResult?.account?.username || null
-    });
-
-    if (!operation || !redirectResult?.accessToken) {
-      clearAuthOperation();
-      throw new Error("La callback MSAL non ha restituito un risultato associabile all'operazione corrente.");
-    }
-
-    savePendingAuthenticationResult(
-      redirectResult,
-      "interactive",
-      operation.id
-    );
-
-    returnToOfficeDialogPage();
-    return;
-  }
-
-  /*
-   * Una nuova istanza Office può riapparire mentre la callback lavora.
-   * Se esiste un'operazione fresca, attende solo il suo risultato.
-   */
-  if (officeContextPage) {
-    const operation = readAuthOperation();
-
-    if (operation) {
-      const pendingResult =
-        readPendingAuthenticationResult(operation.id) ||
-        await waitForPendingAuthenticationResult(operation);
-
-      if (pendingResult?.accessToken) {
-        recordDiagnostic("pending_auth_found", {
-          operationId: operation.id
-        });
-        await sendPendingTokenToParent(pendingResult);
-        return;
-      }
-
-      /* Recovery già eseguita: continua con il flusso normale. */
-    }
-  }
-
-  const client = await initializeMsal();
-  const accounts = client.getAllAccounts();
-
-  recordDiagnostic("accounts_from_cache", {
-    count: accounts.length,
-    usernames: accounts
-      .map((account) => account.username || "")
-      .filter(Boolean)
-      .join(", ")
-  });
-
-  if (accounts.length > 0) {
-    let silentResult = null;
-
-    try {
-      recordDiagnostic("silent_token_start", {
-        username: accounts[0].username || null
-      });
-
-      silentResult = await client.acquireTokenSilent({
-        account: accounts[0],
-        scopes: [AUTH_CONFIG.scope]
-      });
-
-      recordDiagnostic("silent_token_complete", {
-        tokenPresent: Boolean(silentResult?.accessToken)
-      });
-    } catch (silentError) {
-      recordDiagnostic("silent_token_error", getSafeErrorDetails(silentError));
-    }
-
-    if (silentResult?.accessToken) {
-      await sendTokenToParent(silentResult, "silent");
+    const pendingResult = readPendingAuthenticationResult();
+    if (pendingResult?.accessToken) {
+      recordDiagnostic("pending_auth_found");
+      await sendPendingTokenToParent(pendingResult);
       return;
     }
   }
 
-  const operation = startAuthOperation();
-  rememberOfficeDialogUrl();
 
-  recordDiagnostic("acquire_token_redirect_start", {
-    operationId: operation.id,
-    redirectUri: AUTH_CONFIG.redirectUri,
-    scope: AUTH_CONFIG.scope
-  });
+  const client =
+    await initializeMsal();
+
+  recordDiagnostic(
+    "handle_redirect_start"
+  );
+
+  let redirectResult;
+
+  try {
+    redirectResult =
+      await client
+        .handleRedirectPromise();
+
+    recordDiagnostic(
+      "handle_redirect_complete",
+      {
+        resultPresent:
+          Boolean(redirectResult),
+        tokenPresent:
+          Boolean(
+            redirectResult?.accessToken
+          ),
+        username:
+          redirectResult
+            ?.account?.username ||
+          null
+      }
+    );
+  } catch (error) {
+    recordDiagnostic(
+      "handle_redirect_error",
+      getSafeErrorDetails(error)
+    );
+    throw error;
+  }
+
+  if (redirectResult?.accessToken) {
+    if (!officeContextPage) {
+      savePendingAuthenticationResult(redirectResult, "interactive");
+      returnToOfficeDialogPage();
+      return;
+    }
+    await sendTokenToParent(redirectResult, "interactive");
+    return;
+  }
+
+  const accounts =
+    client.getAllAccounts();
+
+  recordDiagnostic(
+    "accounts_from_cache",
+    {
+      count:
+        accounts.length,
+      usernames:
+        accounts
+          .map((account) =>
+            account.username || ""
+          )
+          .filter(Boolean)
+          .join(", ")
+    }
+  );
+
+  if (accounts.length > 0) {
+    let silentResult = null;
+
+    /*
+     * Il catch comprende SOLO acquireTokenSilent.
+     * Un eventuale errore di messageParent non deve
+     * trasformarsi in un nuovo redirect interattivo.
+     */
+    try {
+      recordDiagnostic(
+        "silent_token_start",
+        {
+          username:
+            accounts[0].username ||
+            null
+        }
+      );
+
+      silentResult =
+        await client.acquireTokenSilent({
+          account:
+            accounts[0],
+          scopes: [
+            AUTH_CONFIG.scope
+          ]
+        });
+
+      recordDiagnostic(
+        "silent_token_complete",
+        {
+          tokenPresent:
+            Boolean(
+              silentResult?.accessToken
+            )
+        }
+      );
+    } catch (silentError) {
+      console.warn(
+        "Acquisizione silenziosa non riuscita.",
+        silentError
+      );
+
+      recordDiagnostic(
+        "silent_token_error",
+        getSafeErrorDetails(
+          silentError
+        )
+      );
+    }
+
+    if (silentResult?.accessToken) {
+      await sendTokenToParent(
+        silentResult,
+        "silent"
+      );
+      return;
+    }
+  }
+
+  recordDiagnostic(
+    "acquire_token_redirect_start",
+    {
+      redirectUri:
+        AUTH_CONFIG.redirectUri,
+      scope:
+        AUTH_CONFIG.scope
+    }
+  );
 
   await client.acquireTokenRedirect({
-    scopes: [AUTH_CONFIG.scope],
-    redirectUri: AUTH_CONFIG.redirectUri,
-    prompt: "select_account"
+    scopes: [
+      AUTH_CONFIG.scope
+    ],
+    redirectUri:
+      AUTH_CONFIG.redirectUri,
+    prompt:
+      "select_account"
   });
 }
 
