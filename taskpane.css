@@ -419,3 +419,19 @@ footer {
     background: #201f1e;
   }
 }
+
+/* Diagnostica autenticazione persistente nel task pane. */
+.auth-diagnostics-section { margin-top: 16px; }
+.auth-diagnostics-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.compact-button { padding: 7px 8px; font-size: 12px; }
+.auth-diagnostics-output {
+  max-height: 280px; margin: 0; padding: 10px; overflow: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #edebe9;
+  border-radius: 6px; background: #f3f2f1; color: #323130;
+  font-family: Consolas, monospace; font-size: 11px; line-height: 1.45; user-select: text;
+}
+.auth-diagnostics-status { min-height: 18px; margin-top: 6px; color: #605e5c; font-size: 11px; }
+@media (prefers-color-scheme: dark) {
+  .auth-diagnostics-output { border-color: #484644; background: #201f1e; color: #f3f2f1; }
+  .auth-diagnostics-status { color: #c8c6c4; }
+}

@@ -259,7 +259,10 @@ async function sendMessageToParent(message) {
   );
 
   Office.context.ui.messageParent(
-    JSON.stringify(message)
+    JSON.stringify({
+      ...message,
+      dialogDiagnostics: readDiagnosticEvents().slice(-60)
+    })
   );
 
   recordDiagnostic(
@@ -438,27 +441,12 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
-    /*
-     * FASE 1 completata: MSAL ha autenticato l'utente e ha
-     * memorizzato account/token nel runtime del dialogo.
-     *
-     * L'istanza che ha attraversato il redirect Entra non è
-     * affidabile per messageParent(). Conserviamo quindi il
-     * risultato pending e chiudiamo questa prima finestra.
-     * Il task pane aprirà automaticamente una seconda istanza
-     * Office pulita, che consumerà il pending e completerà la
-     * sola FASE 2.
-     */
-    savePendingAuthenticationResult(
-      redirectResult,
-      "interactive"
-    );
-
-    recordDiagnostic(
-      "interactive_phase_complete_close_dialog"
-    );
-
-    window.close();
+    if (!officeContextPage) {
+      savePendingAuthenticationResult(redirectResult, "interactive");
+      returnToOfficeDialogPage();
+      return;
+    }
+    await sendTokenToParent(redirectResult, "interactive");
     return;
   }
 

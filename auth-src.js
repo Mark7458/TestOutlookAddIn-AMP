@@ -20,6 +20,55 @@ const AUTH_CONFIG = {
 let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
+const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
+const MAX_AUTH_DIAGNOSTIC_EVENTS = 100;
+
+function readAuthDiagnostics() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(AUTH_DIAGNOSTIC_KEY) || "[]"
+    );
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAuthDiagnostics(events) {
+  localStorage.setItem(
+    AUTH_DIAGNOSTIC_KEY,
+    JSON.stringify(events.slice(-MAX_AUTH_DIAGNOSTIC_EVENTS))
+  );
+}
+
+function recordAuthDiagnostic(event, details = null, source = "TASKPANE") {
+  const events = readAuthDiagnostics();
+  events.push({
+    time: new Date().toLocaleTimeString("it-IT", { hour12: false }),
+    source,
+    event,
+    details
+  });
+  writeAuthDiagnostics(events);
+  window.dispatchEvent(new CustomEvent("workflow-auth-diagnostics-changed"));
+}
+
+function importDialogDiagnostics(entries) {
+  if (!Array.isArray(entries)) return;
+
+  entries.slice(-60).forEach((entry) => {
+    recordAuthDiagnostic(
+      entry.event || "dialog_event",
+      entry.details || null,
+      "DIALOG"
+    );
+  });
+}
+
+function clearAuthDiagnostics() {
+  localStorage.removeItem(AUTH_DIAGNOSTIC_KEY);
+  window.dispatchEvent(new CustomEvent("workflow-auth-diagnostics-changed"));
+}
 
 function createDialogError(message, details = {}) {
   const error = new Error(message);
@@ -49,6 +98,8 @@ async function initializeMsal() {
     return msalInstance;
   }
 
+  recordAuthDiagnostic("msal_initialize_start");
+
   msalInstance =
     new PublicClientApplication({
       auth: {
@@ -70,6 +121,9 @@ async function initializeMsal() {
     });
 
   await msalInstance.initialize();
+  recordAuthDiagnostic("msal_initialize_complete", {
+    accounts: msalInstance.getAllAccounts().length
+  });
   return msalInstance;
 }
 
@@ -100,6 +154,11 @@ async function acquireTokenSilently() {
   const accounts =
     client.getAllAccounts();
 
+  recordAuthDiagnostic("silent_accounts", {
+    count: accounts.length,
+    usernames: accounts.map((account) => account.username).filter(Boolean).join(", ")
+  });
+
   console.info(
     "Account MSAL disponibili nella cache:",
     accounts.length
@@ -110,6 +169,8 @@ async function acquireTokenSilently() {
   }
 
   try {
+    recordAuthDiagnostic("silent_start");
+
     const result =
       await client.acquireTokenSilent({
         account:
@@ -130,6 +191,11 @@ async function acquireTokenSilently() {
         "account non disponibile"
     );
 
+    recordAuthDiagnostic("silent_success", {
+      username: result.account?.username || accounts[0].username || null,
+      expiresOn: result.expiresOn?.toISOString?.() || null
+    });
+
     currentAuthentication = {
       accessToken:
         result.accessToken,
@@ -141,6 +207,12 @@ async function acquireTokenSilently() {
 
     return currentAuthentication;
   } catch (error) {
+    recordAuthDiagnostic("silent_error", {
+      name: error?.name || null,
+      errorCode: error?.errorCode || null,
+      message: error?.message || String(error)
+    });
+
     console.warn(
       "Token silent non disponibile; apro il dialogo interattivo.",
       {
@@ -159,6 +231,8 @@ async function acquireTokenSilently() {
 
 function acquireTokenWithOfficeDialog() {
   const operationId = ++dialogOperationSequence;
+  recordAuthDiagnostic("display_dialog_start", { operationId });
+
   return new Promise((resolve, reject) => {
     if (
       !window.Office ||
@@ -192,6 +266,11 @@ function acquireTokenWithOfficeDialog() {
           result.status ===
           Office.AsyncResultStatus.Failed
         ) {
+          recordAuthDiagnostic("display_dialog_error", {
+            operationId,
+            code: result.error?.code || null,
+            message: result.error?.message || null
+          });
           reject(
             createDialogError(
               result.error?.message ||
@@ -211,8 +290,11 @@ function acquireTokenWithOfficeDialog() {
         const dialog = result.value;
         let completed = false;
 
+        recordAuthDiagnostic("display_dialog_success", { operationId });
+
         const authenticationTimeout =
           setTimeout(() => {
+            recordAuthDiagnostic("dialog_timeout", { operationId });
             completeWithError(
               createDialogError(
                 "Tempo massimo per l'autenticazione superato.",
@@ -247,6 +329,12 @@ function acquireTokenWithOfficeDialog() {
           dialogOperationSequence += 1;
           clearAuthenticationTimeout();
           closeDialog();
+          recordAuthDiagnostic("dialog_complete_error", {
+            operationId,
+            name: error?.name || null,
+            errorCode: error?.errorCode || null,
+            message: error?.message || String(error)
+          });
           reject(error);
         }
 
@@ -260,23 +348,12 @@ function acquireTokenWithOfficeDialog() {
           clearAuthenticationTimeout();
           closeDialog();
           currentAuthentication = tokenResult;
-          resolve(tokenResult);
-        }
-
-        function completeForAutomaticRetry(dialogEvent) {
-          if (completed || operationId !== dialogOperationSequence) {
-            return;
-          }
-
-          completed = true;
-          dialogOperationSequence += 1;
-          clearAuthenticationTimeout();
-          closeDialog();
-
-          resolve({
-            retryRequired: true,
-            dialogEvent: dialogEvent?.error || null
+          recordAuthDiagnostic("dialog_complete_success", {
+            operationId,
+            acquisitionMode: tokenResult?.acquisitionMode || null,
+            expiresOn: tokenResult?.expiresOn || null
           });
+          resolve(tokenResult);
         }
 
         dialog.addEventHandler(
@@ -287,6 +364,11 @@ function acquireTokenWithOfficeDialog() {
             try {
               message =
                 JSON.parse(event.message);
+              recordAuthDiagnostic("dialog_message_received", {
+                operationId,
+                type: message?.type || null
+              });
+              importDialogDiagnostics(message?.dialogDiagnostics);
             } catch {
               completeWithError(
                 createDialogError(
@@ -413,14 +495,17 @@ function acquireTokenWithOfficeDialog() {
         dialog.addEventHandler(
           Office.EventType.DialogEventReceived,
           (event) => {
-            console.info(
-              "Prima fase dialog conclusa; preparo il retry automatico.",
+            recordAuthDiagnostic("dialog_event_received", {
+              operationId,
+              error: event?.error || null
+            });
+            console.warn(
+              "Evento Office Dialog ricevuto:",
               {
-                error: event?.error || null
+                error:
+                  event?.error
               }
             );
-
-            completeForAutomaticRetry(event);
           }
         );
       }
@@ -430,6 +515,9 @@ function acquireTokenWithOfficeDialog() {
 
 async function getAuthentication() {
   if (isAuthenticationUsable(currentAuthentication)) {
+    recordAuthDiagnostic("memory_token_reused", {
+      expiresOn: currentAuthentication.expiresOn || null
+    });
     return {
       ...currentAuthentication,
       acquisitionMode: "memory"
@@ -445,31 +533,18 @@ async function getAuthentication() {
     return silentAuthentication;
   }
 
-  /*
-   * FASE 1: login/MFA e chiusura della prima istanza.
-   * FASE 2: nuovo dialog Office pulito, silent + messageParent.
-   * Il retry è automatico e avviene una sola volta.
-   */
-  const firstDialogResult =
-    await acquireTokenWithOfficeDialog();
-
-  if (!firstDialogResult?.retryRequired) {
-    return firstDialogResult;
-  }
-
-  console.info(
-    "Avvio automatico della seconda fase di autenticazione.",
-    {
-      dialogEvent: firstDialogResult.dialogEvent
-    }
-  );
-
   return acquireTokenWithOfficeDialog();
 }
 
 async function callHealth() {
+  recordAuthDiagnostic("call_health_start");
+
   const authentication =
     await getAuthentication();
+
+  recordAuthDiagnostic("function_request_start", {
+    acquisitionMode: authentication.acquisitionMode
+  });
 
   const response = await fetch(
     AUTH_CONFIG.healthUrl,
@@ -487,6 +562,12 @@ async function callHealth() {
   const body =
     await response.text();
 
+  recordAuthDiagnostic("function_response", {
+    status: response.status,
+    ok: response.ok,
+    authenticationMode: authentication.acquisitionMode
+  });
+
   return {
     ok:
       response.ok,
@@ -501,5 +582,7 @@ async function callHealth() {
 }
 
 window.WorkflowHealth = {
-  callHealth
+  callHealth,
+  getDiagnostics: readAuthDiagnostics,
+  clearDiagnostics: clearAuthDiagnostics
 };

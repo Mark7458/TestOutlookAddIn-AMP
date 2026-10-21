@@ -235,6 +235,56 @@ async function testHealthFunction() {
   }
 }
 
+  function formatAuthDiagnosticEntry(entry) {
+    const details = entry?.details
+      ? ` | ${Object.entries(entry.details)
+          .map(([key, value]) => `${key}=${String(value)}`)
+          .join(" | ")}`
+      : "";
+    return `${entry?.time || "--:--:--"} | ${entry?.source || "AUTH"} | ${entry?.event || "event"}${details}`;
+  }
+
+  function refreshAuthDiagnostics() {
+    const output = document.getElementById("auth-diagnostics-output");
+    if (!output) return;
+    const events = window.WorkflowHealth?.getDiagnostics?.() || [];
+    output.textContent = events.length
+      ? events.map(formatAuthDiagnosticEntry).join("\n")
+      : "Nessun evento registrato.";
+    output.scrollTop = output.scrollHeight;
+  }
+
+  async function copyAuthDiagnostics() {
+    const output = document.getElementById("auth-diagnostics-output");
+    const status = document.getElementById("auth-diagnostics-status");
+    if (!output || !status) return;
+    const text = output.textContent || "";
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else if (!fallbackCopyText(text)) throw new Error("Copia non disponibile.");
+      status.textContent = "Diagnostica copiata.";
+    } catch {
+      status.textContent = fallbackCopyText(text)
+        ? "Diagnostica copiata (modalità compatibile)."
+        : "Copia non riuscita.";
+    }
+  }
+
+  function clearAuthDiagnostics() {
+    window.WorkflowHealth?.clearDiagnostics?.();
+    refreshAuthDiagnostics();
+    const status = document.getElementById("auth-diagnostics-status");
+    if (status) status.textContent = "Diagnostica pulita.";
+  }
+
+  function registerAuthDiagnosticsControls() {
+    document.getElementById("auth-diagnostics-refresh")?.addEventListener("click", refreshAuthDiagnostics);
+    document.getElementById("auth-diagnostics-copy")?.addEventListener("click", copyAuthDiagnostics);
+    document.getElementById("auth-diagnostics-clear")?.addEventListener("click", clearAuthDiagnostics);
+    window.addEventListener("workflow-auth-diagnostics-changed", refreshAuthDiagnostics);
+    refreshAuthDiagnostics();
+  }
+
 function registerHealthButton() {
   const button =
     document.getElementById("test-function-button");
