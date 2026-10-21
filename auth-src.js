@@ -263,6 +263,22 @@ function acquireTokenWithOfficeDialog() {
           resolve(tokenResult);
         }
 
+        function completeForAutomaticRetry(dialogEvent) {
+          if (completed || operationId !== dialogOperationSequence) {
+            return;
+          }
+
+          completed = true;
+          dialogOperationSequence += 1;
+          clearAuthenticationTimeout();
+          closeDialog();
+
+          resolve({
+            retryRequired: true,
+            dialogEvent: dialogEvent?.error || null
+          });
+        }
+
         dialog.addEventHandler(
           Office.EventType.DialogMessageReceived,
           (event) => {
@@ -397,13 +413,14 @@ function acquireTokenWithOfficeDialog() {
         dialog.addEventHandler(
           Office.EventType.DialogEventReceived,
           (event) => {
-            console.warn(
-              "Evento Office Dialog ricevuto:",
+            console.info(
+              "Prima fase dialog conclusa; preparo il retry automatico.",
               {
-                error:
-                  event?.error
+                error: event?.error || null
               }
             );
+
+            completeForAutomaticRetry(event);
           }
         );
       }
@@ -427,6 +444,25 @@ async function getAuthentication() {
   if (silentAuthentication) {
     return silentAuthentication;
   }
+
+  /*
+   * FASE 1: login/MFA e chiusura della prima istanza.
+   * FASE 2: nuovo dialog Office pulito, silent + messageParent.
+   * Il retry è automatico e avviene una sola volta.
+   */
+  const firstDialogResult =
+    await acquireTokenWithOfficeDialog();
+
+  if (!firstDialogResult?.retryRequired) {
+    return firstDialogResult;
+  }
+
+  console.info(
+    "Avvio automatico della seconda fase di autenticazione.",
+    {
+      dialogEvent: firstDialogResult.dialogEvent
+    }
+  );
 
   return acquireTokenWithOfficeDialog();
 }

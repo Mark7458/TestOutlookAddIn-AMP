@@ -438,12 +438,27 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
+    /*
+     * FASE 1 completata: MSAL ha autenticato l'utente e ha
+     * memorizzato account/token nel runtime del dialogo.
+     *
+     * L'istanza che ha attraversato il redirect Entra non è
+     * affidabile per messageParent(). Conserviamo quindi il
+     * risultato pending e chiudiamo questa prima finestra.
+     * Il task pane aprirà automaticamente una seconda istanza
+     * Office pulita, che consumerà il pending e completerà la
+     * sola FASE 2.
+     */
     savePendingAuthenticationResult(
       redirectResult,
       "interactive"
     );
 
-    returnToOfficeDialogPage();
+    recordDiagnostic(
+      "interactive_phase_complete_close_dialog"
+    );
+
+    window.close();
     return;
   }
 
