@@ -581,18 +581,45 @@ async function runRecoveryLoop(options = {}) {
     }
   }
 }
+async function recoverConnection() {
+  recordAuthDiagnostic("recover_connection_start", { mode: "persistent-small-dialog" });
+  try {
+    const authentication = await acquireTokenWithOfficeDialog({
+      mode: "recovery",
+      forceCloseAfterMs: 22000,
+      height: 10,
+      width: 10
+    });
+    recordAuthDiagnostic("recover_connection_complete", {
+      acquisitionMode: authentication?.acquisitionMode || null
+    });
+    return authentication;
+  } catch (error) {
+    recordAuthDiagnostic("recover_connection_failed", {
+      errorCode: error?.errorCode || null,
+      message: error?.message || String(error)
+    });
+    throw createDialogError(
+      "La sessione non è recuperabile. Riconnetti il plugin.",
+      {
+        errorCode: "interaction_required",
+        authenticationPhase: "silentRecovery"
+      }
+    );
+  }
+}
 async function getAccessTokenSilently() {
-  if (isAuthenticationUsable(currentAuthentication)) return { ...currentAuthentication, acquisitionMode: "memory" };
+  if (isAuthenticationUsable(currentAuthentication)) {
+    recordAuthDiagnostic("token_memory_reused", {
+      expiresOn: currentAuthentication?.expiresOn || null
+    });
+    return { ...currentAuthentication, acquisitionMode: "memory" };
+  }
   currentAuthentication = null;
   const authentication = await acquireTokenSilently();
   if (authentication) return authentication;
-  throw createDialogError("La sessione non è disponibile. Riconnetti il plugin.", { errorCode: "interaction_required", authenticationPhase: "silentOnly" });
-}
-async function recoverConnection() {
-  recordAuthDiagnostic("recover_connection_start");
-  const authentication = await runRecoveryLoop({ waitForDialogRelease: false, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
-  recordAuthDiagnostic("recover_connection_complete", { acquisitionMode: authentication?.acquisitionMode || null });
-  return authentication;
+  recordAuthDiagnostic("taskpane_silent_empty_recover_via_dialog");
+  return recoverConnection();
 }
 async function connectPlugin() {
   recordAuthDiagnostic("connect_plugin_start");
@@ -631,6 +658,15 @@ async function callHealth() {
   const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
   const body = await response.text();
   recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode, elapsedMs: Date.now() - healthStartedAt });
+  if (response.status === 401 || response.status === 403) {
+    throw createDialogError(
+      `La Function ha rifiutato l'autenticazione (${response.status}).`,
+      {
+        errorCode: "interaction_required",
+        authenticationPhase: "healthResponse"
+      }
+    );
+  }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
 window.WorkflowHealth = { connectPlugin, recoverConnection, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
