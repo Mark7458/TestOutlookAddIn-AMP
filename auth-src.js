@@ -595,23 +595,99 @@ async function recoverConnection() {
 async function connectPlugin() {
   recordAuthDiagnostic("connect_plugin_start");
   currentAuthentication = null;
+
   const cached = await acquireTokenSilently();
   if (cached) {
     recordAuthDiagnostic("connect_plugin_silent_success");
     return cached;
   }
-  recordAuthDiagnostic("interactive_bootstrap_launch");
-  try {
-    const direct = await acquireTokenWithOfficeDialog({ mode: "connect" });
-    recordAuthDiagnostic("interactive_bootstrap_direct_success", { acquisitionMode: direct?.acquisitionMode || null });
-    return direct;
-  } catch (error) {
-    recordAuthDiagnostic("interactive_bootstrap_ended", { errorCode: error?.errorCode || null, message: error?.message || String(error) });
+
+  const interactiveWindowMs = 30000;
+  const recoveryWindowMs = 3000;
+  const pauseBetweenCyclesMs = 1000;
+  const maxCycles = 3;
+
+  recordAuthDiagnostic("serial_connection_cycle_start", {
+    interactiveWindowMs,
+    recoveryWindowMs,
+    pauseBetweenCyclesMs,
+    maxCycles
+  });
+
+  for (let cycle = 1; cycle <= maxCycles; cycle += 1) {
+    recordAuthDiagnostic("interactive_cycle_start", {
+      cycle,
+      forceCloseAfterMs: interactiveWindowMs
+    });
+
+    /*
+     * A e solo bootstrap interattivo. Viene SEMPRE terminato dal parent dopo
+     * la sua finestra controllata. Anche un eventuale risultato diretto non
+     * viene usato come conclusione del flusso: la verifica reale e sempre B.
+     */
+    try {
+      const interactiveResult = await acquireTokenWithOfficeDialog({
+        mode: "connect",
+        forceCloseAfterMs: interactiveWindowMs
+      });
+      recordAuthDiagnostic("interactive_cycle_direct_result_ignored", {
+        cycle,
+        acquisitionMode: interactiveResult?.acquisitionMode || null
+      });
+    } catch (error) {
+      recordAuthDiagnostic("interactive_cycle_released", {
+        cycle,
+        errorCode: error?.errorCode || null,
+        message: error?.message || String(error)
+      });
+    }
+
+    recordAuthDiagnostic("silent_check_start", {
+      cycle,
+      forceCloseAfterMs: recoveryWindowMs
+    });
+
+    /*
+     * B e rigorosamente recovery/silent-only. auth-dialog-src impedisce a
+     * mode=recovery di entrare nel redirect interattivo.
+     */
+    try {
+      const authentication = await acquireTokenWithOfficeDialog({
+        mode: "recovery",
+        forceCloseAfterMs: recoveryWindowMs
+      });
+      recordAuthDiagnostic("serial_connection_success", {
+        cycle,
+        acquisitionMode: authentication?.acquisitionMode || null
+      });
+      return authentication;
+    } catch (error) {
+      recordAuthDiagnostic("silent_check_not_ready", {
+        cycle,
+        errorCode: error?.errorCode || null,
+        message: error?.message || String(error)
+      });
+    }
+
+    if (cycle < maxCycles) {
+      recordAuthDiagnostic("serial_connection_pause", {
+        cycle,
+        waitMs: pauseBetweenCyclesMs
+      });
+      await delay(pauseBetweenCyclesMs);
+    }
   }
-  recordAuthDiagnostic("post_bootstrap_recovery_start");
-  const authentication = await runRecoveryLoop({ waitForDialogRelease: false, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
-  recordAuthDiagnostic("connect_plugin_complete", { acquisitionMode: authentication?.acquisitionMode || null });
-  return authentication;
+
+  recordAuthDiagnostic("serial_connection_failed", {
+    maxCycles
+  });
+  throw createDialogError(
+    "Connessione non completata. Riprova e completa l'accesso Microsoft.",
+    {
+      errorCode: "serial_connection_failed",
+      authenticationPhase: "serialConnection"
+    }
+  );
 }
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");
