@@ -1093,12 +1093,36 @@ function registerHealthButton() {
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    if (readConnectedHint()) {
-      setPluginConnected(true);
-      loadSelectedMessage();
-    } else {
-      setPluginConnected(false);
-    }
+    // All'avvio non assumere che la sessione precedente sia ancora valida.
+    // Mantieni entrambe le viste nascoste finche MSAL non restituisce un risultato reale.
+    const connectionView = document.getElementById("connection-view");
+    const connectedView = document.getElementById("connected-view");
+    if (connectionView) connectionView.hidden = true;
+    if (connectedView) connectedView.hidden = true;
+
+    (async () => {
+      try {
+        if (!window.WorkflowHealth?.probeCurrentAuthentication) {
+          throw new Error("Modulo di autenticazione non disponibile.");
+        }
+
+        const authentication = await window.WorkflowHealth.probeCurrentAuthentication();
+        const connected = Boolean(authentication?.accessToken);
+        saveConnectedHint(connected);
+        setPluginConnected(connected);
+
+        if (connected) {
+          await loadSelectedMessage();
+        }
+      } catch (error) {
+        console.warn("Verifica iniziale della sessione non riuscita:", error);
+        saveConnectedHint(false);
+        setPluginConnected(false);
+      } finally {
+        refreshAuthDiagnostics();
+      }
+    })();
+
     refreshAuthDiagnostics();
   });
 })();

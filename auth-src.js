@@ -608,6 +608,27 @@ async function recoverConnection() {
     );
   }
 }
+async function probeCurrentAuthentication() {
+  recordAuthDiagnostic("startup_auth_probe_start");
+
+  if (isAuthenticationUsable(currentAuthentication)) {
+    recordAuthDiagnostic("startup_auth_probe_memory_success", {
+      expiresOn: currentAuthentication?.expiresOn || null
+    });
+    return { ...currentAuthentication, acquisitionMode: "memory" };
+  }
+
+  currentAuthentication = null;
+  const authentication = await acquireTokenSilently();
+
+  recordAuthDiagnostic(
+    authentication ? "startup_auth_probe_success" : "startup_auth_probe_empty",
+    { acquisitionMode: authentication?.acquisitionMode || null }
+  );
+
+  return authentication;
+}
+
 async function getAccessTokenSilently() {
   if (isAuthenticationUsable(currentAuthentication)) {
     recordAuthDiagnostic("token_memory_reused", {
@@ -669,4 +690,4 @@ async function callHealth() {
   }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-window.WorkflowHealth = { connectPlugin, recoverConnection, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
+window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
