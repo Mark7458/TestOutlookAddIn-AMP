@@ -15,7 +15,7 @@ const AUTH_CONFIG = {
 
 const DIAGNOSTIC_KEY =
   "outlook-sogei-auth-diagnostics";
-const MAX_DIAGNOSTIC_EVENTS = 60;
+const MAX_DIAGNOSTIC_EVENTS = 500;
 const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
@@ -338,7 +338,7 @@ async function sendMessageToParent(message) {
   Office.context.ui.messageParent(
     JSON.stringify({
       ...message,
-      dialogDiagnostics: readDiagnosticEvents().slice(-60)
+      dialogDiagnostics: readDiagnosticEvents().slice(-500)
     })
   );
 

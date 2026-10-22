@@ -21,7 +21,7 @@ let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
-const MAX_AUTH_DIAGNOSTIC_EVENTS = 100;
+const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
 
 function readAuthDiagnostics() {
   try {
@@ -229,9 +229,10 @@ async function acquireTokenSilently() {
   }
 }
 
-function acquireTokenWithOfficeDialog() {
+function acquireTokenWithOfficeDialog(options = {}) {
   const operationId = ++dialogOperationSequence;
-  recordAuthDiagnostic("display_dialog_start", { operationId });
+  const forceCloseAfterMs = Number(options.forceCloseAfterMs || 0);
+  recordAuthDiagnostic("display_dialog_start", { operationId, forceCloseAfterMs });
 
   return new Promise((resolve, reject) => {
     if (
@@ -294,6 +295,30 @@ function acquireTokenWithOfficeDialog() {
 
         recordAuthDiagnostic("display_dialog_success", { operationId });
 
+        let forcedCloseTimer = null;
+        if (forceCloseAfterMs > 0) {
+          recordAuthDiagnostic("bootstrap_wait_started", {
+            operationId,
+            forceCloseAfterMs
+          });
+          forcedCloseTimer = setTimeout(() => {
+            if (completed || operationId !== dialogOperationSequence) return;
+            recordAuthDiagnostic("bootstrap_parent_close", {
+              operationId,
+              elapsedMs: Date.now() - dialogOpenedAt
+            });
+            completeWithError(
+              createDialogError(
+                "Finestra bootstrap conclusa; avvio recovery.",
+                {
+                  errorCode: "bootstrap_window_elapsed",
+                  authenticationPhase: "porkaroundBootstrap"
+                }
+              )
+            );
+          }, forceCloseAfterMs);
+        }
+
         const authenticationTimeout =
           setTimeout(() => {
             recordAuthDiagnostic("dialog_timeout", { operationId });
@@ -312,6 +337,7 @@ function acquireTokenWithOfficeDialog() {
 
         function clearAuthenticationTimeout() {
           clearTimeout(authenticationTimeout);
+          if (forcedCloseTimer) clearTimeout(forcedCloseTimer);
         }
 
         function closeDialog() {
@@ -511,25 +537,11 @@ function acquireTokenWithOfficeDialog() {
 
             if (event?.error === 12006) {
               dialog12006Count += 1;
-              const elapsedMs = Date.now() - dialogOpenedAt;
               recordAuthDiagnostic("porkaround_12006_observed", {
                 operationId,
                 count: dialog12006Count,
-                elapsedMs
+                elapsedMs: Date.now() - dialogOpenedAt
               });
-
-              if (dialog12006Count >= 2 || elapsedMs >= 12000) {
-                completeWithError(
-                  createDialogError(
-                    "Dialogo interattivo chiuso dopo il login; avvio del dialogo di recupero.",
-                    {
-                      errorCode: "dialog_closed_after_auth",
-                      authenticationPhase: "porkaround",
-                      dialogEvent: 12006
-                    }
-                  )
-                );
-              }
             }
           }
         );
@@ -538,76 +550,90 @@ function acquireTokenWithOfficeDialog() {
   });
 }
 
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function getAuthentication() {
   if (isAuthenticationUsable(currentAuthentication)) {
     recordAuthDiagnostic("memory_token_reused", {
       expiresOn: currentAuthentication.expiresOn || null
     });
-    return {
-      ...currentAuthentication,
-      acquisitionMode: "memory"
-    };
+    return { ...currentAuthentication, acquisitionMode: "memory" };
   }
 
   currentAuthentication = null;
+  const silentAuthentication = await acquireTokenSilently();
+  if (silentAuthentication) return silentAuthentication;
 
-  const silentAuthentication =
-    await acquireTokenSilently();
+  const bootstrapMs = 20000;
+  const retryDelayMs = 1000;
+  const recoveryMaxMs = 20000;
 
-  if (silentAuthentication) {
-    return silentAuthentication;
+  recordAuthDiagnostic("bootstrap_dialog_start", { bootstrapMs });
+  try {
+    return await acquireTokenWithOfficeDialog({ forceCloseAfterMs: bootstrapMs });
+  } catch (error) {
+    recordAuthDiagnostic("bootstrap_finished", {
+      name: error?.name || null,
+      errorCode: error?.errorCode || null,
+      message: error?.message || String(error)
+    });
   }
 
-  /*
-   * PORKAROUND:
-   * il primo dialogo puo completare login/MFA ma perdere il bridge Office
-   * durante il redirect. Se il primo dialogo termina con errore, proviamo
-   * subito la cache MSAL. Se non e ancora utilizzabile, apriamo UN SOLO
-   * secondo dialogo fresco. Nessun loop ulteriore e consentito.
-   */
-  try {
-    return await acquireTokenWithOfficeDialog();
-  } catch (firstDialogError) {
-    recordAuthDiagnostic("porkaround_first_dialog_failed", {
-      name: firstDialogError?.name || null,
-      errorCode: firstDialogError?.errorCode || null,
-      message: firstDialogError?.message || String(firstDialogError)
+  recordAuthDiagnostic("recovery_initial_wait", { waitMs: retryDelayMs });
+  await delay(retryDelayMs);
+
+  const recoveryStartedAt = Date.now();
+  let attempt = 0;
+  recordAuthDiagnostic("recovery_started", {
+    recoveryMaxMs,
+    retryDelayMs
+  });
+
+  while (Date.now() - recoveryStartedAt < recoveryMaxMs) {
+    attempt += 1;
+    recordAuthDiagnostic("recovery_attempt", {
+      attempt,
+      elapsedMs: Date.now() - recoveryStartedAt
     });
 
-    if (firstDialogError?.errorCode !== "dialog_closed_after_auth") {
-      recordAuthDiagnostic("porkaround_silent_recovery_start");
-      const recoveredAuthentication =
-        await acquireTokenSilently();
-
-      if (recoveredAuthentication) {
-        recordAuthDiagnostic("porkaround_silent_recovery_success", {
-          acquisitionMode: recoveredAuthentication.acquisitionMode || null,
-          expiresOn: recoveredAuthentication.expiresOn || null
-        });
-        return recoveredAuthentication;
-      }
-    } else {
-      recordAuthDiagnostic("porkaround_first_dialog_closed_after_token");
-    }
-
-    recordAuthDiagnostic("porkaround_second_dialog_start");
     try {
-      const secondDialogAuthentication =
-        await acquireTokenWithOfficeDialog();
-      recordAuthDiagnostic("porkaround_second_dialog_success", {
-        acquisitionMode: secondDialogAuthentication?.acquisitionMode || null,
-        expiresOn: secondDialogAuthentication?.expiresOn || null
+      const recovered = await acquireTokenWithOfficeDialog({ forceCloseAfterMs: 3000 });
+      recordAuthDiagnostic("recovery_success", {
+        attempt,
+        acquisitionMode: recovered?.acquisitionMode || null,
+        elapsedMs: Date.now() - recoveryStartedAt
       });
-      return secondDialogAuthentication;
-    } catch (secondDialogError) {
-      recordAuthDiagnostic("porkaround_second_dialog_failed", {
-        name: secondDialogError?.name || null,
-        errorCode: secondDialogError?.errorCode || null,
-        message: secondDialogError?.message || String(secondDialogError)
+      return recovered;
+    } catch (error) {
+      recordAuthDiagnostic("recovery_attempt_failed", {
+        attempt,
+        name: error?.name || null,
+        errorCode: error?.errorCode || null,
+        message: error?.message || String(error),
+        elapsedMs: Date.now() - recoveryStartedAt
       });
-      throw secondDialogError;
     }
+
+    const remainingMs = recoveryMaxMs - (Date.now() - recoveryStartedAt);
+    if (remainingMs <= 0) break;
+    const waitMs = Math.min(retryDelayMs, remainingMs);
+    recordAuthDiagnostic("recovery_wait", { attempt, waitMs });
+    await delay(waitMs);
   }
+
+  recordAuthDiagnostic("recovery_timeout", {
+    attempts: attempt,
+    elapsedMs: Date.now() - recoveryStartedAt
+  });
+  throw createDialogError(
+    "Token non recuperabile entro la finestra di recovery di 20 secondi.",
+    {
+      errorCode: "porkaround_recovery_timeout",
+      authenticationPhase: "porkaroundRecovery"
+    }
+  );
 }
 
 async function callHealth() {
