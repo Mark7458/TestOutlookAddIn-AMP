@@ -234,7 +234,9 @@ function acquireTokenWithOfficeDialog(options = {}) {
   const mode = options.mode === "recovery" ? "recovery" : "connect";
   const forceCloseAfterMs = Number(options.forceCloseAfterMs || 0);
   const dialogUrl = mode === "recovery" ? `${AUTH_CONFIG.dialogUrl}?mode=recovery` : AUTH_CONFIG.dialogUrl;
-  recordAuthDiagnostic("display_dialog_start", { operationId, mode, forceCloseAfterMs });
+  const dialogHeight = Number(options.height || (mode === "recovery" ? 10 : 65));
+  const dialogWidth = Number(options.width || (mode === "recovery" ? 10 : 45));
+  recordAuthDiagnostic("display_dialog_start", { operationId, mode, forceCloseAfterMs, dialogHeight, dialogWidth });
 
   return new Promise((resolve, reject) => {
     if (
@@ -259,8 +261,8 @@ function acquireTokenWithOfficeDialog(options = {}) {
     Office.context.ui.displayDialogAsync(
       dialogUrl,
       {
-        height: 65,
-        width: 45,
+        height: dialogHeight,
+        width: dialogWidth,
         displayInIframe: false,
         promptBeforeOpen: false
       },
@@ -595,7 +597,6 @@ async function recoverConnection() {
 async function connectPlugin() {
   recordAuthDiagnostic("connect_plugin_start");
   currentAuthentication = null;
-
   const cached = await acquireTokenSilently();
   if (cached) {
     recordAuthDiagnostic("connect_plugin_silent_success");
@@ -603,81 +604,24 @@ async function connectPlugin() {
   }
 
   const interactiveWindowMs = 30000;
-  const recoveryRetryDelayMs = 1000;
-  const recoveryMaxMs = 20000;
-  const recoveryDialogMs = 3000;
-
-  recordAuthDiagnostic("single_interactive_start", {
-    interactiveWindowMs
-  });
-
+  recordAuthDiagnostic("single_interactive_start", { interactiveWindowMs });
   try {
-    const directResult = await acquireTokenWithOfficeDialog({
-      mode: "connect",
-      forceCloseAfterMs: interactiveWindowMs
-    });
-    recordAuthDiagnostic("single_interactive_direct_success", {
-      acquisitionMode: directResult?.acquisitionMode || null
-    });
+    const directResult = await acquireTokenWithOfficeDialog({ mode: "connect", forceCloseAfterMs: interactiveWindowMs });
+    recordAuthDiagnostic("single_interactive_direct_success", { acquisitionMode: directResult?.acquisitionMode || null });
     return directResult;
   } catch (error) {
-    recordAuthDiagnostic("single_interactive_released", {
-      errorCode: error?.errorCode || null,
-      message: error?.message || String(error)
-    });
+    recordAuthDiagnostic("single_interactive_released", { errorCode: error?.errorCode || null, message: error?.message || String(error) });
   }
 
-  const recoveryStartedAt = Date.now();
-  let attempt = 0;
-  recordAuthDiagnostic("silent_only_recovery_start", {
-    recoveryRetryDelayMs,
-    recoveryMaxMs,
-    recoveryDialogMs
+  recordAuthDiagnostic("persistent_recovery_start", { maxMs: 20000, height: 10, width: 10 });
+  const authentication = await acquireTokenWithOfficeDialog({
+    mode: "recovery",
+    forceCloseAfterMs: 22000,
+    height: 10,
+    width: 10
   });
-
-  while (Date.now() - recoveryStartedAt < recoveryMaxMs) {
-    attempt += 1;
-    recordAuthDiagnostic("silent_only_recovery_attempt", {
-      attempt,
-      elapsedMs: Date.now() - recoveryStartedAt
-    });
-
-    try {
-      const authentication = await acquireTokenWithOfficeDialog({
-        mode: "recovery",
-        forceCloseAfterMs: recoveryDialogMs
-      });
-      recordAuthDiagnostic("silent_only_recovery_success", {
-        attempt,
-        acquisitionMode: authentication?.acquisitionMode || null,
-        elapsedMs: Date.now() - recoveryStartedAt
-      });
-      return authentication;
-    } catch (error) {
-      recordAuthDiagnostic("silent_only_recovery_not_ready", {
-        attempt,
-        errorCode: error?.errorCode || null,
-        message: error?.message || String(error),
-        elapsedMs: Date.now() - recoveryStartedAt
-      });
-    }
-
-    const remainingMs = recoveryMaxMs - (Date.now() - recoveryStartedAt);
-    if (remainingMs <= 0) break;
-    await delay(Math.min(recoveryRetryDelayMs, remainingMs));
-  }
-
-  recordAuthDiagnostic("silent_only_recovery_timeout", {
-    attempts: attempt,
-    elapsedMs: Date.now() - recoveryStartedAt
-  });
-  throw createDialogError(
-    "Connessione non completata. Premi nuovamente Connetti plugin e completa l'accesso Microsoft.",
-    {
-      errorCode: "silent_recovery_timeout",
-      authenticationPhase: "silentRecovery"
-    }
-  );
+  recordAuthDiagnostic("persistent_recovery_success", { acquisitionMode: authentication?.acquisitionMode || null });
+  return authentication;
 }
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");

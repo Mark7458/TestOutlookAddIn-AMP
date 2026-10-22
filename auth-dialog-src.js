@@ -451,6 +451,54 @@ async function sendPendingTokenToParent(pendingResult) {
   recordDiagnostic("pending_auth_cleared");
 }
 
+function recoveryDelay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function runPersistentRecovery(client) {
+  const startedAt = Date.now();
+  const maxMs = 20000;
+  const retryMs = 1000;
+  let attempt = 0;
+  recordDiagnostic("persistent_recovery_loop_start", { maxMs, retryMs });
+
+  while (Date.now() - startedAt < maxMs) {
+    attempt += 1;
+    const accounts = client.getAllAccounts();
+    recordDiagnostic("persistent_recovery_poll", {
+      attempt,
+      elapsedMs: Date.now() - startedAt,
+      count: accounts.length,
+      usernames: accounts.map((account) => account.username || "").filter(Boolean).join(", ")
+    });
+
+    if (accounts.length > 0) {
+      try {
+        const silentResult = await client.acquireTokenSilent({
+          account: accounts[0],
+          scopes: [AUTH_CONFIG.scope]
+        });
+        if (silentResult?.accessToken) {
+          recordDiagnostic("persistent_recovery_token_ready", { attempt, elapsedMs: Date.now() - startedAt });
+          await sendTokenToParent(silentResult, "silent");
+          return;
+        }
+      } catch (silentError) {
+        recordDiagnostic("persistent_recovery_silent_error", {
+          attempt,
+          ...getSafeErrorDetails(silentError)
+        });
+      }
+    }
+    await recoveryDelay(retryMs);
+  }
+
+  const error = new Error("Token silent non disponibile entro 20 secondi.");
+  error.errorCode = "silent_recovery_timeout";
+  recordDiagnostic("persistent_recovery_timeout", { elapsedMs: Date.now() - startedAt, attempts: attempt });
+  throw error;
+}
+
 async function startAuthentication() {
   const officeContextPage = hasOfficeHostInfo();
   if (officeContextPage) rememberOfficeDialogUrl();
@@ -523,6 +571,11 @@ async function startAuthentication() {
 
   recordOfficeState("after_handle_redirect");
   probeOfficeReady("after_handle_redirect");
+
+  if (DIALOG_MODE === "recovery") {
+    await runPersistentRecovery(client);
+    return;
+  }
 
   if (redirectResult?.accessToken) {
     if (!officeContextPage) {
@@ -655,6 +708,13 @@ if (document.readyState === "loading") {
 recordDiagnostic(
   "bundle_loaded"
 );
+
+if (DIALOG_MODE === "recovery") {
+  const title = document.getElementById("auth-title");
+  const message = document.getElementById("auth-message");
+  if (title) title.textContent = "Completamento connessione";
+  if (message) message.textContent = "Verifica della sessione in corso. Non chiudere questa finestra.";
+}
 
 startAuthentication()
   .catch(async (error) => {

@@ -51,16 +51,11 @@
   }
   function saveConnectedHint(value) {
     const normalizedValue = Boolean(value);
-    try {
-      localStorage.setItem(CONNECTED_HINT_STORAGE_KEY, String(normalizedValue));
-    } catch (error) {
-      console.warn("Impossibile salvare lo stato locale di connessione:", error);
-    }
+    try { localStorage.setItem(CONNECTED_HINT_STORAGE_KEY, String(normalizedValue)); }
+    catch (error) { console.warn("Impossibile salvare lo stato locale di connessione:", error); }
     Office.context.roamingSettings.set(CONNECTED_HINT_KEY, normalizedValue);
     Office.context.roamingSettings.saveAsync((result) => {
-      if (result.status === Office.AsyncResultStatus.Failed) {
-        console.warn("Impossibile salvare lo stato roaming di connessione:", result.error);
-      }
+      if (result.status === Office.AsyncResultStatus.Failed) console.warn("Impossibile salvare lo stato roaming di connessione:", result.error);
     });
   }
   async function connectPluginUi() {
