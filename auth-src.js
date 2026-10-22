@@ -554,6 +554,38 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+function waitForInteractiveWindowReturn() {
+  return new Promise((resolve) => {
+    let blurred = false;
+    const startedAt = Date.now();
+
+    const cleanup = () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+
+    const onBlur = () => {
+      blurred = true;
+      recordAuthDiagnostic("interactive_window_blur", {
+        elapsedMs: Date.now() - startedAt
+      });
+    };
+
+    const onFocus = () => {
+      if (!blurred) return;
+      cleanup();
+      recordAuthDiagnostic("interactive_window_returned", {
+        elapsedMs: Date.now() - startedAt
+      });
+      resolve();
+    };
+
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    recordAuthDiagnostic("interactive_window_wait_started");
+  });
+}
+
 async function getAuthentication() {
   if (isAuthenticationUsable(currentAuthentication)) {
     recordAuthDiagnostic("memory_token_reused", {
@@ -570,18 +602,36 @@ async function getAuthentication() {
   const recoveryMaxMs = 20000;
 
   recordAuthDiagnostic("bootstrap_dialog_start", {
-    trigger: "interactive_completion"
+    trigger: "interactive_window_return"
   });
 
-  try {
-    return await acquireTokenWithOfficeDialog();
-  } catch (error) {
-    recordAuthDiagnostic("bootstrap_finished", {
-      name: error?.name || null,
-      errorCode: error?.errorCode || null,
-      message: error?.message || String(error)
-    });
+  const bootstrapPromise = acquireTokenWithOfficeDialog();
+  const interactiveReturnPromise = waitForInteractiveWindowReturn();
+
+  const bootstrapOutcome = await Promise.race([
+    bootstrapPromise.then((authentication) => ({
+      type: "success",
+      authentication
+    })),
+    interactiveReturnPromise.then(() => ({
+      type: "interactive_return"
+    }))
+  ]);
+
+  if (bootstrapOutcome.type === "success") {
+    return bootstrapOutcome.authentication;
   }
+
+  recordAuthDiagnostic("bootstrap_interactive_return_detected");
+
+  /*
+   * Da qui in poi rientriamo ESATTAMENTE nella recovery gia validata:
+   * 1 secondo tra i tentativi, massimo 20 secondi complessivi.
+   * Invalidiamo l'operazione bootstrap rimasta pendente, senza introdurre
+   * alcun timeout durante account/password/MFA.
+   */
+  dialogOperationSequence += 1;
+  recordAuthDiagnostic("bootstrap_released_for_recovery");
 
   recordAuthDiagnostic("recovery_initial_wait", { waitMs: retryDelayMs });
   await delay(retryDelayMs);
