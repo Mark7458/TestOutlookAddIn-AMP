@@ -603,89 +603,79 @@ async function connectPlugin() {
   }
 
   const interactiveWindowMs = 30000;
-  const recoveryWindowMs = 3000;
-  const pauseBetweenCyclesMs = 1000;
-  const maxCycles = 3;
+  const recoveryRetryDelayMs = 1000;
+  const recoveryMaxMs = 20000;
+  const recoveryDialogMs = 3000;
 
-  recordAuthDiagnostic("serial_connection_cycle_start", {
-    interactiveWindowMs,
-    recoveryWindowMs,
-    pauseBetweenCyclesMs,
-    maxCycles
+  recordAuthDiagnostic("single_interactive_start", {
+    interactiveWindowMs
   });
 
-  for (let cycle = 1; cycle <= maxCycles; cycle += 1) {
-    recordAuthDiagnostic("interactive_cycle_start", {
-      cycle,
+  try {
+    const directResult = await acquireTokenWithOfficeDialog({
+      mode: "connect",
       forceCloseAfterMs: interactiveWindowMs
     });
+    recordAuthDiagnostic("single_interactive_direct_success", {
+      acquisitionMode: directResult?.acquisitionMode || null
+    });
+    return directResult;
+  } catch (error) {
+    recordAuthDiagnostic("single_interactive_released", {
+      errorCode: error?.errorCode || null,
+      message: error?.message || String(error)
+    });
+  }
 
-    /*
-     * A e solo bootstrap interattivo. Viene SEMPRE terminato dal parent dopo
-     * la sua finestra controllata. Anche un eventuale risultato diretto non
-     * viene usato come conclusione del flusso: la verifica reale e sempre B.
-     */
-    try {
-      const interactiveResult = await acquireTokenWithOfficeDialog({
-        mode: "connect",
-        forceCloseAfterMs: interactiveWindowMs
-      });
-      recordAuthDiagnostic("interactive_cycle_direct_result_ignored", {
-        cycle,
-        acquisitionMode: interactiveResult?.acquisitionMode || null
-      });
-    } catch (error) {
-      recordAuthDiagnostic("interactive_cycle_released", {
-        cycle,
-        errorCode: error?.errorCode || null,
-        message: error?.message || String(error)
-      });
-    }
+  const recoveryStartedAt = Date.now();
+  let attempt = 0;
+  recordAuthDiagnostic("silent_only_recovery_start", {
+    recoveryRetryDelayMs,
+    recoveryMaxMs,
+    recoveryDialogMs
+  });
 
-    recordAuthDiagnostic("silent_check_start", {
-      cycle,
-      forceCloseAfterMs: recoveryWindowMs
+  while (Date.now() - recoveryStartedAt < recoveryMaxMs) {
+    attempt += 1;
+    recordAuthDiagnostic("silent_only_recovery_attempt", {
+      attempt,
+      elapsedMs: Date.now() - recoveryStartedAt
     });
 
-    /*
-     * B e rigorosamente recovery/silent-only. auth-dialog-src impedisce a
-     * mode=recovery di entrare nel redirect interattivo.
-     */
     try {
       const authentication = await acquireTokenWithOfficeDialog({
         mode: "recovery",
-        forceCloseAfterMs: recoveryWindowMs
+        forceCloseAfterMs: recoveryDialogMs
       });
-      recordAuthDiagnostic("serial_connection_success", {
-        cycle,
-        acquisitionMode: authentication?.acquisitionMode || null
+      recordAuthDiagnostic("silent_only_recovery_success", {
+        attempt,
+        acquisitionMode: authentication?.acquisitionMode || null,
+        elapsedMs: Date.now() - recoveryStartedAt
       });
       return authentication;
     } catch (error) {
-      recordAuthDiagnostic("silent_check_not_ready", {
-        cycle,
+      recordAuthDiagnostic("silent_only_recovery_not_ready", {
+        attempt,
         errorCode: error?.errorCode || null,
-        message: error?.message || String(error)
+        message: error?.message || String(error),
+        elapsedMs: Date.now() - recoveryStartedAt
       });
     }
 
-    if (cycle < maxCycles) {
-      recordAuthDiagnostic("serial_connection_pause", {
-        cycle,
-        waitMs: pauseBetweenCyclesMs
-      });
-      await delay(pauseBetweenCyclesMs);
-    }
+    const remainingMs = recoveryMaxMs - (Date.now() - recoveryStartedAt);
+    if (remainingMs <= 0) break;
+    await delay(Math.min(recoveryRetryDelayMs, remainingMs));
   }
 
-  recordAuthDiagnostic("serial_connection_failed", {
-    maxCycles
+  recordAuthDiagnostic("silent_only_recovery_timeout", {
+    attempts: attempt,
+    elapsedMs: Date.now() - recoveryStartedAt
   });
   throw createDialogError(
-    "Connessione non completata. Riprova e completa l'accesso Microsoft.",
+    "Connessione non completata. Premi nuovamente Connetti plugin e completa l'accesso Microsoft.",
     {
-      errorCode: "serial_connection_failed",
-      authenticationPhase: "serialConnection"
+      errorCode: "silent_recovery_timeout",
+      authenticationPhase: "silentRecovery"
     }
   );
 }

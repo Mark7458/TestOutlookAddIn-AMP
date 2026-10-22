@@ -22,6 +22,7 @@
   let currentHeaderText = "";
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
   const CONNECTED_HINT_KEY = "pluginPreviouslyConnected";
+  const CONNECTED_HINT_STORAGE_KEY = "test-plugin.connected";
   const sectionIds = ["email-details", "diagnostics", "settings"];
   function setPluginConnected(connected, message = "") {
     const connectionView = document.getElementById("connection-view");
@@ -38,10 +39,29 @@
   }
   function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false)); }
   function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
-  function readConnectedHint() { return Boolean(Office.context.roamingSettings.get(CONNECTED_HINT_KEY)); }
+  function readConnectedHint() {
+    try {
+      const localValue = localStorage.getItem(CONNECTED_HINT_STORAGE_KEY);
+      if (localValue === "true") return true;
+      if (localValue === "false") return false;
+    } catch (error) {
+      console.warn("Impossibile leggere lo stato locale di connessione:", error);
+    }
+    return Boolean(Office.context.roamingSettings.get(CONNECTED_HINT_KEY));
+  }
   function saveConnectedHint(value) {
-    Office.context.roamingSettings.set(CONNECTED_HINT_KEY, Boolean(value));
-    Office.context.roamingSettings.saveAsync((result) => { if (result.status === Office.AsyncResultStatus.Failed) console.warn("Impossibile salvare lo stato UX di connessione:", result.error); });
+    const normalizedValue = Boolean(value);
+    try {
+      localStorage.setItem(CONNECTED_HINT_STORAGE_KEY, String(normalizedValue));
+    } catch (error) {
+      console.warn("Impossibile salvare lo stato locale di connessione:", error);
+    }
+    Office.context.roamingSettings.set(CONNECTED_HINT_KEY, normalizedValue);
+    Office.context.roamingSettings.saveAsync((result) => {
+      if (result.status === Office.AsyncResultStatus.Failed) {
+        console.warn("Impossibile salvare lo stato roaming di connessione:", result.error);
+      }
+    });
   }
   async function connectPluginUi() {
     const button = document.getElementById("connect-plugin-button"); const status = document.getElementById("connection-status");
