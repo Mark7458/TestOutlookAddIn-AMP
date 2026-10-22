@@ -526,35 +526,16 @@ async function startAuthentication() {
 
   if (redirectResult?.accessToken) {
     if (!officeContextPage) {
-      recordDiagnostic("porkaround_trigger_from_redirect_token");
+      recordDiagnostic("bootstrap_interactive_complete", { username: redirectResult.account?.username || null });
       savePendingAuthenticationResult(redirectResult, "interactive");
-
-      try {
-        if (window.opener && typeof window.opener.postMessage === "function") {
-          window.opener.postMessage(
-            { type: "workflow-auth-bootstrap-complete" },
-            window.location.origin
-          );
-          recordDiagnostic("porkaround_trigger_postmessage_sent");
-        } else {
-          recordDiagnostic("porkaround_trigger_postmessage_unavailable", {
-            hasOpener: Boolean(window.opener)
-          });
-        }
-      } catch (triggerError) {
-        recordDiagnostic(
-          "porkaround_trigger_postmessage_error",
-          getSafeErrorDetails(triggerError)
-        );
-      }
-
-      returnToOfficeDialogPage();
+      recordDiagnostic("bootstrap_self_close_requested");
+      try { window.close(); }
+      catch (closeError) { recordDiagnostic("bootstrap_self_close_error", getSafeErrorDetails(closeError)); }
       return;
     }
     await sendTokenToParent(redirectResult, "interactive");
     return;
   }
-
   const accounts =
     client.getAllAccounts();
 

@@ -231,8 +231,10 @@ async function acquireTokenSilently() {
 
 function acquireTokenWithOfficeDialog(options = {}) {
   const operationId = ++dialogOperationSequence;
+  const mode = options.mode === "recovery" ? "recovery" : "connect";
   const forceCloseAfterMs = Number(options.forceCloseAfterMs || 0);
-  recordAuthDiagnostic("display_dialog_start", { operationId, forceCloseAfterMs });
+  const dialogUrl = mode === "recovery" ? `${AUTH_CONFIG.dialogUrl}?mode=recovery` : AUTH_CONFIG.dialogUrl;
+  recordAuthDiagnostic("display_dialog_start", { operationId, mode, forceCloseAfterMs });
 
   return new Promise((resolve, reject) => {
     if (
@@ -255,7 +257,7 @@ function acquireTokenWithOfficeDialog(options = {}) {
     }
 
     Office.context.ui.displayDialogAsync(
-      AUTH_CONFIG.dialogUrl,
+      dialogUrl,
       {
         height: 65,
         width: 45,
@@ -550,6 +552,33 @@ function acquireTokenWithOfficeDialog(options = {}) {
   });
 }
 
+function delay(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
+async function runRecoveryLoop(options = {}) {
+  const retryDelayMs = Number(options.retryDelayMs || 1000);
+  const openedRecoveryMaxMs = Number(options.openedRecoveryMaxMs || 20000);
+  const waitForDialogRelease = options.waitForDialogRelease !== false;
+  let recoveryWindowStartedAt = null;
+  let attempt = 0;
+  recordAuthDiagnostic("recovery_watcher_start", { retryDelayMs, openedRecoveryMaxMs, waitForDialogRelease });
+  while (true) {
+    attempt += 1;
+    recordAuthDiagnostic("recovery_attempt", { attempt });
+    try {
+      const authentication = await acquireTokenWithOfficeDialog({ mode: "recovery", forceCloseAfterMs: 3000 });
+      recordAuthDiagnostic("recovery_success", { attempt, acquisitionMode: authentication?.acquisitionMode || null });
+      return authentication;
+    } catch (error) {
+      const dialogBusy = error?.authenticationPhase === "displayDialogAsync";
+      recordAuthDiagnostic("recovery_attempt_failed", { attempt, dialogBusy, errorCode: error?.errorCode || null, message: error?.message || String(error) });
+      if (dialogBusy && waitForDialogRelease) { await delay(retryDelayMs); continue; }
+      if (recoveryWindowStartedAt === null) { recoveryWindowStartedAt = Date.now(); recordAuthDiagnostic("recovery_window_started"); }
+      if (Date.now() - recoveryWindowStartedAt >= openedRecoveryMaxMs) {
+        throw createDialogError("Token non recuperabile entro la finestra di recovery di 20 secondi.", { errorCode: "recovery_timeout", authenticationPhase: "silentRecovery" });
+      }
+      await delay(retryDelayMs);
+    }
+  }
+}
 async function getAccessTokenSilently() {
   if (isAuthenticationUsable(currentAuthentication)) return { ...currentAuthentication, acquisitionMode: "memory" };
   currentAuthentication = null;
@@ -557,12 +586,23 @@ async function getAccessTokenSilently() {
   if (authentication) return authentication;
   throw createDialogError("La sessione non è disponibile. Riconnetti il plugin.", { errorCode: "interaction_required", authenticationPhase: "silentOnly" });
 }
+async function recoverConnection() {
+  recordAuthDiagnostic("recover_connection_start");
+  const authentication = await runRecoveryLoop({ waitForDialogRelease: false, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
+  recordAuthDiagnostic("recover_connection_complete", { acquisitionMode: authentication?.acquisitionMode || null });
+  return authentication;
+}
 async function connectPlugin() {
   recordAuthDiagnostic("connect_plugin_start");
   currentAuthentication = null;
   const cached = await acquireTokenSilently();
-  if (cached) return cached;
-  const authentication = await acquireTokenWithOfficeDialog();
+  if (cached) { recordAuthDiagnostic("connect_plugin_silent_success"); return cached; }
+  recordAuthDiagnostic("interactive_bootstrap_launch");
+  acquireTokenWithOfficeDialog({ mode: "connect" })
+    .then((authentication) => recordAuthDiagnostic("interactive_bootstrap_direct_success", { acquisitionMode: authentication?.acquisitionMode || null }))
+    .catch((error) => recordAuthDiagnostic("interactive_bootstrap_ended", { errorCode: error?.errorCode || null, message: error?.message || String(error) }));
+  await delay(250);
+  const authentication = await runRecoveryLoop({ waitForDialogRelease: true, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
   recordAuthDiagnostic("connect_plugin_complete", { acquisitionMode: authentication?.acquisitionMode || null });
   return authentication;
 }
@@ -574,4 +614,4 @@ async function callHealth() {
   recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode });
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-window.WorkflowHealth = { connectPlugin, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
+window.WorkflowHealth = { connectPlugin, recoverConnection, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };

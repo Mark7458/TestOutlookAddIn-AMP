@@ -21,6 +21,7 @@
 
   let currentHeaderText = "";
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
+  const CONNECTED_HINT_KEY = "pluginPreviouslyConnected";
   const sectionIds = ["email-details", "diagnostics", "settings"];
   function setPluginConnected(connected, message = "") {
     const connectionView = document.getElementById("connection-view");
@@ -37,11 +38,23 @@
   }
   function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false)); }
   function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
+  function readConnectedHint() { return Boolean(Office.context.roamingSettings.get(CONNECTED_HINT_KEY)); }
+  function saveConnectedHint(value) {
+    Office.context.roamingSettings.set(CONNECTED_HINT_KEY, Boolean(value));
+    Office.context.roamingSettings.saveAsync((result) => { if (result.status === Office.AsyncResultStatus.Failed) console.warn("Impossibile salvare lo stato UX di connessione:", result.error); });
+  }
+  async function restoreConnectionState() {
+    if (!readConnectedHint()) { setPluginConnected(false); return; }
+    setPluginConnected(false, "Verifica della connessione in corso...");
+    try { await window.WorkflowHealth.recoverConnection(); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
+    catch (error) { saveConnectedHint(false); setPluginConnected(false, "Sessione non disponibile. Riconnetti il plugin."); }
+    finally { refreshAuthDiagnostics(); }
+  }
   async function connectPluginUi() {
     const button = document.getElementById("connect-plugin-button"); const status = document.getElementById("connection-status");
     if (button) { button.disabled = true; button.textContent = "Connessione in corso..."; }
     if (status) status.textContent = "Completa l'accesso nella finestra Microsoft.";
-    try { await window.WorkflowHealth.connectPlugin(); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
+    try { await window.WorkflowHealth.connectPlugin(); saveConnectedHint(true); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
     catch (error) { setPluginConnected(false, error?.message || "Connessione non completata."); }
     finally { if (button) { button.disabled = false; button.textContent = "Connetti plugin"; } refreshAuthDiagnostics(); }
   }
@@ -260,6 +273,7 @@ async function testHealthFunction() {
      * del popup MFA.
      */
     showHealthError(error);
+    if (error?.errorCode === "interaction_required") { saveConnectedHint(false); setPluginConnected(false, "Sessione non disponibile. Riconnetti il plugin."); }
     refreshAuthDiagnostics();
   } finally {
     setHealthButtonLoading(false);
@@ -1071,6 +1085,6 @@ function registerHealthButton() {
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    setPluginConnected(false);
+    restoreConnectionState();
   });
 })();
