@@ -307,7 +307,24 @@ async function sendMessageToParent(message) {
   recordOfficeState("before_message_parent_wait");
   probeOfficeReady("before_message_parent_wait");
 
-  await waitForMessageParent();
+  try {
+    await waitForMessageParent();
+  } catch (error) {
+    recordDiagnostic("porkaround_self_close_start", {
+      reason: "message_parent_unavailable_after_token",
+      ...getSafeErrorDetails(error)
+    });
+    try {
+      window.close();
+      recordDiagnostic("porkaround_self_close_requested");
+    } catch (closeError) {
+      recordDiagnostic(
+        "porkaround_self_close_error",
+        getSafeErrorDetails(closeError)
+      );
+    }
+    throw error;
+  }
 
   recordDiagnostic(
     "message_parent_start",

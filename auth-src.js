@@ -21,8 +21,6 @@ let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
-const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
-const PENDING_AUTH_POLL_MS = 100;
 const MAX_AUTH_DIAGNOSTIC_EVENTS = 100;
 
 function readAuthDiagnostics() {
@@ -291,48 +289,10 @@ function acquireTokenWithOfficeDialog() {
 
         const dialog = result.value;
         let completed = false;
+        const dialogOpenedAt = Date.now();
+        let dialog12006Count = 0;
 
         recordAuthDiagnostic("display_dialog_success", { operationId });
-
-        /*
-         * Dialog A salva il risultato MSAL in localStorage prima di tornare
-         * alla pagina Office. Il task pane osserva quella chiave: appena il
-         * token e stato salvato chiude A e passa subito al recovery, senza
-         * aspettare il timeout di messageParent nel dialogo ormai scollegato.
-         */
-        const pendingAuthenticationWatcher =
-          setInterval(() => {
-            if (completed || operationId !== dialogOperationSequence) {
-              return;
-            }
-            try {
-              const pendingAuthentication =
-                JSON.parse(localStorage.getItem(PENDING_AUTH_KEY) || "null");
-              if (!pendingAuthentication?.accessToken) {
-                return;
-              }
-              recordAuthDiagnostic("porkaround_pending_auth_detected", {
-                operationId,
-                acquisitionMode:
-                  pendingAuthentication.acquisitionMode || "interactive",
-                expiresOn: pendingAuthentication.expiresOn || null
-              });
-              completeWithError(
-                createDialogError(
-                  "Autenticazione completata; riapertura del dialogo Office per consegnare il token.",
-                  {
-                    errorCode: "pending_auth_ready",
-                    authenticationPhase: "porkaround"
-                  }
-                )
-              );
-            } catch (error) {
-              recordAuthDiagnostic("porkaround_pending_auth_read_error", {
-                operationId,
-                message: error?.message || String(error)
-              });
-            }
-          }, PENDING_AUTH_POLL_MS);
 
         const authenticationTimeout =
           setTimeout(() => {
@@ -352,7 +312,6 @@ function acquireTokenWithOfficeDialog() {
 
         function clearAuthenticationTimeout() {
           clearTimeout(authenticationTimeout);
-          clearInterval(pendingAuthenticationWatcher);
         }
 
         function closeDialog() {
@@ -549,6 +508,29 @@ function acquireTokenWithOfficeDialog() {
                   event?.error
               }
             );
+
+            if (event?.error === 12006) {
+              dialog12006Count += 1;
+              const elapsedMs = Date.now() - dialogOpenedAt;
+              recordAuthDiagnostic("porkaround_12006_observed", {
+                operationId,
+                count: dialog12006Count,
+                elapsedMs
+              });
+
+              if (dialog12006Count >= 2 || elapsedMs >= 12000) {
+                completeWithError(
+                  createDialogError(
+                    "Dialogo interattivo chiuso dopo il login; avvio del dialogo di recupero.",
+                    {
+                      errorCode: "dialog_closed_after_auth",
+                      authenticationPhase: "porkaround",
+                      dialogEvent: 12006
+                    }
+                  )
+                );
+              }
+            }
           }
         );
       }
@@ -592,7 +574,7 @@ async function getAuthentication() {
       message: firstDialogError?.message || String(firstDialogError)
     });
 
-    if (firstDialogError?.errorCode !== "pending_auth_ready") {
+    if (firstDialogError?.errorCode !== "dialog_closed_after_auth") {
       recordAuthDiagnostic("porkaround_silent_recovery_start");
       const recoveredAuthentication =
         await acquireTokenSilently();
