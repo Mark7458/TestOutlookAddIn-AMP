@@ -673,7 +673,16 @@ async function connectPlugin() {
 }
 async function callHealthOnDemand() {
   recordAuthDiagnostic("call_health_start");
-  const authentication = await connectPlugin();
+
+  let authentication;
+  if (isAuthenticationUsable(currentAuthentication)) {
+    recordAuthDiagnostic("token_memory_reused", {
+      expiresOn: currentAuthentication?.expiresOn || null
+    });
+    authentication = { ...currentAuthentication, acquisitionMode: "memory" };
+  } else {
+    authentication = await connectPlugin();
+  }
   const healthStartedAt = Date.now();
   recordAuthDiagnostic("health_fetch_start", { authenticationMode: authentication.acquisitionMode });
   const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
