@@ -554,35 +554,21 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function waitForInteractiveWindowReturn() {
+function waitForBootstrapCompletionSignal() {
   return new Promise((resolve) => {
-    let blurred = false;
-    const startedAt = Date.now();
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "workflow-auth-bootstrap-complete") return;
 
-    const cleanup = () => {
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("focus", onFocus);
-    };
-
-    const onBlur = () => {
-      blurred = true;
-      recordAuthDiagnostic("interactive_window_blur", {
-        elapsedMs: Date.now() - startedAt
-      });
-    };
-
-    const onFocus = () => {
-      if (!blurred) return;
-      cleanup();
-      recordAuthDiagnostic("interactive_window_returned", {
-        elapsedMs: Date.now() - startedAt
+      window.removeEventListener("message", onMessage);
+      recordAuthDiagnostic("bootstrap_completion_signal_received", {
+        origin: event.origin
       });
       resolve();
     };
 
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("focus", onFocus);
-    recordAuthDiagnostic("interactive_window_wait_started");
+    window.addEventListener("message", onMessage);
+    recordAuthDiagnostic("bootstrap_completion_signal_wait_started");
   });
 }
 
@@ -602,19 +588,19 @@ async function getAuthentication() {
   const recoveryMaxMs = 20000;
 
   recordAuthDiagnostic("bootstrap_dialog_start", {
-    trigger: "interactive_window_return"
+    trigger: "redirect_token_postmessage"
   });
 
   const bootstrapPromise = acquireTokenWithOfficeDialog();
-  const interactiveReturnPromise = waitForInteractiveWindowReturn();
+  const bootstrapSignalPromise = waitForBootstrapCompletionSignal();
 
   const bootstrapOutcome = await Promise.race([
     bootstrapPromise.then((authentication) => ({
       type: "success",
       authentication
     })),
-    interactiveReturnPromise.then(() => ({
-      type: "interactive_return"
+    bootstrapSignalPromise.then(() => ({
+      type: "bootstrap_signal"
     }))
   ]);
 
@@ -622,7 +608,7 @@ async function getAuthentication() {
     return bootstrapOutcome.authentication;
   }
 
-  recordAuthDiagnostic("bootstrap_interactive_return_detected");
+  recordAuthDiagnostic("bootstrap_redirect_token_detected");
 
   /*
    * Da qui in poi rientriamo ESATTAMENTE nella recovery gia validata:

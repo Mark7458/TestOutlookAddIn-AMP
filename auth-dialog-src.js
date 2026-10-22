@@ -525,7 +525,28 @@ async function startAuthentication() {
 
   if (redirectResult?.accessToken) {
     if (!officeContextPage) {
+      recordDiagnostic("porkaround_trigger_from_redirect_token");
       savePendingAuthenticationResult(redirectResult, "interactive");
+
+      try {
+        if (window.opener && typeof window.opener.postMessage === "function") {
+          window.opener.postMessage(
+            { type: "workflow-auth-bootstrap-complete" },
+            window.location.origin
+          );
+          recordDiagnostic("porkaround_trigger_postmessage_sent");
+        } else {
+          recordDiagnostic("porkaround_trigger_postmessage_unavailable", {
+            hasOpener: Boolean(window.opener)
+          });
+        }
+      } catch (triggerError) {
+        recordDiagnostic(
+          "porkaround_trigger_postmessage_error",
+          getSafeErrorDetails(triggerError)
+        );
+      }
+
       returnToOfficeDialogPage();
       return;
     }
