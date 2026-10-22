@@ -533,7 +533,52 @@ async function getAuthentication() {
     return silentAuthentication;
   }
 
-  return acquireTokenWithOfficeDialog();
+  /*
+   * PORKAROUND:
+   * il primo dialogo puo completare login/MFA ma perdere il bridge Office
+   * durante il redirect. Se il primo dialogo termina con errore, proviamo
+   * subito la cache MSAL. Se non e ancora utilizzabile, apriamo UN SOLO
+   * secondo dialogo fresco. Nessun loop ulteriore e consentito.
+   */
+  try {
+    return await acquireTokenWithOfficeDialog();
+  } catch (firstDialogError) {
+    recordAuthDiagnostic("porkaround_first_dialog_failed", {
+      name: firstDialogError?.name || null,
+      errorCode: firstDialogError?.errorCode || null,
+      message: firstDialogError?.message || String(firstDialogError)
+    });
+
+    recordAuthDiagnostic("porkaround_silent_recovery_start");
+    const recoveredAuthentication =
+      await acquireTokenSilently();
+
+    if (recoveredAuthentication) {
+      recordAuthDiagnostic("porkaround_silent_recovery_success", {
+        acquisitionMode: recoveredAuthentication.acquisitionMode || null,
+        expiresOn: recoveredAuthentication.expiresOn || null
+      });
+      return recoveredAuthentication;
+    }
+
+    recordAuthDiagnostic("porkaround_second_dialog_start");
+    try {
+      const secondDialogAuthentication =
+        await acquireTokenWithOfficeDialog();
+      recordAuthDiagnostic("porkaround_second_dialog_success", {
+        acquisitionMode: secondDialogAuthentication?.acquisitionMode || null,
+        expiresOn: secondDialogAuthentication?.expiresOn || null
+      });
+      return secondDialogAuthentication;
+    } catch (secondDialogError) {
+      recordAuthDiagnostic("porkaround_second_dialog_failed", {
+        name: secondDialogError?.name || null,
+        errorCode: secondDialogError?.errorCode || null,
+        message: secondDialogError?.message || String(secondDialogError)
+      });
+      throw secondDialogError;
+    }
+  }
 }
 
 async function callHealth() {
