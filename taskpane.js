@@ -21,6 +21,7 @@
 
   let currentHeaderText = "";
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
+  const sectionIds = ["email-details", "settings", "diagnostics"];
   function isViewPersistenceEnabled() { return Boolean(Office.context.roamingSettings.get(VIEW_PERSISTENCE_KEY)); }
   function setSectionOpen(name, open) {
     const button = document.getElementById(`${name}-toggle`); const panel = document.getElementById(`${name}-panel`);
@@ -241,7 +242,6 @@ async function testHealthFunction() {
      * del popup MFA.
      */
     showHealthError(error);
-    if (error?.errorCode === "interaction_required") { saveConnectedHint(false); setPluginConnected(false, "Sessione non disponibile. Riconnetti il plugin."); }
     refreshAuthDiagnostics();
   } finally {
     setHealthButtonLoading(false);
