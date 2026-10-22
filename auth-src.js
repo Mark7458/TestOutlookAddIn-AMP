@@ -550,177 +550,28 @@ function acquireTokenWithOfficeDialog(options = {}) {
   });
 }
 
-function delay(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function waitForBootstrapCompletionSignal() {
-  return new Promise((resolve) => {
-    const onMessage = (event) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "workflow-auth-bootstrap-complete") return;
-
-      window.removeEventListener("message", onMessage);
-      recordAuthDiagnostic("bootstrap_completion_signal_received", {
-        origin: event.origin
-      });
-      resolve();
-    };
-
-    window.addEventListener("message", onMessage);
-    recordAuthDiagnostic("bootstrap_completion_signal_wait_started");
-  });
-}
-
-async function getAuthentication() {
-  if (isAuthenticationUsable(currentAuthentication)) {
-    recordAuthDiagnostic("memory_token_reused", {
-      expiresOn: currentAuthentication.expiresOn || null
-    });
-    return { ...currentAuthentication, acquisitionMode: "memory" };
-  }
-
+async function getAccessTokenSilently() {
+  if (isAuthenticationUsable(currentAuthentication)) return { ...currentAuthentication, acquisitionMode: "memory" };
   currentAuthentication = null;
-  const silentAuthentication = await acquireTokenSilently();
-  if (silentAuthentication) return silentAuthentication;
-
-  const retryDelayMs = 1000;
-  const recoveryMaxMs = 20000;
-
-  recordAuthDiagnostic("bootstrap_dialog_start", {
-    trigger: "redirect_token_postmessage"
-  });
-
-  const bootstrapPromise = acquireTokenWithOfficeDialog();
-  const bootstrapSignalPromise = waitForBootstrapCompletionSignal();
-
-  const bootstrapOutcome = await Promise.race([
-    bootstrapPromise.then((authentication) => ({
-      type: "success",
-      authentication
-    })),
-    bootstrapSignalPromise.then(() => ({
-      type: "bootstrap_signal"
-    }))
-  ]);
-
-  if (bootstrapOutcome.type === "success") {
-    return bootstrapOutcome.authentication;
-  }
-
-  recordAuthDiagnostic("bootstrap_redirect_token_detected");
-
-  /*
-   * Da qui in poi rientriamo ESATTAMENTE nella recovery gia validata:
-   * 1 secondo tra i tentativi, massimo 20 secondi complessivi.
-   * Invalidiamo l'operazione bootstrap rimasta pendente, senza introdurre
-   * alcun timeout durante account/password/MFA.
-   */
-  dialogOperationSequence += 1;
-  recordAuthDiagnostic("bootstrap_released_for_recovery");
-
-  recordAuthDiagnostic("recovery_initial_wait", { waitMs: retryDelayMs });
-  await delay(retryDelayMs);
-
-  const recoveryStartedAt = Date.now();
-  let attempt = 0;
-  recordAuthDiagnostic("recovery_started", {
-    recoveryMaxMs,
-    retryDelayMs
-  });
-
-  while (Date.now() - recoveryStartedAt < recoveryMaxMs) {
-    attempt += 1;
-    recordAuthDiagnostic("recovery_attempt", {
-      attempt,
-      elapsedMs: Date.now() - recoveryStartedAt
-    });
-
-    try {
-      const recovered = await acquireTokenWithOfficeDialog({ forceCloseAfterMs: 3000 });
-      recordAuthDiagnostic("recovery_success", {
-        attempt,
-        acquisitionMode: recovered?.acquisitionMode || null,
-        elapsedMs: Date.now() - recoveryStartedAt
-      });
-      return recovered;
-    } catch (error) {
-      recordAuthDiagnostic("recovery_attempt_failed", {
-        attempt,
-        name: error?.name || null,
-        errorCode: error?.errorCode || null,
-        message: error?.message || String(error),
-        elapsedMs: Date.now() - recoveryStartedAt
-      });
-    }
-
-    const remainingMs = recoveryMaxMs - (Date.now() - recoveryStartedAt);
-    if (remainingMs <= 0) break;
-    const waitMs = Math.min(retryDelayMs, remainingMs);
-    recordAuthDiagnostic("recovery_wait", { attempt, waitMs });
-    await delay(waitMs);
-  }
-
-  recordAuthDiagnostic("recovery_timeout", {
-    attempts: attempt,
-    elapsedMs: Date.now() - recoveryStartedAt
-  });
-  throw createDialogError(
-    "Token non recuperabile entro la finestra di recovery di 20 secondi.",
-    {
-      errorCode: "porkaround_recovery_timeout",
-      authenticationPhase: "porkaroundRecovery"
-    }
-  );
+  const authentication = await acquireTokenSilently();
+  if (authentication) return authentication;
+  throw createDialogError("La sessione non è disponibile. Riconnetti il plugin.", { errorCode: "interaction_required", authenticationPhase: "silentOnly" });
 }
-
+async function connectPlugin() {
+  recordAuthDiagnostic("connect_plugin_start");
+  currentAuthentication = null;
+  const cached = await acquireTokenSilently();
+  if (cached) return cached;
+  const authentication = await acquireTokenWithOfficeDialog();
+  recordAuthDiagnostic("connect_plugin_complete", { acquisitionMode: authentication?.acquisitionMode || null });
+  return authentication;
+}
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");
-
-  const authentication =
-    await getAuthentication();
-
-  recordAuthDiagnostic("function_request_start", {
-    acquisitionMode: authentication.acquisitionMode
-  });
-
-  const response = await fetch(
-    AUTH_CONFIG.healthUrl,
-    {
-      method: "GET",
-      headers: {
-        Authorization:
-          `Bearer ${authentication.accessToken}`,
-        Accept:
-          "application/json"
-      }
-    }
-  );
-
-  const body =
-    await response.text();
-
-  recordAuthDiagnostic("function_response", {
-    status: response.status,
-    ok: response.ok,
-    authenticationMode: authentication.acquisitionMode
-  });
-
-  return {
-    ok:
-      response.ok,
-    status:
-      response.status,
-    statusText:
-      response.statusText,
-    authenticationMode:
-      authentication.acquisitionMode,
-    body
-  };
+  const authentication = await getAccessTokenSilently();
+  const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
+  const body = await response.text();
+  recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode });
+  return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-
-window.WorkflowHealth = {
-  callHealth,
-  getDiagnostics: readAuthDiagnostics,
-  clearDiagnostics: clearAuthDiagnostics
-};
+window.WorkflowHealth = { connectPlugin, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };

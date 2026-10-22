@@ -2,6 +2,7 @@ import {
   PublicClientApplication
 } from "@azure/msal-browser";
 
+const DIALOG_MODE = new URL(window.location.href).searchParams.get("mode") || "connect";
 const AUTH_CONFIG = {
   clientId:
     "17be48ae-1d05-4233-ba98-654102bf76e0",
@@ -631,6 +632,12 @@ async function startAuthentication() {
     }
   }
 
+  if (DIALOG_MODE === "recovery") {
+    const error = new Error("Token silent non ancora disponibile.");
+    error.errorCode = "silent_not_ready";
+    recordDiagnostic("recovery_silent_not_ready");
+    throw error;
+  }
   recordDiagnostic(
     "acquire_token_redirect_start",
     {

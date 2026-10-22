@@ -435,3 +435,5 @@ footer {
   .auth-diagnostics-output { border-color: #484644; background: #201f1e; color: #f3f2f1; }
   .auth-diagnostics-status { color: #c8c6c4; }
 }
+
+.card,.toggle-card{margin-top:16px;padding:14px;border:1px solid #e1dfdd;border-radius:8px;background:#fff}.connection-card{margin-top:0}.connection-card h2,.health-card h2{margin:0 0 8px}.connection-status,.settings-status{margin-top:10px;color:#605e5c}.section-toggle{width:100%;padding:11px 12px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;font-weight:650;cursor:pointer}.section-toggle::before{content:"▸";display:inline-block;width:18px}.section-toggle[aria-expanded="true"]::before{content:"▾"}.toggle-card{padding:0;overflow:hidden}.toggle-panel{padding:0 12px 12px}.setting-row{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer}.setting-row input{width:18px;height:18px}@media(prefers-color-scheme:dark){.card,.toggle-card{border-color:#484644;background:#2d2c2b}.connection-status,.settings-status{color:#c8c6c4}}

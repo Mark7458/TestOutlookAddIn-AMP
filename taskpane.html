@@ -3,290 +3,62 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dettagli messaggio</title>
+  <title>Test-Plugin</title>
   <link rel="stylesheet" href="taskpane.css">
   <script src="https://officeapis.public.onecdn.static.microsoft/1/office.js"></script>
-  <script
-    src="auth.bundle.js"
-    type="text/javascript"
-    defer>
-</script>
+  <script src="auth.bundle.js" defer></script>
   <script src="taskpane.js" defer></script>
 </head>
 <body>
-  <header class="app-header">
-    <img src="icon-32.png" width="32" height="32" alt="">
-    <div>
-      <h1>Dettagli messaggio</h1>
-      <p>v.0.0.1 - AlmostStable_diagnostic-testMFA27</p>
-    </div>
-  </header>
+<header class="app-header"><img src="icon-32.png" width="32" height="32" alt=""><div><h1>Test-Plugin</h1><p>v.0.1.0 - 2026/10/22 - 12:19</p></div></header>
+<main>
+  <section id="connection-view" class="card connection-card">
+    <h2>Connetti il plugin</h2>
+    <p>Completa l'accesso Microsoft e l'eventuale verifica MFA per abilitare le funzioni del plugin.</p>
+    <button id="connect-plugin-button" class="primary-button" type="button">Connetti plugin</button>
+    <div id="connection-status" class="connection-status" role="status" aria-live="polite">Plugin non connesso.</div>
+  </section>
 
-  <main>
-    <div id="main-view">
-    <div id="loading" class="notice" role="status" aria-live="polite">
-      Lettura del messaggio selezionato…
-    </div>
-
+  <div id="connected-view" hidden>
+    <div id="loading" class="notice" role="status" aria-live="polite">Lettura del messaggio selezionato…</div>
     <div id="error" class="notice notice-error" role="alert" hidden></div>
 
-    <section class="card health-card">
-      <h2>Test Azure Function</h2>
+    <section class="card health-card"><h2>Azure Function</h2><p class="health-description">Verifica il token e la connessione con la Function protetta.</p>
+      <button id="test-function-button" class="primary-button" type="button">Chiama Health</button>
+      <div id="function-result" class="function-result" hidden><button id="close-function-result" class="result-close-button" type="button" aria-label="Chiudi risultato">×</button><div class="function-result-row"><span>Stato HTTP</span><strong id="function-status"></strong></div><div class="function-result-row"><span>Autenticazione</span><strong id="function-auth-mode"></strong></div><pre id="function-response"></pre></div>
+    </section>
 
-      <p class="health-description">
-        Verifica l'autenticazione e la connessione
-        con la Function protetta.
-      </p>
-
-      <button
-        id="test-function-button"
-        class="primary-button"
-        type="button">
-        Chiama Health
-      </button>
-
-      <div
-        id="function-result"
-        class="function-result"
-        hidden>
-
-        <button
-          id="close-function-result"
-          class="result-close-button"
-          type="button"
-          aria-label="Chiudi risultato">
-          ×
-        </button>
-
-        <div class="function-result-row">
-          <span>Stato HTTP</span>
-          <strong id="function-status"></strong>
-        </div>
-
-        <div class="function-result-row">
-          <span>Autenticazione</span>
-          <strong id="function-auth-mode"></strong>
-        </div>
-
-        <pre id="function-response"></pre>
+    <section class="toggle-card"><button class="section-toggle" id="email-details-toggle" type="button" aria-expanded="false" aria-controls="email-details-panel">Dettagli email</button>
+      <div id="email-details-panel" class="toggle-panel" hidden>
+        <section id="message-data" aria-label="Dati del messaggio" hidden><dl class="message-fields">
+          <div class="field"><dt>ID del messaggio</dt><dd id="message-id" class="monospace selectable"></dd></div>
+          <div class="field"><dt>Conversation ID</dt><dd id="conversationId" class="monospace selectable"></dd></div>
+          <div class="field"><dt>Categorie</dt><dd id="message-categories">Non disponibile</dd></div>
+          <div class="field"><dt>Oggetto</dt><dd id="message-subject"></dd></div>
+          <div class="field"><dt>Mittente</dt><dd id="message-sender"></dd></div>
+          <div class="field"><dt>A</dt><dd id="message-to"></dd></div>
+          <div class="field"><dt>CC</dt><dd id="message-cc"></dd></div>
+          <div class="field"><dt>Data e ora di ricezione</dt><dd id="message-received"></dd></div>
+          <div class="field field-attachments"><dt>Allegati</dt><dd><div id="message-attachments" class="attachments-list" aria-live="polite"></div></dd></div>
+          <div class="field field-body"><dt>Corpo</dt><dd id="message-body" class="message-body selectable"></dd></div>
+        </dl></section>
       </div>
     </section>
 
-
-    <section id="message-data" aria-label="Dati del messaggio" hidden>
-      <dl class="message-fields">
-        <div class="field">
-          <dt>ID del messaggio</dt>
-          <dd id="message-id" class="monospace selectable"></dd>
-        </div>
-
-        <div class="field">
-          <dt>Conversation ID</dt>
-          <dd id="conversationId" class="monospace selectable"></dd>
-        </div>
-        
-        <div class="field">
-          <dt>Categorie</dt>
-          <dd id="message-categories">Non disponibile</dd>
-        </div>
-        <div class="field">
-          <dt>Oggetto</dt>
-          <dd id="message-subject"></dd>
-        </div>
-
-        <div class="field">
-          <dt>Mittente</dt>
-          <dd id="message-sender"></dd>
-        </div>
-
-        <div class="field">
-          <dt>Data e ora di ricezione</dt>
-          <dd id="message-received"></dd>
-        </div>
-
-        <div class="field field-attachments">
-          <dt>Allegati</dt>
-          <dd>
-            <div
-              id="message-attachments"
-              class="attachments-list"
-              aria-live="polite">
-            </div>
-          </dd>
-        </div>
-
-        <div class="field field-body">
-          <dt>Corpo</dt>
-          <dd id="message-body" class="message-body selectable"></dd>
-        </div>
-      </dl>
-    </section>
-
-    <section class="diagnostics-section auth-diagnostics-section">
-
-      <h2>Diagnostica autenticazione</h2>
-
-      <div class="auth-diagnostics-actions">
-
-        <button id="auth-diagnostics-refresh" class="secondary-button compact-button" type="button">Aggiorna</button>
-
-        <button id="auth-diagnostics-copy" class="secondary-button compact-button" type="button">Copia</button>
-
-        <button id="auth-diagnostics-clear" class="secondary-button compact-button" type="button">Pulisci</button>
-
-      </div>
-
-      <pre id="auth-diagnostics-output" class="auth-diagnostics-output">Nessun evento registrato.</pre>
-
-      <div id="auth-diagnostics-status" class="auth-diagnostics-status" role="status"></div>
-
-    </section>
-
-
-    <section class="diagnostics-section">
-      <h2>Diagnostica</h2>
-      <dl class="message-fields">
-          <div class="field">
-              <dt>Host</dt>
-              <dd id="diagnostic-host">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Versione host</dt>
-              <dd id="diagnostic-host-version">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Piattaforma</dt>
-              <dd id="diagnostic-platform">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Utente Outlook</dt>
-              <dd id="diagnostic-user">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Email Outlook</dt>
-              <dd id="diagnostic-email">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Tipo account</dt>
-              <dd id="diagnostic-account-type">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Time zone</dt>
-              <dd id="diagnostic-timezone">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Mailbox 1.8</dt>
-              <dd id="diagnostic-mailbox-18">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Mailbox 1.13</dt>
-              <dd id="diagnostic-mailbox-113">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Mailbox 1.14</dt>
-              <dd id="diagnostic-mailbox-114">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Shared mailbox / folder</dt>
-              <dd id="diagnostic-shared">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Target mailbox</dt>
-              <dd id="diagnostic-target-mailbox">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Owner</dt>
-              <dd id="diagnostic-owner">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-              <dt>Delegate permissions</dt>
-              <dd id="diagnostic-delegate-permissions">Non disponibile</dd>
-          </div>
-
-          <div class="field">
-            <dt>Roaming setting - operatore</dt>
-            <dd>
-                <input
-                    type="text"
-                    id="roaming-operator-input"
-                    placeholder="Inserisci un valore di test"
-                />
-
-                <button
-                    type="button"
-                    id="roaming-operator-save"
-                >
-                    Salva
-                </button>
-
-                <div style="margin-top: 8px;">
-                    <strong>Valore recuperato:</strong>
-                    <span id="roaming-operator-value">Non impostato</span>
-                </div>
-
-                <div
-                    id="roaming-operator-status"
-                    style="margin-top: 6px;"
-                ></div>
-            </dd>
-          </div>
-      </dl>
-</section>
-    </div>
-
-    <section
-      id="header-view"
-      class="header-view"
-      aria-label="Header del messaggio allegato"
-      hidden>
-      <div class="header-view-toolbar">
-        <button
-          id="header-back-button"
-          class="secondary-button"
-          type="button">
-          ← Indietro
-        </button>
-        <button
-          id="copy-header-button"
-          class="primary-button header-copy-button"
-          type="button">
-          Copia header
-        </button>
-      </div>
-
-      <div class="field header-content-field">
-        <dt>Header messaggio allegato</dt>
-        <dd>
-          <div id="header-attachment-name" class="header-attachment-name"></div>
-          <div
-            id="header-status"
-            class="header-status"
-            role="status"
-            aria-live="polite">
-          </div>
-          <pre
-            id="attachment-header-content"
-            class="attachment-header-content selectable"></pre>
-        </dd>
+    <section class="toggle-card"><button class="section-toggle" id="diagnostics-toggle" type="button" aria-expanded="false" aria-controls="diagnostics-panel">Diagnostica</button>
+      <div id="diagnostics-panel" class="toggle-panel" hidden>
+        <dl class="message-fields">
+          <div class="field"><dt>Host</dt><dd id="diagnostic-host">Non disponibile</dd></div><div class="field"><dt>Versione host</dt><dd id="diagnostic-host-version">Non disponibile</dd></div><div class="field"><dt>Piattaforma</dt><dd id="diagnostic-platform">Non disponibile</dd></div><div class="field"><dt>Utente Outlook</dt><dd id="diagnostic-user">Non disponibile</dd></div><div class="field"><dt>Email Outlook</dt><dd id="diagnostic-email">Non disponibile</dd></div><div class="field"><dt>Tipo account</dt><dd id="diagnostic-account-type">Non disponibile</dd></div><div class="field"><dt>Time zone</dt><dd id="diagnostic-timezone">Non disponibile</dd></div><div class="field"><dt>Mailbox</dt><dd id="diagnostic-mailbox-version">Non disponibile</dd></div><div class="field"><dt>Shared mailbox / folder</dt><dd id="diagnostic-shared">Non disponibile</dd></div><div class="field"><dt>Target mailbox</dt><dd id="diagnostic-target-mailbox">Non disponibile</dd></div><div class="field"><dt>Owner</dt><dd id="diagnostic-owner">Non disponibile</dd></div><div class="field"><dt>Delegate permissions</dt><dd id="diagnostic-delegate-permissions">Non disponibile</dd></div>
+        </dl>
+        <div class="auth-diagnostics-actions"><button id="auth-diagnostics-refresh" class="secondary-button compact-button" type="button">Aggiorna</button><button id="auth-diagnostics-copy" class="secondary-button compact-button" type="button">Copia</button><button id="auth-diagnostics-clear" class="secondary-button compact-button" type="button">Pulisci</button></div>
+        <pre id="auth-diagnostics-output" class="auth-diagnostics-output">Nessun evento registrato.</pre><div id="auth-diagnostics-status" class="auth-diagnostics-status" role="status"></div>
       </div>
     </section>
-  </main>
 
-  <footer>
-    Footer
-  </footer>
-</body>
-</html>
+    <section class="toggle-card"><button class="section-toggle" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel">Impostazioni plugin</button>
+      <div id="settings-panel" class="toggle-panel" hidden><label class="setting-row" title="Se è attiva, mantiene la visualizzazione corrente al cambio messaggio."><input id="persist-view-setting" type="checkbox"><span>Mantieni sezioni aperte</span></label><p id="settings-status" class="settings-status" role="status"></p></div>
+    </section>
+  </div>
+
+  <section id="header-view" class="header-view" aria-label="Header del messaggio allegato" hidden><div class="header-view-toolbar"><button id="header-back-button" class="secondary-button" type="button">← Indietro</button><button id="copy-header-button" class="primary-button header-copy-button" type="button">Copia header</button></div><div class="field header-content-field"><dt>Header messaggio allegato</dt><dd><div id="header-attachment-name" class="header-attachment-name"></div><div id="header-status" class="header-status" role="status" aria-live="polite"></div><pre id="attachment-header-content" class="attachment-header-content selectable"></pre></dd></div></section>
+</main><footer>Test-Plugin</footer></body></html>

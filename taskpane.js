@@ -12,12 +12,40 @@
     categories: "message-categories",
     subject: "message-subject",
     sender: "message-sender",
+    to: "message-to",
+    cc: "message-cc",
     received: "message-received",
     body: "message-body",
     attachments: "message-attachments"
   };
 
   let currentHeaderText = "";
+  const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
+  const sectionIds = ["email-details", "diagnostics", "settings"];
+  function setPluginConnected(connected, message = "") {
+    const connectionView = document.getElementById("connection-view");
+    const connectedView = document.getElementById("connected-view");
+    const status = document.getElementById("connection-status");
+    if (connectionView) connectionView.hidden = Boolean(connected);
+    if (connectedView) connectedView.hidden = !connected;
+    if (status) status.textContent = message || (connected ? "Plugin connesso." : "Plugin non connesso.");
+  }
+  function isViewPersistenceEnabled() { return Boolean(Office.context.roamingSettings.get(VIEW_PERSISTENCE_KEY)); }
+  function setSectionOpen(name, open) {
+    const button = document.getElementById(`${name}-toggle`); const panel = document.getElementById(`${name}-panel`);
+    if (!button || !panel) return; button.setAttribute("aria-expanded", String(Boolean(open))); panel.hidden = !open;
+  }
+  function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false)); }
+  function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
+  async function connectPluginUi() {
+    const button = document.getElementById("connect-plugin-button"); const status = document.getElementById("connection-status");
+    if (button) { button.disabled = true; button.textContent = "Connessione in corso..."; }
+    if (status) status.textContent = "Completa l'accesso nella finestra Microsoft.";
+    try { await window.WorkflowHealth.connectPlugin(); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
+    catch (error) { setPluginConnected(false, error?.message || "Connessione non completata."); }
+    finally { if (button) { button.disabled = false; button.textContent = "Connetti plugin"; } refreshAuthDiagnostics(); }
+  }
+  function registerConnectionControls() { document.getElementById("connect-plugin-button")?.addEventListener("click", connectPluginUi); }
 
   function setHealthButtonLoading(isLoading) {
   const button =
@@ -370,6 +398,7 @@ function registerHealthButton() {
     return displayName || emailAddress;
   }
 
+  function formatAddressList(addresses) { return (Array.isArray(addresses) ? addresses : []).map(formatAddress).filter(Boolean).join("; ") || "Nessuno"; }
   function formatReceivedDate(value) {
     if (!value) {
       return "";
@@ -899,20 +928,8 @@ function registerHealthButton() {
     );
 
     if (requirements) {
-        setText(
-            "diagnostic-mailbox-18",
-            requirements.isSetSupported("Mailbox", "1.8")
-        );
-
-        setText(
-            "diagnostic-mailbox-113",
-            requirements.isSetSupported("Mailbox", "1.13")
-        );
-
-        setText(
-            "diagnostic-mailbox-114",
-            requirements.isSetSupported("Mailbox", "1.14")
-        );
+      const versions = ["1.14", "1.13", "1.12", "1.11", "1.10", "1.9", "1.8", "1.7", "1.6", "1.5", "1.4", "1.3", "1.2", "1.1"];
+      setText("diagnostic-mailbox-version", versions.find((version) => requirements.isSetSupported("Mailbox", version)) || "Non rilevata");
     }
   }
 
@@ -962,100 +979,18 @@ function registerHealthButton() {
     });
   }
 
-  function loadRoamingOperator() {
-    const value =
-        Office.context.roamingSettings.get("operatorTest");
-
-    const valueElement =
-        document.getElementById("roaming-operator-value");
-
-    const inputElement =
-        document.getElementById("roaming-operator-input");
-
-    if (valueElement) {
-        valueElement.textContent =
-            value || "Non impostato";
-    }
-
-    if (inputElement && value) {
-        inputElement.value = value;
-    }
-
-    console.log(
-        "Roaming setting operatorTest:",
-        value
-    );
+  function loadPluginSettings() { const checkbox = document.getElementById("persist-view-setting"); if (checkbox) checkbox.checked = isViewPersistenceEnabled(); }
+  function savePluginSettings() {
+    const checkbox = document.getElementById("persist-view-setting"); const status = document.getElementById("settings-status");
+    Office.context.roamingSettings.set(VIEW_PERSISTENCE_KEY, Boolean(checkbox?.checked));
+    Office.context.roamingSettings.saveAsync((result) => { if (status) status.textContent = result.status === Office.AsyncResultStatus.Succeeded ? "Impostazione salvata." : `Errore: ${result.error?.message || "salvataggio non riuscito"}`; });
   }
-
-  function saveRoamingOperator() {
-    const inputElement =
-        document.getElementById("roaming-operator-input");
-
-    const statusElement =
-        document.getElementById("roaming-operator-status");
-
-    if (!inputElement || !statusElement) {
-        return;
-    }
-
-    const value = inputElement.value.trim();
-
-    if (!value) {
-        statusElement.textContent =
-            "Inserisci un valore prima di salvare.";
-        return;
-    }
-
-    Office.context.roamingSettings.set(
-        "operatorTest",
-        value
-    );
-
-    Office.context.roamingSettings.saveAsync((result) => {
-        if (
-            result.status ===
-            Office.AsyncResultStatus.Succeeded
-        ) {
-            statusElement.textContent =
-                "Valore salvato.";
-
-            loadRoamingOperator();
-
-            console.log(
-                "Roaming setting salvato:",
-                value
-            );
-        } else {
-            statusElement.textContent =
-                "Errore durante il salvataggio: " +
-                result.error.message;
-
-            console.error(
-                "Errore saveAsync:",
-                result.error
-            );
-        }
-    });
-  }
-
-  function registerRoamingSettingsControls() {
-    const saveButton =
-        document.getElementById("roaming-operator-save");
-
-    if (saveButton) {
-        saveButton.addEventListener(
-            "click",
-            saveRoamingOperator
-        );
-    }
-
-    loadRoamingOperator();
-  }
-
+  function registerPluginSettingsControls() { document.getElementById("persist-view-setting")?.addEventListener("change", savePluginSettings); loadPluginSettings(); }
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
 
     currentHeaderText = "";
+    resetSectionsIfNeeded();
     showMainView();
     resetHealthResult();
     showLoading();
@@ -1091,6 +1026,8 @@ function registerHealthButton() {
       );
       setText(elementIds.subject, item.subject, "(Nessun oggetto)");
       setText(elementIds.sender, formatAddress(sender));
+      setText(elementIds.to, formatAddressList(item.to));
+      setText(elementIds.cc, formatAddressList(item.cc));
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
@@ -1126,12 +1063,14 @@ function registerHealthButton() {
     }
 
     registerItemChangedHandler();
+    registerConnectionControls();
+    registerSectionToggles();
     registerHealthButton();
     registerHealthResultCloseButton();
     registerAuthDiagnosticsControls();
     loadDiagnostics();
-    registerRoamingSettingsControls();
+    registerPluginSettingsControls();
     registerHeaderViewControls();
-    loadSelectedMessage();
+    setPluginConnected(false);
   });
 })();
