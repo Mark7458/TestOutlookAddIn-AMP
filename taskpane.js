@@ -43,13 +43,6 @@
     Office.context.roamingSettings.set(CONNECTED_HINT_KEY, Boolean(value));
     Office.context.roamingSettings.saveAsync((result) => { if (result.status === Office.AsyncResultStatus.Failed) console.warn("Impossibile salvare lo stato UX di connessione:", result.error); });
   }
-  async function restoreConnectionState() {
-    if (!readConnectedHint()) { setPluginConnected(false); return; }
-    setPluginConnected(false, "Verifica della connessione in corso...");
-    try { await window.WorkflowHealth.recoverConnection(); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
-    catch (error) { saveConnectedHint(false); setPluginConnected(false, "Sessione non disponibile. Riconnetti il plugin."); }
-    finally { refreshAuthDiagnostics(); }
-  }
   async function connectPluginUi() {
     const button = document.getElementById("connect-plugin-button"); const status = document.getElementById("connection-status");
     if (button) { button.disabled = true; button.textContent = "Connessione in corso..."; }
@@ -1085,6 +1078,12 @@ function registerHealthButton() {
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    restoreConnectionState();
+    if (readConnectedHint()) {
+      setPluginConnected(true);
+      loadSelectedMessage();
+    } else {
+      setPluginConnected(false);
+    }
+    refreshAuthDiagnostics();
   });
 })();

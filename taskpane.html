@@ -4,14 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Test-Plugin</title>
-  <p>v.0.1.1</p>
   <link rel="stylesheet" href="taskpane.css">
   <script src="https://officeapis.public.onecdn.static.microsoft/1/office.js"></script>
   <script src="auth.bundle.js" defer></script>
   <script src="taskpane.js" defer></script>
 </head>
 <body>
-<header class="app-header"><img src="icon-32.png" width="32" height="32" alt=""><div><h1>Test-Plugin</h1><p>v.0.1.0 - 2026/10/22 - 12:19</p></div></header>
+<header class="app-header"><img src="icon-32.png" width="32" height="32" alt=""><div><h1>Test-Plugin</h1><p>v.0.1.2</p></div></header>
 <main>
   <section id="connection-view" class="card connection-card">
     <h2>Connetti il plugin</h2>
@@ -46,6 +45,12 @@
       </div>
     </section>
 
+    
+
+    <section class="toggle-card"><button class="section-toggle" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel">Impostazioni plugin</button>
+      <div id="settings-panel" class="toggle-panel" hidden><label class="setting-row" title="Se è attiva, mantiene la visualizzazione corrente al cambio messaggio."><input id="persist-view-setting" type="checkbox"><span>Mantieni sezioni aperte</span></label><p id="settings-status" class="settings-status" role="status"></p></div>
+    </section>
+  </div>
     <section class="toggle-card"><button class="section-toggle" id="diagnostics-toggle" type="button" aria-expanded="false" aria-controls="diagnostics-panel">Diagnostica</button>
       <div id="diagnostics-panel" class="toggle-panel" hidden>
         <dl class="message-fields">
@@ -55,11 +60,6 @@
         <pre id="auth-diagnostics-output" class="auth-diagnostics-output">Nessun evento registrato.</pre><div id="auth-diagnostics-status" class="auth-diagnostics-status" role="status"></div>
       </div>
     </section>
-
-    <section class="toggle-card"><button class="section-toggle" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel">Impostazioni plugin</button>
-      <div id="settings-panel" class="toggle-panel" hidden><label class="setting-row" title="Se è attiva, mantiene la visualizzazione corrente al cambio messaggio."><input id="persist-view-setting" type="checkbox"><span>Mantieni sezioni aperte</span></label><p id="settings-status" class="settings-status" role="status"></p></div>
-    </section>
-  </div>
 
   <section id="header-view" class="header-view" aria-label="Header del messaggio allegato" hidden><div class="header-view-toolbar"><button id="header-back-button" class="secondary-button" type="button">← Indietro</button><button id="copy-header-button" class="primary-button header-copy-button" type="button">Copia header</button></div><div class="field header-content-field"><dt>Header messaggio allegato</dt><dd><div id="header-attachment-name" class="header-attachment-name"></div><div id="header-status" class="header-status" role="status" aria-live="polite"></div><pre id="attachment-header-content" class="attachment-header-content selectable"></pre></dd></div></section>
 </main><footer>Test-Plugin</footer></body></html>

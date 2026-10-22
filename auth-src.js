@@ -596,22 +596,31 @@ async function connectPlugin() {
   recordAuthDiagnostic("connect_plugin_start");
   currentAuthentication = null;
   const cached = await acquireTokenSilently();
-  if (cached) { recordAuthDiagnostic("connect_plugin_silent_success"); return cached; }
+  if (cached) {
+    recordAuthDiagnostic("connect_plugin_silent_success");
+    return cached;
+  }
   recordAuthDiagnostic("interactive_bootstrap_launch");
-  acquireTokenWithOfficeDialog({ mode: "connect" })
-    .then((authentication) => recordAuthDiagnostic("interactive_bootstrap_direct_success", { acquisitionMode: authentication?.acquisitionMode || null }))
-    .catch((error) => recordAuthDiagnostic("interactive_bootstrap_ended", { errorCode: error?.errorCode || null, message: error?.message || String(error) }));
-  await delay(250);
-  const authentication = await runRecoveryLoop({ waitForDialogRelease: true, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
+  try {
+    const direct = await acquireTokenWithOfficeDialog({ mode: "connect" });
+    recordAuthDiagnostic("interactive_bootstrap_direct_success", { acquisitionMode: direct?.acquisitionMode || null });
+    return direct;
+  } catch (error) {
+    recordAuthDiagnostic("interactive_bootstrap_ended", { errorCode: error?.errorCode || null, message: error?.message || String(error) });
+  }
+  recordAuthDiagnostic("post_bootstrap_recovery_start");
+  const authentication = await runRecoveryLoop({ waitForDialogRelease: false, retryDelayMs: 1000, openedRecoveryMaxMs: 20000 });
   recordAuthDiagnostic("connect_plugin_complete", { acquisitionMode: authentication?.acquisitionMode || null });
   return authentication;
 }
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");
   const authentication = await getAccessTokenSilently();
+  const healthStartedAt = Date.now();
+  recordAuthDiagnostic("health_fetch_start", { authenticationMode: authentication.acquisitionMode });
   const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
   const body = await response.text();
-  recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode });
+  recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode, elapsedMs: Date.now() - healthStartedAt });
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
 window.WorkflowHealth = { connectPlugin, recoverConnection, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };

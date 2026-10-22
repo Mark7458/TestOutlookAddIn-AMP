@@ -528,9 +528,8 @@ async function startAuthentication() {
     if (!officeContextPage) {
       recordDiagnostic("bootstrap_interactive_complete", { username: redirectResult.account?.username || null });
       savePendingAuthenticationResult(redirectResult, "interactive");
-      recordDiagnostic("bootstrap_self_close_requested");
-      try { window.close(); }
-      catch (closeError) { recordDiagnostic("bootstrap_self_close_error", getSafeErrorDetails(closeError)); }
+      recordDiagnostic("bootstrap_return_to_office_context");
+      returnToOfficeDialogPage();
       return;
     }
     await sendTokenToParent(redirectResult, "interactive");
