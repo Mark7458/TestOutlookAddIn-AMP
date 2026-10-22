@@ -10,16 +10,9 @@
   <script src="taskpane.js" defer></script>
 </head>
 <body>
-<header class="app-header"><img src="icon-64.png" width="64" height="64" alt=""><div><h1>Test-Plugin</h1><p>v.0.1.7</p></div></header>
+<header class="app-header"><img src="icon-64.png" width="64" height="64" alt=""><div><h1>Test-Plugin</h1><p>v.0.1.8</p></div></header>
 <main>
-  <section id="connection-view" class="card connection-card">
-    <h2>Connetti il plugin</h2>
-    <p>Completa l'accesso Microsoft e l'eventuale verifica MFA per abilitare le funzioni del plugin.</p>
-    <button id="connect-plugin-button" class="primary-button" type="button">Connetti plugin</button>
-    <div id="connection-status" class="connection-status" role="status" aria-live="polite">Plugin non connesso.</div>
-  </section>
-
-  <div id="connected-view" hidden>
+  
     <div id="loading" class="notice" role="status" aria-live="polite">Lettura del messaggio selezionato…</div>
     <div id="error" class="notice notice-error" role="alert" hidden></div>
 
@@ -50,7 +43,7 @@
     <section class="toggle-card"><button class="section-toggle" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel">Impostazioni plugin</button>
       <div id="settings-panel" class="toggle-panel" hidden><label class="setting-row" title="Se è attiva, mantiene la visualizzazione corrente al cambio messaggio."><input id="persist-view-setting" type="checkbox"><span>Mantieni sezioni aperte</span></label><p id="settings-status" class="settings-status" role="status"></p></div>
     </section>
-  </div>
+  
     <section class="toggle-card"><button class="section-toggle" id="diagnostics-toggle" type="button" aria-expanded="false" aria-controls="diagnostics-panel">Diagnostica</button>
       <div id="diagnostics-panel" class="toggle-panel" hidden>
         <dl class="message-fields">
