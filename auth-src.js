@@ -21,6 +21,8 @@ let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
+const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
+const PENDING_AUTH_POLL_MS = 100;
 const MAX_AUTH_DIAGNOSTIC_EVENTS = 100;
 
 function readAuthDiagnostics() {
@@ -292,6 +294,46 @@ function acquireTokenWithOfficeDialog() {
 
         recordAuthDiagnostic("display_dialog_success", { operationId });
 
+        /*
+         * Dialog A salva il risultato MSAL in localStorage prima di tornare
+         * alla pagina Office. Il task pane osserva quella chiave: appena il
+         * token e stato salvato chiude A e passa subito al recovery, senza
+         * aspettare il timeout di messageParent nel dialogo ormai scollegato.
+         */
+        const pendingAuthenticationWatcher =
+          setInterval(() => {
+            if (completed || operationId !== dialogOperationSequence) {
+              return;
+            }
+            try {
+              const pendingAuthentication =
+                JSON.parse(localStorage.getItem(PENDING_AUTH_KEY) || "null");
+              if (!pendingAuthentication?.accessToken) {
+                return;
+              }
+              recordAuthDiagnostic("porkaround_pending_auth_detected", {
+                operationId,
+                acquisitionMode:
+                  pendingAuthentication.acquisitionMode || "interactive",
+                expiresOn: pendingAuthentication.expiresOn || null
+              });
+              completeWithError(
+                createDialogError(
+                  "Autenticazione completata; riapertura del dialogo Office per consegnare il token.",
+                  {
+                    errorCode: "pending_auth_ready",
+                    authenticationPhase: "porkaround"
+                  }
+                )
+              );
+            } catch (error) {
+              recordAuthDiagnostic("porkaround_pending_auth_read_error", {
+                operationId,
+                message: error?.message || String(error)
+              });
+            }
+          }, PENDING_AUTH_POLL_MS);
+
         const authenticationTimeout =
           setTimeout(() => {
             recordAuthDiagnostic("dialog_timeout", { operationId });
@@ -310,6 +352,7 @@ function acquireTokenWithOfficeDialog() {
 
         function clearAuthenticationTimeout() {
           clearTimeout(authenticationTimeout);
+          clearInterval(pendingAuthenticationWatcher);
         }
 
         function closeDialog() {
@@ -549,16 +592,20 @@ async function getAuthentication() {
       message: firstDialogError?.message || String(firstDialogError)
     });
 
-    recordAuthDiagnostic("porkaround_silent_recovery_start");
-    const recoveredAuthentication =
-      await acquireTokenSilently();
+    if (firstDialogError?.errorCode !== "pending_auth_ready") {
+      recordAuthDiagnostic("porkaround_silent_recovery_start");
+      const recoveredAuthentication =
+        await acquireTokenSilently();
 
-    if (recoveredAuthentication) {
-      recordAuthDiagnostic("porkaround_silent_recovery_success", {
-        acquisitionMode: recoveredAuthentication.acquisitionMode || null,
-        expiresOn: recoveredAuthentication.expiresOn || null
-      });
-      return recoveredAuthentication;
+      if (recoveredAuthentication) {
+        recordAuthDiagnostic("porkaround_silent_recovery_success", {
+          acquisitionMode: recoveredAuthentication.acquisitionMode || null,
+          expiresOn: recoveredAuthentication.expiresOn || null
+        });
+        return recoveredAuthentication;
+      }
+    } else {
+      recordAuthDiagnostic("porkaround_first_dialog_closed_after_token");
     }
 
     recordAuthDiagnostic("porkaround_second_dialog_start");
