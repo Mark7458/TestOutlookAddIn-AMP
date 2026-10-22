@@ -566,13 +566,15 @@ async function getAuthentication() {
   const silentAuthentication = await acquireTokenSilently();
   if (silentAuthentication) return silentAuthentication;
 
-  const bootstrapMs = 20000;
   const retryDelayMs = 1000;
   const recoveryMaxMs = 20000;
 
-  recordAuthDiagnostic("bootstrap_dialog_start", { bootstrapMs });
+  recordAuthDiagnostic("bootstrap_dialog_start", {
+    trigger: "interactive_completion"
+  });
+
   try {
-    return await acquireTokenWithOfficeDialog({ forceCloseAfterMs: bootstrapMs });
+    return await acquireTokenWithOfficeDialog();
   } catch (error) {
     recordAuthDiagnostic("bootstrap_finished", {
       name: error?.name || null,
