@@ -20,6 +20,8 @@
   };
 
   let currentHeaderText = "";
+  let currentMessageContext = null;
+  const messageContextListeners = new Set();
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
   const SECTION_STATE_KEY = "persistedSectionState";
   const sectionIds = ["email-details", "settings", "diagnostics"];
@@ -591,6 +593,22 @@ function registerHealthButton() {
       : "header-status";
   }
 
+  function cloneContext(value) {
+    return value == null ? null : JSON.parse(JSON.stringify(value));
+  }
+  function publishMessageContext() {
+    const snapshot = cloneContext(currentMessageContext);
+    messageContextListeners.forEach((listener) => {
+      try { listener(snapshot); } catch (error) { console.error("Listener messaggio non riuscito:", error); }
+    });
+  }
+  function getCurrentMessageContext() { return cloneContext(currentMessageContext); }
+  function onMessageChanged(listener) {
+    if (typeof listener !== "function") throw new TypeError("Il listener deve essere una funzione.");
+    messageContextListeners.add(listener);
+    return () => messageContextListeners.delete(listener);
+  }
+
   function showMainView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
@@ -601,6 +619,9 @@ function registerHealthButton() {
 
     if (headerView) {
       headerView.hidden = true;
+    }
+    if (ampView) {
+      ampView.hidden = true;
     }
   }
 
@@ -1036,7 +1057,7 @@ function registerHealthButton() {
         throw new Error("Seleziona un messaggio nella visualizzazione di lettura e riapri il task pane.");
       }
 
-      await loadSharedDiagnostics(item);
+      const sharedProperties = await loadSharedDiagnostics(item);
 
       const sender = item.from || item.sender;
       const attachments = item.attachments
@@ -1064,13 +1085,57 @@ function registerHealthButton() {
       setText(elementIds.received, formatReceivedDate(item.dateTimeCreated));
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
+      currentMessageContext = {
+        itemId: item.itemId || null,
+        conversationId: item.conversationId || null,
+        normalizedConversationId: normalizeConversationId(item.conversationId),
+        subject: item.subject || "",
+        sender: sender ? {
+          displayName: sender.displayName || "",
+          emailAddress: sender.emailAddress || ""
+        } : null,
+        to: (Array.isArray(item.to) ? item.to : []).map((address) => ({
+          displayName: address.displayName || "",
+          emailAddress: address.emailAddress || ""
+        })),
+        cc: (Array.isArray(item.cc) ? item.cc : []).map((address) => ({
+          displayName: address.displayName || "",
+          emailAddress: address.emailAddress || ""
+        })),
+        dateTimeCreated: item.dateTimeCreated instanceof Date
+          ? item.dateTimeCreated.toISOString()
+          : (item.dateTimeCreated || null),
+        bodyText,
+        categories: (Array.isArray(categories) ? categories : []).map((category) => ({
+          displayName: category.displayName || String(category),
+          color: category.color || null
+        })),
+        attachments: attachments.map((attachment) => ({
+          id: attachment.id || null,
+          name: attachment.name || "",
+          size: Number.isFinite(Number(attachment.size)) ? Number(attachment.size) : null,
+          attachmentType: attachment.attachmentType || null,
+          isInline: Boolean(attachment.isInline),
+          contentType: attachment.contentType || null
+        })),
+        sharedProperties,
+        mailbox: {
+          userDisplayName: mailbox.userProfile?.displayName || null,
+          userEmailAddress: mailbox.userProfile?.emailAddress || null,
+          accountType: mailbox.userProfile?.accountType || null,
+          timeZone: mailbox.userProfile?.timeZone || null
+        }
+      };
       renderAttachments(attachments);
       showData();
+      publishMessageContext();
     } catch (error) {
       if (sequence !== loadSequence) {
         return;
       }
 
+      currentMessageContext = null;
+      publishMessageContext();
       const message = error instanceof Error ? error.message : String(error);
       showError(message);
     }
@@ -1089,6 +1154,14 @@ function registerHealthButton() {
     });
   }
 
+  window.TestPluginAPI = Object.freeze({
+    version: "1.0.0",
+    getCurrentMessageContext,
+    onMessageChanged,
+    refreshCurrentMessage: loadSelectedMessage,
+    showMainView
+  });
+
   Office.onReady((info) => {
     if (info.host !== Office.HostType.Outlook) {
       showError("Questa pagina deve essere aperta come task pane di Outlook.");
@@ -1103,6 +1176,7 @@ function registerHealthButton() {
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
+    window.AmpModule?.initialize?.().catch((error) => console.error("AMP init error:", error));
     // UI subito disponibile; autenticazione solo alla prima chiamata che ne ha bisogno.
     loadSelectedMessage();
     refreshAuthDiagnostics();

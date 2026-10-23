@@ -1,0 +1,10 @@
+.amp-page { display: grid; gap: 12px; }
+.amp-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.amp-card h2 { margin: 0 0 8px; }
+.amp-description { margin: 0 0 12px; color: #605e5c; line-height: 1.45; }
+.amp-status { min-height: 20px; margin-bottom: 8px; color: #605e5c; font-size: 12px; }
+.amp-context-output { max-height: 60vh; margin: 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #edebe9; border-radius: 6px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 11px; line-height: 1.45; user-select: text; }
+@media (prefers-color-scheme: dark) {
+  .amp-description, .amp-status { color: #c8c6c4; }
+  .amp-context-output { border-color: #484644; background: #201f1e; color: #f3f2f1; }
+}
