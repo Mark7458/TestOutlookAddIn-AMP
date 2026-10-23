@@ -21,7 +21,17 @@
 
   let currentHeaderText = "";
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
-  const sectionIds = ["email-details", "settings", "diagnostics"];
+  const CONNECTED_HINT_KEY = "pluginPreviouslyConnected";
+  const CONNECTED_HINT_STORAGE_KEY = "test-plugin.connected";
+  const sectionIds = ["email-details", "diagnostics", "settings"];
+  function setPluginConnected(connected, message = "") {
+    const connectionView = document.getElementById("connection-view");
+    const connectedView = document.getElementById("connected-view");
+    const status = document.getElementById("connection-status");
+    if (connectionView) connectionView.hidden = Boolean(connected);
+    if (connectedView) connectedView.hidden = !connected;
+    if (status) status.textContent = message || (connected ? "Plugin connesso." : "Plugin non connesso.");
+  }
   function isViewPersistenceEnabled() { return Boolean(Office.context.roamingSettings.get(VIEW_PERSISTENCE_KEY)); }
   function setSectionOpen(name, open) {
     const button = document.getElementById(`${name}-toggle`); const panel = document.getElementById(`${name}-panel`);
@@ -29,6 +39,35 @@
   }
   function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false)); }
   function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
+  function readConnectedHint() {
+    try {
+      const localValue = localStorage.getItem(CONNECTED_HINT_STORAGE_KEY);
+      if (localValue === "true") return true;
+      if (localValue === "false") return false;
+    } catch (error) {
+      console.warn("Impossibile leggere lo stato locale di connessione:", error);
+    }
+    return Boolean(Office.context.roamingSettings.get(CONNECTED_HINT_KEY));
+  }
+  function saveConnectedHint(value) {
+    const normalizedValue = Boolean(value);
+    try { localStorage.setItem(CONNECTED_HINT_STORAGE_KEY, String(normalizedValue)); }
+    catch (error) { console.warn("Impossibile salvare lo stato locale di connessione:", error); }
+    Office.context.roamingSettings.set(CONNECTED_HINT_KEY, normalizedValue);
+    Office.context.roamingSettings.saveAsync((result) => {
+      if (result.status === Office.AsyncResultStatus.Failed) console.warn("Impossibile salvare lo stato roaming di connessione:", result.error);
+    });
+  }
+  async function connectPluginUi() {
+    const button = document.getElementById("connect-plugin-button"); const status = document.getElementById("connection-status");
+    if (button) { button.disabled = true; button.textContent = "Connessione in corso..."; }
+    if (status) status.textContent = "Completa l'accesso nella finestra Microsoft.";
+    try { await window.WorkflowHealth.connectPlugin(); saveConnectedHint(true); setPluginConnected(true); loadDiagnostics(); await loadSelectedMessage(); }
+    catch (error) { setPluginConnected(false, error?.message || "Connessione non completata."); }
+    finally { if (button) { button.disabled = false; button.textContent = "Connetti plugin"; } refreshAuthDiagnostics(); }
+  }
+  function registerConnectionControls() { document.getElementById("connect-plugin-button")?.addEventListener("click", connectPluginUi); }
+
   function setHealthButtonLoading(isLoading) {
   const button =
     document.getElementById("test-function-button");
@@ -227,7 +266,7 @@ async function testHealthFunction() {
     }
 
     const result =
-      await window.WorkflowHealth.callHealthOnDemand();
+      await window.WorkflowHealth.callHealth();
 
     showHealthResult(result);
     refreshAuthDiagnostics();
@@ -242,6 +281,7 @@ async function testHealthFunction() {
      * del popup MFA.
      */
     showHealthError(error);
+    if (error?.errorCode === "interaction_required") { saveConnectedHint(false); setPluginConnected(false, "Sessione non disponibile. Riconnetti il plugin."); }
     refreshAuthDiagnostics();
   } finally {
     setHealthButtonLoading(false);
@@ -1045,6 +1085,7 @@ function registerHealthButton() {
     }
 
     registerItemChangedHandler();
+    registerConnectionControls();
     registerSectionToggles();
     registerHealthButton();
     registerHealthResultCloseButton();
@@ -1052,8 +1093,36 @@ function registerHealthButton() {
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    // UI subito disponibile; autenticazione solo alla prima chiamata che ne ha bisogno.
-    loadSelectedMessage();
+    // All'avvio non assumere che la sessione precedente sia ancora valida.
+    // Mantieni entrambe le viste nascoste finche MSAL non restituisce un risultato reale.
+    const connectionView = document.getElementById("connection-view");
+    const connectedView = document.getElementById("connected-view");
+    if (connectionView) connectionView.hidden = true;
+    if (connectedView) connectedView.hidden = true;
+
+    (async () => {
+      try {
+        if (!window.WorkflowHealth?.probeCurrentAuthentication) {
+          throw new Error("Modulo di autenticazione non disponibile.");
+        }
+
+        const authentication = await window.WorkflowHealth.probeCurrentAuthentication();
+        const connected = Boolean(authentication?.accessToken);
+        saveConnectedHint(connected);
+        setPluginConnected(connected);
+
+        if (connected) {
+          await loadSelectedMessage();
+        }
+      } catch (error) {
+        console.warn("Verifica iniziale della sessione non riuscita:", error);
+        saveConnectedHint(false);
+        setPluginConnected(false);
+      } finally {
+        refreshAuthDiagnostics();
+      }
+    })();
+
     refreshAuthDiagnostics();
   });
 })();
