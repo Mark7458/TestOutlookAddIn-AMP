@@ -21,13 +21,46 @@
 
   let currentHeaderText = "";
   const VIEW_PERSISTENCE_KEY = "persistSectionVisibility";
+  const SECTION_STATE_KEY = "persistedSectionState";
   const sectionIds = ["email-details", "settings", "diagnostics"];
   function isViewPersistenceEnabled() { return Boolean(Office.context.roamingSettings.get(VIEW_PERSISTENCE_KEY)); }
-  function setSectionOpen(name, open) {
-    const button = document.getElementById(`${name}-toggle`); const panel = document.getElementById(`${name}-panel`);
-    if (!button || !panel) return; button.setAttribute("aria-expanded", String(Boolean(open))); panel.hidden = !open;
+  function readPersistedSectionState() {
+    const value = Office.context.roamingSettings.get(SECTION_STATE_KEY);
+    return value && typeof value === "object" ? value : {};
   }
-  function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false)); }
+  function collectSectionState() {
+    return Object.fromEntries(sectionIds.map((name) => [
+      name,
+      document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") === "true"
+    ]));
+  }
+  function saveRoamingSettings(callback) {
+    Office.context.roamingSettings.saveAsync((result) => {
+      refreshRoamingSettingsDiagnostics();
+      if (typeof callback === "function") callback(result);
+    });
+  }
+  function saveSectionStateIfEnabled() {
+    if (!isViewPersistenceEnabled()) return;
+    Office.context.roamingSettings.set(SECTION_STATE_KEY, collectSectionState());
+    saveRoamingSettings();
+  }
+  function setSectionOpen(name, open, options = {}) {
+    const button = document.getElementById(`${name}-toggle`); const panel = document.getElementById(`${name}-panel`);
+    if (!button || !panel) return;
+    button.setAttribute("aria-expanded", String(Boolean(open)));
+    panel.hidden = !open;
+    if (options.persist !== false) saveSectionStateIfEnabled();
+  }
+  function restorePersistedSectionState() {
+    if (!isViewPersistenceEnabled()) {
+      sectionIds.forEach((name) => setSectionOpen(name, false, { persist: false }));
+      return;
+    }
+    const state = readPersistedSectionState();
+    sectionIds.forEach((name) => setSectionOpen(name, state[name] === true, { persist: false }));
+  }
+  function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false, { persist: false })); }
   function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
   function setHealthButtonLoading(isLoading) {
   const button =
@@ -868,6 +901,14 @@ function registerHealthButton() {
     }
   }
 
+  function refreshRoamingSettingsDiagnostics() {
+    const values = {
+      [VIEW_PERSISTENCE_KEY]: Office.context.roamingSettings.get(VIEW_PERSISTENCE_KEY),
+      [SECTION_STATE_KEY]: Office.context.roamingSettings.get(SECTION_STATE_KEY)
+    };
+    setText("diagnostic-roaming-settings", JSON.stringify(values, null, 2));
+  }
+
   function loadDiagnostics() {
     const mailbox = Office.context && Office.context.mailbox;
     const diagnostics = mailbox && mailbox.diagnostics;
@@ -961,11 +1002,21 @@ function registerHealthButton() {
     });
   }
 
-  function loadPluginSettings() { const checkbox = document.getElementById("persist-view-setting"); if (checkbox) checkbox.checked = isViewPersistenceEnabled(); }
+  function loadPluginSettings() {
+    const checkbox = document.getElementById("persist-view-setting");
+    if (checkbox) checkbox.checked = isViewPersistenceEnabled();
+    restorePersistedSectionState();
+    refreshRoamingSettingsDiagnostics();
+  }
   function savePluginSettings() {
     const checkbox = document.getElementById("persist-view-setting"); const status = document.getElementById("settings-status");
-    Office.context.roamingSettings.set(VIEW_PERSISTENCE_KEY, Boolean(checkbox?.checked));
-    Office.context.roamingSettings.saveAsync((result) => { if (status) status.textContent = result.status === Office.AsyncResultStatus.Succeeded ? "Impostazione salvata." : `Errore: ${result.error?.message || "salvataggio non riuscito"}`; });
+    const enabled = Boolean(checkbox?.checked);
+    Office.context.roamingSettings.set(VIEW_PERSISTENCE_KEY, enabled);
+    if (enabled) Office.context.roamingSettings.set(SECTION_STATE_KEY, collectSectionState());
+    else Office.context.roamingSettings.remove(SECTION_STATE_KEY);
+    saveRoamingSettings((result) => {
+      if (status) status.textContent = result.status === Office.AsyncResultStatus.Succeeded ? "Impostazione salvata." : `Errore: ${result.error?.message || "salvataggio non riuscito"}`;
+    });
   }
   function registerPluginSettingsControls() { document.getElementById("persist-view-setting")?.addEventListener("change", savePluginSettings); loadPluginSettings(); }
   async function loadSelectedMessage() {
