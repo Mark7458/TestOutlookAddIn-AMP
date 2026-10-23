@@ -671,6 +671,29 @@ async function connectPlugin() {
   recordAuthDiagnostic("persistent_recovery_success", { acquisitionMode: authentication?.acquisitionMode || null });
   return authentication;
 }
+async function callHealthOnDemand() {
+  recordAuthDiagnostic("call_health_start");
+
+  let authentication;
+  if (isAuthenticationUsable(currentAuthentication)) {
+    recordAuthDiagnostic("token_memory_reused", {
+      expiresOn: currentAuthentication?.expiresOn || null
+    });
+    authentication = { ...currentAuthentication, acquisitionMode: "memory" };
+  } else {
+    authentication = await connectPlugin();
+  }
+  const healthStartedAt = Date.now();
+  recordAuthDiagnostic("health_fetch_start", { authenticationMode: authentication.acquisitionMode });
+  const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
+  const body = await response.text();
+  recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode, elapsedMs: Date.now() - healthStartedAt });
+  if (response.status === 401 || response.status === 403) {
+    throw createDialogError(`La Function ha rifiutato l'autenticazione (${response.status}).`, { errorCode: "interaction_required", authenticationPhase: "healthResponse" });
+  }
+  return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
+}
+
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");
   const authentication = await getAccessTokenSilently();
@@ -690,4 +713,4 @@ async function callHealth() {
   }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
+window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
