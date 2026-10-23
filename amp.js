@@ -16,18 +16,6 @@
     output.textContent = JSON.stringify(context, null, 2);
     status.textContent = `Contesto aggiornato: ${context.subject || "(nessun oggetto)"}`;
   }
-
-  async function refresh() {
-    const status = byId("amp-status");
-    if (status) status.textContent = "Aggiornamento contesto in corso…";
-    try {
-      await window.TestPluginAPI?.refreshCurrentMessage?.();
-      renderContext(window.TestPluginAPI?.getCurrentMessageContext?.() || null);
-    } catch (error) {
-      if (status) status.textContent = `Errore: ${error?.message || String(error)}`;
-    }
-  }
-
   function show() {
     document.getElementById("main-view")?.setAttribute("hidden", "");
     document.getElementById("header-view")?.setAttribute("hidden", "");
@@ -44,12 +32,11 @@
     if (!response.ok) throw new Error(`Impossibile caricare amp-view.html (${response.status}).`);
     view.innerHTML = await response.text();
     byId("amp-back-button")?.addEventListener("click", () => window.TestPluginAPI?.showMainView?.());
-    byId("amp-refresh-button")?.addEventListener("click", refresh);
-    byId("open-amp-button")?.addEventListener("click", show);
+byId("open-amp-button")?.addEventListener("click", show);
     state.unsubscribe = window.TestPluginAPI?.onMessageChanged?.(renderContext) || null;
     state.initialized = true;
   }
 
-  window.AmpModule = { initialize, show, refresh };
+  window.AmpModule = { initialize, show };
   document.addEventListener("DOMContentLoaded", () => initialize().catch((error) => console.error("AMP init error:", error)));
 })();

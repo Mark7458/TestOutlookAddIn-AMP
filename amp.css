@@ -1,5 +1,5 @@
 .amp-page { display: grid; gap: 12px; }
-.amp-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.amp-toolbar { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .amp-card h2 { margin: 0 0 8px; }
 .amp-description { margin: 0 0 12px; color: #605e5c; line-height: 1.45; }
 .amp-status { min-height: 20px; margin-bottom: 8px; color: #605e5c; font-size: 12px; }

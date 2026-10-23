@@ -612,6 +612,7 @@ function registerHealthButton() {
   function showMainView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
+    const ampView = byId("amp-view");
 
     if (mainView) {
       mainView.hidden = false;
@@ -979,50 +980,36 @@ function registerHealthButton() {
 
   function loadSharedDiagnostics(item) {
     return new Promise((resolve) => {
-        if (
-            !item ||
-            typeof item.getSharedPropertiesAsync !== "function"
-        ) {
-            setText("diagnostic-shared", "API non disponibile");
-            setText("diagnostic-target-mailbox", "");
-            setText("diagnostic-owner", "");
-            setText("diagnostic-delegate-permissions", "");
-            resolve();
-            return;
+      if (!item || typeof item.getSharedPropertiesAsync !== "function") {
+        setText("diagnostic-shared", "API non disponibile");
+        setText("diagnostic-target-mailbox", "");
+        setText("diagnostic-owner", "");
+        setText("diagnostic-delegate-permissions", "");
+        resolve(null);
+        return;
+      }
+      item.getSharedPropertiesAsync((result) => {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+          const shared = result.value;
+          setText("diagnostic-shared", "Sì");
+          setText("diagnostic-target-mailbox", shared.targetMailbox);
+          setText("diagnostic-owner", shared.owner);
+          setText("diagnostic-delegate-permissions", shared.delegatePermissions);
+          resolve({
+            targetMailbox: shared.targetMailbox || null,
+            owner: shared.owner || null,
+            delegatePermissions: shared.delegatePermissions || null
+          });
+          return;
         }
-
-        item.getSharedPropertiesAsync((result) => {
-            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                const shared = result.value;
-
-                setText("diagnostic-shared", "Sì");
-                setText(
-                    "diagnostic-target-mailbox",
-                    shared.targetMailbox
-                );
-                setText(
-                    "diagnostic-owner",
-                    shared.owner
-                );
-                setText(
-                    "diagnostic-delegate-permissions",
-                    shared.delegatePermissions
-                );
-
-                resolve();
-                return;
-            }
-
-            setText("diagnostic-shared", "No");
-            setText("diagnostic-target-mailbox", "");
-            setText("diagnostic-owner", "");
-            setText("diagnostic-delegate-permissions", "");
-
-            resolve();
-        });
+        setText("diagnostic-shared", "No");
+        setText("diagnostic-target-mailbox", "");
+        setText("diagnostic-owner", "");
+        setText("diagnostic-delegate-permissions", "");
+        resolve(null);
+      });
     });
   }
-
   function loadPluginSettings() {
     const checkbox = document.getElementById("persist-view-setting");
     if (checkbox) checkbox.checked = isViewPersistenceEnabled();
@@ -1158,7 +1145,6 @@ function registerHealthButton() {
     version: "1.0.0",
     getCurrentMessageContext,
     onMessageChanged,
-    refreshCurrentMessage: loadSelectedMessage,
     showMainView
   });
 
