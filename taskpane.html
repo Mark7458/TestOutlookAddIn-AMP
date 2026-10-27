@@ -11,11 +11,8 @@
 <script defer="" src="taskpane.js"></script>
 <link href="amp.css" rel="stylesheet"/><script defer="" src="amp.js"></script></head>
 <body>
-<header class="app-header"><img alt="" height="64" src="icon-64.png" width="64"/><div><h1>Test-Plugin</h1><p>v.0.1.13</p></div></header>
-<main><div id="main-view"><div aria-live="polite" class="notice" id="loading" role="status">Lettura del messaggio selezionato…</div><div class="notice notice-error" hidden="" id="error" role="alert"></div><section class="card health-card"><h2>Azure Function</h2><p class="health-description">Verifica il token e la connessione con la Function protetta.</p>
-<button class="primary-button" id="test-function-button" type="button">Chiama Health</button>
-<div class="function-result" hidden="" id="function-result"><button aria-label="Chiudi risultato" class="result-close-button" id="close-function-result" type="button">×</button><div class="function-result-row"><span>Stato HTTP</span><strong id="function-status"></strong></div><div class="function-result-row"><span>Autenticazione</span><strong id="function-auth-mode"></strong></div><pre id="function-response"></pre></div>
-</section><button class="secondary-button amp-open-button" id="open-amp-button" type="button">Apri area AMP</button><section class="toggle-card"><button aria-controls="email-details-panel" aria-expanded="false" class="section-toggle" id="email-details-toggle" type="button">Dettagli email</button>
+<header class="app-header"><img alt="" height="64" src="icon-64.png" width="64"/><div class="app-title"><h1>Test-Plugin</h1><p>v.0.1.14</p></div><button class="connection-test-button" id="test-function-button" type="button" title="Connessione non ancora verificata"><span aria-hidden="true" class="connection-dot connection-dot-unknown" id="connection-status-dot"></span><span id="connection-status-label">Test Connessione</span></button></header>
+<main><div id="main-view"><div aria-live="polite" class="notice" id="loading" role="status">Lettura del messaggio selezionato…</div><div class="notice notice-error" hidden="" id="error" role="alert"></div><button class="secondary-button amp-open-button" id="open-amp-button" type="button">Apri area AMP</button><section class="toggle-card"><button aria-controls="email-details-panel" aria-expanded="false" class="section-toggle" id="email-details-toggle" type="button">Dettagli email</button>
 <div class="toggle-panel" hidden="" id="email-details-panel">
 <section aria-label="Dati del messaggio" hidden="" id="message-data"><dl class="message-fields">
 <div class="field"><dt>ID del messaggio</dt><dd class="monospace selectable" id="message-id"></dd></div>

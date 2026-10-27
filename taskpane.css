@@ -439,3 +439,19 @@ footer {
 .card,.toggle-card{margin-top:16px;padding:14px;border:1px solid #e1dfdd;border-radius:8px;background:#fff}.connection-card{margin-top:0}.connection-card h2,.health-card h2{margin:0 0 8px}.connection-status,.settings-status{margin-top:10px;color:#605e5c}.section-toggle{width:100%;padding:11px 12px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;font-weight:650;cursor:pointer}.section-toggle::before{content:"▸";display:inline-block;width:18px}.section-toggle[aria-expanded="true"]::before{content:"▾"}.toggle-card{padding:0;overflow:hidden}.toggle-panel{padding:0 12px 12px}.setting-row{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer}.setting-row input{width:18px;height:18px}@media(prefers-color-scheme:dark){.card,.toggle-card{border-color:#484644;background:#2d2c2b}.connection-status,.settings-status{color:#c8c6c4}}
 .amp-open-button { margin-top: 10px; }
 .amp-view { display: block; }
+
+/* Test connessione compatto nell'header. */
+.app-title { min-width: 0; }
+.connection-test-button {
+  display: inline-flex; align-items: center; gap: 7px; margin-left: auto;
+  padding: 7px 9px; border: 1px solid rgb(255 255 255 / 58%); border-radius: 999px;
+  background: rgb(255 255 255 / 12%); color: #fff; font: inherit; font-size: 11px;
+  font-weight: 600; line-height: 1.2; cursor: pointer; white-space: nowrap;
+}
+.connection-test-button:hover,.connection-test-button:focus-visible { background: rgb(255 255 255 / 22%); }
+.connection-test-button:disabled { cursor: wait; opacity: .75; }
+.connection-dot { width: 9px; height: 9px; flex: 0 0 9px; border: 1px solid rgb(255 255 255 / 72%); border-radius: 50%; background: #a19f9d; box-shadow: 0 0 0 1px rgb(0 0 0 / 8%); }
+.connection-dot-success { background: #13a10e; }
+.connection-dot-error { background: #d13438; }
+.connection-dot-unknown { background: #a19f9d; }
+@media (max-width:360px) { .app-header { gap: 9px; } .connection-test-button { padding: 7px; } #connection-status-label { max-width: 72px; white-space: normal; text-align: left; } }

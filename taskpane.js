@@ -79,172 +79,24 @@
     : "Chiama Health";
 }
 
+function setConnectionStatus(state, title) {
+  const dot = document.getElementById("connection-status-dot");
+  const button = document.getElementById("test-function-button");
+  if (!dot) return;
+  dot.className = `connection-dot connection-dot-${state}`;
+  if (button && title) button.title = title;
+}
 function showHealthResult(result) {
-  const resultContainer =
-    document.getElementById("function-result");
-
-  const statusElement =
-    document.getElementById("function-status");
-
-  const authModeElement =
-    document.getElementById("function-auth-mode");
-
-  const responseElement =
-    document.getElementById("function-response");
-
-  if (
-    !resultContainer ||
-    !statusElement ||
-    !authModeElement ||
-    !responseElement
-  ) {
-    return;
-  }
-
-  statusElement.textContent =
-    `${result.status} ${result.statusText || ""}`.trim();
-
-  statusElement.className =
-    result.ok
-      ? "status-success"
-      : "status-error";
-
-  authModeElement.textContent =
-    result.authenticationMode === "silent"
-      ? "Token ottenuto silenziosamente"
-      : "Login interattivo";
-
-  let formattedBody = result.body;
-
-  try {
-    formattedBody = JSON.stringify(
-      JSON.parse(result.body),
-      null,
-      2
-    );
-  } catch {
-    // La risposta non è JSON: viene mostrata così com'è.
-  }
-
-  responseElement.textContent = formattedBody;
-
-  resultContainer.hidden = false;
-  resultContainer.style.removeProperty("display");
+  const ok = Boolean(result?.ok);
+  setConnectionStatus(ok ? "success" : "error", ok ? `Connessione OK - HTTP ${result.status}` : `Connessione non riuscita - HTTP ${result?.status ?? "?"}`);
 }
-
-
 function showHealthError(error) {
-  const resultContainer =
-    document.getElementById("function-result");
-
-  const statusElement =
-    document.getElementById("function-status");
-
-  const authModeElement =
-    document.getElementById("function-auth-mode");
-
-  const responseElement =
-    document.getElementById("function-response");
-
-  if (
-    !resultContainer ||
-    !statusElement ||
-    !authModeElement ||
-    !responseElement
-  ) {
-    return;
-  }
-
-  statusElement.textContent = "Errore";
-  statusElement.className = "status-error";
-
-  authModeElement.textContent =
-    "Autenticazione o connessione non completata";
-
-  const errorDetails = {
-    authenticationPhase:
-      error?.authenticationPhase ?? null,
-
-    name:
-      error?.name ?? null,
-
-    message:
-      error?.message ?? String(error),
-
-    errorCode:
-      error?.errorCode ?? null,
-
-    subError:
-      error?.subError ?? null,
-
-    correlationId:
-      error?.correlationId ?? null,
-
-    timestamp:
-      error?.timestamp ?? null,
-
-    silentError:
-      error?.silentError ?? null
-  };
-
-  responseElement.textContent = JSON.stringify(
-    errorDetails,
-    null,
-    2
-  );
-
-  resultContainer.hidden = false;
-  resultContainer.style.removeProperty("display");
+  setConnectionStatus("error", `Connessione non riuscita: ${error?.message ?? String(error)}`);
 }
-
-function registerHealthResultCloseButton() {
-  const button =
-    document.getElementById("close-function-result");
-
-  if (!button) {
-    return;
-  }
-
-  button.addEventListener(
-    "click",
-    resetHealthResult
-  );
-}
-
 function resetHealthResult() {
-  const resultContainer =
-    document.getElementById("function-result");
-
-  const statusElement =
-    document.getElementById("function-status");
-
-  const authModeElement =
-    document.getElementById("function-auth-mode");
-
-  const responseElement =
-    document.getElementById("function-response");
-
-  if (statusElement) {
-    statusElement.textContent = "";
-    statusElement.className = "";
-  }
-
-  if (authModeElement) {
-    authModeElement.textContent = "";
-  }
-
-  if (responseElement) {
-    responseElement.textContent = "";
-  }
-
-  if (resultContainer) {
-    resultContainer.hidden = true;
-    resultContainer.style.display = "none";
-  }
-
+  setConnectionStatus("unknown", "Connessione non ancora verificata");
   setHealthButtonLoading(false);
 }
-
 async function testHealthFunction() {
   /*
    * Ripulisce un risultato precedente prima di iniziare
@@ -1027,13 +879,34 @@ function registerHealthButton() {
     });
   }
   function registerPluginSettingsControls() { document.getElementById("persist-view-setting")?.addEventListener("change", savePluginSettings); loadPluginSettings(); }
+  const GET_TICKET_BY_CONVERSATION_ID_URL =
+    "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId";
+
+  async function lookupTicketByConversationId(conversationId, sequence) {
+    if (!conversationId) {
+      console.log("GetTicketByConversationId: Conversation ID non disponibile.");
+      return null;
+    }
+    const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
+    try {
+      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+      const result = await response.json();
+      if (sequence !== loadSequence) return null;
+      console.log("GetTicketByConversationId:", result);
+      return result;
+    } catch (error) {
+      if (sequence === loadSequence) console.error("GetTicketByConversationId non riuscita:", error);
+      return null;
+    }
+  }
+
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
 
     currentHeaderText = "";
     resetSectionsIfNeeded();
     showMainView();
-    resetHealthResult();
     showLoading();
 
     try {
@@ -1116,6 +989,7 @@ function registerHealthButton() {
       renderAttachments(attachments);
       showData();
       publishMessageContext();
+      void lookupTicketByConversationId(currentMessageContext.conversationId, sequence);
     } catch (error) {
       if (sequence !== loadSequence) {
         return;
@@ -1157,7 +1031,6 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerSectionToggles();
     registerHealthButton();
-    registerHealthResultCloseButton();
     registerAuthDiagnosticsControls();
     loadDiagnostics();
     registerPluginSettingsControls();
