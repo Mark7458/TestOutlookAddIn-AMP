@@ -461,3 +461,7 @@ footer {
 .ticket-test-card h2 { margin: 0 0 8px; }
 #ticket-response { max-height: 280px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
 @media (prefers-color-scheme: dark) { #ticket-response { color: #f3f2f1; background: #201f1e; } }
+
+/* Health tecnico spostato nella sezione Diagnostica. */
+.diagnostic-health { margin-bottom: 10px; }
+.diagnostic-health .compact-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }

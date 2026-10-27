@@ -900,7 +900,7 @@ function registerHealthButton() {
       return;
     }
     button.disabled = isLoading;
-    button.textContent = isLoading ? "Lookup in corso..." : "Test Lookup Ticket";
+    button.textContent = isLoading ? "Aggiornamento..." : "Aggiorna ticket";
   }
 
   function showTicketResult(result) {
@@ -940,7 +940,8 @@ function registerHealthButton() {
     response.textContent = error?.message || String(error);
   }
 
-  async function testTicketLookup() {
+  async function lookupTicket(options = {}) {
+    const { sequence = null, manual = false } = options;
     resetTicketResult();
     setTicketButtonLoading(true);
 
@@ -968,6 +969,11 @@ function registerHealthButton() {
         }
       });
       const body = await fetchResponse.text();
+
+      if (sequence !== null && sequence !== loadSequence) {
+        return null;
+      }
+
       const result = {
         ok: fetchResponse.ok,
         status: fetchResponse.status,
@@ -975,8 +981,8 @@ function registerHealthButton() {
         authenticationMode: authentication.acquisitionMode,
         body
       };
-
       console.info("GetTicketByConversationId:", {
+        trigger: manual ? "manual" : "automatic",
         status: result.status,
         ok: result.ok,
         authenticationMode: result.authenticationMode,
@@ -984,12 +990,22 @@ function registerHealthButton() {
         body: result.body
       });
       showTicketResult(result);
+      return result;
     } catch (error) {
-      console.error("Test GetTicketByConversationId non riuscito:", error);
-      showTicketError(error);
+      if (sequence === null || sequence === loadSequence) {
+        console.error("GetTicketByConversationId non riuscito:", error);
+        showTicketError(error);
+      }
+      return null;
     } finally {
-      setTicketButtonLoading(false);
+      if (sequence === null || sequence === loadSequence) {
+        setTicketButtonLoading(false);
+      }
     }
+  }
+
+  async function testTicketLookup() {
+    return lookupTicket({ manual: true });
   }
 
   function registerTicketTestControls() {
@@ -1086,6 +1102,7 @@ function registerHealthButton() {
       renderAttachments(attachments);
       showData();
       publishMessageContext();
+      void lookupTicket({ sequence, manual: false });
     } catch (error) {
       if (sequence !== loadSequence) {
         return;
