@@ -455,3 +455,9 @@ footer {
 .connection-dot-error { background: #d13438; }
 .connection-dot-unknown { background: #a19f9d; }
 @media (max-width:360px) { .app-header { gap: 9px; } .connection-test-button { padding: 7px; } #connection-status-label { max-width: 72px; white-space: normal; text-align: left; } }
+
+/* Test manuale GetTicketByConversationId. */
+.ticket-test-card { margin-top: 16px; }
+.ticket-test-card h2 { margin: 0 0 8px; }
+#ticket-response { max-height: 280px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
+@media (prefers-color-scheme: dark) { #ticket-response { color: #f3f2f1; background: #201f1e; } }
