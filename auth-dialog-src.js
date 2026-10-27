@@ -21,6 +21,8 @@ const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
 const OFFICE_DIALOG_URL_KEY = "outlook-sogei-office-dialog-url";
+const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
+const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 
 let msalInstance = null;
 
@@ -108,6 +110,54 @@ function recordDiagnostic(
 
   writeDiagnosticEvents(events);
   refreshDiagnosticView();
+}
+
+function runDialogStorageProbe() {
+  const probe = {
+    source: "DIALOG",
+    timestamp: new Date().toISOString(),
+    origin: window.location.origin,
+    mode: DIALOG_MODE
+  };
+  let writeSucceeded = false;
+  let ownProbeVisible = false;
+  let taskpaneProbeVisible = false;
+  let taskpaneProbeSource = null;
+  let taskpaneProbeTimestamp = null;
+
+  try {
+    localStorage.setItem(STORAGE_PROBE_DIALOG_KEY, JSON.stringify(probe));
+    writeSucceeded = true;
+    ownProbeVisible = Boolean(localStorage.getItem(STORAGE_PROBE_DIALOG_KEY));
+
+    const taskpaneProbeRaw = localStorage.getItem(STORAGE_PROBE_TASKPANE_KEY);
+    taskpaneProbeVisible = Boolean(taskpaneProbeRaw);
+    if (taskpaneProbeRaw) {
+      try {
+        const taskpaneProbe = JSON.parse(taskpaneProbeRaw);
+        taskpaneProbeSource = taskpaneProbe?.source || null;
+        taskpaneProbeTimestamp = taskpaneProbe?.timestamp || null;
+      } catch {
+        taskpaneProbeSource = "invalid-json";
+      }
+    }
+  } catch (error) {
+    recordDiagnostic("storage_probe_dialog_error", {
+      name: error?.name || "Error",
+      message: error?.message || String(error)
+    });
+    return;
+  }
+
+  recordDiagnostic("storage_probe_dialog", {
+    writeSucceeded,
+    ownProbeVisible,
+    taskpaneProbeVisible,
+    taskpaneProbeSource,
+    taskpaneProbeTimestamp,
+    origin: window.location.origin,
+    mode: DIALOG_MODE
+  });
 }
 
 function getSafeErrorDetails(error) {
@@ -708,6 +758,7 @@ if (document.readyState === "loading") {
 recordDiagnostic(
   "bundle_loaded"
 );
+runDialogStorageProbe();
 
 if (DIALOG_MODE === "recovery") {
   const title = document.getElementById("auth-title");

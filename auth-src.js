@@ -22,6 +22,8 @@ let dialogOperationSequence = 0;
 let currentAuthentication = null;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
 const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
+const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
+const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 
 function readAuthDiagnostics() {
   try {
@@ -51,6 +53,52 @@ function recordAuthDiagnostic(event, details = null, source = "TASKPANE") {
   });
   writeAuthDiagnostics(events);
   window.dispatchEvent(new CustomEvent("workflow-auth-diagnostics-changed"));
+}
+
+function runTaskpaneStorageProbe() {
+  const probe = {
+    source: "TASKPANE",
+    timestamp: new Date().toISOString(),
+    origin: window.location.origin
+  };
+  let writeSucceeded = false;
+  let ownProbeVisible = false;
+  let dialogProbeVisible = false;
+  let dialogProbeSource = null;
+  let dialogProbeTimestamp = null;
+
+  try {
+    localStorage.setItem(STORAGE_PROBE_TASKPANE_KEY, JSON.stringify(probe));
+    writeSucceeded = true;
+    ownProbeVisible = Boolean(localStorage.getItem(STORAGE_PROBE_TASKPANE_KEY));
+
+    const dialogProbeRaw = localStorage.getItem(STORAGE_PROBE_DIALOG_KEY);
+    dialogProbeVisible = Boolean(dialogProbeRaw);
+    if (dialogProbeRaw) {
+      try {
+        const dialogProbe = JSON.parse(dialogProbeRaw);
+        dialogProbeSource = dialogProbe?.source || null;
+        dialogProbeTimestamp = dialogProbe?.timestamp || null;
+      } catch {
+        dialogProbeSource = "invalid-json";
+      }
+    }
+  } catch (error) {
+    recordAuthDiagnostic("storage_probe_taskpane_error", {
+      name: error?.name || "Error",
+      message: error?.message || String(error)
+    });
+    return;
+  }
+
+  recordAuthDiagnostic("storage_probe_taskpane", {
+    writeSucceeded,
+    ownProbeVisible,
+    dialogProbeVisible,
+    dialogProbeSource,
+    dialogProbeTimestamp,
+    origin: window.location.origin
+  });
 }
 
 function importDialogDiagnostics(entries) {
@@ -98,6 +146,7 @@ async function initializeMsal() {
     return msalInstance;
   }
 
+  runTaskpaneStorageProbe();
   recordAuthDiagnostic("msal_initialize_start");
 
   msalInstance =
