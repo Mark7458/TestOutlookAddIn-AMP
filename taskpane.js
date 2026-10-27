@@ -954,9 +954,23 @@ function registerHealthButton() {
         throw new Error("API autenticazione silent non disponibile.");
       }
 
-      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      let authentication;
+      try {
+        authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      } catch (silentError) {
+        console.info("GetTicketByConversationId: silent non disponibile, provo il flusso interattivo.", silentError);
+        if (!window.WorkflowHealth?.callHealthOnDemand) {
+          throw silentError;
+        }
+        const healthResult = await window.WorkflowHealth.callHealthOnDemand();
+        if (!healthResult?.ok) {
+          throw new Error(`Connessione alla Function App non riuscita (HTTP ${healthResult?.status ?? "?"}).`);
+        }
+        authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      }
+
       if (!authentication?.accessToken) {
-        throw new Error("Token di accesso non disponibile.");
+        throw new Error("Token di accesso non disponibile dopo il tentativo di connessione.");
       }
 
       const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
