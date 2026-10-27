@@ -945,7 +945,7 @@ function registerHealthButton() {
     setTicketButtonLoading(true);
 
     try {
-      const conversationId = currentMessageContext?.conversationId;
+      const conversationId = currentMessageContext?.normalizedConversationId;
       if (!conversationId) {
         throw new Error("Conversation ID non disponibile per il messaggio selezionato.");
       }
