@@ -64,76 +64,78 @@
   }
   function resetSectionsIfNeeded() { if (!isViewPersistenceEnabled()) sectionIds.forEach((name) => setSectionOpen(name, false, { persist: false })); }
   function registerSectionToggles() { sectionIds.forEach((name) => document.getElementById(`${name}-toggle`)?.addEventListener("click", () => setSectionOpen(name, document.getElementById(`${name}-toggle`)?.getAttribute("aria-expanded") !== "true"))); }
-  function setHealthButtonLoading(isLoading) {
-  const button =
-    document.getElementById("test-function-button");
+  function setHealthButtonState(state) {
+    const button = document.getElementById("test-function-button");
+    const label = document.getElementById("connection-status-label");
+    const dot = document.getElementById("connection-status-dot");
 
-  if (!button) {
-    return;
-  }
-
-  button.disabled = isLoading;
-
-  button.textContent = isLoading
-    ? "Connessione in corso..."
-    : "Chiama Health";
-}
-
-function setConnectionStatus(state, title) {
-  const dot = document.getElementById("connection-status-dot");
-  const button = document.getElementById("test-function-button");
-  if (!dot) return;
-  dot.className = `connection-dot connection-dot-${state}`;
-  if (button && title) button.title = title;
-}
-function showHealthResult(result) {
-  const ok = Boolean(result?.ok);
-  setConnectionStatus(ok ? "success" : "error", ok ? `Connessione OK - HTTP ${result.status}` : `Connessione non riuscita - HTTP ${result?.status ?? "?"}`);
-}
-function showHealthError(error) {
-  setConnectionStatus("error", `Connessione non riuscita: ${error?.message ?? String(error)}`);
-}
-function resetHealthResult() {
-  setConnectionStatus("unknown", "Connessione non ancora verificata");
-  setHealthButtonLoading(false);
-}
-async function testHealthFunction() {
-  /*
-   * Ripulisce un risultato precedente prima di iniziare
-   * una nuova operazione.
-   */
-  resetHealthResult();
-  setHealthButtonLoading(true);
-  refreshAuthDiagnostics();
-
-  try {
-    if (!window.WorkflowHealth) {
-      throw new Error(
-        "Il modulo di autenticazione non è stato caricato."
-      );
+    if (!button || !label || !dot) {
+      return;
     }
 
-    const result =
-      await window.WorkflowHealth.callHealthOnDemand();
-
-    showHealthResult(result);
-    refreshAuthDiagnostics();
-  } catch (error) {
-    console.error(
-      "Errore durante il test Health:",
-      error
-    );
-
-    /*
-     * Mostra sempre l'errore restituito dopo la chiusura
-     * del popup MFA.
-     */
-    showHealthError(error);
-    refreshAuthDiagnostics();
-  } finally {
-    setHealthButtonLoading(false);
+    button.disabled = state === "loading";
+    dot.className = `connection-dot connection-dot-${
+      state === "connected" ? "success" : state === "error" ? "error" : "unknown"
+    }`;
+    label.textContent =
+      state === "loading"
+        ? "Connessione..."
+        : state === "connected"
+          ? "Connesso"
+          : state === "error"
+            ? "Errore connessione"
+            : "Test Connessione";
   }
-}
+
+  function setConnectionStatus(state, title) {
+    const button = document.getElementById("test-function-button");
+    if (button && title) {
+      button.title = title;
+    }
+    setHealthButtonState(
+      state === "success" ? "connected" : state === "error" ? "error" : "idle"
+    );
+  }
+
+  function showHealthResult(result) {
+    const ok = Boolean(result?.ok);
+    setConnectionStatus(
+      ok ? "success" : "error",
+      ok
+        ? `Connessione OK - HTTP ${result.status}`
+        : `Connessione non riuscita - HTTP ${result?.status ?? "?"}`
+    );
+  }
+
+  function showHealthError(error) {
+    setConnectionStatus(
+      "error",
+      `Connessione non riuscita: ${error?.message ?? String(error)}`
+    );
+  }
+
+  function resetHealthResult() {
+    setConnectionStatus("unknown", "Connessione non ancora verificata");
+  }
+
+  async function testHealthFunction() {
+    resetHealthResult();
+    setHealthButtonState("loading");
+    refreshAuthDiagnostics();
+
+    try {
+      if (!window.WorkflowHealth) {
+        throw new Error("Il modulo di autenticazione non è stato caricato.");
+      }
+      const result = await window.WorkflowHealth.callHealthOnDemand();
+      showHealthResult(result);
+      refreshAuthDiagnostics();
+    } catch (error) {
+      console.error("Errore durante il test Health:", error);
+      showHealthError(error);
+      refreshAuthDiagnostics();
+    }
+  }
 
   function formatAuthDiagnosticEntry(entry) {
     const details = entry?.details
@@ -882,23 +884,117 @@ function registerHealthButton() {
   const GET_TICKET_BY_CONVERSATION_ID_URL =
     "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId";
 
-  async function lookupTicketByConversationId(conversationId, sequence) {
-    if (!conversationId) {
-      console.log("GetTicketByConversationId: Conversation ID non disponibile.");
-      return null;
+  function resetTicketResult() {
+    const panel = byId("ticket-result");
+    if (panel) {
+      panel.hidden = true;
     }
-    const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
+    setText("ticket-status", "", "");
+    setText("ticket-auth-mode", "", "");
+    setText("ticket-response", "", "");
+  }
+
+  function setTicketButtonLoading(isLoading) {
+    const button = byId("test-ticket-button");
+    if (!button) {
+      return;
+    }
+    button.disabled = isLoading;
+    button.textContent = isLoading ? "Lookup in corso..." : "Test Lookup Ticket";
+  }
+
+  function showTicketResult(result) {
+    const panel = byId("ticket-result");
+    const status = byId("ticket-status");
+    const authMode = byId("ticket-auth-mode");
+    const response = byId("ticket-response");
+    if (!panel || !status || !authMode || !response) {
+      return;
+    }
+
+    panel.hidden = false;
+    status.textContent = `${result.status} ${result.statusText || ""}`.trim();
+    status.className = result.ok ? "status-success" : "status-error";
+    authMode.textContent = result.authenticationMode || "Non disponibile";
+
     try {
-      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
-      if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
-      const result = await response.json();
-      if (sequence !== loadSequence) return null;
-      console.log("GetTicketByConversationId:", result);
-      return result;
-    } catch (error) {
-      if (sequence === loadSequence) console.error("GetTicketByConversationId non riuscita:", error);
-      return null;
+      response.textContent = JSON.stringify(JSON.parse(result.body || "{}"), null, 2);
+    } catch {
+      response.textContent = result.body || "(Risposta vuota)";
     }
+  }
+
+  function showTicketError(error) {
+    const panel = byId("ticket-result");
+    const status = byId("ticket-status");
+    const authMode = byId("ticket-auth-mode");
+    const response = byId("ticket-response");
+    if (!panel || !status || !authMode || !response) {
+      return;
+    }
+
+    panel.hidden = false;
+    status.textContent = "Errore";
+    status.className = "status-error";
+    authMode.textContent = "Non disponibile";
+    response.textContent = error?.message || String(error);
+  }
+
+  async function testTicketLookup() {
+    resetTicketResult();
+    setTicketButtonLoading(true);
+
+    try {
+      const conversationId = currentMessageContext?.conversationId;
+      if (!conversationId) {
+        throw new Error("Conversation ID non disponibile per il messaggio selezionato.");
+      }
+      if (!window.WorkflowHealth?.getAccessTokenSilently) {
+        throw new Error("API autenticazione silent non disponibile.");
+      }
+
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      if (!authentication?.accessToken) {
+        throw new Error("Token di accesso non disponibile.");
+      }
+
+      const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
+      const startedAt = Date.now();
+      const fetchResponse = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authentication.accessToken}`,
+          Accept: "application/json"
+        }
+      });
+      const body = await fetchResponse.text();
+      const result = {
+        ok: fetchResponse.ok,
+        status: fetchResponse.status,
+        statusText: fetchResponse.statusText,
+        authenticationMode: authentication.acquisitionMode,
+        body
+      };
+
+      console.info("GetTicketByConversationId:", {
+        status: result.status,
+        ok: result.ok,
+        authenticationMode: result.authenticationMode,
+        elapsedMs: Date.now() - startedAt,
+        body: result.body
+      });
+      showTicketResult(result);
+    } catch (error) {
+      console.error("Test GetTicketByConversationId non riuscito:", error);
+      showTicketError(error);
+    } finally {
+      setTicketButtonLoading(false);
+    }
+  }
+
+  function registerTicketTestControls() {
+    byId("test-ticket-button")?.addEventListener("click", testTicketLookup);
+    byId("close-ticket-result")?.addEventListener("click", resetTicketResult);
   }
 
   async function loadSelectedMessage() {
@@ -907,6 +1003,7 @@ function registerHealthButton() {
     currentHeaderText = "";
     resetSectionsIfNeeded();
     showMainView();
+    resetTicketResult();
     showLoading();
 
     try {
@@ -989,7 +1086,6 @@ function registerHealthButton() {
       renderAttachments(attachments);
       showData();
       publishMessageContext();
-      void lookupTicketByConversationId(currentMessageContext.conversationId, sequence);
     } catch (error) {
       if (sequence !== loadSequence) {
         return;
@@ -1031,6 +1127,7 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerSectionToggles();
     registerHealthButton();
+    registerTicketTestControls();
     registerAuthDiagnosticsControls();
     loadDiagnostics();
     registerPluginSettingsControls();
