@@ -260,15 +260,28 @@
         return { ticket: found ? decorate(found, conversationId) : null, via: found ? via : null, previous: previous ? decorate(previous, conversationId) : null, candidates: candidates.map(item => decorate(item)) };
     }
     // Ticket con i dati di SharePoint (mail collegata, azione all'invio).
+    // mailUnconfirmed: la mail è stata trovata solo per somiglianza e va confermata dall'operatore.
     function decorate(incident, conversationId) {
-        const conversation = conversationId || conversationOf(incident.number);
+        const linked = conversationId || conversationOf(incident.number);
+        const similar = linked ? null : similarConversationOf(incident);
+        const conversation = linked || similar;
         const messages = conversation ? conversationMessages(conversation) : [];
         return {
             ...incident,
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
+            mailUnconfirmed: Boolean(similar),
             pendingAction: db.pending[incident.number] || null
         };
+    }
+    function similarConversationOf(incident) {
+        const conversations = [...new Set(db.messages.map(item => item.conversationId))];
+        return conversations.find(id => {
+            const messages = conversationMessages(id);
+            const incoming = messages.filter(item => item.direction === 'in');
+            const times = incoming.map(item => new Date(item.receivedAt));
+            return similarIncidents(messages[0].subject, times).some(item => item.number === incident.number);
+        }) || null;
     }
     function conversationOf(number) {
         const conversations = [...new Set(db.messages.map(item => item.conversationId))];
@@ -291,8 +304,10 @@
         if (!lastIncoming) return null;
         const discarded = db.discarded[conversationId];
         if (discarded && discarded.at > lastIncoming.receivedAt) return null;
+        // In coda solo le mail che non hanno ancora un INC su ServiceNow: niente ticket aperto
+        // collegato e nessun ticket simile (quello va confermato dalla vista Mail o da Ticket).
         const result = resolveConversation(conversationId);
-        if (result.ticket) return null;
+        if (result.ticket || result.candidates.length) return null;
         return {
             conversationId,
             messageId: messages[messages.length - 1].id,

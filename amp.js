@@ -80,9 +80,8 @@
 
     // Tutte le scritte del pannello. Le voci con (valore) sono funzioni.
     const TEXTS = {
-        title: 'AMP',
         back: 'Torna all’add-in',
-        tabs: { queue: 'Coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
         common: {
             me: 'me',
             loading: 'Caricamento…',
@@ -101,13 +100,15 @@
             empty: 'Nessuna richiesta in coda.',
             suggested: name => `Agenzia: ${name}`,
             previous: number => `Thread già usato: ${number}`,
-            candidate: number => `Forse è ${number}`
+            takeCharge: 'Prendi in carico',
+            ignore: 'Ignora'
         },
         tickets: {
             mine: 'Miei',
             all: 'Tutti',
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
+            mailToConfirm: 'mail da confermare',
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`
         },
@@ -138,7 +139,8 @@
             takeOver: 'Prendi in carico',
             taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
-            newTicket: 'Nuovo ticket',
+            newTicket: 'Presa in carico',
+            newTicketHint: 'Apre il ticket su ServiceNow assegnato a te.',
             company: 'Agenzia',
             activity: 'Attività',
             choose: 'Seleziona…',
@@ -148,8 +150,8 @@
             favorites: 'Preferiti',
             shortDescription: 'Short description',
             fieldsPreview: 'Su ServiceNow',
-            openTicket: 'Apri ticket',
-            discard: 'Non serve un ticket',
+            openTicket: 'Prendi in carico',
+            discard: 'Ignora',
             profileMissing: 'Imposta prima il tuo profilo (Impostazioni → Profilo).',
             selectBoth: 'Scegli Agenzia e Attività.',
             ticketOpened: number => `Ticket ${number} aperto e assegnato a te.`,
@@ -189,7 +191,7 @@
         settings: {
             profile: 'Profilo',
             profileHint: 'Il tuo utente su ServiceNow: i ticket che apri vengono assegnati a te.',
-            assignedTo: 'Assigned to (ServiceNow)',
+            assignedTo: 'Assigned to',
             displayValue: 'Nome',
             sysId: 'sys_id',
             companies: 'Agenzie',
@@ -493,6 +495,7 @@
         actionDrafts: {}, // per ticket: azione all'invio
         history: {}, // per ticket: storico caricato
         editing: null, // impostazioni: { kind, id }
+        queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
     let root = null;
@@ -700,16 +703,19 @@
     }
 
     function buildShell(container) {
+        // Una sola barra: freccia per tornare all'add-in, schede, ingranaggio delle impostazioni.
         root = h('div', { id: 'ao-root' },
-            h('header', { class: 'ao-header' },
-                h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
-                h('div', { class: 'ao-title' }, TEXTS.title),
-                h('span', { class: 'ao-user' })),
             h('nav', { class: 'ao-tabs', role: 'tablist' },
-                ['queue', 'tickets', 'mail', 'settings'].map(view => h('button', {
+                h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
+                // La scheda Mail resta visibile per le prove: nell'uso si apre da sola con la mail.
+                ['queue', 'tickets', 'mail'].map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
                     onclick: () => setView(view)
-                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), h('span', { class: 'ao-badge', hidden: true })))),
+                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), h('span', { class: 'ao-badge', hidden: true }))),
+                h('button', {
+                    type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
+                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => setView(state.view === 'settings' ? 'queue' : 'settings')
+                }, '⚙')),
             h('div', { class: 'ao-body' }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }));
         container.replaceChildren(root);
@@ -719,7 +725,6 @@
         if (!root) return;
         const config = loadConfig();
         const user = currentUser(config);
-        root.querySelector('.ao-user').textContent = user.displayValue ? `● ${user.displayValue}` : '';
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
             const active = tab.dataset.view === state.view;
@@ -730,6 +735,7 @@
             badge.hidden = !count;
             badge.textContent = count || '';
         });
+        root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         root.querySelector('.ao-body').replaceChildren(views[state.view](config, user));
     }
@@ -765,18 +771,38 @@
             items.length ? h('ul', { class: 'ao-list' }, items.map(item => queueItem(item, config)))
                 : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty)));
     }
+    function mailFromQueueItem(item) {
+        return {
+            conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
+            receivedAt: item.receivedAt, body: item.preview, incNumbers: []
+        };
+    }
+    // Ogni riga: clic sul testo = apre la mail; Prendi in carico = modulo compatto; Ignora = scarta.
     function queueItem(item, config) {
         const suggestion = suggestCompany(config, item.sender, item.subject, item.preview);
         const company = suggestion && config.companies[suggestion.id];
-        return clickable('ao-item', () => openQueueItem(item),
-            h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
-                h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
-            h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
-            h('div', { class: 'ao-item-meta' },
-                company ? chip(TEXTS.queue.suggested(company.name), 'accent') : null,
-                item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral') : null,
-                (item.candidates || []).map(number => chip(TEXTS.queue.candidate(number), 'warning'))));
+        const expanded = state.queueExpanded === item.conversationId;
+        const mail = mailFromQueueItem(item);
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}` },
+            h('div', {
+                class: 'ao-item-main', tabindex: '0', role: 'button',
+                onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
+            },
+                h('div', { class: 'ao-item-top' },
+                    h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
+                h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
+                company || item.previous ? h('div', { class: 'ao-item-meta' },
+                    company ? chip(TEXTS.queue.suggested(company.name), 'accent') : null,
+                    item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral') : null) : null),
+            expanded
+                ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
+                    h('div', { class: 'ao-actions' },
+                        openTicketButton(mail, config),
+                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
+                : h('div', { class: 'ao-item-actions' },
+                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    ignoreButton(mail, 'ao-button ao-small ao-subtle')));
     }
 
     // ---------------------------- Ticket ----------------------------------
@@ -808,7 +834,7 @@
                 chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'neutral'),
                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
-                ticket.messageId ? null : chip(TEXTS.tickets.noMail, 'neutral'),
+                ticket.messageId ? (ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null) : chip(TEXTS.tickets.noMail, 'neutral'),
                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null));
     }
 
@@ -900,6 +926,17 @@
         return state.ticketDrafts[mail.conversationId];
     }
     function newTicketCard(mail, config, user) {
+        return h('section', { class: 'ao-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.mail.newTicket),
+            h('p', { class: 'ao-hint' }, TEXTS.mail.newTicketHint),
+            ticketForm(mail, config, { user }),
+            h('div', { class: 'ao-actions' },
+                openTicketButton(mail, config),
+                ignoreButton(mail, 'ao-button ao-subtle')));
+    }
+    // Campi della presa in carico: Preferiti, Agenzia (suggerita), Attività, Short description.
+    // Nella versione compatta (In coda) mancano l'anteprima dei campi su ServiceNow.
+    function ticketForm(mail, config, { compact = false, user = currentUser(config) } = {}) {
         const draft = ticketDraft(mail, config);
         const companies = Object.entries(config.companies).sort(byName);
         const activities = Object.entries(config.activities).sort(byName);
@@ -907,10 +944,9 @@
         const activity = config.activities[draft.activityId];
         const favorites = config.favorites.filter(item => config.companies[item.company] && config.activities[item.activity]);
         const rerender = () => render();
-        return h('section', { class: 'ao-card' },
-            h('h3', { class: 'ao-card-title' }, TEXTS.mail.newTicket),
+        return [
             favorites.length ? h('div', { class: 'ao-favorites' },
-                h('span', { class: 'ao-label' }, TEXTS.mail.favorites),
+                compact ? null : h('span', { class: 'ao-label' }, TEXTS.mail.favorites),
                 h('div', { class: 'ao-chips' }, favorites.map(item => h('button', {
                     type: 'button',
                     class: `ao-fav${item.company === draft.companyId && item.activity === draft.activityId ? ' ao-active' : ''}`,
@@ -927,7 +963,7 @@
                 const preview = root.querySelector('[data-preview="short"]');
                 if (preview) preview.textContent = buildShortDescription(value, activity);
             }, { maxlength: '160' }),
-            company && activity ? h('dl', { class: 'ao-fields' },
+            !compact && company && activity ? h('dl', { class: 'ao-fields' },
                 h('dt', {}, TEXTS.mail.fieldsPreview), h('dd', {}),
                 fieldRow('Company', company.company?.displayValue || company.name),
                 fieldRow('Assignment group', company.assignmentGroup?.displayValue),
@@ -936,12 +972,18 @@
                 fieldRow('Impact / Urgency', `${activity.impact || '?'} / ${activity.urgency || '?'}`),
                 fieldRow('Time worked', TEXTS.mail.minutes(Number(activity.timeWorked) || 0)),
                 fieldRow('Short description', buildShortDescription(draft.subject, activity), 'short'),
-                fieldRow('Reported', formatWhen(mail.receivedAt))) : null,
-            h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !(company && activity), onclick: () => openTicket(mail) }, TEXTS.mail.openTicket),
-                confirmButton(TEXTS.mail.discard, 'ao-button ao-subtle', async () => {
-                    if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await refreshLists();
-                })));
+                fieldRow('Reported', formatWhen(mail.receivedAt))) : null
+        ];
+    }
+    function openTicketButton(mail, config) {
+        const draft = ticketDraft(mail, config);
+        const ready = Boolean(config.companies[draft.companyId] && config.activities[draft.activityId]);
+        return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: () => openTicket(mail) }, TEXTS.mail.openTicket);
+    }
+    function ignoreButton(mail, className) {
+        return confirmButton(TEXTS.mail.discard, className, async () => {
+            if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await refreshLists();
+        });
     }
     function fieldRow(label, value, previewKey) {
         return [h('dt', {}, label), h('dd', previewKey ? { dataset: { preview: previewKey } } : {}, value || TEXTS.common.none)];
@@ -980,7 +1022,10 @@
         if (!ticket) return;
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
-        state.result = { ticket, via: 'link', previous: null, candidates: [] };
+        if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
+        if (state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId) {
+            state.result = { ticket, via: 'link', previous: null, candidates: [] };
+        }
         config.recent = [{ company: draft.companyId, activity: draft.activityId, timestamp: new Date().toISOString() },
             ...config.recent.filter(item => !(item.company === draft.companyId && item.activity === draft.activityId))].slice(0, 10);
         saveConfig(config);
@@ -994,8 +1039,8 @@
         return [
             assigneeCard(ticket, user),
             ticketCard(ticket, showOpen),
-            open && ticket.messageId ? onSendCard(ticket, config, isCurrentMail) : null,
-            open && !ticket.messageId ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
+            open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
+            open && (!ticket.messageId || ticket.mailUnconfirmed) ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
             historyCard(ticket)
         ];
     }
@@ -1392,12 +1437,9 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--ao-header-background); color: var(--ao-white); }
-#ao-root .ao-title { flex: 1; font-size: var(--ao-fs-xl); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-user { font-size: var(--ao-fs-md); opacity: .9; }
-#ao-root .ao-header .ao-icon-button { color: var(--ao-white); border-color: rgba(255,255,255,.35); }
-#ao-root .ao-header .ao-icon-button:hover { background: rgba(255,255,255,.15); }
-#ao-root .ao-tabs { position: sticky; top: 0; z-index: 2; display: flex; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
+#ao-root .ao-settings-button.ao-active { color: var(--ao-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
@@ -1520,6 +1562,15 @@
 #ao-root .ao-config-text .ao-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ao-root .ao-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--ao-accent-border); border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); }
 
+/* In coda: riga con azioni e modulo compatto */
+#ao-root .ao-queue-item { cursor: default; gap: 6px; }
+#ao-root .ao-queue-item:hover { background: var(--ao-white); }
+#ao-root .ao-item-main { display: grid; gap: 3px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
+#ao-root .ao-item-main:hover .ao-item-title { color: var(--ao-accent); }
+#ao-root .ao-item-actions { display: flex; gap: 6px; }
+#ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
+#ao-root .ao-expanded { border-left-color: var(--ao-accent); }
+
 /* Collegamento mail ↔ ticket */
 #ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-card-quiet { background: var(--ao-bg-soft); }
@@ -1554,6 +1605,7 @@
         initialized = true;
         injectStyles();
         buildShell(container);
+        fillPane();
         document.getElementById('open-amp-button')?.addEventListener('click', show);
         Outlook.onMailChanged(() => handleMailChanged());
         Services.subscribe(() => { refreshLists(); });
@@ -1562,8 +1614,16 @@
         await refreshLists();
         if (state.mail?.conversationId) showMailTarget(state.mail);
     }
+    // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in.
+    function fillPane() {
+        const host = root?.parentElement?.parentElement;
+        if (!host) return;
+        const style = getComputedStyle(host);
+        root.style.margin = `-${style.paddingTop} -${style.paddingRight} -${style.paddingBottom} -${style.paddingLeft}`;
+    }
     function show() {
         initialize();
+        fillPane();
         const mainView = document.getElementById('main-view');
         const headerView = document.getElementById('header-view');
         const ampView = document.getElementById('amp-view');
