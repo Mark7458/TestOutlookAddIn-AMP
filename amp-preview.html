@@ -4,121 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anteprima area AMP</title>
-<!-- Stili dell'add-in di jak, per vedere il pannello nel suo contesto reale -->
+<!-- Stili dell'add-in di jak, per vedere l'area AMP nel suo contesto reale -->
 <link href="taskpane.css" rel="stylesheet">
 <style>
-  /* ---- Solo per l'anteprima: non fanno parte dell'add-in ---- */
-  body { margin: 0; background: #e9e7e5; }
-  .preview-bar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
-    padding: 10px 16px; background: #323130; color: #fff; font-size: 13px;
+  /* ---- Solo per l'anteprima: la finta Outlook non fa parte dell'add-in ---- */
+  :root { --ol-blue: #0f6cbd; --ol-line: #e1dfdd; --ol-muted: #605e5c; --ol-soft: #f5f5f5; }
+  html, body { height: 100%; }
+  body { margin: 0; display: flex; flex-direction: column; background: #e9e7e5; font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; color: #242424; }
+  .preview-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; background: #323130; color: #fff; }
+  .preview-bar strong { font-size: 14px; margin-right: 4px; }
+  .preview-bar button { padding: 4px 9px; border: 1px solid #8a8886; border-radius: 4px; background: #fff; color: #242424; font: inherit; cursor: pointer; }
+  .preview-bar .note { color: #c8c6c4; font-size: 12px; }
+  .layout { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 12px; }
+
+  /* Outlook simulata */
+  .outlook { flex: 1; min-width: 0; display: flex; flex-direction: column; border: 1px solid #c8c6c4; border-radius: 6px; background: #fff; overflow: hidden; }
+  .ol-top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--ol-blue); color: #fff; }
+  .ol-top b { font-size: 14px; }
+  .ol-top span { opacity: .85; font-size: 12px; }
+  .ol-main { flex: 1; min-height: 0; display: flex; }
+  .ol-list { flex: 0 0 300px; overflow-y: auto; border-right: 1px solid var(--ol-line); margin: 0; padding: 0; list-style: none; }
+  .ol-row { display: grid; gap: 2px; padding: 9px 12px; border-bottom: 1px solid #f3f2f1; border-left: 3px solid transparent; cursor: pointer; }
+  .ol-row:hover { background: #f5f5f5; }
+  .ol-row.selected { background: #e8f1fa; border-left-color: var(--ol-blue); }
+  .ol-row-top { display: flex; justify-content: space-between; gap: 8px; }
+  .ol-sender { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ol-time { color: var(--ol-muted); font-size: 11px; white-space: nowrap; }
+  .ol-subject { color: var(--ol-blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ol-snippet { color: var(--ol-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ol-cats { display: flex; gap: 4px; min-height: 0; }
+  .ol-cat { padding: 0 7px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+  .ol-read { flex: 1; min-width: 0; overflow-y: auto; padding: 16px 20px; }
+  .ol-read h1 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .ol-read .ol-cats { margin-bottom: 12px; }
+  .ol-msg { margin-bottom: 10px; border: 1px solid var(--ol-line); border-radius: 6px; }
+  .ol-msg-head { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; background: #faf9f8; border-radius: 6px 6px 0 0; }
+  .ol-msg-head small { color: var(--ol-muted); }
+  .ol-msg.out .ol-msg-head { background: #eff6fc; }
+  .ol-msg-body { margin: 0; padding: 10px 12px; white-space: pre-wrap; font: inherit; }
+  .ol-actions { display: flex; gap: 8px; margin: 4px 0 12px; }
+  .ol-btn { padding: 5px 14px; border: 1px solid #c8c6c4; border-radius: 4px; background: #fff; font: inherit; cursor: pointer; }
+  .ol-btn.primary { background: var(--ol-blue); border-color: var(--ol-blue); color: #fff; }
+  .ol-compose { display: grid; gap: 8px; margin-bottom: 14px; padding: 12px; border: 1px solid var(--ol-blue); border-radius: 6px; background: #fff; }
+  .ol-compose textarea { min-height: 140px; padding: 8px; border: 1px solid #c8c6c4; border-radius: 4px; font: inherit; resize: vertical; }
+  .ol-toast { padding: 8px 12px; margin-bottom: 12px; border-radius: 4px; background: #dff6dd; color: #107c10; font-weight: 600; }
+  .ol-empty { color: var(--ol-muted); padding: 40px; text-align: center; }
+
+  /* Riquadro dell'add-in */
+  .taskpane { flex: 0 0 360px; display: flex; flex-direction: column; border: 1px solid #c8c6c4; border-radius: 6px; background: #f5f5f5; overflow: hidden; }
+  .taskpane main { flex: 1; min-height: 0; overflow-y: auto; }
+  .taskpane .app-header { padding: 12px 16px; }
+  @media (max-width: 980px) {
+    .layout { flex-direction: column; }
+    .ol-main { flex-direction: column; }
+    .ol-list { flex-basis: auto; max-height: 260px; border-right: 0; border-bottom: 1px solid var(--ol-line); }
+    .taskpane { flex-basis: auto; min-height: 600px; }
   }
-  .preview-bar strong { font-size: 14px; margin-right: 6px; }
-  .preview-bar select, .preview-bar button {
-    padding: 5px 8px; border: 1px solid #8a8886; border-radius: 4px;
-    background: #fff; color: #242424; font: inherit; cursor: pointer;
-  }
-  .preview-layout { display: flex; gap: 16px; align-items: flex-start; padding: 16px; }
-  .sn-form {
-    flex: 1 1 420px; max-width: 560px; padding: 0 0 14px;
-    border: 1px solid #c8c6c4; border-radius: 6px; background: #fff;
-  }
-  .sn-form h2 {
-    margin: 0 0 12px; padding: 10px 14px; border-radius: 6px 6px 0 0;
-    background: #293e40; color: #fff; font-size: 14px; font-weight: 600;
-  }
-  .hint { margin: 0 14px 12px; color: #605e5c; font-size: 12px; line-height: 1.4; }
-  .sn-fields { display: grid; grid-template-columns: 150px 1fr; gap: 6px 10px; padding: 0 14px; font-size: 13px; }
-  .sn-fields label { align-self: center; color: #323130; }
-  .sn-fields input, .sn-fields select, .sn-fields textarea {
-    width: 100%; padding: 4px 6px; border: 1px solid #c8c6c4; border-radius: 3px; font: inherit; font-size: 13px;
-  }
-  .sn-fields textarea { min-height: 42px; resize: vertical; }
-  .sn-timer { display: flex; align-items: center; gap: 4px; }
-  .sn-timer-total { padding: 4px 8px; border: 1px solid #c8c6c4; border-radius: 3px; background: #f3f2f1; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .sn-fields .sn-timer input { width: 3.2em; text-align: center; }
-  .sn-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px 0; }
-  .sn-actions button { padding: 6px 16px; border: 1px solid #293e40; border-radius: 3px; background: #293e40; color: #fff; font: inherit; cursor: pointer; }
-  .left-column { flex: 1 1 420px; max-width: 560px; display: grid; gap: 16px; }
-  .left-column .sn-form { max-width: none; }
-  .mail-card { padding: 0 0 12px; border: 1px solid #c8c6c4; border-radius: 6px; background: #fff; }
-  .mail-card h2 { margin: 0 0 10px; padding: 10px 14px; border-radius: 6px 6px 0 0; background: #0078d4; color: #fff; font-size: 14px; font-weight: 600; }
-  .taskpane {
-    flex: 0 0 360px; height: calc(100vh - 90px); overflow-y: auto;
-    border: 1px solid #c8c6c4; border-radius: 6px; background: #f5f5f5;
-  }
-  .taskpane .app-header { padding: 14px 16px; }
-  @media (max-width: 860px) { .preview-layout { flex-direction: column-reverse; } .taskpane { flex-basis: auto; width: 100%; height: auto; } }
 </style>
 </head>
 <body>
 
 <div class="preview-bar">
   <strong>Anteprima area AMP</strong>
-  <label>Scenario
-    <select id="preview-scenario">
-      <option value="new">Nuovo ticket (New)</option>
-      <option value="progress">Ticket in lavorazione (In Progress)</option>
-      <option value="hold">Ticket On Hold</option>
-      <option value="resolved">Ticket risolto (Resolved)</option>
-    </select>
-  </label>
   <button type="button" id="preview-seed">Carica configurazioni di esempio</button>
-  <button type="button" id="preview-reset">Azzera dati del pannello</button>
+  <button type="button" id="preview-reset-mail">Ripristina mail e ticket</button>
+  <button type="button" id="preview-reset-config">Azzera configurazioni</button>
+  <span class="note">Dati inventati · le configurazioni restano solo in questo browser</span>
 </div>
 
-<div class="preview-layout">
-  <div class="left-column">
-  <!-- Email selezionata in Outlook (simulata): la legge il pannello tramite TestPluginAPI -->
-  <section class="mail-card">
-    <h2>Outlook (simulato) · Email selezionata</h2>
-    <p class="hint">Con Compila Ticket su un ticket New: oggetto → Short description, corpo → Description, data di ricezione → Reported.</p>
-    <div class="sn-fields">
-      <label for="mail-subject">Oggetto</label><input id="mail-subject" value="Casella di posta piena">
-      <label for="mail-received">Ricevuta il</label><input id="mail-received" type="datetime-local" step="1">
-      <label for="mail-from">Mittente</label><input id="mail-from" value="Cliente Rossi <cliente@example.com>">
-      <label for="mail-body">Corpo</label><textarea id="mail-body" rows="4">Buongiorno,
-la casella di posta dell'ufficio risulta piena e non riceviamo più email.
-Grazie</textarea>
+<div class="layout">
+  <!-- Outlook simulata: casella condivisa con le mail, i tag (categorie) e la risposta -->
+  <section class="outlook" aria-label="Outlook simulato">
+    <div class="ol-top"><b>Outlook (simulato)</b><span id="ol-mailbox"></span></div>
+    <div class="ol-main">
+      <ul class="ol-list" id="ol-list"></ul>
+      <div class="ol-read" id="ol-read"></div>
     </div>
   </section>
-
-  <!-- Modulo Incident simulato: stessi id dei campi di ServiceNow letti e scritti dal pannello -->
-  <form class="sn-form" id="incident.do" onsubmit="return false">
-    <h2>ServiceNow (simulato) · Incident</h2>
-    <p class="hint">Il pannello compila questi campi come farebbe su AMP. Il pulsante Save simula il salvataggio: la pagina si ricarica con i valori salvati.</p>
-    <div class="sn-fields">
-      <label>Number</label><input id="sys_readonly.incident.number" readonly>
-      <label id="incident.company_label">Company</label><input id="sys_display.incident.company">
-      <label>Assignment group</label><input id="sys_display.incident.assignment_group">
-      <label>Assigned to</label><input id="sys_display.incident.assigned_to">
-      <label>Category</label><input id="sys_display.incident.x_avana_platform_category_value">
-      <label>Impact</label><select id="incident.impact"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
-      <label>Urgency</label><select id="incident.urgency"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
-      <label>Reported</label><input id="incident.u_reported_on">
-      <label>Short description</label><input id="incident.short_description">
-      <label>Description</label><textarea id="incident.description"></textarea>
-      <label>State</label><select id="incident.state"><option value="1">New</option><option value="2">In Progress</option><option value="3">On Hold</option><option value="6">Resolved</option><option value="8">Canceled</option></select>
-      <label>On hold reason</label><select id="incident.hold_reason"><option value="">-- None --</option><option value="3">Awaiting Problem Resolution</option><option value="5">Awaiting Change</option><option value="6">Awaiting Third Party</option><option value="7">Awaiting Client Action/Update</option><option value="8">Awaiting Client Resolution</option><option value="9">Awaiting Review</option></select>
-      <label>On hold expiration</label><input id="incident.u_on_hold_expiration">
-      <label>Resolution code</label><select id="incident.close_code"><option value="">-- None --</option></select>
-      <label>Resolution notes</label><textarea id="incident.close_notes"></textarea>
-      <!-- Time worked come in ServiceNow: a sinistra il totale salvato (slot 1),
-           a destra ore:minuti:secondi da registrare (slot 2), che il Save somma al totale. -->
-      <label>Time worked</label>
-      <div class="sn-timer">
-        <span class="sn-timer-total"><span id="otmr_preview_hour">00</span>:<span id="otmr_preview_min">00</span>:<span id="otmr_preview_sec">00</span></span>
-        <input type="hidden" data-type="timer" data-uid="preview" name="incident.time_worked" id="incident.time_worked" value="00:00:00">
-        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_hour" maxlength="3" value="00" aria-label="Time worked Hours">
-        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_min" maxlength="2" value="00" aria-label="Time worked Minutes">
-        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_sec" maxlength="2" value="00" disabled aria-label="Time worked Seconds">
-      </div>
-      <label>Additional comments</label><textarea id="activity-stream-comments-textarea"></textarea>
-      <label>Work notes</label><textarea id="activity-stream-work_notes-textarea"></textarea>
-    </div>
-    <div class="sn-actions"><button type="submit" id="sysverb_update">Save</button></div>
-  </form>
-  </div>
 
   <!-- Riquadro dell'add-in: stessa struttura di taskpane.html (intestazione, schermata principale, area AMP) -->
   <div class="taskpane">
@@ -134,156 +96,204 @@ Grazie</textarea>
   </div>
 </div>
 
+<script src="amp-preview-backend.js"></script>
 <script>
 (function () {
   'use strict';
-  const FORM_KEY = 'amp_preview_form_v1';
-  const RESOLUTION_CODES = ['Solved (Permanently)', 'Solved by Third Party Vendor', 'Closed on Initial', 'Not Reproducible (Alert Cleared)',
-    'Not Solved (Not Reproducible)', 'Caused by change', 'Not Solved (Too Costly)', 'No Client Response', 'Solved (Work Around)', 'Duplicate', 'Out of Scope'];
-  const closeCode = document.getElementById('incident.close_code');
-  RESOLUTION_CODES.forEach(code => closeCode.add(new Option(code, code)));
-
-  const pad = value => String(value).padStart(2, '0');
-  const snDate = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  const ref = (value, display) => ({ value, display });
-
-  // Valori iniziali del modulo per ogni scenario.
-  const SCENARIOS = {
-    new: { number: 'INC0012001', state: '1', company: ref('', ''), assignment_group: ref('', ''), assigned_to: ref('sys_user_1', 'Mario Rossi'),
-      category: ref('', ''), impact: '3', urgency: '3', short_description: '' },
-    progress: { number: 'INC0012002', state: '2', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
-      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3',
-      short_description: '[FWD] Casella piena', time_worked: '00:15:00' },
-    hold: { number: 'INC0012003', state: '3', company: ref('sys_co_2', 'Agenzia Beta'), assignment_group: ref('sys_ag_2', 'Gruppo Beta'),
-      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_2', 'Account'), impact: '1', urgency: '2',
-      short_description: 'Reset password', time_worked: '00:05:00', hold_reason: '7',
-      u_on_hold_expiration: snDate(new Date(Date.now() - 2 * 60 * 60 * 1000)) },
-    resolved: { number: 'INC0012004', state: '6', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
-      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_3', 'Hardware'), impact: '3', urgency: '3',
-      short_description: 'Stampante guasta', time_worked: '00:30:00', close_code: 'Solved (Permanently)' }
-  };
-  const ELEMENT_FOR = {
-    company: 'sys_display.incident.company', assignment_group: 'sys_display.incident.assignment_group',
-    assigned_to: 'sys_display.incident.assigned_to', x_avana_platform_category_value: 'sys_display.incident.x_avana_platform_category_value',
-    impact: 'incident.impact', urgency: 'incident.urgency', state: 'incident.state', hold_reason: 'incident.hold_reason',
-    u_on_hold_expiration: 'incident.u_on_hold_expiration', close_code: 'incident.close_code', short_description: 'incident.short_description',
-    close_notes: 'incident.close_notes', work_notes: 'activity-stream-work_notes-textarea',
-    description: 'incident.description', u_reported_on: 'incident.u_reported_on'
-  };
-  const REFERENCE_FIELDS = { company: 'company', assignment_group: 'assignment_group', assigned_to: 'assigned_to', category: 'x_avana_platform_category_value' };
+  const mailbox = window.AmpBackend.mailbox;
+  const OPERATOR = { displayName: 'Marco Rossi', emailAddress: 'marco.rossi@example.com' };
+  const CATEGORY_COLORS = { Marco: '#0f6cbd', Giulia: '#107c10', Luca: '#c75000' };
   const byId = id => document.getElementById(id);
+  const pad = value => String(value).padStart(2, '0');
+  const listeners = new Set();
+  let selectedConversation = null;
+  let compose = null; // { text } quando la risposta è aperta
+  let toast = '';
 
-  // Stato salvato del modulo (sopravvive al "Save", che ricarica la pagina).
-  let saved;
-  try { saved = JSON.parse(sessionStorage.getItem(FORM_KEY) || 'null'); } catch { saved = null; }
-  if (!saved) saved = { scenario: 'new', ...structuredClone(SCENARIOS.new) };
-  byId('preview-scenario').value = saved.scenario;
-  // Data di ricezione di esempio: un'ora fa.
-  const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  byId('mail-received').value = `${anHourAgo.getFullYear()}-${pad(anHourAgo.getMonth() + 1)}-${pad(anHourAgo.getDate())}T${pad(anHourAgo.getHours())}:${pad(anHourAgo.getMinutes())}:${pad(anHourAgo.getSeconds())}`;
-
-  // g_form simulato: stesso comportamento minimo usato dal pannello.
-  const values = {};
-  let modified = false;
-  function setField(name, value, display) {
-    values[name] = value;
-    const element = byId(ELEMENT_FOR[name] || '');
-    if (element) element.value = display ?? value;
-  }
-  Object.entries(REFERENCE_FIELDS).forEach(([key, name]) => setField(name, saved[key]?.value || '', saved[key]?.display || ''));
-  ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code', 'short_description', 'close_notes', 'description', 'u_reported_on']
-    .forEach(name => setField(name, saved[name] || ''));
-  byId('sys_readonly.incident.number').value = saved.number || '';
-  // Time worked: lo slot 1 mostra il totale salvato, lo slot 2 riparte da zero a ogni caricamento.
-  function showTimeWorkedTotal(total) {
-    const [hours, minutes, seconds] = (/^\d+:\d{2}:\d{2}$/.test(total || '') ? total : '00:00:00').split(':');
-    byId('incident.time_worked').value = `${hours}:${minutes}:${seconds}`;
-    byId('otmr_preview_hour').textContent = hours;
-    byId('otmr_preview_min').textContent = minutes;
-    byId('otmr_preview_sec').textContent = seconds;
-  }
-  showTimeWorkedTotal(saved.time_worked);
-  window.g_form = {
-    getValue: name => values[name] ?? '',
-    setValue(name, value, display) { setField(name, value, display); modified = true; },
-    isModified: () => modified
-  };
-  document.querySelector('.sn-form').addEventListener('input', () => { modified = true; });
-
-  // Save: salva i valori, porta un ticket New assegnato a In Progress e ricarica (come ServiceNow).
-  byId('incident.do').addEventListener('submit', () => {
-    const next = { scenario: saved.scenario, number: saved.number };
-    Object.entries(REFERENCE_FIELDS).forEach(([key, name]) => {
-      next[key] = { value: values[name] || '', display: byId(ELEMENT_FOR[name]).value };
+  function el(tag, props = {}, ...children) {
+    const element = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (key === 'class') element.className = value;
+      else if (key.startsWith('on')) element.addEventListener(key.slice(2), value);
+      else element.setAttribute(key, value);
     });
-    ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code'].forEach(name => { next[name] = byId(ELEMENT_FOR[name]).value; });
-    next.short_description = byId('incident.short_description').value;
-    next.description = byId('incident.description').value;
-    next.u_reported_on = byId('incident.u_reported_on').value;
-    next.close_notes = byId('incident.close_notes').value;
-    // Come ServiceNow: il tempo dello slot 2 (ore e minuti) si somma al totale dello slot 1.
-    const [totalHours, totalMinutes, totalSeconds] = byId('incident.time_worked').value.split(':').map(Number);
-    const added = (Number.parseInt(byId('tmr_preview_hour').value, 10) || 0) * 60 + (Number.parseInt(byId('tmr_preview_min').value, 10) || 0);
-    const totalMinutesAll = totalHours * 60 + totalMinutes + added;
-    next.time_worked = `${pad(Math.floor(totalMinutesAll / 60))}:${pad(totalMinutesAll % 60)}:${pad(totalSeconds || 0)}`;
-    if (next.state === '1' && next.assigned_to.display) next.state = '2';
-    sessionStorage.setItem(FORM_KEY, JSON.stringify(next));
-    setTimeout(() => location.reload(), 50);
-  });
+    children.flat().forEach(child => child != null && element.append(child instanceof Node ? child : String(child)));
+    return element;
+  }
+  function when(iso) {
+    const date = new Date(iso);
+    const today = new Date().toDateString() === date.toDateString();
+    return today ? `${pad(date.getHours())}:${pad(date.getMinutes())}` : `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  const categoryChips = categories => el('div', { class: 'ol-cats' },
+    categories.map(name => el('span', { class: 'ol-cat', style: `background:${CATEGORY_COLORS[name] || '#8a8886'}` }, name)));
 
-  byId('preview-scenario').addEventListener('change', event => {
-    sessionStorage.setItem(FORM_KEY, JSON.stringify({ scenario: event.target.value, ...structuredClone(SCENARIOS[event.target.value]) }));
-    location.reload();
-  });
+  function conversations() {
+    const groups = new Map();
+    mailbox.listMessages().forEach(message => {
+      if (!groups.has(message.conversationId)) groups.set(message.conversationId, []);
+      groups.get(message.conversationId).push(message);
+    });
+    return [...groups.values()]
+      .map(messages => messages.sort((a, b) => a.receivedAt.localeCompare(b.receivedAt)))
+      .sort((a, b) => b[b.length - 1].receivedAt.localeCompare(a[a.length - 1].receivedAt));
+  }
+  const selectedMessages = () => conversations().find(list => list[0].conversationId === selectedConversation) || null;
+  // La mail "aperta" è l'ultima della conversazione, come quando la selezioni in Outlook.
+  const selectedMessage = () => selectedMessages()?.slice(-1)[0] || null;
 
-  // Dati di esempio del pannello (stesso formato dell'Esporta JSON dello script).
-  byId('preview-seed').addEventListener('click', () => {
-    const reference = (value, displayValue) => ({ value, displayValue });
-    localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
-      version: 3, created: new Date().toISOString(), updated: new Date().toISOString(),
-      profile: { assignedTo: reference('sys_user_1', 'Mario Rossi') },
-      companies: {
-        alfa: { name: 'Agenzia Alfa', company: reference('sys_co_1', 'Agenzia Alfa'), assignmentGroup: reference('sys_ag_1', 'Gruppo Alfa') },
-        beta: { name: 'Agenzia Beta', company: reference('sys_co_2', 'Agenzia Beta'), assignmentGroup: reference('sys_ag_2', 'Gruppo Beta') }
+  function renderList() {
+    byId('ol-mailbox').textContent = `${mailbox.address.name} <${mailbox.address.email}> · casella condivisa`;
+    byId('ol-list').replaceChildren(...conversations().map(messages => {
+      const first = messages[0];
+      const last = messages[messages.length - 1];
+      const incoming = [...messages].reverse().find(item => item.direction === 'in') || first;
+      return el('li', {
+        class: `ol-row${first.conversationId === selectedConversation ? ' selected' : ''}`,
+        onclick: () => select(first.conversationId)
       },
-      activities: {
-        posta: { name: 'Posta elettronica', category: reference('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3', timeWorked: 15, shortDescriptionPrefix: '[FWD]' },
-        password: { name: 'Reset password', category: reference('sys_cat_2', 'Account'), impact: '1', urgency: '2', timeWorked: 5, shortDescriptionPrefix: '' }
-      },
-      favorites: [{ company: 'alfa', activity: 'posta' }, { company: 'beta', activity: 'password' }],
-      recent: [], combinationResponses: {},
-      usefulResponses: { attesa: { title: 'Attesa riscontro', response: 'Salve,\n\nresto in attesa di un vostro riscontro.\n\nSaluti,', created: '', updated: '' } },
-      preferences: { favoritesGroupBy: 'none' }
+        el('div', { class: 'ol-row-top' }, el('span', { class: 'ol-sender' }, incoming.from.name), el('span', { class: 'ol-time' }, when(last.receivedAt))),
+        el('div', { class: 'ol-subject' }, first.subject + (messages.length > 1 ? ` (${messages.length})` : '')),
+        el('div', { class: 'ol-snippet' }, last.body.replace(/\s+/g, ' ')),
+        categoryChips(last.categories));
     }));
-    location.reload();
-  });
-  byId('preview-reset').addEventListener('click', () => {
-    Object.keys(localStorage).filter(key => key.startsWith('snow_ticket_assistant')).forEach(key => localStorage.removeItem(key));
-    sessionStorage.clear();
-    location.reload();
-  });
+  }
+  function renderReading() {
+    const messages = selectedMessages();
+    const pane = byId('ol-read');
+    if (!messages) {
+      pane.replaceChildren(el('div', { class: 'ol-empty' }, 'Seleziona una mail.'));
+      return;
+    }
+    const last = messages[messages.length - 1];
+    const parts = [
+      toast ? el('div', { class: 'ol-toast' }, toast) : null,
+      el('h1', {}, messages[0].subject),
+      categoryChips(last.categories),
+      compose ? null : el('div', { class: 'ol-actions' }, el('button', { class: 'ol-btn primary', onclick: () => openReply('') }, 'Rispondi')),
+      compose ? el('div', { class: 'ol-compose' },
+        el('b', {}, `A: ${(last.direction === 'in' ? last.from : last.to[0]).name}`),
+        (() => { const area = el('textarea', { id: 'ol-compose-text', 'aria-label': 'Testo della risposta' }); area.value = compose.text; area.addEventListener('input', () => { compose.text = area.value; }); return area; })(),
+        el('div', { class: 'ol-actions' },
+          el('button', { class: 'ol-btn primary', id: 'ol-send', onclick: send }, 'Invia'),
+          el('button', { class: 'ol-btn', onclick: () => { compose = null; renderReading(); } }, 'Scarta'))) : null,
+      [...messages].reverse().map(message => el('article', { class: `ol-msg ${message.direction}` },
+        el('div', { class: 'ol-msg-head' },
+          el('span', {}, el('b', {}, message.from.name), ' ', el('small', {}, `<${message.from.email}>`)),
+          el('small', {}, when(message.receivedAt))),
+        el('pre', { class: 'ol-msg-body' }, message.body)))
+    ];
+    pane.replaceChildren(...parts.flat().filter(Boolean));
+  }
+  function renderOutlook() { renderList(); renderReading(); }
 
-  // Parte dell'add-in di jak usata dal pannello (taskpane.js).
+  function select(conversationId) {
+    if (selectedConversation !== conversationId) { compose = null; toast = ''; }
+    selectedConversation = conversationId;
+    renderOutlook();
+    publish();
+  }
+  function openReply(text) {
+    if (!selectedConversation) return false;
+    compose = { text: text ? `${text}\n` : '' };
+    toast = '';
+    renderReading();
+    byId('ol-compose-text')?.focus();
+    return true;
+  }
+  function send() {
+    const text = (compose?.text || '').trim();
+    if (!text) return;
+    const { applied } = mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName.split(' ')[0]);
+    compose = null;
+    const STATES = { '2': 'In Progress', '3': 'On Hold', '6': 'Resolved', '8': 'Canceled' };
+    toast = applied ? `Risposta inviata · ServiceNow aggiornato: commento aggiunto, stato ${STATES[applied.state]}.` : 'Risposta inviata (nessun ticket collegato).';
+    renderOutlook();
+    publish();
+  }
+
+  // ---- Ciò che l'add-in di jak mette a disposizione (TestPluginAPI), sulla mail selezionata ----
+  function messageContext() {
+    const message = selectedMessage();
+    if (!message) return null;
+    return {
+      itemId: message.id,
+      conversationId: message.conversationId,
+      normalizedConversationId: message.conversationId,
+      subject: message.subject,
+      sender: { displayName: message.from.name, emailAddress: message.from.email },
+      to: message.to.map(item => ({ displayName: item.name, emailAddress: item.email })),
+      cc: [],
+      dateTimeCreated: message.receivedAt,
+      bodyText: message.body,
+      categories: message.categories.map(name => ({ displayName: name, color: null })),
+      attachments: [],
+      mailbox: { userDisplayName: OPERATOR.displayName, userEmailAddress: OPERATOR.emailAddress, accountType: 'enterprise', timeZone: 'Europe/Rome' }
+    };
+  }
+  function publish() {
+    const snapshot = messageContext();
+    listeners.forEach(listener => { try { listener(snapshot); } catch (error) { console.error(error); } });
+  }
   window.TestPluginAPI = Object.freeze({
     version: 'anteprima',
-    getCurrentMessageContext() {
-      const received = byId('mail-received').value;
-      const from = byId('mail-from').value.match(/^(.*?)\s*<([^>]+)>$/) || [null, byId('mail-from').value, ''];
-      return {
-        subject: byId('mail-subject').value,
-        bodyText: byId('mail-body').value,
-        dateTimeCreated: received ? new Date(received).toISOString() : null,
-        sender: { displayName: from[1], emailAddress: from[2] },
-        conversationId: 'anteprima'
-      };
-    },
-    onMessageChanged: () => () => {},
+    getCurrentMessageContext: messageContext,
+    onMessageChanged(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     showMainView() {
       byId('main-view').hidden = false;
       byId('header-view').hidden = true;
       byId('amp-view').hidden = true;
     }
   });
+  // Solo anteprima: aprire una mail e la risposta (in Outlook vero: Office.js).
+  window.AmpPreviewOutlook = Object.freeze({
+    openMessage(messageId) {
+      const message = mailbox.getMessage(messageId);
+      if (!message) return false;
+      select(message.conversationId);
+      return true;
+    },
+    openReply
+  });
+  // Quando il pannello cambia qualcosa (tag, ticket), la finta Outlook si aggiorna.
+  window.AmpBackend.subscribe(renderOutlook);
+
+  // ---- Barra dell'anteprima ----
+  byId('preview-seed').addEventListener('click', () => {
+    const reference = (value, displayValue) => ({ value, displayValue });
+    localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
+      version: 3, created: new Date().toISOString(), updated: new Date().toISOString(),
+      profile: { assignedTo: reference('sys_user_1', 'Marco Rossi'), tag: 'Marco' },
+      companies: {
+        alfa: { name: 'Agenzia Alfa', company: reference('sys_co_1', 'Agenzia Alfa'), assignmentGroup: reference('sys_ag_1', 'Gruppo Alfa'), domains: ['agenziaalfa.it'] },
+        beta: { name: 'Agenzia Beta', company: reference('sys_co_2', 'Agenzia Beta'), assignmentGroup: reference('sys_ag_2', 'Gruppo Beta'), domains: ['agenziabeta.it'] },
+        gamma: { name: 'Comune Gamma', company: reference('sys_co_3', 'Comune Gamma'), assignmentGroup: reference('sys_ag_3', 'Gruppo Gamma'), domains: ['comune-gamma.it'] }
+      },
+      activities: {
+        posta: { name: 'Posta elettronica', category: reference('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3', timeWorked: 15, shortDescriptionPrefix: '[FWD]' },
+        password: { name: 'Reset password', category: reference('sys_cat_2', 'Account'), impact: '3', urgency: '2', timeWorked: 5, shortDescriptionPrefix: '' },
+        stampante: { name: 'Stampante', category: reference('sys_cat_3', 'Hardware'), impact: '3', urgency: '3', timeWorked: 30, shortDescriptionPrefix: '' }
+      },
+      favorites: [{ company: 'alfa', activity: 'posta' }, { company: 'beta', activity: 'password' }],
+      recent: [],
+      combinationResponses: {
+        'gamma::stampante': { company: 'gamma', activity: 'stampante', response: 'Buongiorno,\n\nil tecnico è intervenuto e la stampante ora funziona correttamente.\n\nCordiali saluti,\nSupporto AMP', updated: '' }
+      },
+      usefulResponses: {
+        attesa: { title: 'Attesa riscontro', response: 'Buongiorno,\n\nrestiamo in attesa di un vostro riscontro.\n\nCordiali saluti,\nSupporto AMP', created: '', updated: '' },
+        risolto: { title: 'Problema risolto', response: 'Buongiorno,\n\nil problema è stato risolto. Se dovesse ripresentarsi, rispondete pure a questa mail.\n\nCordiali saluti,\nSupporto AMP', created: '', updated: '' }
+      },
+      preferences: { favoritesGroupBy: 'none' }
+    }));
+    location.reload();
+  });
+  byId('preview-reset-mail').addEventListener('click', () => { mailbox.reset(); location.reload(); });
+  byId('preview-reset-config').addEventListener('click', () => {
+    Object.keys(localStorage).filter(key => key.startsWith('snow_ticket_assistant')).forEach(key => localStorage.removeItem(key));
+    location.reload();
+  });
+
+  renderOutlook();
 })();
 </script>
 <script defer src="amp.js"></script>
