@@ -25,6 +25,7 @@ const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 const LOGIN_HINT_KEY = "outlook-sogei-login-hint";
+const AUTH_EXPERIMENT = "v0.1.18-mfa3-ssoSilent-loginHint";
 
 function readAuthDiagnostics() {
   try {
@@ -128,10 +129,17 @@ async function trySsoSilentWithLoginHint(client) {
   const loginHint = readLoginHint();
   if (!loginHint) return null;
   try {
-    recordAuthDiagnostic("sso_silent_start", { loginHint });
+    recordAuthDiagnostic("sso_silent_start", {
+      experiment: AUTH_EXPERIMENT,
+      loginHint,
+      prompt: "none",
+      tenantId: AUTH_CONFIG.tenantId
+    });
     const result = await client.ssoSilent({
       scopes: [AUTH_CONFIG.scope],
       loginHint,
+      prompt: "none",
+      authority: `https://login.microsoftonline.com/${AUTH_CONFIG.tenantId}`,
       redirectUri: AUTH_CONFIG.redirectUri
     });
     if (!result?.accessToken) {
@@ -206,6 +214,9 @@ async function initializeMsal() {
   }
 
   runTaskpaneStorageProbe();
+  recordAuthDiagnostic("auth_experiment_loaded", {
+    experiment: AUTH_EXPERIMENT
+  });
   recordAuthDiagnostic("msal_initialize_start");
 
   msalInstance =
