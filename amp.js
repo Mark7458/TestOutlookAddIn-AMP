@@ -5061,7 +5061,9 @@ ${themeCssVariables()}
     // ======================================================================
 
     let initialized = false;
-    function initialize() {
+    // Asincrona come quella originale dell'area AMP: taskpane.js chiama
+    // AmpModule.initialize().catch(...) all'avvio dell'add-in.
+    async function initialize() {
         if (initialized) return;
         const container = document.getElementById('amp-view');
         if (!container) return;
@@ -5085,6 +5087,7 @@ ${themeCssVariables()}
         regenerateResponsePreview();
     }
     window.AmpModule = Object.freeze({ initialize, show });
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
-    else initialize();
+    const logInitError = error => console.error('AMP init error:', error);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initialize().catch(logInitError));
+    else initialize().catch(logInitError);
 })();
