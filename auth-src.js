@@ -24,8 +24,8 @@ const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
 const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
-const LOGIN_HINT_KEY = "outlook-sogei-login-hint";
-const AUTH_EXPERIMENT = "v0.1.18-mfa3-ssoSilent-loginHint";
+
+const AUTH_EXPERIMENT = "v0.1.18-mfa4-diagnostic";
 
 function readAuthDiagnostics() {
   try {
@@ -101,71 +101,6 @@ function runTaskpaneStorageProbe() {
     dialogProbeTimestamp,
     origin: window.location.origin
   });
-}
-
-function saveLoginHint(username, source = "unknown") {
-  const normalized = String(username || "").trim();
-  if (!normalized) return;
-  try {
-    localStorage.setItem(LOGIN_HINT_KEY, normalized);
-    recordAuthDiagnostic("login_hint_saved", { source, username: normalized });
-  } catch (error) {
-    recordAuthDiagnostic("login_hint_save_error", { source, name: error?.name || "Error", message: error?.message || String(error) });
-  }
-}
-
-function readLoginHint() {
-  try {
-    const value = String(localStorage.getItem(LOGIN_HINT_KEY) || "").trim();
-    recordAuthDiagnostic(value ? "login_hint_found" : "login_hint_missing", { username: value || null });
-    return value || null;
-  } catch (error) {
-    recordAuthDiagnostic("login_hint_read_error", { name: error?.name || "Error", message: error?.message || String(error) });
-    return null;
-  }
-}
-
-async function trySsoSilentWithLoginHint(client) {
-  const loginHint = readLoginHint();
-  if (!loginHint) return null;
-  try {
-    recordAuthDiagnostic("sso_silent_start", {
-      experiment: AUTH_EXPERIMENT,
-      loginHint,
-      prompt: "none",
-      tenantId: AUTH_CONFIG.tenantId
-    });
-    const result = await client.ssoSilent({
-      scopes: [AUTH_CONFIG.scope],
-      loginHint,
-      prompt: "none",
-      authority: `https://login.microsoftonline.com/${AUTH_CONFIG.tenantId}`,
-      redirectUri: AUTH_CONFIG.redirectUri
-    });
-    if (!result?.accessToken) {
-      recordAuthDiagnostic("sso_silent_empty", { loginHint });
-      return null;
-    }
-    saveLoginHint(result.account?.username || loginHint, "ssoSilent");
-    recordAuthDiagnostic("sso_silent_success", {
-      username: result.account?.username || loginHint,
-      expiresOn: result.expiresOn?.toISOString?.() || null
-    });
-    currentAuthentication = {
-      accessToken: result.accessToken,
-      acquisitionMode: "ssoSilent",
-      expiresOn: result.expiresOn || null
-    };
-    return currentAuthentication;
-  } catch (error) {
-    recordAuthDiagnostic("sso_silent_error", {
-      loginHint,
-      name: error?.name || null,
-      errorCode: error?.errorCode || null,
-      message: error?.message || String(error)
-    });
-    return null;
-  }
 }
 
 function importDialogDiagnostics(entries) {
@@ -284,9 +219,13 @@ async function acquireTokenSilently() {
   );
 
   if (accounts.length === 0) {
-    recordAuthDiagnostic("silent_accounts_empty_try_sso_silent");
-    return trySsoSilentWithLoginHint(client);
+    recordAuthDiagnostic("silent_accounts_empty", {
+      experiment: AUTH_EXPERIMENT,
+      nextStep: "officeDialogRecovery"
+    });
+    return null;
   }
+
 
   try {
     recordAuthDiagnostic("silent_start");
@@ -315,7 +254,6 @@ async function acquireTokenSilently() {
       username: result.account?.username || accounts[0].username || null,
       expiresOn: result.expiresOn?.toISOString?.() || null
     });
-    saveLoginHint(result.account?.username || accounts[0].username, "acquireTokenSilent");
 
     currentAuthentication = {
       accessToken:
@@ -542,10 +480,11 @@ function acquireTokenWithOfficeDialog(options = {}) {
                 "auth-success" &&
               message.accessToken
             ) {
-              saveLoginHint(
-                message.authenticationResult?.account?.username,
-                "dialogAuthSuccess"
-              );
+              recordAuthDiagnostic("dialog_auth_success_identity", {
+                username: message.authenticationResult?.account?.username || null,
+                homeAccountId: message.authenticationResult?.account?.homeAccountId || null,
+                tenantId: message.authenticationResult?.tenantId || message.authenticationResult?.account?.tenantId || null
+              });
               const finishAuthentication =
                 async () => {
                   if (
