@@ -204,10 +204,10 @@
   function send() {
     const text = (compose?.text || '').trim();
     if (!text) return;
-    const { applied } = mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName.split(' ')[0]);
+    const { applied } = mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName);
     compose = null;
     const STATES = { '2': 'In Progress', '3': 'On Hold', '6': 'Resolved', '8': 'Canceled' };
-    toast = applied ? `Risposta inviata · ServiceNow aggiornato: commento aggiunto, stato ${STATES[applied.state]}.` : 'Risposta inviata (nessun ticket collegato).';
+    toast = applied ? `Risposta inviata · ${applied.number} aggiornato su ServiceNow: commento aggiunto, stato ${STATES[applied.state]}.` : 'Risposta inviata (nessun ticket aperto collegato).';
     renderOutlook();
     publish();
   }
@@ -263,7 +263,7 @@
     const reference = (value, displayValue) => ({ value, displayValue });
     localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
       version: 3, created: new Date().toISOString(), updated: new Date().toISOString(),
-      profile: { assignedTo: reference('sys_user_1', 'Marco Rossi'), tag: 'Marco' },
+      profile: { assignedTo: reference('sys_user_1', 'Marco Rossi') },
       companies: {
         alfa: { name: 'Agenzia Alfa', company: reference('sys_co_1', 'Agenzia Alfa'), assignmentGroup: reference('sys_ag_1', 'Gruppo Alfa'), domains: ['agenziaalfa.it'] },
         beta: { name: 'Agenzia Beta', company: reference('sys_co_2', 'Agenzia Beta'), assignmentGroup: reference('sys_ag_2', 'Gruppo Beta'), domains: ['agenziabeta.it'] },

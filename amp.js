@@ -2,20 +2,29 @@
  * AMP - SNOW Assistant: area AMP dell'add-in Outlook.
  *
  * Nell'add-in i ticket si gestiscono da Outlook, senza aprire ServiceNow:
- *   - Coda         mail arrivate nella casella condivisa che non hanno ancora un ticket;
- *   - Ticket       ticket aperti su ServiceNow, con chi li gestisce;
- *   - Mail         la mail aperta in Outlook: presa in carico, apertura del ticket, tempo,
+ *   - Coda         mail della casella condivisa che non hanno un ticket aperto;
+ *   - Ticket       ticket aperti su ServiceNow, con l'assegnatario (Assigned to);
+ *   - Mail         la mail aperta: ticket collegato (o da collegare / aprire), tempo,
  *                  storico di ServiceNow e azione da eseguire all'invio della risposta;
  *   - Impostazioni profilo, Agenzie (con i domini email), Attività, risposte salvate.
+ *
+ * Regole:
+ *   - ServiceNow è l'unica fonte per il ticket: stato, assegnatario (= chi l'ha in carico),
+ *     tempo, scadenza On Hold e storico si leggono sempre da lì. Il pannello non li conserva.
+ *   - Ogni modifica va prima su ServiceNow; solo se riesce si registra su SharePoint
+ *     (collegamento mail ↔ ticket, mail scartate, azione all'invio).
+ *   - Mail e ticket si collegano per triangolazione: numero INC nel thread, collegamento
+ *     registrato, oppure somiglianza (oggetto = Short description, arrivo = Reported) confermata
+ *     dall'operatore. Lo stesso thread può avere più ticket nel tempo.
  *
  * Collegamento con l'add-in di jak (nessun suo file viene modificato):
  *   - espone window.AmpModule { initialize, show }; "Apri area AMP" chiama show();
  *   - la freccia in alto torna alla schermata principale (TestPluginAPI.showMainView);
  *   - legge la mail aperta da TestPluginAPI.getCurrentMessageContext / onMessageChanged.
  *
- * Tutto ciò che sta fuori dal pannello (casella condivisa, SharePoint, ServiceNow) passa
- * dal blocco 3 (Servizi). Oggi i servizi esistono solo nell'anteprima (amp-preview-backend.js,
- * simulati); nell'add-in vanno collegati alla Function App.
+ * Tutto ciò che sta fuori dal pannello passa dal blocco 3 (Servizi). Oggi i servizi esistono
+ * solo nell'anteprima (amp-preview-backend.js, simulati); nell'add-in vanno collegati alla
+ * Function App (vedi amp-servizi.md).
  */
 (function () {
     'use strict';
@@ -25,7 +34,7 @@
     //  1. Valori di ServiceNow                 6. Viste: Coda, Ticket, Mail, Impostazioni
     //  2. Configurazioni (salvate in locale)   7. Stili (usano i valori del blocco 0)
     //  3. Servizi e Outlook                    8. Avvio e collegamento con l'add-in
-    //  4. Regole: agenzia suggerita, date, tempo
+    //  4. Regole: agenzia suggerita, numeri INC, utente, date
 
     // ======================================================================
     // 0. ASPETTO: TEMA E TESTI
@@ -84,38 +93,50 @@
             confirm: 'Confermi?',
             add: 'Aggiungi',
             none: '—',
-            unassigned: 'Libera',
+            unassigned: 'Non assegnato',
             servicesMissing: 'I servizi non sono ancora collegati: qui compariranno i dati della casella condivisa e di ServiceNow.',
             serviceError: message => `Servizio non disponibile: ${message}`
         },
         queue: {
-            all: 'Tutte',
-            mine: 'Mie',
-            free: 'Libere',
             empty: 'Nessuna richiesta in coda.',
-            take: 'Prendi in carico',
-            discarded: n => `${n} scartate`,
-            suggested: name => `Agenzia: ${name}`
+            suggested: name => `Agenzia: ${name}`,
+            previous: number => `Thread già usato: ${number}`,
+            candidate: number => `Forse è ${number}`
         },
         tickets: {
             mine: 'Miei',
             all: 'Tutti',
             empty: 'Nessun ticket aperto.',
+            noMail: 'senza mail',
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`
         },
         mail: {
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
-            notRegistered: 'Questa mail non è tra le richieste della casella condivisa.',
-            register: 'Aggiungi alla coda',
+            searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
-            takeCharge: 'Prendi in carico',
-            takeOver: owner => `Prendi da ${owner}`,
-            release: 'Rilascia',
-            inCharge: owner => `In carico a ${owner}`,
-            notInCharge: 'Nessuno l’ha presa in carico',
+            // Collegamento con il ticket
+            via: {
+                inc: 'Collegato dal numero INC nel thread',
+                link: 'Collegato (registro SharePoint)',
+                confirmed: 'Collegato da un operatore'
+            },
+            candidatesTitle: 'Possibili ticket su ServiceNow',
+            candidatesHint: 'Stesso oggetto e stessa ora di arrivo. Collega quello giusto, oppure apri un ticket nuovo qui sotto.',
+            link: 'Collega',
+            linked: number => `Mail collegata a ${number}.`,
+            previousTitle: 'Ticket precedente in questo thread',
+            previousHint: 'È arrivata una mail dopo la chiusura: è una richiesta nuova.',
+            reportedAt: date => `Reported ${date}`,
+            closedAt: date => `chiuso ${date}`,
             discardedBy: (who, when) => `Scartata da ${who} · ${when}`,
             restore: 'Rimetti in coda',
+            // Presa in carico = Assigned to su ServiceNow
+            assignedTo: name => `Assegnato a ${name}`,
+            assignedToMe: name => `Assegnato a ${name} (me)`,
+            notAssigned: 'Non assegnato',
+            takeOver: 'Prendi in carico',
+            taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
             newTicket: 'Nuovo ticket',
             company: 'Agenzia',
@@ -131,15 +152,15 @@
             discard: 'Non serve un ticket',
             profileMissing: 'Imposta prima il tuo profilo (Impostazioni → Profilo).',
             selectBoth: 'Scegli Agenzia e Attività.',
-            ticketOpened: number => `Ticket ${number} aperto.`,
+            ticketOpened: number => `Ticket ${number} aperto e assegnato a te.`,
             // Ticket
-            ticket: 'Ticket',
-            openedBy: (who, when) => `Aperto da ${who} · ${when}`,
+            openedAt: date => `Aperto ${date}`,
             openInServiceNow: 'Apri in ServiceNow',
             timeWorked: 'Tempo lavorato',
             minutes: n => `${n} min`,
             timeChanged: (delta, total) => `Tempo ${delta > 0 ? '+' : ''}${delta} min · totale ${total} min.`,
             closed: state => `Ticket ${state}: nessuna azione disponibile.`,
+            noLinkedMail: 'Nessuna mail collegata: la risposta non è disponibile da qui.',
             // Azione all'invio
             onSend: 'Quando invii la risposta',
             onSendHint: 'Il testo della mail diventa il commento su ServiceNow; il ticket si aggiorna come scegli qui.',
@@ -151,13 +172,13 @@
             replyText: 'Testo di partenza',
             replyEmpty: 'Vuoto',
             replyCombination: 'Risposta di Agenzia + Attività',
+            reference: number => `Rif. ${number}`,
+            includeReference: number => `Scrivi “Rif. ${number}” nella risposta`,
             prepareReply: 'Salva e rispondi',
             pending: label => `All’invio: ${label}`,
-            pendingNone: 'All’invio: solo commento',
             clearPending: 'Togli',
             pendingSaved: 'Azione salvata: verrà eseguita all’invio della risposta.',
             replyOpened: 'Risposta aperta in Outlook.',
-            replyUnavailable: 'Apri la mail per rispondere.',
             // Storico
             history: 'Storico ServiceNow',
             loadHistory: 'Carica',
@@ -167,8 +188,7 @@
         },
         settings: {
             profile: 'Profilo',
-            tag: 'Tag in Outlook',
-            tagHint: 'Il tag che metti sulle mail della casella condivisa (es. Marco).',
+            profileHint: 'Il tuo utente su ServiceNow: i ticket che apri vengono assegnati a te.',
             assignedTo: 'Assigned to (ServiceNow)',
             displayValue: 'Nome',
             sysId: 'sys_id',
@@ -299,31 +319,31 @@
 
     // ======================================================================
     // 3. SERVIZI E OUTLOOK
-    // Unico punto in cui il pannello parla con l'esterno.
+    // Unico punto in cui il pannello parla con l'esterno. Ogni servizio restituisce una Promise.
     //
-    // Servizi (Function App): ogni metodo restituisce una Promise.
-    //   listRequests()                          → Richiesta[]
-    //   getRequestByConversation(conversationId) → Richiesta | null
-    //   registerRequest(mail)                    → Richiesta   (mail non ancora in coda)
-    //   takeCharge(id, tag)                      → Richiesta   (tag '' = rilascia; mette la categoria in Outlook)
-    //   discardRequest(id, tag) / restoreRequest(id) → Richiesta
-    //   createTicket(id, { companyId, companyName, activityId, activityName, openedBy, fields }) → Richiesta
-    //   addTime(id, minuti, tag)                 → Richiesta   (minuti anche negativi)
-    //   getTicketActivity(id, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
-    //   setPendingAction(id, azione | null)      → Richiesta   (eseguita dal server all'invio della risposta)
-    //   subscribe(listener)                      → funzione per smettere (facoltativo)
+    //   listQueue()                         → [{ conversationId, messageId, subject, sender, receivedAt,
+    //                                            preview, previous: { number, state } | null, candidates: [numero] }]
+    //   listOpenTickets()                   → Ticket[]  (In Progress e On Hold della coda, da ServiceNow)
+    //   findTicketForMail(mail)             → { ticket, via: 'inc'|'link'|'confirmed', previous, candidates: Ticket[], discarded }
+    //   getTicket(numero)                   → Ticket
+    //   linkTicket(conversationId, numero, utente)  → come findTicketForMail (l'operatore conferma il collegamento)
+    //   createTicket(mail, { companyId, companyName, activityId, activityName, fields }) → Ticket
+    //   assignTicket(numero, utente)        → Ticket    (Assigned to = utente)
+    //   addTime(numero, minuti, nome)       → Ticket    (minuti anche negativi)
+    //   getTicketActivity(numero, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
+    //   setPendingAction(numero, azione | null)      → Ticket   (eseguita all'invio della risposta)
+    //   discardMail(conversationId, utente) / restoreMail(conversationId)
+    //   subscribe(listener)                 → funzione per smettere (facoltativo)
     //
-    // Richiesta (una riga della lista SharePoint, una per conversazione):
-    //   { id, conversationId, messageId, subject, sender: { name, email }, receivedAt, preview,
-    //     owner, status: 'queue' | 'discarded' | 'ticket', discardedBy, discardedAt,
-    //     ticket: { number, sysId, url, state, companyId, companyName, activityId, activityName,
-    //               shortDescription, timeWorkedMinutes, holdReason, holdExpiration, openedBy, openedAt } | null,
-    //     pendingAction: { type: 'comment' | 'resolve' | 'cancel' | 'hold', resolutionCode,
-    //                      holdReason, holdExpiration, workNotes, by } | null }
+    // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
+    // utente = { displayValue, value: sys_id }   (il profilo del pannello)
+    // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
+    //            shortDescription, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
+    //            holdExpiration, conversationId, messageId, pendingAction }
     // ======================================================================
 
-    const SERVICE_METHODS = ['listRequests', 'getRequestByConversation', 'registerRequest', 'takeCharge',
-        'discardRequest', 'restoreRequest', 'createTicket', 'addTime', 'getTicketActivity', 'setPendingAction'];
+    const SERVICE_METHODS = ['listQueue', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
+        'assignTicket', 'addTime', 'getTicketActivity', 'setPendingAction', 'discardMail', 'restoreMail'];
 
     class ServicesMissingError extends Error {}
 
@@ -338,17 +358,19 @@
 
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
-        // Mail aperta, nel formato del pannello.
         currentMail() {
             const context = window.TestPluginAPI?.getCurrentMessageContext?.();
             if (!context) return null;
+            const subject = String(context.subject || '');
+            const body = String(context.bodyText || '');
             return {
                 itemId: context.itemId || null,
                 conversationId: context.normalizedConversationId || context.conversationId || null,
-                subject: String(context.subject || ''),
+                subject,
                 sender: { name: context.sender?.displayName || '', email: context.sender?.emailAddress || '' },
                 receivedAt: context.dateTimeCreated || null,
-                body: String(context.bodyText || ''),
+                body,
+                incNumbers: extractIncNumbers(`${subject}\n${body}`),
                 userName: context.mailbox?.userDisplayName || ''
             };
         },
@@ -376,7 +398,7 @@
     };
 
     // ======================================================================
-    // 4. REGOLE: AGENZIA SUGGERITA, DATE, TEMPO
+    // 4. REGOLE: AGENZIA SUGGERITA, NUMERI INC, UTENTE, DATE
     // ======================================================================
 
     // Agenzia della mail: prima il dominio del mittente, poi il nome dell'Agenzia nell'oggetto o nel corpo.
@@ -391,10 +413,28 @@
         const byText = companies.find(([, company]) => company.name && text.includes(company.name.toLowerCase()));
         return byText ? { id: byText[0], reason: TEXTS.mail.byText } : null;
     }
+    // Numeri di Incident citati in un testo, nell'ordine in cui compaiono.
+    function extractIncNumbers(text) {
+        return [...new Set((String(text || '').match(/\bINC\d{7}\b/gi) || []).map(item => item.toUpperCase()))];
+    }
+    // Utente del pannello: il profilo, altrimenti il nome dell'utente di Outlook.
+    function currentUser(config = loadConfig()) {
+        const profile = config.profile.assignedTo;
+        if (profile.displayValue) return profile;
+        const name = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
+        return { displayValue: name, value: '' };
+    }
+    function isMine(ticket, user = currentUser()) {
+        const assignee = ticket?.assignedTo;
+        if (!assignee || !user.displayValue) return false;
+        if (assignee.sysId && user.value) return assignee.sysId === user.value;
+        return String(assignee.name || '').trim().toLowerCase() === user.displayValue.trim().toLowerCase();
+    }
 
     const pad = value => String(value).padStart(2, '0');
     function parseDate(value) {
         if (!value) return null;
+        if (value instanceof Date) return value;
         const text = String(value);
         // Formato di ServiceNow "AAAA-MM-GG hh:mm:ss" (ora locale) oppure ISO.
         const date = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(text) ? new Date(text.replace(' ', 'T')) : new Date(text);
@@ -435,25 +475,29 @@
     // 5. INTERFACCIA: STRUTTURA E NAVIGAZIONE
     // ======================================================================
 
+    // Solo stato dell'interfaccia: i dati dei ticket arrivano ogni volta dai servizi.
     const state = {
         view: 'queue', // queue | tickets | mail | settings
-        requests: [],
+        queue: [],
+        tickets: [],
         loaded: false,
         loading: false,
         serviceError: '',
-        queueFilter: 'all',
         ticketFilter: 'mine',
         mail: null, // mail aperta in Outlook
-        focusId: null, // richiesta mostrata nella vista Mail
-        mailLookup: null, // richiesta trovata per la mail aperta (anche se non in elenco)
-        ticketDrafts: {}, // per richiesta: Agenzia, Attività, Short description
-        actionDrafts: {}, // per richiesta: azione all'invio
-        history: {}, // per richiesta: storico caricato
+        target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
+        result: null, // triangolazione della mail mostrata
+        searching: false,
+        ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
+        ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
+        actionDrafts: {}, // per ticket: azione all'invio
+        history: {}, // per ticket: storico caricato
         editing: null, // impostazioni: { kind, id }
         busy: false
     };
     let root = null;
     let statusTimer = null;
+    let searchSequence = 0;
 
     // Crea un elemento: h('button', { class: 'x', onclick: fn, disabled: true }, 'testo', figlio, ...)
     function h(tag, props = {}, ...children) {
@@ -465,6 +509,7 @@
             else if (key === 'dataset') Object.assign(element.dataset, value);
             else if (key.startsWith('on')) element.addEventListener(key.slice(2), value);
             else if (key === 'value') element.value = value;
+            else if (key === 'checked') element.checked = Boolean(value);
             else if (value === true) element.setAttribute(key, '');
             else element.setAttribute(key, value);
         });
@@ -496,6 +541,11 @@
             h(multiline ? 'textarea' : 'input', { class: 'ao-input', value: value ?? '', oninput: event => oninput(event.target.value), ...attrs }),
             hint ? h('span', { class: 'ao-hint' }, hint) : null);
     }
+    function checkboxField(label, checked, onchange) {
+        return h('label', { class: 'ao-check' },
+            h('input', { type: 'checkbox', checked, onchange: event => onchange(event.target.checked) }),
+            h('span', {}, label));
+    }
     // Pulsante che chiede conferma con un secondo clic (confirm() non esiste negli add-in Office).
     function confirmButton(label, className, action) {
         const button = h('button', { type: 'button', class: className }, label);
@@ -518,11 +568,6 @@
         return button;
     }
 
-    function myTag(config = loadConfig()) {
-        if (config.profile.tag) return config.profile.tag;
-        const name = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
-        return name.split(/\s+/)[0] || '';
-    }
     function showStatus(message, tone = 'success') {
         const status = root?.querySelector('.ao-status');
         if (!status) return;
@@ -540,7 +585,7 @@
         try {
             const result = await task();
             if (successMessage) showStatus(typeof successMessage === 'function' ? successMessage(result) : successMessage);
-            return result;
+            return result ?? true;
         } catch (error) {
             console.error('[AMP]', error);
             showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
@@ -550,68 +595,98 @@
             root?.classList.remove('ao-busy');
         }
     }
-    function upsertRequest(request) {
-        if (!request) return;
-        const index = state.requests.findIndex(item => item.id === request.id);
-        if (index >= 0) state.requests[index] = request;
-        else state.requests.push(request);
-        if (state.mailLookup?.id === request.id) state.mailLookup = request;
+    // Un Ticket appena letto dai servizi aggiorna elenco, risultato della mail e cache.
+    function rememberTicket(ticket) {
+        if (!ticket?.number) return;
+        state.ticketCache[ticket.number] = ticket;
+        const index = state.tickets.findIndex(item => item.number === ticket.number);
+        if (index >= 0) {
+            if (OPEN_STATES.includes(ticket.state)) state.tickets[index] = ticket;
+            else state.tickets.splice(index, 1);
+        }
+        if (state.result?.ticket?.number === ticket.number) state.result.ticket = ticket;
     }
+    const ticketByNumber = number => state.tickets.find(item => item.number === number) || state.ticketCache[number] || null;
 
-    async function refreshRequests() {
+    // Elenchi di Coda e Ticket, sempre dai servizi.
+    async function refreshLists() {
         if (!Services.available()) {
             state.loaded = true;
-            state.serviceError = '';
             render();
             return;
         }
         state.loading = !state.loaded;
         if (state.loading) render();
         try {
-            state.requests = await Services.listRequests();
+            const [queue, tickets] = await Promise.all([Services.listQueue(), Services.listOpenTickets()]);
+            state.queue = queue;
+            state.tickets = tickets;
+            tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             state.serviceError = '';
-            if (state.mail?.conversationId) {
-                state.mailLookup = state.requests.find(item => item.conversationId === state.mail.conversationId) || null;
-            }
         } catch (error) {
             state.serviceError = error?.message || String(error);
         }
         state.loaded = true;
         state.loading = false;
+        render();
+        await refreshTarget(true);
         // Lo storico aperto si ricarica per mostrare le novità (es. risposta appena inviata).
-        Object.keys(state.history).forEach(id => {
-            if (state.history[id].open) loadHistory(id, true);
+        Object.keys(state.history).forEach(number => {
+            if (state.history[number].open) loadHistory(number, true);
         });
-        render();
     }
-
-    // Mail aperta in Outlook: la vista Mail mostra la sua richiesta.
-    async function handleMailChanged() {
-        state.mail = Outlook.currentMail();
-        state.mailLookup = null;
-        if (state.mail?.conversationId) {
-            state.mailLookup = state.requests.find(item => item.conversationId === state.mail.conversationId) || null;
-            if (!state.mailLookup && Services.available()) {
-                try { state.mailLookup = await Services.getRequestByConversation(state.mail.conversationId); }
-                catch (error) { console.warn('[AMP]', error); }
-            }
+    // Triangolazione per la mail mostrata nella vista Mail.
+    async function refreshTarget(quiet = false) {
+        if (state.target?.kind !== 'mail' || !Services.available()) return;
+        const sequence = ++searchSequence;
+        if (!quiet) {
+            state.searching = true;
+            render();
         }
-        state.focusId = state.mailLookup?.id || null;
-        if (state.mail && state.view !== 'settings') state.view = 'mail';
+        try {
+            const result = await Services.findTicketForMail(state.target.mail);
+            if (sequence !== searchSequence) return;
+            state.result = result;
+            [result.ticket, result.previous, ...(result.candidates || [])].forEach(ticket => { if (ticket) state.ticketCache[ticket.number] = ticket; });
+        } catch (error) {
+            if (sequence !== searchSequence) return;
+            state.result = null;
+            showStatus(error?.message || String(error), 'danger');
+        }
+        state.searching = false;
         render();
     }
 
-    function focusedRequest() {
-        if (state.focusId) return state.requests.find(item => item.id === state.focusId) || (state.mailLookup?.id === state.focusId ? state.mailLookup : null);
-        return state.mailLookup;
+    // Mail aperta in Outlook: la vista Mail cerca il suo ticket.
+    function handleMailChanged() {
+        state.mail = Outlook.currentMail();
+        if (!state.mail?.conversationId) return render();
+        showMailTarget(state.mail);
     }
-    // Da Coda o Ticket: apre la mail in Outlook e passa alla vista Mail.
-    function openRequest(request) {
-        state.focusId = request.id;
+    function showMailTarget(mail) {
+        const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
+        state.target = { kind: 'mail', mail };
+        if (!sameConversation) state.result = null;
+        if (state.view !== 'settings') state.view = 'mail';
+        render();
+        refreshTarget(sameConversation);
+    }
+    // Dalla Coda: mostra la richiesta e apre la mail in Outlook.
+    function openQueueItem(item) {
+        showMailTarget({
+            conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
+            receivedAt: item.receivedAt, body: item.preview, incNumbers: []
+        });
+        scrollToTop();
+        Outlook.openMessage(item.messageId);
+    }
+    // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
+    function openTicketItem(ticket) {
+        state.target = { kind: 'ticket', number: ticket.number };
         state.view = 'mail';
         render();
         scrollToTop();
-        Outlook.openMessage(request.messageId);
+        if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
     function setView(view) {
         state.view = view;
@@ -643,22 +718,20 @@
     function render() {
         if (!root) return;
         const config = loadConfig();
-        const tag = myTag(config);
-        const user = root.querySelector('.ao-user');
-        user.textContent = tag ? `● ${tag}` : '';
-        const queueCount = state.requests.filter(item => item.status === 'queue').length;
-        const ticketCount = state.requests.filter(item => item.ticket && OPEN_STATES.includes(item.ticket.state) && item.owner === tag).length;
+        const user = currentUser(config);
+        root.querySelector('.ao-user').textContent = user.displayValue ? `● ${user.displayValue}` : '';
+        const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
             const active = tab.dataset.view === state.view;
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
             const badge = tab.querySelector('.ao-badge');
-            const count = { queue: queueCount, tickets: ticketCount }[tab.dataset.view];
+            const count = counts[tab.dataset.view];
             badge.hidden = !count;
             badge.textContent = count || '';
         });
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
-        root.querySelector('.ao-body').replaceChildren(views[state.view](config, tag));
+        root.querySelector('.ao-body').replaceChildren(views[state.view](config, user));
     }
 
     // Avviso comune quando i servizi mancano o non rispondono.
@@ -675,56 +748,43 @@
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
     }
+    function clickable(className, onopen, ...children) {
+        return h('li', { class: className, tabindex: '0', role: 'button', onclick: onopen, onkeydown: event => { if (event.key === 'Enter') onopen(); } }, ...children);
+    }
 
     // ======================================================================
     // 6. VISTE
     // ======================================================================
 
     // ---------------------------- Coda ------------------------------------
-    function renderQueue(config, tag) {
+    function renderQueue(config) {
         const notice = serviceNotice();
-        const queue = state.requests.filter(item => item.status === 'queue')
-            .sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
-        const mine = queue.filter(item => item.owner && item.owner === tag);
-        const free = queue.filter(item => !item.owner);
-        const lists = { all: queue, mine, free };
-        const items = lists[state.queueFilter] || queue;
-        const discarded = state.requests.filter(item => item.status === 'discarded').length;
+        const items = state.queue.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
         return h('div', { class: 'ao-view' },
             notice,
-            filterBar([
-                { value: 'all', label: TEXTS.queue.all, count: queue.length },
-                { value: 'mine', label: TEXTS.queue.mine, count: mine.length },
-                { value: 'free', label: TEXTS.queue.free, count: free.length }
-            ], state.queueFilter, value => { state.queueFilter = value; render(); }),
-            items.length ? h('ul', { class: 'ao-list' }, items.map(request => queueItem(request, config, tag)))
-                : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty)),
-            discarded ? h('p', { class: 'ao-footnote' }, TEXTS.queue.discarded(discarded)) : null);
+            items.length ? h('ul', { class: 'ao-list' }, items.map(item => queueItem(item, config)))
+                : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty)));
     }
-    function queueItem(request, config, tag) {
-        const suggestion = suggestCompany(config, request.sender, request.subject, request.preview);
+    function queueItem(item, config) {
+        const suggestion = suggestCompany(config, item.sender, item.subject, item.preview);
         const company = suggestion && config.companies[suggestion.id];
-        return h('li', { class: 'ao-item', tabindex: '0', role: 'button', onclick: () => openRequest(request), onkeydown: event => { if (event.key === 'Enter') openRequest(request); } },
+        return clickable('ao-item', () => openQueueItem(item),
             h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-title' }, request.subject || '(senza oggetto)'),
-                h('span', { class: 'ao-item-time' }, formatWhen(request.receivedAt))),
-            h('div', { class: 'ao-item-sub' }, request.sender?.name || request.sender?.email || ''),
+                h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
+                h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
+            h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
             h('div', { class: 'ao-item-meta' },
                 company ? chip(TEXTS.queue.suggested(company.name), 'accent') : null,
-                request.owner ? chip(request.owner === tag ? TEXTS.common.me : request.owner, request.owner === tag ? 'success' : 'neutral')
-                    : h('button', {
-                        type: 'button', class: 'ao-button ao-small',
-                        onclick: event => { event.stopPropagation(); takeCharge(request, tag); }
-                    }, TEXTS.queue.take)));
+                item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral') : null,
+                (item.candidates || []).map(number => chip(TEXTS.queue.candidate(number), 'warning'))));
     }
 
     // ---------------------------- Ticket ----------------------------------
-    function renderTickets(config, tag) {
+    function renderTickets(config, user) {
         const notice = serviceNotice();
-        const open = state.requests.filter(item => item.ticket && OPEN_STATES.includes(item.ticket.state))
-            .sort((a, b) => Number(isHoldExpired(b.ticket)) - Number(isHoldExpired(a.ticket))
-                || String(b.lastMessageAt || b.receivedAt).localeCompare(String(a.lastMessageAt || a.receivedAt)));
-        const mine = open.filter(item => item.owner === tag);
+        const open = state.tickets.slice()
+            .sort((a, b) => Number(isHoldExpired(b)) - Number(isHoldExpired(a)) || String(b.openedAt).localeCompare(String(a.openedAt)));
+        const mine = open.filter(ticket => isMine(ticket, user));
         const items = state.ticketFilter === 'mine' ? mine : open;
         return h('div', { class: 'ao-view' },
             notice,
@@ -732,92 +792,120 @@
                 { value: 'mine', label: TEXTS.tickets.mine, count: mine.length },
                 { value: 'all', label: TEXTS.tickets.all, count: open.length }
             ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
-            items.length ? h('ul', { class: 'ao-list' }, items.map(request => ticketItem(request, tag)))
+            items.length ? h('ul', { class: 'ao-list' }, items.map(ticket => ticketItem(ticket, user)))
                 : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
-    function ticketItem(request, tag) {
-        const ticket = request.ticket;
+    function ticketItem(ticket, user) {
+        const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
-        return h('li', { class: `ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}`, tabindex: '0', role: 'button', onclick: () => openRequest(request), onkeydown: event => { if (event.key === 'Enter') openRequest(request); } },
+        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}`, () => openTicketItem(ticket),
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, ticket.number),
                 stateChip(ticket)),
-            h('div', { class: 'ao-item-title' }, ticket.shortDescription || request.subject),
+            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
             h('div', { class: 'ao-item-meta' },
-                chip(request.owner === tag ? TEXTS.common.me : (request.owner || TEXTS.common.unassigned), request.owner === tag ? 'success' : 'neutral'),
+                chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'neutral'),
                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
-                request.pendingAction ? chip(pendingLabel(request.pendingAction), 'warning') : null));
+                ticket.messageId ? null : chip(TEXTS.tickets.noMail, 'neutral'),
+                ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null));
     }
 
     // ---------------------------- Mail ------------------------------------
-    function renderMail(config, tag) {
+    function renderMail(config, user) {
         const notice = serviceNotice();
-        const request = focusedRequest();
-        if (!request) {
-            if (state.mail && Services.available() && !state.serviceError) {
-                return h('div', { class: 'ao-view' },
-                    mailHeader({ subject: state.mail.subject, sender: state.mail.sender, receivedAt: state.mail.receivedAt }),
-                    h('div', { class: 'ao-card' },
-                        h('p', { class: 'ao-muted' }, TEXTS.mail.notRegistered),
-                        h('button', { type: 'button', class: 'ao-button', onclick: registerCurrentMail }, TEXTS.mail.register)));
-            }
-            return h('div', { class: 'ao-view' }, notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
+        const target = state.target;
+        if (!target) return h('div', { class: 'ao-view' }, notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
+        if (target.kind === 'ticket') {
+            const ticket = ticketByNumber(target.number);
+            return h('div', { class: 'ao-view' }, notice,
+                ticket ? ticketSection(ticket, config, user, { isCurrentMail: false, showOpen: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
         }
-        const isCurrentMail = state.mail?.conversationId === request.conversationId;
+        const mail = target.mail;
+        const isCurrentMail = state.mail?.conversationId === mail.conversationId;
+        const result = state.result;
+        const content = [];
+        if (!result) content.push(h('p', { class: 'ao-muted' }, Services.available() ? TEXTS.mail.searching : ''));
+        else if (result.ticket) {
+            content.push(h('div', { class: 'ao-via' }, TEXTS.mail.via[result.via] || ''));
+            content.push(ticketSection(ticketByNumber(result.ticket.number) || result.ticket, config, user, { isCurrentMail }));
+        } else if (result.discarded) {
+            content.push(discardedCard(mail, result.discarded));
+        } else {
+            if (result.previous) content.push(previousCard(result.previous));
+            if (result.candidates?.length) content.push(candidatesCard(mail, result.candidates, user));
+            content.push(newTicketCard(mail, config, user));
+        }
         return h('div', { class: 'ao-view' },
             notice,
-            mailHeader(request, !isCurrentMail),
-            ownerCard(request, tag),
-            request.status === 'discarded' ? discardedCard(request) : null,
-            request.status === 'queue' ? newTicketCard(request, config, tag) : null,
-            request.ticket ? ticketCard(request, tag) : null,
-            request.ticket && OPEN_STATES.includes(request.ticket.state) ? onSendCard(request, config, isCurrentMail) : null,
-            request.ticket ? historyCard(request) : null);
+            mailHeader(mail, !isCurrentMail),
+            content);
     }
-    function mailHeader(request, showOpen) {
+    function mailHeader(mail, showOpen) {
         return h('div', { class: 'ao-mail-head' },
-            h('div', { class: 'ao-mail-subject' }, request.subject || '(senza oggetto)'),
+            h('div', { class: 'ao-mail-subject' }, mail.subject || '(senza oggetto)'),
             h('div', { class: 'ao-mail-from' },
-                h('span', {}, `${request.sender?.name || ''}${request.sender?.email ? ` <${request.sender.email}>` : ''}`),
-                h('span', { class: 'ao-item-time' }, formatWhen(request.receivedAt))),
-            showOpen ? h('button', { type: 'button', class: 'ao-link', onclick: () => Outlook.openMessage(request.messageId) }, TEXTS.mail.openInOutlook) : null);
+                h('span', {}, `${mail.sender?.name || ''}${mail.sender?.email ? ` <${mail.sender.email}>` : ''}`),
+                h('span', { class: 'ao-item-time' }, formatWhen(mail.receivedAt))),
+            showOpen ? h('button', { type: 'button', class: 'ao-link', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook) : null);
     }
-    function ownerCard(request, tag) {
-        const mine = request.owner && request.owner === tag;
-        const action = !request.owner
-            ? h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => takeCharge(request, tag) }, TEXTS.mail.takeCharge)
-            : mine
-                ? h('button', { type: 'button', class: 'ao-button ao-small ao-subtle', onclick: () => takeCharge(request, '') }, TEXTS.mail.release)
-                : confirmButton(TEXTS.mail.takeOver(request.owner), 'ao-button ao-small', () => takeCharge(request, tag));
-        return h('div', { class: 'ao-owner' },
-            h('span', { class: `ao-owner-dot${request.owner ? (mine ? ' ao-tone-success' : ' ao-tone-neutral') : ''}` }),
-            h('span', { class: 'ao-owner-text' }, request.owner ? TEXTS.mail.inCharge(mine ? `${request.owner} (${TEXTS.common.me})` : request.owner) : TEXTS.mail.notInCharge),
-            request.status === 'discarded' ? null : action);
-    }
-    function discardedCard(request) {
+    function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
-            h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(request.discardedBy || TEXTS.common.none, formatWhen(request.discardedAt))),
-            h('button', { type: 'button', class: 'ao-button', onclick: () => run(async () => upsertRequest(await Services.restoreRequest(request.id))).then(render) }, TEXTS.mail.restore));
+            h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
+            h('button', {
+                type: 'button', class: 'ao-button',
+                onclick: async () => {
+                    if (await run(() => Services.restoreMail(mail.conversationId))) await refreshLists();
+                }
+            }, TEXTS.mail.restore));
+    }
+    function previousCard(ticket) {
+        return h('section', { class: 'ao-card ao-card-quiet' },
+            h('div', { class: 'ao-card-head' },
+                h('h3', { class: 'ao-card-title' }, TEXTS.mail.previousTitle),
+                stateChip(ticket)),
+            h('div', {},
+                h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
+                ' ', h('span', { class: 'ao-item-sub' }, ticket.shortDescription)),
+            h('div', { class: 'ao-hint' }, [ticket.assignedTo?.name, ticket.closedAt ? TEXTS.mail.closedAt(formatWhen(ticket.closedAt)) : ''].filter(Boolean).join(' · ')),
+            h('div', { class: 'ao-hint ao-hint-accent' }, TEXTS.mail.previousHint));
+    }
+    function candidatesCard(mail, candidates, user) {
+        return h('section', { class: 'ao-card ao-card-warning' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.mail.candidatesTitle),
+            h('p', { class: 'ao-hint' }, TEXTS.mail.candidatesHint),
+            h('ul', { class: 'ao-list' }, candidates.map(ticket => h('li', { class: 'ao-candidate' },
+                h('div', { class: 'ao-candidate-text' },
+                    h('div', { class: 'ao-item-top' }, h('span', { class: 'ao-item-number' }, ticket.number), stateChip(ticket)),
+                    h('div', { class: 'ao-item-sub' }, ticket.shortDescription),
+                    h('div', { class: 'ao-hint' }, [ticket.assignedTo?.name || TEXTS.common.unassigned, TEXTS.mail.reportedAt(formatWhen(ticket.reportedOn))].join(' · '))),
+                h('button', {
+                    type: 'button', class: 'ao-button ao-small',
+                    onclick: async () => {
+                        const result = await run(() => Services.linkTicket(mail.conversationId, ticket.number, user), TEXTS.mail.linked(ticket.number));
+                        if (!result) return;
+                        state.result = result;
+                        await refreshLists();
+                    }
+                }, TEXTS.mail.link)))));
     }
 
     // Apertura del ticket: Agenzia suggerita, Attività, anteprima dei campi.
-    function ticketDraft(request, config) {
-        if (!state.ticketDrafts[request.id]) {
-            const suggestion = suggestCompany(config, request.sender, request.subject, request.preview);
-            state.ticketDrafts[request.id] = { companyId: suggestion?.id || '', activityId: '', subject: request.subject || '', suggestion };
+    function ticketDraft(mail, config) {
+        if (!state.ticketDrafts[mail.conversationId]) {
+            const suggestion = suggestCompany(config, mail.sender, mail.subject, mail.body);
+            state.ticketDrafts[mail.conversationId] = { companyId: suggestion?.id || '', activityId: '', subject: buildShortDescription(mail.subject, null), suggestion };
         }
-        return state.ticketDrafts[request.id];
+        return state.ticketDrafts[mail.conversationId];
     }
-    function newTicketCard(request, config, tag) {
-        const draft = ticketDraft(request, config);
+    function newTicketCard(mail, config, user) {
+        const draft = ticketDraft(mail, config);
         const companies = Object.entries(config.companies).sort(byName);
         const activities = Object.entries(config.activities).sort(byName);
         const company = config.companies[draft.companyId];
         const activity = config.activities[draft.activityId];
         const favorites = config.favorites.filter(item => config.companies[item.company] && config.activities[item.activity]);
-        const shortDescription = buildShortDescription(draft.subject, activity);
         const rerender = () => render();
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.mail.newTicket),
@@ -843,15 +931,17 @@
                 h('dt', {}, TEXTS.mail.fieldsPreview), h('dd', {}),
                 fieldRow('Company', company.company?.displayValue || company.name),
                 fieldRow('Assignment group', company.assignmentGroup?.displayValue),
-                fieldRow('Assigned to', config.profile.assignedTo.displayValue || TEXTS.common.none),
+                fieldRow('Assigned to', user.displayValue || TEXTS.common.none),
                 fieldRow('Category', activity.category?.displayValue),
                 fieldRow('Impact / Urgency', `${activity.impact || '?'} / ${activity.urgency || '?'}`),
                 fieldRow('Time worked', TEXTS.mail.minutes(Number(activity.timeWorked) || 0)),
-                fieldRow('Short description', shortDescription, 'short'),
-                fieldRow('Reported', formatWhen(request.receivedAt))) : null,
+                fieldRow('Short description', buildShortDescription(draft.subject, activity), 'short'),
+                fieldRow('Reported', formatWhen(mail.receivedAt))) : null,
             h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !(company && activity), onclick: () => openTicket(request, tag) }, TEXTS.mail.openTicket),
-                confirmButton(TEXTS.mail.discard, 'ao-button ao-subtle', () => run(async () => upsertRequest(await Services.discardRequest(request.id, tag))).then(render))));
+                h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !(company && activity), onclick: () => openTicket(mail) }, TEXTS.mail.openTicket),
+                confirmButton(TEXTS.mail.discard, 'ao-button ao-subtle', async () => {
+                    if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await refreshLists();
+                })));
     }
     function fieldRow(label, value, previewKey) {
         return [h('dt', {}, label), h('dd', previewKey ? { dataset: { preview: previewKey } } : {}, value || TEXTS.common.none)];
@@ -861,15 +951,16 @@
         const prefix = activity?.shortDescriptionPrefix || '';
         return prefix ? `${prefix} ${clean.replace(/^\s*\[[^\]]+\]\s*/, '')}`.trim() : clean;
     }
-    async function openTicket(request, tag) {
+    // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
+    async function openTicket(mail) {
         const config = loadConfig();
-        const draft = ticketDraft(request, config);
+        const draft = ticketDraft(mail, config);
         const company = config.companies[draft.companyId];
         const activity = config.activities[draft.activityId];
         if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
-        if (!config.profile.assignedTo.displayValue || !tag) return showStatus(TEXTS.mail.profileMissing, 'danger');
-        // Corpo completo dalla mail aperta, se è quella della richiesta; altrimenti l'anteprima salvata.
-        const body = state.mail?.conversationId === request.conversationId ? state.mail.body : request.preview;
+        if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+        // Corpo completo se è la mail aperta in Outlook; altrimenti l'anteprima della Coda.
+        const body = state.mail?.conversationId === mail.conversationId ? state.mail.body : mail.body;
         const fields = {
             company: normalizeReference(company.company),
             assignmentGroup: normalizeReference(company.assignmentGroup),
@@ -880,55 +971,82 @@
             timeWorkedMinutes: Number(activity.timeWorked) || 0,
             shortDescription: buildShortDescription(draft.subject, activity),
             description: String(body || '').slice(0, 4000),
-            reportedOn: request.receivedAt ? formatServiceNowDate(parseDate(request.receivedAt)) : ''
+            reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
         };
-        const updated = await run(() => Services.createTicket(request.id, {
+        const ticket = await run(() => Services.createTicket(mail, {
             companyId: draft.companyId, companyName: company.name,
-            activityId: draft.activityId, activityName: activity.name,
-            openedBy: tag, fields
-        }), result => TEXTS.mail.ticketOpened(result.ticket.number));
-        if (!updated) return;
-        upsertRequest(updated);
-        delete state.ticketDrafts[request.id];
+            activityId: draft.activityId, activityName: activity.name, fields
+        }), result => TEXTS.mail.ticketOpened(result.number));
+        if (!ticket) return;
+        delete state.ticketDrafts[mail.conversationId];
+        state.ticketCache[ticket.number] = ticket;
+        state.result = { ticket, via: 'link', previous: null, candidates: [] };
         config.recent = [{ company: draft.companyId, activity: draft.activityId, timestamp: new Date().toISOString() },
             ...config.recent.filter(item => !(item.company === draft.companyId && item.activity === draft.activityId))].slice(0, 10);
         saveConfig(config);
         render();
+        await refreshLists();
     }
 
-    // Ticket collegato: stato, tempo lavorato.
-    function ticketCard(request) {
-        const ticket = request.ticket;
+    // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
+    function ticketSection(ticket, config, user, { isCurrentMail, showOpen = false }) {
+        const open = OPEN_STATES.includes(ticket.state);
+        return [
+            assigneeCard(ticket, user),
+            ticketCard(ticket, showOpen),
+            open && ticket.messageId ? onSendCard(ticket, config, isCurrentMail) : null,
+            open && !ticket.messageId ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
+            historyCard(ticket)
+        ];
+    }
+    function assigneeCard(ticket, user) {
+        const mine = isMine(ticket, user);
+        const name = ticket.assignedTo?.name;
+        return h('div', { class: 'ao-owner' },
+            h('span', { class: `ao-owner-dot${name ? (mine ? ' ao-tone-success' : ' ao-tone-neutral') : ''}` }),
+            h('span', { class: 'ao-owner-text' }, name ? (mine ? TEXTS.mail.assignedToMe(name) : TEXTS.mail.assignedTo(name)) : TEXTS.mail.notAssigned),
+            mine || !OPEN_STATES.includes(ticket.state) ? null : confirmButton(TEXTS.mail.takeOver, 'ao-button ao-small', async () => {
+                const config = loadConfig();
+                if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+                const updated = await run(() => Services.assignTicket(ticket.number, config.profile.assignedTo), TEXTS.mail.taken(ticket.number));
+                if (!updated) return;
+                rememberTicket(updated);
+                render();
+                refreshLists();
+            }));
+    }
+    function ticketCard(ticket, showOpen) {
         const open = OPEN_STATES.includes(ticket.state);
         return h('section', { class: 'ao-card' },
             h('div', { class: 'ao-ticket-head' },
                 h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
                 stateChip(ticket)),
+            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
             ticket.state === '3' && ticket.holdExpiration
                 ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
                     `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
-            h('div', { class: 'ao-hint' }, TEXTS.mail.openedBy(ticket.openedBy || TEXTS.common.none, formatWhen(ticket.openedAt))),
+            h('div', { class: 'ao-hint' }, [TEXTS.mail.openedAt(formatWhen(ticket.openedAt)), TEXTS.mail.reportedAt(formatWhen(ticket.reportedOn))].join(' · ')),
+            showOpen && ticket.messageId ? h('button', { type: 'button', class: 'ao-link', onclick: () => Outlook.openMessage(ticket.messageId) }, TEXTS.mail.openInOutlook) : null,
             h('div', { class: 'ao-time' },
                 h('span', { class: 'ao-label' }, TEXTS.mail.timeWorked),
                 h('div', { class: 'ao-time-row' },
-                    TIME_STEPS.filter(step => step < 0).map(step => timeButton(request, step, open)),
+                    TIME_STEPS.filter(step => step < 0).map(step => timeButton(ticket, step, open)),
                     h('span', { class: 'ao-time-value' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
-                    TIME_STEPS.filter(step => step > 0).map(step => timeButton(request, step, open)))),
+                    TIME_STEPS.filter(step => step > 0).map(step => timeButton(ticket, step, open)))),
             open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)));
     }
-    function timeButton(request, step, enabled) {
+    function timeButton(ticket, step, enabled) {
         return h('button', {
             type: 'button', class: 'ao-button ao-small ao-time-step',
-            disabled: !enabled || (step < 0 && (request.ticket.timeWorkedMinutes || 0) <= 0),
+            disabled: !enabled || (step < 0 && (ticket.timeWorkedMinutes || 0) <= 0),
             onclick: async () => {
-                const tag = myTag();
-                const before = request.ticket.timeWorkedMinutes || 0;
-                const updated = await run(() => Services.addTime(request.id, step, tag));
+                const before = ticket.timeWorkedMinutes || 0;
+                const updated = await run(() => Services.addTime(ticket.number, step, currentUser().displayValue));
                 if (!updated) return;
-                upsertRequest(updated);
+                rememberTicket(updated);
                 render();
-                showStatus(TEXTS.mail.timeChanged(updated.ticket.timeWorkedMinutes - before, updated.ticket.timeWorkedMinutes));
+                showStatus(TEXTS.mail.timeChanged(updated.timeWorkedMinutes - before, updated.timeWorkedMinutes));
             }
         }, `${step > 0 ? '+' : '−'}${Math.abs(step)}`);
     }
@@ -941,25 +1059,26 @@
         if (action.type === 'hold') return `${TEXTS.mail.actions.hold} · ${formatWhen(action.holdExpiration)}`;
         return action.type;
     }
-    function actionDraft(request, config) {
-        if (!state.actionDrafts[request.id]) {
-            const saved = request.pendingAction || {};
-            const key = combinationKey(request.ticket.companyId, request.ticket.activityId);
-            state.actionDrafts[request.id] = {
+    function actionDraft(ticket, config) {
+        if (!state.actionDrafts[ticket.number]) {
+            const saved = ticket.pendingAction || {};
+            const key = combinationKey(ticket.companyId, ticket.activityId);
+            state.actionDrafts[ticket.number] = {
                 type: saved.type || 'comment',
                 resolutionCode: saved.resolutionCode || RESOLUTION_CODES[0],
                 holdReason: saved.holdReason || HOLD_REASONS[0].value,
                 holdExpiration: saved.holdExpiration ? toDateTimeInput(parseDate(saved.holdExpiration)) : defaultHoldExpiration(),
                 workNotes: saved.workNotes || '',
-                template: config.combinationResponses[key]?.response ? 'combination' : ''
+                template: config.combinationResponses[key]?.response ? 'combination' : '',
+                includeReference: true
             };
         }
-        return state.actionDrafts[request.id];
+        return state.actionDrafts[ticket.number];
     }
-    function onSendCard(request, config, isCurrentMail) {
-        const draft = actionDraft(request, config);
+    function onSendCard(ticket, config, isCurrentMail) {
+        const draft = actionDraft(ticket, config);
         const rerender = () => render();
-        const key = combinationKey(request.ticket.companyId, request.ticket.activityId);
+        const key = combinationKey(ticket.companyId, ticket.activityId);
         const templates = [
             { value: '', label: TEXTS.mail.replyEmpty },
             ...(config.combinationResponses[key]?.response ? [{ value: 'combination', label: TEXTS.mail.replyCombination }] : []),
@@ -968,9 +1087,9 @@
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.mail.onSend),
             h('p', { class: 'ao-hint' }, TEXTS.mail.onSendHint),
-            request.pendingAction ? h('div', { class: 'ao-pending' },
-                h('span', {}, TEXTS.mail.pending(pendingLabel(request.pendingAction))),
-                h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(request, null) }, TEXTS.mail.clearPending)) : null,
+            ticket.pendingAction ? h('div', { class: 'ao-pending' },
+                h('span', {}, TEXTS.mail.pending(pendingLabel(ticket.pendingAction))),
+                h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(ticket, null) }, TEXTS.mail.clearPending)) : null,
             filterBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label })), draft.type, value => { draft.type = value; rerender(); }),
             draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
             draft.type === 'hold' ? [
@@ -979,16 +1098,13 @@
             ] : null,
             draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null,
             selectField(TEXTS.mail.replyText, templates, draft.template, value => { draft.template = value; }),
+            checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
             h('div', { class: 'ao-actions' },
-                h('button', {
-                    type: 'button', class: 'ao-button ao-primary',
-                    title: isCurrentMail ? '' : TEXTS.mail.replyUnavailable,
-                    onclick: () => prepareReply(request, isCurrentMail)
-                }, TEXTS.mail.prepareReply)));
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => prepareReply(ticket, isCurrentMail) }, TEXTS.mail.prepareReply)));
     }
-    function buildPendingAction(draft, tag) {
+    function buildPendingAction(draft, by) {
         if (draft.type === 'comment') return null;
-        const action = { type: draft.type, workNotes: draft.workNotes.trim(), by: tag };
+        const action = { type: draft.type, workNotes: draft.workNotes.trim(), by };
         if (draft.type === 'resolve') action.resolutionCode = draft.resolutionCode;
         if (draft.type === 'hold') {
             const date = parseDate(draft.holdExpiration.replace('T', ' '));
@@ -997,41 +1113,43 @@
         }
         return action;
     }
-    async function savePendingAction(request, action) {
-        const updated = await run(() => Services.setPendingAction(request.id, action));
+    async function savePendingAction(ticket, action) {
+        const updated = await run(() => Services.setPendingAction(ticket.number, action));
         if (!updated) return null;
-        upsertRequest(updated);
-        delete state.actionDrafts[request.id];
+        rememberTicket(updated);
+        delete state.actionDrafts[ticket.number];
         render();
         return updated;
     }
-    async function prepareReply(request, isCurrentMail) {
+    async function prepareReply(ticket, isCurrentMail) {
         const config = loadConfig();
-        const draft = actionDraft(request, config);
+        const draft = actionDraft(ticket, config);
         if (draft.type === 'hold' && !parseDate(draft.holdExpiration)) return showStatus(TEXTS.mail.holdExpiration, 'danger');
         const template = draft.template === 'combination'
-            ? config.combinationResponses[combinationKey(request.ticket.companyId, request.ticket.activityId)]?.response
+            ? config.combinationResponses[combinationKey(ticket.companyId, ticket.activityId)]?.response
             : config.usefulResponses[draft.template.replace(/^useful:/, '')]?.response;
-        const updated = await savePendingAction(request, buildPendingAction(draft, myTag(config)));
+        // Il riferimento all'Incident nella risposta rende sicuro il collegamento mail ↔ ticket.
+        const text = [draft.includeReference ? TEXTS.mail.reference(ticket.number) : '', template || ''].filter(Boolean).join('\n\n');
+        const updated = await savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue));
         if (!updated) return;
         // In Outlook la risposta si apre solo sulla mail aperta: per un'altra mail
         // si apre la mail e l'azione resta salvata. L'anteprima le gestisce entrambe.
         let opened = false;
-        if (isCurrentMail) opened = Outlook.openReply(template || '');
+        if (isCurrentMail) opened = Outlook.openReply(text);
         else {
-            Outlook.openMessage(request.messageId);
-            if (window.AmpPreviewOutlook) opened = Outlook.openReply(template || '');
+            Outlook.openMessage(ticket.messageId);
+            if (window.AmpPreviewOutlook) opened = Outlook.openReply(text);
         }
         showStatus(opened ? TEXTS.mail.replyOpened : TEXTS.mail.pendingSaved, opened ? 'success' : 'warning');
     }
 
     // Storico di ServiceNow, caricato solo quando serve e a pagine.
-    function historyCard(request) {
-        const history = state.history[request.id];
+    function historyCard(ticket) {
+        const history = state.history[ticket.number];
         return h('section', { class: 'ao-card' },
             h('div', { class: 'ao-card-head' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.mail.history),
-                history?.open ? null : h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => loadHistory(request.id) }, TEXTS.mail.loadHistory)),
+                history?.open ? null : h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => loadHistory(ticket.number) }, TEXTS.mail.loadHistory)),
             history?.open ? [
                 history.loading && !history.entries.length ? h('p', { class: 'ao-muted' }, TEXTS.common.loading) : null,
                 !history.loading && !history.entries.length ? h('p', { class: 'ao-muted' }, TEXTS.mail.historyEmpty) : null,
@@ -1042,45 +1160,25 @@
                         h('span', { class: 'ao-item-time' }, formatWhen(entry.at))),
                     h('div', { class: 'ao-entry-text' }, entry.text)))),
                 history.total > history.entries.length
-                    ? h('button', { type: 'button', class: 'ao-link', onclick: () => loadHistory(request.id, false, true) }, TEXTS.mail.loadMore(history.total - history.entries.length)) : null
+                    ? h('button', { type: 'button', class: 'ao-link', onclick: () => loadHistory(ticket.number, false, true) }, TEXTS.mail.loadMore(history.total - history.entries.length)) : null
             ] : null);
     }
-    async function loadHistory(requestId, reload = false, more = false) {
-        const current = state.history[requestId] || { entries: [], total: 0 };
+    async function loadHistory(number, reload = false, more = false) {
+        const current = state.history[number] || { entries: [], total: 0 };
         const limit = reload ? Math.max(HISTORY_PAGE, current.entries.length) : HISTORY_PAGE;
         const offset = more ? current.entries.length : 0;
-        state.history[requestId] = { ...current, open: true, loading: true };
+        state.history[number] = { ...current, open: true, loading: true };
         if (!reload) render();
         try {
-            const page = await Services.getTicketActivity(requestId, { offset, limit });
-            state.history[requestId] = {
+            const page = await Services.getTicketActivity(number, { offset, limit });
+            state.history[number] = {
                 open: true, loading: false, total: page.total,
                 entries: more ? [...current.entries, ...page.entries] : page.entries
             };
         } catch (error) {
-            state.history[requestId] = { ...current, open: false, loading: false };
+            state.history[number] = { ...current, open: false, loading: false };
             showStatus(error?.message || String(error), 'danger');
         }
-        render();
-    }
-
-    // tag = chi prende in carico; '' = rilascia (solo chi ce l'ha in carico).
-    async function takeCharge(request, tag) {
-        const release = tag === '';
-        if (!release && !String(tag || '').trim()) return showStatus(TEXTS.mail.profileMissing, 'danger');
-        if (release && request.owner !== myTag()) return;
-        const updated = await run(() => Services.takeCharge(request.id, release ? '' : tag.trim()));
-        if (!updated) return;
-        upsertRequest(updated);
-        render();
-    }
-    async function registerCurrentMail() {
-        if (!state.mail) return;
-        const created = await run(() => Services.registerRequest(state.mail));
-        if (!created) return;
-        upsertRequest(created);
-        state.mailLookup = created;
-        state.focusId = created.id;
         render();
     }
 
@@ -1134,19 +1232,20 @@
                     h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export))));
     }
     function profileSection(config) {
-        const draft = { tag: config.profile.tag, name: config.profile.assignedTo.displayValue, sysId: config.profile.assignedTo.value };
+        const draft = { name: config.profile.assignedTo.displayValue, sysId: config.profile.assignedTo.value };
+        const outlookName = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.settings.profile),
-            textField(TEXTS.settings.tag, draft.tag, value => { draft.tag = value; }, { placeholder: myTag(createDefaultConfig()) || 'Marco', hint: TEXTS.settings.tagHint }),
+            h('p', { class: 'ao-hint' }, TEXTS.settings.profileHint),
             h('div', { class: 'ao-grid-2' },
-                textField(`${TEXTS.settings.assignedTo} · ${TEXTS.settings.displayValue}`, draft.name, value => { draft.name = value; }),
+                textField(`${TEXTS.settings.assignedTo} · ${TEXTS.settings.displayValue}`, draft.name, value => { draft.name = value; }, { placeholder: outlookName }),
                 textField(TEXTS.settings.sysId, draft.sysId, value => { draft.sysId = value; })),
             h('div', { class: 'ao-actions' },
                 h('button', {
                     type: 'button', class: 'ao-button ao-primary',
                     onclick: () => {
                         const current = loadConfig();
-                        current.profile = { tag: draft.tag.trim(), assignedTo: { displayValue: draft.name.trim(), value: draft.sysId.trim() } };
+                        current.profile = { ...current.profile, assignedTo: { displayValue: draft.name.trim(), value: draft.sysId.trim() } };
                         saveConfig(current);
                         render();
                         showStatus(TEXTS.settings.saved);
@@ -1421,6 +1520,15 @@
 #ao-root .ao-config-text .ao-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ao-root .ao-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--ao-accent-border); border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); }
 
+/* Collegamento mail ↔ ticket */
+#ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-card-quiet { background: var(--ao-bg-soft); }
+#ao-root .ao-card-warning { border-color: var(--ao-warning-bg); border-left: 3px solid var(--ao-warning); }
+#ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+#ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
+#ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
+#ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
+
 /* Messaggi in fondo */
 #ao-root .ao-status { position: sticky; bottom: 0; margin: 0 12px 12px; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 #ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
@@ -1447,12 +1555,12 @@
         injectStyles();
         buildShell(container);
         document.getElementById('open-amp-button')?.addEventListener('click', show);
-        Outlook.onMailChanged(() => { handleMailChanged(); });
-        Services.subscribe(() => { refreshRequests(); });
+        Outlook.onMailChanged(() => handleMailChanged());
+        Services.subscribe(() => { refreshLists(); });
         state.mail = Outlook.currentMail();
         render();
-        await refreshRequests();
-        if (state.mail) await handleMailChanged();
+        await refreshLists();
+        if (state.mail?.conversationId) showMailTarget(state.mail);
     }
     function show() {
         initialize();
