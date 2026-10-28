@@ -25,7 +25,8 @@ const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 
-const AUTH_EXPERIMENT = "v0.1.18-mfa4-diagnostic";
+const AUTH_EXPERIMENT = "v0.1.18-mfa5-token-bridge";
+const AUTH_BRIDGE_KEY = "outlook-sogei-taskpane-auth-bridge";
 
 function readAuthDiagnostics() {
   try {
@@ -103,6 +104,33 @@ function runTaskpaneStorageProbe() {
   });
 }
 
+function savePersistedAuthentication(authentication, source = "unknown") {
+  if (!authentication?.accessToken) return;
+  const payload = { accessToken: authentication.accessToken, expiresOn: authentication.expiresOn || null, savedAt: new Date().toISOString() };
+  try {
+    localStorage.setItem(AUTH_BRIDGE_KEY, JSON.stringify(payload));
+    recordAuthDiagnostic("persisted_auth_saved", { source, expiresOn: payload.expiresOn, savedAt: payload.savedAt, tokenLength: payload.accessToken.length });
+  } catch (error) {
+    recordAuthDiagnostic("persisted_auth_save_error", { source, name: error?.name || "Error", message: error?.message || String(error) });
+  }
+}
+function readPersistedAuthentication() {
+  try {
+    const raw = localStorage.getItem(AUTH_BRIDGE_KEY);
+    if (!raw) { recordAuthDiagnostic("persisted_auth_missing"); return null; }
+    const parsed = JSON.parse(raw);
+    const candidate = { accessToken: parsed?.accessToken || null, acquisitionMode: "persisted-bridge", expiresOn: parsed?.expiresOn || null };
+    recordAuthDiagnostic("persisted_auth_found", { savedAt: parsed?.savedAt || null, expiresOn: candidate.expiresOn, tokenPresent: Boolean(candidate.accessToken), tokenLength: candidate.accessToken?.length || 0 });
+    return candidate.accessToken ? candidate : null;
+  } catch (error) {
+    recordAuthDiagnostic("persisted_auth_read_error", { name: error?.name || "Error", message: error?.message || String(error) });
+    return null;
+  }
+}
+function clearPersistedAuthentication(reason = "unknown") {
+  try { localStorage.removeItem(AUTH_BRIDGE_KEY); recordAuthDiagnostic("persisted_auth_cleared", { reason }); }
+  catch (error) { recordAuthDiagnostic("persisted_auth_clear_error", { reason, name: error?.name || "Error", message: error?.message || String(error) }); }
+}
 function importDialogDiagnostics(entries) {
   if (!Array.isArray(entries)) return;
 
@@ -439,6 +467,7 @@ function acquireTokenWithOfficeDialog(options = {}) {
           clearAuthenticationTimeout();
           closeDialog();
           currentAuthentication = tokenResult;
+          savePersistedAuthentication(tokenResult, "dialogCompleteSuccess");
           recordAuthDiagnostic("dialog_complete_success", {
             operationId,
             acquisitionMode: tokenResult?.acquisitionMode || null,
@@ -700,6 +729,14 @@ async function getAccessTokenSilently() {
     });
     return { ...currentAuthentication, acquisitionMode: "memory" };
   }
+  const persistedAuthentication = readPersistedAuthentication();
+  if (isAuthenticationUsable(persistedAuthentication)) {
+    currentAuthentication = persistedAuthentication;
+    recordAuthDiagnostic("persisted_auth_reused", { expiresOn: persistedAuthentication.expiresOn || null });
+    return currentAuthentication;
+  }
+  if (persistedAuthentication) { clearPersistedAuthentication("notUsable"); }
+
   currentAuthentication = null;
   const authentication = await acquireTokenSilently();
   if (authentication) return authentication;
