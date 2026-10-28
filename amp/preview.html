@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anteprima area AMP</title>
+<!-- Stili dell'add-in di jak, per vedere il pannello nel suo contesto reale -->
+<link href="../taskpane.css" rel="stylesheet">
+<style>
+  /* ---- Solo per l'anteprima: non fanno parte dell'add-in ---- */
+  body { margin: 0; background: #e9e7e5; }
+  .preview-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 16px; background: #323130; color: #fff; font-size: 13px;
+  }
+  .preview-bar strong { font-size: 14px; margin-right: 6px; }
+  .preview-bar select, .preview-bar button {
+    padding: 5px 8px; border: 1px solid #8a8886; border-radius: 4px;
+    background: #fff; color: #242424; font: inherit; cursor: pointer;
+  }
+  .preview-layout { display: flex; gap: 16px; align-items: flex-start; padding: 16px; }
+  .sn-form {
+    flex: 1 1 420px; max-width: 560px; padding: 0 0 14px;
+    border: 1px solid #c8c6c4; border-radius: 6px; background: #fff;
+  }
+  .sn-form h2 {
+    margin: 0 0 12px; padding: 10px 14px; border-radius: 6px 6px 0 0;
+    background: #293e40; color: #fff; font-size: 14px; font-weight: 600;
+  }
+  .sn-form .hint { margin: 0 14px 12px; color: #605e5c; font-size: 12px; line-height: 1.4; }
+  .sn-fields { display: grid; grid-template-columns: 150px 1fr; gap: 6px 10px; padding: 0 14px; font-size: 13px; }
+  .sn-fields label { align-self: center; color: #323130; }
+  .sn-fields input, .sn-fields select, .sn-fields textarea {
+    width: 100%; padding: 4px 6px; border: 1px solid #c8c6c4; border-radius: 3px; font: inherit; font-size: 13px;
+  }
+  .sn-fields textarea { min-height: 42px; resize: vertical; }
+  .sn-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px 0; }
+  .sn-actions button { padding: 6px 16px; border: 1px solid #293e40; border-radius: 3px; background: #293e40; color: #fff; font: inherit; cursor: pointer; }
+  .taskpane {
+    flex: 0 0 360px; height: calc(100vh - 90px); overflow-y: auto;
+    border: 1px solid #c8c6c4; border-radius: 6px; background: #f5f5f5;
+  }
+  .taskpane .app-header { padding: 14px 16px; }
+  @media (max-width: 860px) { .preview-layout { flex-direction: column-reverse; } .taskpane { flex-basis: auto; width: 100%; height: auto; } }
+</style>
+</head>
+<body>
+
+<div class="preview-bar">
+  <strong>Anteprima area AMP</strong>
+  <label>Scenario
+    <select id="preview-scenario">
+      <option value="new">Nuovo ticket (New)</option>
+      <option value="progress">Ticket in lavorazione (In Progress)</option>
+      <option value="hold">Ticket On Hold</option>
+      <option value="resolved">Ticket risolto (Resolved)</option>
+    </select>
+  </label>
+  <button type="button" id="preview-seed">Carica configurazioni di esempio</button>
+  <button type="button" id="preview-reset">Azzera dati del pannello</button>
+</div>
+
+<div class="preview-layout">
+  <!-- Modulo Incident simulato: stessi id dei campi di ServiceNow letti e scritti dal pannello -->
+  <form class="sn-form" id="incident.do" onsubmit="return false">
+    <h2>ServiceNow (simulato) · Incident</h2>
+    <p class="hint">Il pannello compila questi campi come farebbe su AMP. Il pulsante Save simula il salvataggio: la pagina si ricarica con i valori salvati.</p>
+    <div class="sn-fields">
+      <label>Number</label><input id="sys_readonly.incident.number" readonly>
+      <label id="incident.company_label">Company</label><input id="sys_display.incident.company">
+      <label>Assignment group</label><input id="sys_display.incident.assignment_group">
+      <label>Assigned to</label><input id="sys_display.incident.assigned_to">
+      <label>Category</label><input id="sys_display.incident.x_avana_platform_category_value">
+      <label>Impact</label><select id="incident.impact"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
+      <label>Urgency</label><select id="incident.urgency"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
+      <label>Short description</label><input id="incident.short_description">
+      <label>State</label><select id="incident.state"><option value="1">New</option><option value="2">In Progress</option><option value="3">On Hold</option><option value="6">Resolved</option><option value="8">Canceled</option></select>
+      <label>On hold reason</label><select id="incident.hold_reason"><option value="">-- None --</option><option value="3">Awaiting Problem Resolution</option><option value="5">Awaiting Change</option><option value="6">Awaiting Third Party</option><option value="7">Awaiting Client Action/Update</option><option value="8">Awaiting Client Resolution</option><option value="9">Awaiting Review</option></select>
+      <label>On hold expiration</label><input id="incident.u_on_hold_expiration">
+      <label>Resolution code</label><select id="incident.close_code"><option value="">-- None --</option></select>
+      <label>Resolution notes</label><textarea id="incident.close_notes"></textarea>
+      <label>Time worked (min)</label><span><input data-type="timer" id="incident.time_worked_min"><input type="hidden" id="incident.time_worked"></span>
+      <label>Additional comments</label><textarea id="activity-stream-comments-textarea"></textarea>
+      <label>Work notes</label><textarea id="activity-stream-work_notes-textarea"></textarea>
+    </div>
+    <div class="sn-actions"><button type="submit" id="sysverb_update">Save</button></div>
+  </form>
+
+  <!-- Riquadro dell'add-in: stessa struttura di taskpane.html (intestazione, schermata principale, area AMP) -->
+  <div class="taskpane">
+    <header class="app-header"><img alt="" height="40" src="../icon-64.png" width="40"><div class="app-title"><h1>Test-Plugin</h1><p>anteprima area AMP</p></div></header>
+    <main>
+      <div id="main-view">
+        <div class="notice">Schermata principale dell'add-in (simulata).</div>
+        <button class="secondary-button amp-open-button" id="open-amp-button" type="button">Apri area AMP</button>
+      </div>
+      <div id="header-view" hidden></div>
+      <section class="amp-view" hidden id="amp-view"></section>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const FORM_KEY = 'amp_preview_form_v1';
+  const RESOLUTION_CODES = ['Solved (Permanently)', 'Solved by Third Party Vendor', 'Closed on Initial', 'Not Reproducible (Alert Cleared)',
+    'Not Solved (Not Reproducible)', 'Caused by change', 'Not Solved (Too Costly)', 'No Client Response', 'Solved (Work Around)', 'Duplicate', 'Out of Scope'];
+  const closeCode = document.getElementById('incident.close_code');
+  RESOLUTION_CODES.forEach(code => closeCode.add(new Option(code, code)));
+
+  const pad = value => String(value).padStart(2, '0');
+  const snDate = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  const ref = (value, display) => ({ value, display });
+
+  // Valori iniziali del modulo per ogni scenario.
+  const SCENARIOS = {
+    new: { number: 'INC0012001', state: '1', company: ref('', ''), assignment_group: ref('', ''), assigned_to: ref('sys_user_1', 'Mario Rossi'),
+      category: ref('', ''), impact: '3', urgency: '3', short_description: 'Richiesta da email: casella piena', time_worked_min: '' },
+    progress: { number: 'INC0012002', state: '2', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
+      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3',
+      short_description: '[FWD] Casella piena', time_worked_min: '15', time_worked: '00:15:00' },
+    hold: { number: 'INC0012003', state: '3', company: ref('sys_co_2', 'Agenzia Beta'), assignment_group: ref('sys_ag_2', 'Gruppo Beta'),
+      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_2', 'Account'), impact: '1', urgency: '2',
+      short_description: 'Reset password', time_worked_min: '5', time_worked: '00:05:00', hold_reason: '7',
+      u_on_hold_expiration: snDate(new Date(Date.now() - 2 * 60 * 60 * 1000)) },
+    resolved: { number: 'INC0012004', state: '6', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
+      assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_3', 'Hardware'), impact: '3', urgency: '3',
+      short_description: 'Stampante guasta', time_worked_min: '30', time_worked: '00:30:00', close_code: 'Solved (Permanently)' }
+  };
+  const ELEMENT_FOR = {
+    company: 'sys_display.incident.company', assignment_group: 'sys_display.incident.assignment_group',
+    assigned_to: 'sys_display.incident.assigned_to', x_avana_platform_category_value: 'sys_display.incident.x_avana_platform_category_value',
+    impact: 'incident.impact', urgency: 'incident.urgency', state: 'incident.state', hold_reason: 'incident.hold_reason',
+    u_on_hold_expiration: 'incident.u_on_hold_expiration', close_code: 'incident.close_code', short_description: 'incident.short_description',
+    close_notes: 'incident.close_notes', work_notes: 'activity-stream-work_notes-textarea'
+  };
+  const REFERENCE_FIELDS = { company: 'company', assignment_group: 'assignment_group', assigned_to: 'assigned_to', category: 'x_avana_platform_category_value' };
+  const byId = id => document.getElementById(id);
+
+  // Stato salvato del modulo (sopravvive al "Save", che ricarica la pagina).
+  let saved;
+  try { saved = JSON.parse(sessionStorage.getItem(FORM_KEY) || 'null'); } catch { saved = null; }
+  if (!saved) saved = { scenario: 'new', ...structuredClone(SCENARIOS.new) };
+  byId('preview-scenario').value = saved.scenario;
+
+  // g_form simulato: stesso comportamento minimo usato dal pannello.
+  const values = {};
+  let modified = false;
+  function setField(name, value, display) {
+    values[name] = value;
+    const element = byId(ELEMENT_FOR[name] || '');
+    if (element) element.value = display ?? value;
+  }
+  Object.entries(REFERENCE_FIELDS).forEach(([key, name]) => setField(name, saved[key]?.value || '', saved[key]?.display || ''));
+  ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code', 'short_description', 'close_notes']
+    .forEach(name => setField(name, saved[name] || ''));
+  byId('sys_readonly.incident.number').value = saved.number || '';
+  byId('incident.time_worked_min').value = saved.time_worked_min || '';
+  byId('incident.time_worked').value = saved.time_worked || '';
+  window.g_form = {
+    getValue: name => values[name] ?? '',
+    setValue(name, value, display) { setField(name, value, display); modified = true; },
+    isModified: () => modified
+  };
+  document.querySelector('.sn-form').addEventListener('input', () => { modified = true; });
+
+  // Save: salva i valori, porta un ticket New assegnato a In Progress e ricarica (come ServiceNow).
+  byId('incident.do').addEventListener('submit', () => {
+    const next = { scenario: saved.scenario, number: saved.number };
+    Object.entries(REFERENCE_FIELDS).forEach(([key, name]) => {
+      next[key] = { value: values[name] || '', display: byId(ELEMENT_FOR[name]).value };
+    });
+    ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code'].forEach(name => { next[name] = byId(ELEMENT_FOR[name]).value; });
+    next.short_description = byId('incident.short_description').value;
+    next.close_notes = byId('incident.close_notes').value;
+    next.time_worked_min = byId('incident.time_worked_min').value;
+    const minutes = Number.parseInt(next.time_worked_min, 10) || 0;
+    next.time_worked = `00:${pad(minutes)}:00`;
+    if (next.state === '1' && next.assigned_to.display) next.state = '2';
+    sessionStorage.setItem(FORM_KEY, JSON.stringify(next));
+    setTimeout(() => location.reload(), 50);
+  });
+
+  byId('preview-scenario').addEventListener('change', event => {
+    sessionStorage.setItem(FORM_KEY, JSON.stringify({ scenario: event.target.value, ...structuredClone(SCENARIOS[event.target.value]) }));
+    location.reload();
+  });
+
+  // Dati di esempio del pannello (stesso formato dell'Esporta JSON dello script).
+  byId('preview-seed').addEventListener('click', () => {
+    const reference = (value, displayValue) => ({ value, displayValue });
+    localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
+      version: 3, created: new Date().toISOString(), updated: new Date().toISOString(),
+      profile: { assignedTo: reference('sys_user_1', 'Mario Rossi') },
+      companies: {
+        alfa: { name: 'Agenzia Alfa', company: reference('sys_co_1', 'Agenzia Alfa'), assignmentGroup: reference('sys_ag_1', 'Gruppo Alfa') },
+        beta: { name: 'Agenzia Beta', company: reference('sys_co_2', 'Agenzia Beta'), assignmentGroup: reference('sys_ag_2', 'Gruppo Beta') }
+      },
+      activities: {
+        posta: { name: 'Posta elettronica', category: reference('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3', timeWorked: 15, shortDescriptionPrefix: '[FWD]' },
+        password: { name: 'Reset password', category: reference('sys_cat_2', 'Account'), impact: '1', urgency: '2', timeWorked: 5, shortDescriptionPrefix: '' }
+      },
+      favorites: [{ company: 'alfa', activity: 'posta' }, { company: 'beta', activity: 'password' }],
+      recent: [], combinationResponses: {},
+      usefulResponses: { attesa: { title: 'Attesa riscontro', response: 'Salve,\n\nresto in attesa di un vostro riscontro.\n\nSaluti,', created: '', updated: '' } },
+      preferences: { favoritesGroupBy: 'none' }
+    }));
+    location.reload();
+  });
+  byId('preview-reset').addEventListener('click', () => {
+    Object.keys(localStorage).filter(key => key.startsWith('snow_ticket_assistant')).forEach(key => localStorage.removeItem(key));
+    sessionStorage.clear();
+    location.reload();
+  });
+
+  // Parte dell'add-in di jak usata dal pannello (taskpane.js).
+  window.TestPluginAPI = Object.freeze({
+    version: 'anteprima',
+    getCurrentMessageContext: () => null,
+    onMessageChanged: () => () => {},
+    showMainView() {
+      byId('main-view').hidden = false;
+      byId('header-view').hidden = true;
+      byId('amp-view').hidden = true;
+    }
+  });
+})();
+</script>
+<script defer src="amp-panel.js"></script>
+<script>
+  // Nell'anteprima l'area AMP si apre subito.
+  window.addEventListener('DOMContentLoaded', () => window.AmpModule?.show());
+</script>
+</body>
+</html>
