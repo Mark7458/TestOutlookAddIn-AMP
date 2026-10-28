@@ -27,7 +27,7 @@
     margin: 0 0 12px; padding: 10px 14px; border-radius: 6px 6px 0 0;
     background: #293e40; color: #fff; font-size: 14px; font-weight: 600;
   }
-  .sn-form .hint { margin: 0 14px 12px; color: #605e5c; font-size: 12px; line-height: 1.4; }
+  .hint { margin: 0 14px 12px; color: #605e5c; font-size: 12px; line-height: 1.4; }
   .sn-fields { display: grid; grid-template-columns: 150px 1fr; gap: 6px 10px; padding: 0 14px; font-size: 13px; }
   .sn-fields label { align-self: center; color: #323130; }
   .sn-fields input, .sn-fields select, .sn-fields textarea {
@@ -36,6 +36,10 @@
   .sn-fields textarea { min-height: 42px; resize: vertical; }
   .sn-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px 0; }
   .sn-actions button { padding: 6px 16px; border: 1px solid #293e40; border-radius: 3px; background: #293e40; color: #fff; font: inherit; cursor: pointer; }
+  .left-column { flex: 1 1 420px; max-width: 560px; display: grid; gap: 16px; }
+  .left-column .sn-form { max-width: none; }
+  .mail-card { padding: 0 0 12px; border: 1px solid #c8c6c4; border-radius: 6px; background: #fff; }
+  .mail-card h2 { margin: 0 0 10px; padding: 10px 14px; border-radius: 6px 6px 0 0; background: #0078d4; color: #fff; font-size: 14px; font-weight: 600; }
   .taskpane {
     flex: 0 0 360px; height: calc(100vh - 90px); overflow-y: auto;
     border: 1px solid #c8c6c4; border-radius: 6px; background: #f5f5f5;
@@ -61,6 +65,21 @@
 </div>
 
 <div class="preview-layout">
+  <div class="left-column">
+  <!-- Email selezionata in Outlook (simulata): la legge il pannello tramite TestPluginAPI -->
+  <section class="mail-card">
+    <h2>Outlook (simulato) · Email selezionata</h2>
+    <p class="hint">Con Compila Ticket su un ticket New: oggetto → Short description, corpo → Description, data di ricezione → Reported.</p>
+    <div class="sn-fields">
+      <label for="mail-subject">Oggetto</label><input id="mail-subject" value="Casella di posta piena">
+      <label for="mail-received">Ricevuta il</label><input id="mail-received" type="datetime-local" step="1">
+      <label for="mail-from">Mittente</label><input id="mail-from" value="Cliente Rossi <cliente@example.com>">
+      <label for="mail-body">Corpo</label><textarea id="mail-body" rows="4">Buongiorno,
+la casella di posta dell'ufficio risulta piena e non riceviamo più email.
+Grazie</textarea>
+    </div>
+  </section>
+
   <!-- Modulo Incident simulato: stessi id dei campi di ServiceNow letti e scritti dal pannello -->
   <form class="sn-form" id="incident.do" onsubmit="return false">
     <h2>ServiceNow (simulato) · Incident</h2>
@@ -73,7 +92,9 @@
       <label>Category</label><input id="sys_display.incident.x_avana_platform_category_value">
       <label>Impact</label><select id="incident.impact"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
       <label>Urgency</label><select id="incident.urgency"><option value="1">1 - High</option><option value="2">2 - Medium</option><option value="3">3 - Low</option></select>
+      <label>Reported</label><input id="incident.u_reported_on">
       <label>Short description</label><input id="incident.short_description">
+      <label>Description</label><textarea id="incident.description"></textarea>
       <label>State</label><select id="incident.state"><option value="1">New</option><option value="2">In Progress</option><option value="3">On Hold</option><option value="6">Resolved</option><option value="8">Canceled</option></select>
       <label>On hold reason</label><select id="incident.hold_reason"><option value="">-- None --</option><option value="3">Awaiting Problem Resolution</option><option value="5">Awaiting Change</option><option value="6">Awaiting Third Party</option><option value="7">Awaiting Client Action/Update</option><option value="8">Awaiting Client Resolution</option><option value="9">Awaiting Review</option></select>
       <label>On hold expiration</label><input id="incident.u_on_hold_expiration">
@@ -85,6 +106,7 @@
     </div>
     <div class="sn-actions"><button type="submit" id="sysverb_update">Save</button></div>
   </form>
+  </div>
 
   <!-- Riquadro dell'add-in: stessa struttura di taskpane.html (intestazione, schermata principale, area AMP) -->
   <div class="taskpane">
@@ -116,7 +138,7 @@
   // Valori iniziali del modulo per ogni scenario.
   const SCENARIOS = {
     new: { number: 'INC0012001', state: '1', company: ref('', ''), assignment_group: ref('', ''), assigned_to: ref('sys_user_1', 'Mario Rossi'),
-      category: ref('', ''), impact: '3', urgency: '3', short_description: 'Richiesta da email: casella piena', time_worked_min: '' },
+      category: ref('', ''), impact: '3', urgency: '3', short_description: '', time_worked_min: '' },
     progress: { number: 'INC0012002', state: '2', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
       assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3',
       short_description: '[FWD] Casella piena', time_worked_min: '15', time_worked: '00:15:00' },
@@ -133,7 +155,8 @@
     assigned_to: 'sys_display.incident.assigned_to', x_avana_platform_category_value: 'sys_display.incident.x_avana_platform_category_value',
     impact: 'incident.impact', urgency: 'incident.urgency', state: 'incident.state', hold_reason: 'incident.hold_reason',
     u_on_hold_expiration: 'incident.u_on_hold_expiration', close_code: 'incident.close_code', short_description: 'incident.short_description',
-    close_notes: 'incident.close_notes', work_notes: 'activity-stream-work_notes-textarea'
+    close_notes: 'incident.close_notes', work_notes: 'activity-stream-work_notes-textarea',
+    description: 'incident.description', u_reported_on: 'incident.u_reported_on'
   };
   const REFERENCE_FIELDS = { company: 'company', assignment_group: 'assignment_group', assigned_to: 'assigned_to', category: 'x_avana_platform_category_value' };
   const byId = id => document.getElementById(id);
@@ -143,6 +166,9 @@
   try { saved = JSON.parse(sessionStorage.getItem(FORM_KEY) || 'null'); } catch { saved = null; }
   if (!saved) saved = { scenario: 'new', ...structuredClone(SCENARIOS.new) };
   byId('preview-scenario').value = saved.scenario;
+  // Data di ricezione di esempio: un'ora fa.
+  const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  byId('mail-received').value = `${anHourAgo.getFullYear()}-${pad(anHourAgo.getMonth() + 1)}-${pad(anHourAgo.getDate())}T${pad(anHourAgo.getHours())}:${pad(anHourAgo.getMinutes())}:${pad(anHourAgo.getSeconds())}`;
 
   // g_form simulato: stesso comportamento minimo usato dal pannello.
   const values = {};
@@ -153,7 +179,7 @@
     if (element) element.value = display ?? value;
   }
   Object.entries(REFERENCE_FIELDS).forEach(([key, name]) => setField(name, saved[key]?.value || '', saved[key]?.display || ''));
-  ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code', 'short_description', 'close_notes']
+  ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code', 'short_description', 'close_notes', 'description', 'u_reported_on']
     .forEach(name => setField(name, saved[name] || ''));
   byId('sys_readonly.incident.number').value = saved.number || '';
   byId('incident.time_worked_min').value = saved.time_worked_min || '';
@@ -173,6 +199,8 @@
     });
     ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code'].forEach(name => { next[name] = byId(ELEMENT_FOR[name]).value; });
     next.short_description = byId('incident.short_description').value;
+    next.description = byId('incident.description').value;
+    next.u_reported_on = byId('incident.u_reported_on').value;
     next.close_notes = byId('incident.close_notes').value;
     next.time_worked_min = byId('incident.time_worked_min').value;
     const minutes = Number.parseInt(next.time_worked_min, 10) || 0;
@@ -217,7 +245,17 @@
   // Parte dell'add-in di jak usata dal pannello (taskpane.js).
   window.TestPluginAPI = Object.freeze({
     version: 'anteprima',
-    getCurrentMessageContext: () => null,
+    getCurrentMessageContext() {
+      const received = byId('mail-received').value;
+      const from = byId('mail-from').value.match(/^(.*?)\s*<([^>]+)>$/) || [null, byId('mail-from').value, ''];
+      return {
+        subject: byId('mail-subject').value,
+        bodyText: byId('mail-body').value,
+        dateTimeCreated: received ? new Date(received).toISOString() : null,
+        sender: { displayName: from[1], emailAddress: from[2] },
+        conversationId: 'anteprima'
+      };
+    },
     onMessageChanged: () => () => {},
     showMainView() {
       byId('main-view').hidden = false;

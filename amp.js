@@ -412,6 +412,9 @@
         resolutionNotes: { name: 'close_notes', elementId: 'incident.close_notes' },
         additionalComments: { elementId: 'activity-stream-comments-textarea', fallbackElementId: 'incident.comments' },
         workNotes: { name: 'work_notes', elementId: 'activity-stream-work_notes-textarea', fallbackElementId: 'incident.work_notes' },
+        // Compilati dall'email quando si apre un ticket nuovo (solo add-in)
+        description: { name: 'description', elementId: 'incident.description', maxLength: 4000 },
+        reportedOn: { name: 'u_reported_on', elementId: 'incident.u_reported_on' },
         timeWorkedMinutes: {
             selector: 'input[data-type="timer"][id$="_min"]',
             storedElementId: 'incident.time_worked'
@@ -706,6 +709,33 @@
         dispatchEvents(element);
         return true;
     }
+    // Campi di testo (Short description, Description, Reported): g_form se disponibile, altrimenti il campo.
+    function writeTextField(field, value) {
+        const normalized = String(value ?? '');
+        const gForm = getGForm();
+        if (gForm) {
+            try {
+                gForm.setValue(field.name, normalized);
+                return true;
+            } catch (error) { console.warn(error); }
+        }
+        const element = snDocument.getElementById(field.elementId);
+        if (!element) return false;
+        element.value = normalized;
+        dispatchEvents(element);
+        return true;
+    }
+    // Email selezionata in Outlook, letta dall'add-in (TestPluginAPI): oggetto, corpo e data di ricezione.
+    function readSelectedEmail() {
+        const context = window.TestPluginAPI?.getCurrentMessageContext?.();
+        if (!context) return null;
+        const received = context.dateTimeCreated ? new Date(context.dateTimeCreated) : null;
+        return {
+            subject: String(context.subject || '').trim(),
+            body: String(context.bodyText || '').trim(),
+            received: received && !Number.isNaN(received.getTime()) ? received : null
+        };
+    }
     function writeTextareaElement(elementId, value) {
         const element = snDocument.getElementById(elementId);
         if (!element) return false;
@@ -981,7 +1011,16 @@
         if (!data.profile.assignedTo.displayValue) return showStatus(TEXTS.status.profileMissing, 'error');
         if (FILLED_OPEN_STATES.includes(readChoice(FIELDS.state))
             && !confirm(TEXTS.confirm.overwriteTicket(company.name, activity.name))) return;
+        // Ticket nuovo aperto da un'email: oggetto → Short description, corpo → Description,
+        // data di ricezione → Reported. Il tag dell'Attività (es. [FWD]) si aggiunge dopo, all'oggetto.
+        const email = readChoice(FIELDS.state) === '1' ? readSelectedEmail() : null;
+        const emailResults = email ? [
+            writeTextField(FIELDS.shortDescription, email.subject),
+            writeTextField(FIELDS.description, email.body.slice(0, FIELDS.description.maxLength)),
+            email.received ? writeTextField(FIELDS.reportedOn, formatServiceNowDateTime(email.received)) : true
+        ] : [];
         const results = [
+            ...emailResults,
             writeReference(FIELDS.company, company.company),
             writeReference(FIELDS.assignmentGroup, company.assignmentGroup),
             writeReference(FIELDS.assignedTo, data.profile.assignedTo),
