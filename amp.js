@@ -9,7 +9,7 @@
  * in alto a sinistra torna alla schermata principale (TestPluginAPI.showMainView).
  *
  * Le operazioni sul ticket passano dal blocco 3 (Adattatore ServiceNow). Nell'anteprima
- * (amp/preview.html) lavorano su un modulo Incident simulato; nell'add-in vanno
+ * (amp-preview.html) lavorano su un modulo Incident simulato; nell'add-in vanno
  * collegate ai connettori della Function App.
  */
 (function () {

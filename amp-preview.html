@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anteprima area AMP</title>
 <!-- Stili dell'add-in di jak, per vedere il pannello nel suo contesto reale -->
-<link href="../taskpane.css" rel="stylesheet">
+<link href="taskpane.css" rel="stylesheet">
 <style>
   /* ---- Solo per l'anteprima: non fanno parte dell'add-in ---- */
   body { margin: 0; background: #e9e7e5; }
@@ -88,7 +88,7 @@
 
   <!-- Riquadro dell'add-in: stessa struttura di taskpane.html (intestazione, schermata principale, area AMP) -->
   <div class="taskpane">
-    <header class="app-header"><img alt="" height="40" src="../icon-64.png" width="40"><div class="app-title"><h1>Test-Plugin</h1><p>anteprima area AMP</p></div></header>
+    <header class="app-header"><img alt="" height="40" src="icon-64.png" width="40"><div class="app-title"><h1>Test-Plugin</h1><p>anteprima area AMP</p></div></header>
     <main>
       <div id="main-view">
         <div class="notice">Schermata principale dell'add-in (simulata).</div>
@@ -227,7 +227,7 @@
   });
 })();
 </script>
-<script defer src="amp-panel.js"></script>
+<script defer src="amp.js"></script>
 <script>
   // Nell'anteprima l'area AMP si apre subito.
   window.addEventListener('DOMContentLoaded', () => window.AmpModule?.show());
