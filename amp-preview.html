@@ -34,6 +34,9 @@
     width: 100%; padding: 4px 6px; border: 1px solid #c8c6c4; border-radius: 3px; font: inherit; font-size: 13px;
   }
   .sn-fields textarea { min-height: 42px; resize: vertical; }
+  .sn-timer { display: flex; align-items: center; gap: 4px; }
+  .sn-timer-total { padding: 4px 8px; border: 1px solid #c8c6c4; border-radius: 3px; background: #f3f2f1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sn-fields .sn-timer input { width: 3.2em; text-align: center; }
   .sn-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px 0; }
   .sn-actions button { padding: 6px 16px; border: 1px solid #293e40; border-radius: 3px; background: #293e40; color: #fff; font: inherit; cursor: pointer; }
   .left-column { flex: 1 1 420px; max-width: 560px; display: grid; gap: 16px; }
@@ -100,7 +103,16 @@ Grazie</textarea>
       <label>On hold expiration</label><input id="incident.u_on_hold_expiration">
       <label>Resolution code</label><select id="incident.close_code"><option value="">-- None --</option></select>
       <label>Resolution notes</label><textarea id="incident.close_notes"></textarea>
-      <label>Time worked (min)</label><span><input data-type="timer" id="incident.time_worked_min"><input type="hidden" id="incident.time_worked"></span>
+      <!-- Time worked come in ServiceNow: a sinistra il totale salvato (slot 1),
+           a destra ore:minuti:secondi da registrare (slot 2), che il Save somma al totale. -->
+      <label>Time worked</label>
+      <div class="sn-timer">
+        <span class="sn-timer-total"><span id="otmr_preview_hour">00</span>:<span id="otmr_preview_min">00</span>:<span id="otmr_preview_sec">00</span></span>
+        <input type="hidden" data-type="timer" data-uid="preview" name="incident.time_worked" id="incident.time_worked" value="00:00:00">
+        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_hour" maxlength="3" value="00" aria-label="Time worked Hours">
+        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_min" maxlength="2" value="00" aria-label="Time worked Minutes">
+        <input data-type="timer" data-uid="tmr_preview" type="text" id="tmr_preview_sec" maxlength="2" value="00" disabled aria-label="Time worked Seconds">
+      </div>
       <label>Additional comments</label><textarea id="activity-stream-comments-textarea"></textarea>
       <label>Work notes</label><textarea id="activity-stream-work_notes-textarea"></textarea>
     </div>
@@ -138,17 +150,17 @@ Grazie</textarea>
   // Valori iniziali del modulo per ogni scenario.
   const SCENARIOS = {
     new: { number: 'INC0012001', state: '1', company: ref('', ''), assignment_group: ref('', ''), assigned_to: ref('sys_user_1', 'Mario Rossi'),
-      category: ref('', ''), impact: '3', urgency: '3', short_description: '', time_worked_min: '' },
+      category: ref('', ''), impact: '3', urgency: '3', short_description: '' },
     progress: { number: 'INC0012002', state: '2', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
       assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_1', 'Posta elettronica'), impact: '3', urgency: '3',
-      short_description: '[FWD] Casella piena', time_worked_min: '15', time_worked: '00:15:00' },
+      short_description: '[FWD] Casella piena', time_worked: '00:15:00' },
     hold: { number: 'INC0012003', state: '3', company: ref('sys_co_2', 'Agenzia Beta'), assignment_group: ref('sys_ag_2', 'Gruppo Beta'),
       assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_2', 'Account'), impact: '1', urgency: '2',
-      short_description: 'Reset password', time_worked_min: '5', time_worked: '00:05:00', hold_reason: '7',
+      short_description: 'Reset password', time_worked: '00:05:00', hold_reason: '7',
       u_on_hold_expiration: snDate(new Date(Date.now() - 2 * 60 * 60 * 1000)) },
     resolved: { number: 'INC0012004', state: '6', company: ref('sys_co_1', 'Agenzia Alfa'), assignment_group: ref('sys_ag_1', 'Gruppo Alfa'),
       assigned_to: ref('sys_user_1', 'Mario Rossi'), category: ref('sys_cat_3', 'Hardware'), impact: '3', urgency: '3',
-      short_description: 'Stampante guasta', time_worked_min: '30', time_worked: '00:30:00', close_code: 'Solved (Permanently)' }
+      short_description: 'Stampante guasta', time_worked: '00:30:00', close_code: 'Solved (Permanently)' }
   };
   const ELEMENT_FOR = {
     company: 'sys_display.incident.company', assignment_group: 'sys_display.incident.assignment_group',
@@ -182,8 +194,15 @@ Grazie</textarea>
   ['impact', 'urgency', 'state', 'hold_reason', 'u_on_hold_expiration', 'close_code', 'short_description', 'close_notes', 'description', 'u_reported_on']
     .forEach(name => setField(name, saved[name] || ''));
   byId('sys_readonly.incident.number').value = saved.number || '';
-  byId('incident.time_worked_min').value = saved.time_worked_min || '';
-  byId('incident.time_worked').value = saved.time_worked || '';
+  // Time worked: lo slot 1 mostra il totale salvato, lo slot 2 riparte da zero a ogni caricamento.
+  function showTimeWorkedTotal(total) {
+    const [hours, minutes, seconds] = (/^\d+:\d{2}:\d{2}$/.test(total || '') ? total : '00:00:00').split(':');
+    byId('incident.time_worked').value = `${hours}:${minutes}:${seconds}`;
+    byId('otmr_preview_hour').textContent = hours;
+    byId('otmr_preview_min').textContent = minutes;
+    byId('otmr_preview_sec').textContent = seconds;
+  }
+  showTimeWorkedTotal(saved.time_worked);
   window.g_form = {
     getValue: name => values[name] ?? '',
     setValue(name, value, display) { setField(name, value, display); modified = true; },
@@ -202,9 +221,11 @@ Grazie</textarea>
     next.description = byId('incident.description').value;
     next.u_reported_on = byId('incident.u_reported_on').value;
     next.close_notes = byId('incident.close_notes').value;
-    next.time_worked_min = byId('incident.time_worked_min').value;
-    const minutes = Number.parseInt(next.time_worked_min, 10) || 0;
-    next.time_worked = `00:${pad(minutes)}:00`;
+    // Come ServiceNow: il tempo dello slot 2 (ore e minuti) si somma al totale dello slot 1.
+    const [totalHours, totalMinutes, totalSeconds] = byId('incident.time_worked').value.split(':').map(Number);
+    const added = (Number.parseInt(byId('tmr_preview_hour').value, 10) || 0) * 60 + (Number.parseInt(byId('tmr_preview_min').value, 10) || 0);
+    const totalMinutesAll = totalHours * 60 + totalMinutes + added;
+    next.time_worked = `${pad(Math.floor(totalMinutesAll / 60))}:${pad(totalMinutesAll % 60)}:${pad(totalSeconds || 0)}`;
     if (next.state === '1' && next.assigned_to.display) next.state = '2';
     sessionStorage.setItem(FORM_KEY, JSON.stringify(next));
     setTimeout(() => location.reload(), 50);
