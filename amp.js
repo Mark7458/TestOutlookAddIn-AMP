@@ -1720,10 +1720,10 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: lo stesso grigio chiaro di schede e pulsanti, bordo invariato.
+/* Passaggio del mouse, uguale in tutte le sezioni: solo il titolo diventa blu (sfondo e bordo invariati).
    Selezionata (modulo o dettagli aperti): bordo blu spesso, sfondo bianco.
    Lo spessore in più è un'ombra, così il contenuto non si sposta. */
-#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { background: var(--ao-bg-soft); }
+#ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-white); border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
