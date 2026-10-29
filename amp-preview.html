@@ -209,7 +209,7 @@
     const { applied } = mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName);
     compose = null;
     const STATES = { '2': 'In Progress', '3': 'On Hold', '6': 'Resolved', '8': 'Canceled' };
-    toast = applied ? `Risposta inviata · ${applied.number} aggiornato su ServiceNow: commento aggiunto, stato ${STATES[applied.state]}.` : 'Risposta inviata (nessun ticket aperto collegato).';
+    toast = applied.length ? `Risposta inviata · aggiornati su ServiceNow (commento): ${applied.map(item => `${item.number} → ${STATES[item.state]}`).join(', ')}.` : 'Risposta inviata (nessun ticket aperto collegato).';
     renderOutlook();
     publish();
   }

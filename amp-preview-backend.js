@@ -25,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v4';
+    const STORAGE_KEY = 'amp_preview_backend_v5';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -178,6 +178,21 @@
             shortDescription: 'Aggiornamento antivirus postazioni', reportedOn: snDate(at(2 * DAY)), openedAt: iso(2 * DAY), timeWorkedMinutes: 60
         }, [entry(2 * DAY, 'Marco Rossi', 'system', 'Ticket aperto da ServiceNow.')]);
 
+        // 11. Una richiesta, due ticket aperti subito (creazione DL e aggiunta membri); poi una risposta nuova
+        const acquisti = { name: 'Ufficio Acquisti Beta', email: 'acquisti@agenziabeta.it' };
+        const s11 = 'Nuova lista di distribuzione Acquisti';
+        mail('conv-10', acquisti, s11, 'Buongiorno,\nci serve una lista di distribuzione acquisti@agenziabeta.it con dentro Rossi, Bianchi e Verdi.\nGrazie', 6 * HOUR);
+        reply('conv-10', OPERATORS.marco, acquisti, s11, 'Rif. INC0012091, INC0012092\n\nBuongiorno, abbiamo preso in carico la creazione della lista e l\'aggiunta dei membri.\n\nSaluti,\nSupporto AMP', 5.5 * HOUR);
+        mail('conv-10', acquisti, `RE: ${s11}`, 'Potete aggiungere anche la collega Neri? Grazie', 30 * MINUTE);
+        incident('INC0012091', {
+            state: '2', assignedTo: OPERATORS.marco, companyId: 'beta', companyName: 'Agenzia Beta', activityId: 'posta', activityName: 'Posta elettronica',
+            shortDescription: '[FWD] Creazione DL acquisti@agenziabeta.it', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
+        }, [entry(5.6 * HOUR, 'Marco Rossi', 'system', 'Ticket aperto dall\'add-in (Agenzia Beta · Posta elettronica).')]);
+        incident('INC0012092', {
+            state: '2', assignedTo: OPERATORS.marco, companyId: 'beta', companyName: 'Agenzia Beta', activityId: 'posta', activityName: 'Posta elettronica',
+            shortDescription: '[FWD] Aggiunta membri DL acquisti@agenziabeta.it', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
+        }, [entry(5.6 * HOUR, 'Marco Rossi', 'system', 'Ticket aperto dall\'add-in (Agenzia Beta · Posta elettronica).')]);
+
         return { messages, incidents, history, links, discarded: {}, pending: {}, ticketCounter: 12101 };
     }
 
@@ -207,10 +222,11 @@
         Object.keys(data.incidents).forEach(number => mirror(number));
         base.links.forEach(link => registerThread(link.conversationId, link.number, link.linkedBy, link.linkedAt));
         conversationIds().forEach(id => {
-            if (data.sp.threads[id]) return;
-            const number = incMentions(conversationMessages(id)).map(item => item.number).find(item => data.incidents[item]);
-            if (number) registerThread(id, number, data.incidents[number].assignedTo.name, data.incidents[number].openedAt);
+            const numbers = [...new Set(incMentions(conversationMessages(id)).map(item => item.number))].filter(item => data.incidents[item]);
+            numbers.reverse().forEach(number => registerThread(id, number, data.incidents[number].assignedTo.name, data.incidents[number].openedAt));
         });
+        // Chi ha in carico il thread l'ha "visto" quando l'ha preso (le mail arrivate dopo sono nuove).
+        Object.values(data.sp.threads).forEach(thread => { thread.ownerSeenAt = thread.links[0]?.linkedAt || ''; });
         data.sp.syncedAt = new Date().toISOString();
         return data;
     }
@@ -238,28 +254,41 @@
     function record(type, number, by, details = '', conversationId = null) {
         db.sp.movements.push({ at: now(), type, number: number || '', by: by || '', details, conversationId });
     }
-    // Il thread passa "in gestione" con il ticket indicato (un thread può avere più ticket nel tempo).
+    // Il thread registra il ticket indicato (un thread può avere più ticket, anche aperti insieme).
+    // Chi lo prende in carico per primo ne diventa il proprietario finché resta in gestione.
     function registerThread(conversationId, number, by, when = now(), confirmed = false) {
-        const thread = db.sp.threads[conversationId] || { conversationId, numbers: [] };
-        const ticket = db.sp.tickets[number];
-        Object.assign(thread, {
-            status: ticket && CLOSED_STATES.includes(ticket.state) ? 'free' : 'managed',
-            number, linkedAt: when, linkedBy: by || '', confirmedBy: confirmed ? by : '',
-            freedAt: ticket && CLOSED_STATES.includes(ticket.state) ? ticket.closedAt : '',
-            discardedBy: '', discardedAt: '', updatedAt: now()
-        });
-        if (!thread.numbers.includes(number)) thread.numbers.push(number);
+        const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
+        if (!thread.links.some(link => link.number === number)) thread.links.push({ number, linkedAt: when, linkedBy: by || '', confirmedBy: confirmed ? by : '' });
+        if (thread.status !== 'managed' || !thread.owner) thread.owner = by || '';
+        Object.assign(thread, { discardedBy: '', discardedAt: '' });
         db.sp.threads[conversationId] = thread;
+        refreshThreadStatus(thread);
         return thread;
     }
-    // Ticket chiuso → thread libero subito (ricompare In coda solo con un messaggio nuovo).
+    const threadNumbers = thread => (thread?.links || []).map(link => link.number);
+    // In gestione finché almeno un ticket del thread è aperto; poi libero (subito).
+    function refreshThreadStatus(thread) {
+        const tickets = threadNumbers(thread).map(number => db.sp.tickets[number]).filter(Boolean);
+        if (!tickets.length) return;
+        const open = tickets.some(ticket => OPEN_STATES.includes(ticket.state));
+        if (open) Object.assign(thread, { status: 'managed', freedAt: '' });
+        else if (thread.status !== 'free' && thread.status !== 'discarded') {
+            const closedAt = tickets.map(ticket => ticket.closedAt).filter(Boolean).sort().slice(-1)[0];
+            Object.assign(thread, { status: 'free', freedAt: closedAt || now() });
+        }
+        thread.updatedAt = now();
+    }
     function updateThreadForTicket(number) {
-        const ticket = db.sp.tickets[number];
-        Object.values(db.sp.threads).filter(thread => thread.number === number).forEach(thread => {
-            const closed = CLOSED_STATES.includes(ticket.state);
-            if (closed && thread.status === 'managed') Object.assign(thread, { status: 'free', freedAt: ticket.closedAt || now(), updatedAt: now() });
-            if (!closed && thread.status === 'free') Object.assign(thread, { status: 'managed', freedAt: '', updatedAt: now() });
-        });
+        Object.values(db.sp.threads).filter(thread => threadNumbers(thread).includes(number)).forEach(refreshThreadStatus);
+    }
+    // Messaggi arrivati dopo l'ultima risposta o l'ultima visione di chi ha il thread in carico.
+    function newMessagesOf(conversationId) {
+        const thread = db.sp.threads[conversationId];
+        if (thread?.status !== 'managed') return 0;
+        const messages = conversationMessages(conversationId);
+        const lastOut = messages.filter(item => item.direction === 'out').slice(-1)[0]?.receivedAt || '';
+        const since = [thread.ownerSeenAt || '', lastOut].sort().slice(-1)[0];
+        return messages.filter(item => item.direction === 'in' && item.receivedAt > since).length;
     }
     // Ogni movimento: prima ServiceNow (change), poi copia su SharePoint e registro.
     function applyOnServiceNow(number, by, type, details, change) {
@@ -299,39 +328,44 @@
         if (!wanted) return [];
         return Object.values(db.sp.tickets).filter(ticket => {
             if (excluded.includes(ticket.number)) return false;
-            if (Object.values(db.sp.threads).some(thread => thread.numbers.includes(ticket.number))) return false;
+            if (Object.values(db.sp.threads).some(thread => threadNumbers(thread).includes(ticket.number))) return false;
             const description = normalizeSubject(ticket.shortDescription);
             if (!description || !(description.includes(wanted) || wanted.includes(description))) return false;
             const reported = parseDate(ticket.reportedOn);
             return reported && times.some(time => Math.abs(reported - time) <= SIMILAR_MINUTES * MINUTE);
         });
     }
-    // Risultato per una conversazione: { ticket, via, previous, candidates, thread }.
+    // Risultato per una conversazione: { tickets, previous, candidates, thread }.
+    // tickets: i ticket aperti del thread (anche più di uno), ognuno con il suo "via";
+    // se non ce ne sono, l'ultimo ticket chiuso (o "previous" se dopo è arrivata una mail nuova).
     function resolveConversation(conversationId, extraNumbers = []) {
         const messages = conversationMessages(conversationId);
         const incoming = messages.filter(item => item.direction === 'in');
         const lastIncoming = incoming[incoming.length - 1] || null;
         const thread = db.sp.threads[conversationId] || null;
-        // Vale l'indizio più recente: un INC citato in una mail o il ticket registrato sul thread.
         const evidence = [
             ...incMentions(messages).map(item => ({ ...item, via: 'inc' })),
             ...extraNumbers.map(number => ({ number: String(number).toUpperCase(), when: '', via: 'inc' })),
-            ...(thread?.number ? [{ number: thread.number, when: thread.linkedAt, via: thread.confirmedBy ? 'confirmed' : 'link' }] : [])
+            ...(thread?.links || []).map(link => ({ number: link.number, when: link.linkedAt, via: link.confirmedBy ? 'confirmed' : 'link' }))
         ].filter(item => db.sp.tickets[item.number]).sort((a, b) => b.when.localeCompare(a.when));
-        let found = evidence[0] ? db.sp.tickets[evidence[0].number] : null;
-        const via = evidence[0]?.via || null;
+        const viaOf = {};
+        evidence.forEach(item => { viaOf[item.number] ||= item.via; });
+        const known = Object.keys(viaOf).map(number => db.sp.tickets[number]);
+        const open = known.filter(ticket => OPEN_STATES.includes(ticket.state)).sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt)));
+        let tickets = open;
         let previous = null;
-        if (found && CLOSED_STATES.includes(found.state) && lastIncoming && found.closedAt && lastIncoming.receivedAt > found.closedAt) {
-            previous = found;
-            found = null;
+        if (!open.length && evidence.length) {
+            const latest = db.sp.tickets[evidence[0].number];
+            if (lastIncoming && latest.closedAt && lastIncoming.receivedAt > latest.closedAt) previous = latest;
+            else tickets = [latest];
         }
         let candidates = [];
-        if (!found && messages.length) {
+        if (!tickets.length && messages.length) {
             const times = (previous ? [lastIncoming] : [incoming[0], lastIncoming]).filter(Boolean).map(item => new Date(item.receivedAt));
             candidates = similarTickets(messages[0].subject, times, previous ? [previous.number] : []);
         }
         return {
-            ticket: found ? decorate(found, conversationId) : null, via: found ? via : null,
+            tickets: tickets.map(ticket => ({ ...decorate(ticket, conversationId), via: viaOf[ticket.number] })),
             previous: previous ? decorate(previous, conversationId) : null,
             candidates: candidates.map(item => decorate(item)),
             thread
@@ -349,6 +383,8 @@
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
             mailUnconfirmed: Boolean(similar),
+            owner: conversation ? db.sp.threads[conversation]?.owner || '' : '',
+            newMessages: conversation ? newMessagesOf(conversation) : 0,
             syncedAt: db.sp.syncedAt
         };
     }
@@ -360,7 +396,7 @@
         }) || null;
     }
     function conversationOf(number) {
-        return Object.values(db.sp.threads).find(thread => thread.numbers.includes(number))?.conversationId
+        return Object.values(db.sp.threads).find(thread => threadNumbers(thread).includes(number))?.conversationId
             || conversationIds().find(id => incMentions(conversationMessages(id)).some(item => item.number === number)) || null;
     }
     function requireIncident(number) {
@@ -385,7 +421,7 @@
         if (thread?.status === 'discarded' && thread.discardedAt > lastIncoming.receivedAt) return null;
         if (thread?.status === 'free' && thread.freedAt && lastIncoming.receivedAt <= thread.freedAt) return null;
         const result = resolveConversation(conversationId);
-        if (result.ticket || result.candidates.length) return null;
+        if (result.tickets.length || result.candidates.length) return null;
         return {
             conversationId,
             messageId: messages[messages.length - 1].id,
@@ -411,11 +447,38 @@
         listQueue() {
             return respond(conversationIds().map(queueItem).filter(Boolean));
         },
+        // Coda personale: i thread in gestione di un operatore, con i messaggi nuovi da leggere.
+        listMyThreads(user) {
+            const name = user?.displayValue || '';
+            const mine = Object.values(db.sp.threads).filter(thread => thread.status === 'managed' && thread.owner === name);
+            return respond(mine.map(thread => {
+                const messages = conversationMessages(thread.conversationId);
+                const lastIncoming = lastIncomingOf(thread.conversationId);
+                return {
+                    conversationId: thread.conversationId,
+                    messageId: messages[messages.length - 1]?.id || null,
+                    subject: messages[0]?.subject || '',
+                    sender: lastIncoming?.from || null,
+                    receivedAt: messages[messages.length - 1]?.receivedAt || '',
+                    tickets: threadNumbers(thread).map(number => db.sp.tickets[number])
+                        .filter(ticket => ticket && OPEN_STATES.includes(ticket.state)).map(ticket => ({ number: ticket.number, state: ticket.state, holdExpiration: ticket.holdExpiration })),
+                    newMessages: newMessagesOf(thread.conversationId)
+                };
+            }));
+        },
+        // Chi ha il thread in carico l'ha letto dal pannello: i messaggi fin qui non sono più "nuovi".
+        markThreadSeen(conversationId, user) {
+            const thread = db.sp.threads[conversationId];
+            if (!thread || thread.owner !== user?.displayValue || !newMessagesOf(conversationId)) return respond(false);
+            thread.ownerSeenAt = now();
+            persist();
+            return respond(true);
+        },
         // Ticket aperti dalla copia su SharePoint (In Progress e On Hold), con la mail se collegata.
         listOpenTickets() {
             return respond(Object.values(db.sp.tickets).filter(item => OPEN_STATES.includes(item.state)).map(item => decorate(item)));
         },
-        // Triangolazione per la mail aperta: { ticket, via, previous, candidates, discarded }.
+        // Triangolazione per la mail aperta: { tickets, previous, candidates, discarded }.
         findTicketForMail(mail) {
             const result = resolveConversation(mail.conversationId, mail.incNumbers || []);
             const lastIncoming = lastIncomingOf(mail.conversationId);
@@ -468,7 +531,8 @@
                     incident.assignedTo = { name: assignee.displayValue, sysId: assignee.value };
                     addHistory(number, assignee.displayValue, 'system', `Assegnato a ${assignee.displayValue}.`);
                 });
-                Object.values(db.sp.threads).filter(thread => thread.number === number).forEach(thread => { thread.linkedBy = assignee.displayValue; });
+                // Il thread passa a chi prende il ticket.
+            Object.values(db.sp.threads).filter(thread => threadNumbers(thread).includes(number)).forEach(thread => { thread.owner = assignee.displayValue; });
                 persist();
                 return respond(decoratedTicket(number));
             } catch (error) { return fail(error.message); }
@@ -502,17 +566,17 @@
         },
         // Thread che non richiede un ticket (SharePoint). Torna In coda con un messaggio nuovo.
         discardMail(conversationId, by) {
-            const thread = db.sp.threads[conversationId] || { conversationId, numbers: [] };
+            const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
             Object.assign(thread, { status: 'discarded', discardedBy: by?.displayValue || '', discardedAt: now(), updatedAt: now() });
             db.sp.threads[conversationId] = thread;
-            record('ignorata', thread.number, by?.displayValue, '', conversationId);
+            record('ignorata', '', by?.displayValue, '', conversationId);
             persist();
             return respond({ by: thread.discardedBy, at: thread.discardedAt });
         },
         restoreMail(conversationId) {
             const thread = db.sp.threads[conversationId];
             if (thread) Object.assign(thread, { status: 'free', freedAt: '', discardedBy: '', discardedAt: '', updatedAt: now() });
-            record('rimessa in coda', thread?.number, '', '', conversationId);
+            record('rimessa in coda', '', '', '', conversationId);
             persist();
             return respond(true);
         },
@@ -569,8 +633,15 @@
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
                     body, receivedAt: now(), categories: [], direction: 'out'
                 });
-                const { ticket } = resolveConversation(original.conversationId);
-                const applied = ticket && OPEN_STATES.includes(ticket.state) ? applyReply(ticket.number, body, operatorName) : null;
+                // Ticket aggiornati dalla risposta: quelli con un'azione salvata e quelli citati nel
+                // testo (Rif. INC…); se nessuno, il più recente dei ticket aperti del thread.
+                const open = resolveConversation(original.conversationId).tickets.filter(ticket => OPEN_STATES.includes(ticket.state));
+                const cited = (body.match(INC_PATTERN) || []).map(number => number.toUpperCase());
+                let targets = open.filter(ticket => db.sp.tickets[ticket.number].pendingAction || cited.includes(ticket.number));
+                if (!targets.length && open.length) targets = [open[open.length - 1]];
+                const applied = targets.map(ticket => applyReply(ticket.number, body, operatorName));
+                const conversationThread = db.sp.threads[original.conversationId];
+                if (conversationThread?.owner === operatorName) conversationThread.ownerSeenAt = now();
                 persist();
                 return { applied };
             },
