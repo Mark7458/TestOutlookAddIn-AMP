@@ -94,7 +94,6 @@
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
         common: {
             me: 'me',
-            back: view => `← ${view}`,
             loading: 'Caricamento…',
             cancel: 'Annulla',
             save: 'Salva',
@@ -834,14 +833,6 @@
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
     }
-    // Riga con il pulsante per tornare alla vista di partenza (e un titolo facoltativo).
-    function backRow(title) {
-        const target = state.backTo;
-        if (!target && !title) return null;
-        return h('div', { class: 'ao-back-row' },
-            target ? h('button', { type: 'button', class: 'ao-link ao-back-link', onclick: () => setView(target) }, TEXTS.common.back(TEXTS.tabs[target])) : null,
-            title ? h('span', { class: 'ao-back-title' }, title) : null);
-    }
     function clickable(className, onopen, ...children) {
         return h('li', { class: className, tabindex: '0', role: 'button', onclick: onopen, onkeydown: event => { if (event.key === 'Enter') onopen(); } }, ...children);
     }
@@ -1005,7 +996,7 @@
         if (!target) return h('div', { class: 'ao-view' }, notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
         if (target.kind === 'ticket') {
             const ticket = ticketByNumber(target.number);
-            return h('div', { class: 'ao-view' }, backRow(), notice,
+            return h('div', { class: 'ao-view' }, notice,
                 ticket ? ticketSection(ticket, config, user, { isCurrentMail: false, showOpen: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
         }
         const mail = target.mail;
@@ -1032,7 +1023,6 @@
             content.push(newTicketCard(mail, config, user));
         }
         return h('div', { class: 'ao-view' },
-            backRow(),
             notice,
             mailHeader(mail, !isCurrentMail),
             content);
@@ -1795,10 +1785,7 @@
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-expanded { border-left-color: var(--ao-accent); }
 
-/* Pulsante indietro e impostazioni */
-#ao-root .ao-back-row { display: flex; align-items: center; gap: 10px; min-height: 22px; }
-#ao-root .ao-back-link { font-weight: var(--ao-fw-medium); }
-#ao-root .ao-back-title { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); text-transform: uppercase; letter-spacing: .04em; }
+/* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
 #ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; }
