@@ -3,18 +3,21 @@
  * Non fa parte dell'add-in: taskpane.html non carica questo file.
  *
  * Simula in memoria quello che nell'add-in vero starà dietro la Function App:
- *   - ServiceNow: gli Incident (UNICA fonte per stato, assegnatario, tempo, scadenza On Hold, storico);
- *   - SharePoint: solo i collegamenti conversazione ↔ ticket, le mail scartate e l'azione
- *     da eseguire all'invio della risposta. Si scrive solo DOPO un esito positivo su ServiceNow;
+ *   - ServiceNow: gli Incident e il loro storico. Resta il riferimento: ogni modifica va prima qui;
+ *   - SharePoint: la copia che il pannello legge, così non serve interrogare ServiceNow:
+ *       Thread AMP     una riga per conversazione (libero / in gestione / scartato, ticket);
+ *       Ticket AMP     copia dei valori dei ticket (stato, assegnatario, tempo, scadenze…);
+ *       Movimenti AMP  una riga per ogni azione (apertura, tempo, risposta, allineamento…);
+ *   - un allineamento periodico (sync) che riporta su SharePoint le modifiche fatte su AMP
+ *     fuori dal pannello;
  *   - la casella condivisa di Outlook (solo per la finta Outlook dell'anteprima).
  *
- * Collegamento mail ↔ ticket (triangolazione), nell'ordine:
- *   1. numero INC citato nel thread (l'ultimo citato: lo stesso thread si riusa per richieste nuove);
- *   2. collegamento registrato su SharePoint;
- *   3. somiglianza su ServiceNow: Short description = oggetto del thread e Reported = arrivo
- *      della mail (± 15 minuti). Sono solo proposte: il collegamento lo conferma l'operatore.
- * Se il ticket trovato è chiuso e nel thread è arrivata una mail dopo la chiusura, è una
- * richiesta nuova: il ticket chiuso diventa "ticket precedente".
+ * In coda: un thread per conversationId, se non è in gestione. Quando il ticket si chiude il
+ * thread torna libero subito, ma ricompare In coda solo se arriva un messaggio nuovo.
+ *
+ * Collegamento mail ↔ ticket (triangolazione): vale l'indizio più recente tra il numero INC
+ * citato nel thread e il ticket registrato sul thread; altrimenti ticket simili (stesso oggetto,
+ * Reported vicino all'arrivo) da confermare. Ticket chiuso + mail successiva = richiesta nuova.
  *
  * Espone window.AmpBackend con i metodi del contratto descritto in amp.js (blocco 3) e
  * in amp-servizi.md. Ogni metodo restituisce una Promise con copie dei dati.
@@ -22,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v3';
+    const STORAGE_KEY = 'amp_preview_backend_v4';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -180,14 +183,36 @@
 
     // ------------------------------------------------------------------
     // Stato (sopravvive al ricaricamento della pagina nella stessa scheda)
+    //   db.incidents, db.history  → ServiceNow (riferimento)
+    //   db.sp.threads             → SharePoint "Thread AMP": una riga per conversazione
+    //   db.sp.tickets             → SharePoint "Ticket AMP": copia dei ticket letta dal pannello
+    //   db.sp.movements           → SharePoint "Movimenti AMP": una riga per ogni azione
     // ------------------------------------------------------------------
-    let db = load();
+    let db = null; // caricato più sotto, dopo le funzioni che lo usano
     function load() {
         try {
             const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-            if (stored?.incidents) return stored;
+            if (stored?.sp) return stored;
         } catch (error) { /* si riparte dai dati di esempio */ }
-        return seed();
+        return createDatabase();
+    }
+    function createDatabase() {
+        const base = seed();
+        const data = {
+            messages: base.messages, incidents: base.incidents, history: base.history, ticketCounter: base.ticketCounter,
+            sp: { threads: {}, tickets: {}, movements: [], syncedAt: '' }
+        };
+        db = data;
+        // Situazione di partenza su SharePoint: copia di tutti i ticket e thread già collegati.
+        Object.keys(data.incidents).forEach(number => mirror(number));
+        base.links.forEach(link => registerThread(link.conversationId, link.number, link.linkedBy, link.linkedAt));
+        conversationIds().forEach(id => {
+            if (data.sp.threads[id]) return;
+            const number = incMentions(conversationMessages(id)).map(item => item.number).find(item => data.incidents[item]);
+            if (number) registerThread(id, number, data.incidents[number].assignedTo.name, data.incidents[number].openedAt);
+        });
+        data.sp.syncedAt = new Date().toISOString();
+        return data;
     }
     function persist() {
         try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (error) { /* solo anteprima */ }
@@ -196,22 +221,69 @@
     const copy = value => (value == null ? value : JSON.parse(JSON.stringify(value)));
     const respond = value => new Promise(resolve => setTimeout(() => resolve(copy(value)), DELAY_MS));
     const fail = message => new Promise((resolve, reject) => setTimeout(() => reject(new Error(message)), DELAY_MS));
+    const now = () => new Date().toISOString();
 
     // ------------------------------------------------------------------
-    // Triangolazione
+    // SharePoint: copia dei ticket, thread, movimenti
     // ------------------------------------------------------------------
+    const SNOW_FIELDS = ['number', 'sysId', 'url', 'state', 'assignedTo', 'companyId', 'companyName', 'activityId', 'activityName',
+        'shortDescription', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode'];
+    const snowView = incident => Object.fromEntries(SNOW_FIELDS.map(key => [key, incident[key] ?? '']));
+    // Copia su SharePoint i valori del ticket letti da ServiceNow (l'azione all'invio resta).
+    function mirror(number) {
+        const previous = db.sp.tickets[number] || {};
+        db.sp.tickets[number] = { ...snowView(db.incidents[number]), pendingAction: previous.pendingAction || null, updatedAt: now() };
+        return db.sp.tickets[number];
+    }
+    function record(type, number, by, details = '', conversationId = null) {
+        db.sp.movements.push({ at: now(), type, number: number || '', by: by || '', details, conversationId });
+    }
+    // Il thread passa "in gestione" con il ticket indicato (un thread può avere più ticket nel tempo).
+    function registerThread(conversationId, number, by, when = now(), confirmed = false) {
+        const thread = db.sp.threads[conversationId] || { conversationId, numbers: [] };
+        const ticket = db.sp.tickets[number];
+        Object.assign(thread, {
+            status: ticket && CLOSED_STATES.includes(ticket.state) ? 'free' : 'managed',
+            number, linkedAt: when, linkedBy: by || '', confirmedBy: confirmed ? by : '',
+            freedAt: ticket && CLOSED_STATES.includes(ticket.state) ? ticket.closedAt : '',
+            discardedBy: '', discardedAt: '', updatedAt: now()
+        });
+        if (!thread.numbers.includes(number)) thread.numbers.push(number);
+        db.sp.threads[conversationId] = thread;
+        return thread;
+    }
+    // Ticket chiuso → thread libero subito (ricompare In coda solo con un messaggio nuovo).
+    function updateThreadForTicket(number) {
+        const ticket = db.sp.tickets[number];
+        Object.values(db.sp.threads).filter(thread => thread.number === number).forEach(thread => {
+            const closed = CLOSED_STATES.includes(ticket.state);
+            if (closed && thread.status === 'managed') Object.assign(thread, { status: 'free', freedAt: ticket.closedAt || now(), updatedAt: now() });
+            if (!closed && thread.status === 'free') Object.assign(thread, { status: 'managed', freedAt: '', updatedAt: now() });
+        });
+    }
+    // Ogni movimento: prima ServiceNow (change), poi copia su SharePoint e registro.
+    function applyOnServiceNow(number, by, type, details, change) {
+        const incident = requireIncident(number);
+        change(incident);
+        mirror(number);
+        updateThreadForTicket(number);
+        record(type, number, by, details);
+        return incident;
+    }
+
+    // ------------------------------------------------------------------
+    // Triangolazione (tutta su SharePoint e sulle mail: nessuna chiamata a ServiceNow)
+    // ------------------------------------------------------------------
+    const conversationIds = () => [...new Set(db.messages.map(item => item.conversationId))];
     const conversationMessages = conversationId => db.messages
         .filter(item => item.conversationId === conversationId)
         .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+    const lastIncomingOf = conversationId => conversationMessages(conversationId).filter(item => item.direction === 'in').slice(-1)[0] || null;
     function normalizeSubject(subject) {
         return String(subject || '').toLowerCase()
             .replace(/^\s*((re|r|i|fw|fwd|inoltro)\s*:\s*)+/i, '')
             .replace(/\[[^\]]*\]/g, ' ')
             .replace(/\s+/g, ' ').trim();
-    }
-    // Numeri INC citati nel thread, dal più recente.
-    function incNumbersIn(messages, extra = []) {
-        return [...new Set([...incMentions(messages).map(item => item.number), ...extra.map(number => String(number).toUpperCase())])];
     }
     // Citazioni INC con la data della mail che le contiene, dalla più recente.
     function incMentions(messages) {
@@ -221,31 +293,32 @@
         });
         return mentions;
     }
-    function similarIncidents(subject, times, excluded = []) {
+    // Ticket simili nella copia su SharePoint: stesso oggetto e Reported vicino all'arrivo della mail.
+    function similarTickets(subject, times, excluded = []) {
         const wanted = normalizeSubject(subject);
         if (!wanted) return [];
-        return Object.values(db.incidents).filter(incident => {
-            if (excluded.includes(incident.number)) return false;
-            const description = normalizeSubject(incident.shortDescription);
+        return Object.values(db.sp.tickets).filter(ticket => {
+            if (excluded.includes(ticket.number)) return false;
+            if (Object.values(db.sp.threads).some(thread => thread.numbers.includes(ticket.number))) return false;
+            const description = normalizeSubject(ticket.shortDescription);
             if (!description || !(description.includes(wanted) || wanted.includes(description))) return false;
-            const reported = parseDate(incident.reportedOn);
+            const reported = parseDate(ticket.reportedOn);
             return reported && times.some(time => Math.abs(reported - time) <= SIMILAR_MINUTES * MINUTE);
         });
     }
-    // Risultato per una conversazione: { ticket, via, previous, candidates }.
+    // Risultato per una conversazione: { ticket, via, previous, candidates, thread }.
     function resolveConversation(conversationId, extraNumbers = []) {
         const messages = conversationMessages(conversationId);
         const incoming = messages.filter(item => item.direction === 'in');
         const lastIncoming = incoming[incoming.length - 1] || null;
-        // Vale l'indizio più recente: un INC citato in una mail o un collegamento registrato.
+        const thread = db.sp.threads[conversationId] || null;
+        // Vale l'indizio più recente: un INC citato in una mail o il ticket registrato sul thread.
         const evidence = [
             ...incMentions(messages).map(item => ({ ...item, via: 'inc' })),
-            // Numeri letti dalla mail aperta: solo come ultima riserva.
             ...extraNumbers.map(number => ({ number: String(number).toUpperCase(), when: '', via: 'inc' })),
-            ...db.links.filter(item => item.conversationId === conversationId)
-                .map(item => ({ number: item.number, when: item.linkedAt, via: item.confirmedBy ? 'confirmed' : 'link' }))
-        ].filter(item => db.incidents[item.number]).sort((a, b) => b.when.localeCompare(a.when));
-        let found = evidence[0] ? db.incidents[evidence[0].number] : null;
+            ...(thread?.number ? [{ number: thread.number, when: thread.linkedAt, via: thread.confirmedBy ? 'confirmed' : 'link' }] : [])
+        ].filter(item => db.sp.tickets[item.number]).sort((a, b) => b.when.localeCompare(a.when));
+        let found = evidence[0] ? db.sp.tickets[evidence[0].number] : null;
         const via = evidence[0]?.via || null;
         let previous = null;
         if (found && CLOSED_STATES.includes(found.state) && lastIncoming && found.closedAt && lastIncoming.receivedAt > found.closedAt) {
@@ -255,38 +328,40 @@
         let candidates = [];
         if (!found && messages.length) {
             const times = (previous ? [lastIncoming] : [incoming[0], lastIncoming]).filter(Boolean).map(item => new Date(item.receivedAt));
-            candidates = similarIncidents(messages[0].subject, times, previous ? [previous.number] : []);
+            candidates = similarTickets(messages[0].subject, times, previous ? [previous.number] : []);
         }
-        return { ticket: found ? decorate(found, conversationId) : null, via: found ? via : null, previous: previous ? decorate(previous, conversationId) : null, candidates: candidates.map(item => decorate(item)) };
+        return {
+            ticket: found ? decorate(found, conversationId) : null, via: found ? via : null,
+            previous: previous ? decorate(previous, conversationId) : null,
+            candidates: candidates.map(item => decorate(item)),
+            thread
+        };
     }
-    // Ticket con i dati di SharePoint (mail collegata, azione all'invio).
+    // Ticket (copia SharePoint) con la mail collegata.
     // mailUnconfirmed: la mail è stata trovata solo per somiglianza e va confermata dall'operatore.
-    function decorate(incident, conversationId) {
-        const linked = conversationId || conversationOf(incident.number);
-        const similar = linked ? null : similarConversationOf(incident);
+    function decorate(ticket, conversationId) {
+        const linked = conversationId || conversationOf(ticket.number);
+        const similar = linked ? null : similarConversationOf(ticket);
         const conversation = linked || similar;
         const messages = conversation ? conversationMessages(conversation) : [];
         return {
-            ...incident,
+            ...ticket,
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
             mailUnconfirmed: Boolean(similar),
-            pendingAction: db.pending[incident.number] || null
+            syncedAt: db.sp.syncedAt
         };
     }
-    function similarConversationOf(incident) {
-        const conversations = [...new Set(db.messages.map(item => item.conversationId))];
-        return conversations.find(id => {
+    function similarConversationOf(ticket) {
+        return conversationIds().find(id => {
             const messages = conversationMessages(id);
-            const incoming = messages.filter(item => item.direction === 'in');
-            const times = incoming.map(item => new Date(item.receivedAt));
-            return similarIncidents(messages[0].subject, times).some(item => item.number === incident.number);
+            const times = messages.filter(item => item.direction === 'in').map(item => new Date(item.receivedAt));
+            return similarTickets(messages[0].subject, times).some(item => item.number === ticket.number);
         }) || null;
     }
     function conversationOf(number) {
-        const conversations = [...new Set(db.messages.map(item => item.conversationId))];
-        return conversations.find(id => incNumbersIn(conversationMessages(id)).includes(number))
-            || db.links.filter(item => item.number === number).slice(-1)[0]?.conversationId || null;
+        return Object.values(db.sp.threads).find(thread => thread.numbers.includes(number))?.conversationId
+            || conversationIds().find(id => incMentions(conversationMessages(id)).some(item => item.number === number)) || null;
     }
     function requireIncident(number) {
         const incident = db.incidents[number];
@@ -294,18 +369,21 @@
         return incident;
     }
     function addHistory(number, author, kind, text) {
-        (db.history[number] ||= []).push({ at: new Date().toISOString(), author, kind, text });
+        (db.history[number] ||= []).push({ at: now(), author, kind, text });
     }
-    // Riga della coda per una conversazione senza ticket aperto (o null).
+    // Riga In coda per un thread (o null). Regole:
+    //   - thread in gestione → no;
+    //   - thread scartato → solo se dopo è arrivato un messaggio nuovo;
+    //   - thread libero (ticket chiuso) → solo se dopo la chiusura è arrivato un messaggio nuovo;
+    //   - ticket simile già su ServiceNow → no (si conferma dalla vista Mail o da Ticket).
     function queueItem(conversationId) {
         const messages = conversationMessages(conversationId);
-        const incoming = messages.filter(item => item.direction === 'in');
-        const lastIncoming = incoming[incoming.length - 1];
+        const lastIncoming = lastIncomingOf(conversationId);
         if (!lastIncoming) return null;
-        const discarded = db.discarded[conversationId];
-        if (discarded && discarded.at > lastIncoming.receivedAt) return null;
-        // In coda solo le mail che non hanno ancora un INC su ServiceNow: niente ticket aperto
-        // collegato e nessun ticket simile (quello va confermato dalla vista Mail o da Ticket).
+        const thread = db.sp.threads[conversationId];
+        if (thread?.status === 'managed') return null;
+        if (thread?.status === 'discarded' && thread.discardedAt > lastIncoming.receivedAt) return null;
+        if (thread?.status === 'free' && thread.freedAt && lastIncoming.receivedAt <= thread.freedAt) return null;
         const result = resolveConversation(conversationId);
         if (result.ticket || result.candidates.length) return null;
         return {
@@ -315,45 +393,52 @@
             sender: lastIncoming.from,
             receivedAt: lastIncoming.receivedAt,
             preview: lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160),
-            previous: result.previous ? { number: result.previous.number, state: result.previous.state } : null,
-            candidates: result.candidates.map(item => item.number)
+            previous: result.previous ? { number: result.previous.number, state: result.previous.state } : null
         };
     }
+    const decoratedTicket = number => decorate(db.sp.tickets[number]);
+
+    db = load();
 
     // ------------------------------------------------------------------
-    // Servizi usati dal pannello (contratto: amp.js blocco 3 e amp-servizi.md)
+    // Servizi usati dal pannello (contratto: amp.js blocco 3 e amp-servizi.md).
+    // Le letture usano solo SharePoint e le mail; le scritture vanno prima su ServiceNow.
     // ------------------------------------------------------------------
     const AmpBackend = {
         mode: 'simulazione',
 
-        // Mail della casella senza ticket aperto (Graph + triangolazione).
+        // Thread della casella da prendere in carico (uno per conversationId).
         listQueue() {
-            const conversations = [...new Set(db.messages.map(item => item.conversationId))];
-            return respond(conversations.map(queueItem).filter(Boolean));
+            return respond(conversationIds().map(queueItem).filter(Boolean));
         },
-        // Ticket aperti della coda su ServiceNow (In Progress e On Hold), con la mail se collegata.
+        // Ticket aperti dalla copia su SharePoint (In Progress e On Hold), con la mail se collegata.
         listOpenTickets() {
-            return respond(Object.values(db.incidents).filter(item => OPEN_STATES.includes(item.state)).map(item => decorate(item)));
+            return respond(Object.values(db.sp.tickets).filter(item => OPEN_STATES.includes(item.state)).map(item => decorate(item)));
         },
         // Triangolazione per la mail aperta: { ticket, via, previous, candidates, discarded }.
         findTicketForMail(mail) {
             const result = resolveConversation(mail.conversationId, mail.incNumbers || []);
-            const lastIncoming = conversationMessages(mail.conversationId).filter(item => item.direction === 'in').slice(-1)[0];
-            const discarded = db.discarded[mail.conversationId];
-            result.discarded = discarded && (!lastIncoming || discarded.at > lastIncoming.receivedAt) ? discarded : null;
+            const lastIncoming = lastIncomingOf(mail.conversationId);
+            const thread = result.thread;
+            result.discarded = thread?.status === 'discarded' && (!lastIncoming || thread.discardedAt > lastIncoming.receivedAt)
+                ? { by: thread.discardedBy, at: thread.discardedAt } : null;
+            delete result.thread;
             return respond(result);
         },
         getTicket(number) {
-            try { return respond(decorate(requireIncident(number))); } catch (error) { return fail(error.message); }
+            return db.sp.tickets[number] ? respond(decoratedTicket(number)) : fail(`Ticket ${number} non trovato.`);
         },
         // L'operatore conferma che la mail appartiene a un ticket esistente → SharePoint.
         linkTicket(conversationId, number, by) {
-            requireIncident(number);
-            db.links.push({ conversationId, number, linkedAt: new Date().toISOString(), linkedBy: by?.displayValue || '', confirmedBy: by?.displayValue || '' });
+            if (!db.sp.tickets[number]) return fail(`Ticket ${number} non trovato.`);
+            registerThread(conversationId, number, by?.displayValue, now(), true);
+            record('collegamento', number, by?.displayValue, 'Mail collegata dall\'operatore', conversationId);
             persist();
-            return respond(resolveConversation(conversationId));
+            const result = resolveConversation(conversationId);
+            delete result.thread;
+            return respond(result);
         },
-        // Apre l'Incident su ServiceNow; solo se riesce registra il collegamento su SharePoint.
+        // Apre l'Incident su ServiceNow; solo se riesce aggiorna SharePoint (copia, thread, movimento).
         createTicket(mail, payload) {
             db.ticketCounter += 1;
             const number = `INC00${db.ticketCounter}`;
@@ -364,60 +449,70 @@
                 companyId: payload.companyId, companyName: payload.companyName,
                 activityId: payload.activityId, activityName: payload.activityName,
                 shortDescription: payload.fields.shortDescription, reportedOn: payload.fields.reportedOn,
-                openedAt: new Date().toISOString(), timeWorkedMinutes: Number(payload.fields.timeWorkedMinutes) || 0,
+                openedAt: now(), timeWorkedMinutes: Number(payload.fields.timeWorkedMinutes) || 0,
                 holdReason: '', holdExpiration: '', closedAt: '', resolutionCode: '', fields: payload.fields
             };
             db.history[number] = [];
             addHistory(number, assignee.displayValue, 'system', `Ticket aperto dall'add-in (${payload.companyName} · ${payload.activityName}).`);
             addHistory(number, mail.sender?.name || 'Cliente', 'comment', payload.fields.description || '');
-            db.links.push({ conversationId: mail.conversationId, number, linkedAt: new Date().toISOString(), linkedBy: assignee.displayValue });
-            delete db.discarded[mail.conversationId];
+            mirror(number);
+            registerThread(mail.conversationId, number, assignee.displayValue);
+            record('apertura', number, assignee.displayValue, `${payload.companyName} · ${payload.activityName}`, mail.conversationId);
             persist();
-            return respond(decorate(db.incidents[number], mail.conversationId));
+            return respond(decorate(db.sp.tickets[number], mail.conversationId));
         },
         // Prende in carico un ticket di un collega: cambia Assigned to su ServiceNow.
         assignTicket(number, assignee) {
             try {
-                const incident = requireIncident(number);
-                incident.assignedTo = { name: assignee.displayValue, sysId: assignee.value };
-                addHistory(number, assignee.displayValue, 'system', `Assegnato a ${assignee.displayValue}.`);
+                applyOnServiceNow(number, assignee.displayValue, 'assegnazione', `Assegnato a ${assignee.displayValue}`, incident => {
+                    incident.assignedTo = { name: assignee.displayValue, sysId: assignee.value };
+                    addHistory(number, assignee.displayValue, 'system', `Assegnato a ${assignee.displayValue}.`);
+                });
+                Object.values(db.sp.threads).filter(thread => thread.number === number).forEach(thread => { thread.linkedBy = assignee.displayValue; });
                 persist();
-                return respond(decorate(incident));
+                return respond(decoratedTicket(number));
             } catch (error) { return fail(error.message); }
         },
         addTime(number, deltaMinutes, by) {
             try {
-                const incident = requireIncident(number);
-                const before = incident.timeWorkedMinutes;
-                incident.timeWorkedMinutes = Math.max(0, before + Number(deltaMinutes));
-                const applied = incident.timeWorkedMinutes - before;
-                addHistory(number, by, 'system', `Tempo lavorato: ${applied >= 0 ? '+' : ''}${applied} minuti (totale ${incident.timeWorkedMinutes}).`);
+                let applied = 0;
+                applyOnServiceNow(number, by, 'tempo', `${deltaMinutes > 0 ? '+' : ''}${deltaMinutes} minuti`, incident => {
+                    const before = incident.timeWorkedMinutes;
+                    incident.timeWorkedMinutes = Math.max(0, before + Number(deltaMinutes));
+                    applied = incident.timeWorkedMinutes - before;
+                    addHistory(number, by, 'system', `Tempo lavorato: ${applied >= 0 ? '+' : ''}${applied} minuti (totale ${incident.timeWorkedMinutes}).`);
+                });
                 persist();
-                return respond(decorate(incident));
+                return respond(decoratedTicket(number));
             } catch (error) { return fail(error.message); }
         },
+        // Storico completo di ServiceNow (commenti di tutti): letto solo su richiesta.
         getTicketActivity(number, { offset = 0, limit = 5 } = {}) {
             const all = (db.history[number] || []).slice().reverse();
             return respond({ entries: all.slice(offset, offset + limit), total: all.length });
         },
-        // Azione da eseguire all'invio della risposta (SharePoint).
+        // Azione da eseguire all'invio della risposta (solo SharePoint).
         setPendingAction(number, action) {
-            try {
-                const incident = requireIncident(number);
-                if (action) db.pending[number] = { ...action, at: new Date().toISOString() };
-                else delete db.pending[number];
-                persist();
-                return respond(decorate(incident));
-            } catch (error) { return fail(error.message); }
-        },
-        // Mail che non richiede un ticket (SharePoint). Torna in coda se arriva una mail nuova nel thread.
-        discardMail(conversationId, by) {
-            db.discarded[conversationId] = { by: by?.displayValue || '', at: new Date().toISOString() };
+            const ticket = db.sp.tickets[number];
+            if (!ticket) return fail(`Ticket ${number} non trovato.`);
+            ticket.pendingAction = action ? { ...action, at: now() } : null;
+            record('azione all\'invio', number, action?.by || '', action ? action.type : 'tolta');
             persist();
-            return respond(db.discarded[conversationId]);
+            return respond(decoratedTicket(number));
+        },
+        // Thread che non richiede un ticket (SharePoint). Torna In coda con un messaggio nuovo.
+        discardMail(conversationId, by) {
+            const thread = db.sp.threads[conversationId] || { conversationId, numbers: [] };
+            Object.assign(thread, { status: 'discarded', discardedBy: by?.displayValue || '', discardedAt: now(), updatedAt: now() });
+            db.sp.threads[conversationId] = thread;
+            record('ignorata', thread.number, by?.displayValue, '', conversationId);
+            persist();
+            return respond({ by: thread.discardedBy, at: thread.discardedAt });
         },
         restoreMail(conversationId) {
-            delete db.discarded[conversationId];
+            const thread = db.sp.threads[conversationId];
+            if (thread) Object.assign(thread, { status: 'free', freedAt: '', discardedBy: '', discardedAt: '', updatedAt: now() });
+            record('rimessa in coda', thread?.number, '', '', conversationId);
             persist();
             return respond(true);
         },
@@ -427,7 +522,28 @@
         },
 
         // --------------------------------------------------------------
-        // Solo anteprima: la finta casella di Outlook
+        // Allineamento periodico (nella Function App: un job ogni 10-15 minuti).
+        // Una sola lettura su ServiceNow: i ticket del gruppo modificati dall'ultimo
+        // allineamento. Aggiorna la copia su SharePoint e libera / riprende i thread.
+        // --------------------------------------------------------------
+        sync() {
+            let changed = 0;
+            Object.keys(db.incidents).forEach(number => {
+                const current = JSON.stringify(snowView(db.incidents[number]));
+                const stored = db.sp.tickets[number] ? JSON.stringify(snowView(db.sp.tickets[number])) : '';
+                if (current === stored) return;
+                mirror(number);
+                updateThreadForTicket(number);
+                record('allineamento', number, 'ServiceNow', 'Modifica fatta fuori dal pannello');
+                changed += 1;
+            });
+            db.sp.syncedAt = now();
+            persist();
+            return respond({ changed, syncedAt: db.sp.syncedAt });
+        },
+
+        // --------------------------------------------------------------
+        // Solo anteprima: la finta casella di Outlook e le prove
         // --------------------------------------------------------------
         mailbox: {
             address: SHARED_MAILBOX,
@@ -439,7 +555,7 @@
                 return copy(db.messages.find(item => item.id === id) || null);
             },
             // Invio della risposta: qui avviene ciò che nell'add-in vero farà la Function App
-            // quando vede la mail inviata nella conversazione → aggiorna ServiceNow.
+            // quando vede la mail inviata nella conversazione → ServiceNow, poi SharePoint.
             sendReply(messageId, body, operatorName) {
                 const original = db.messages.find(item => item.id === messageId);
                 if (!original) throw new Error('Mail non trovata.');
@@ -451,40 +567,62 @@
                     from: { name: operatorName, email: SHARED_MAILBOX.email },
                     to: [firstIncoming.from],
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
-                    body, receivedAt: new Date().toISOString(), categories: [], direction: 'out'
+                    body, receivedAt: now(), categories: [], direction: 'out'
                 });
                 const { ticket } = resolveConversation(original.conversationId);
-                const applied = ticket && OPEN_STATES.includes(ticket.state) ? applyReplyToTicket(db.incidents[ticket.number], body, operatorName) : null;
+                const applied = ticket && OPEN_STATES.includes(ticket.state) ? applyReply(ticket.number, body, operatorName) : null;
                 persist();
                 return { applied };
             },
+            // Un collega lavora direttamente su AMP: ServiceNow cambia, SharePoint no (fino all'allineamento).
+            simulateExternalChange() {
+                const changes = [];
+                const luca = db.incidents.INC0012090;
+                if (luca && OPEN_STATES.includes(luca.state)) {
+                    Object.assign(luca, { state: '6', resolutionCode: 'Solved (Permanently)', closedAt: now() });
+                    addHistory('INC0012090', 'Luca Neri', 'system', 'Stato: Resolved (modificato su AMP).');
+                    changes.push('INC0012090 risolto da Luca su AMP');
+                }
+                const printer = db.incidents.INC0012101;
+                if (printer) {
+                    printer.timeWorkedMinutes += 15;
+                    addHistory('INC0012101', 'Giulia Verdi', 'system', `Tempo lavorato: +15 minuti (totale ${printer.timeWorkedMinutes}) su AMP.`);
+                    changes.push('INC0012101: +15 minuti da Giulia su AMP');
+                }
+                try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (error) { /* solo anteprima */ }
+                return changes;
+            },
+            movements() {
+                return copy(db.sp.movements);
+            },
             reset() {
-                db = seed();
+                db = createDatabase();
                 persist();
             }
         }
     };
 
-    // Cosa succede su ServiceNow quando parte la risposta (logica "lato server").
-    function applyReplyToTicket(incident, body, operator) {
-        const number = incident.number;
-        const action = db.pending[number] || { type: 'comment' };
-        addHistory(number, operator, 'comment', body);
-        if (action.workNotes) addHistory(number, operator, 'work_note', action.workNotes);
-        if (action.type === 'resolve' || action.type === 'cancel') {
-            Object.assign(incident, {
-                state: action.type === 'resolve' ? '6' : '8', resolutionCode: action.resolutionCode || '',
-                resolutionNotes: body, holdReason: '', holdExpiration: '', closedAt: new Date().toISOString()
-            });
-            addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[incident.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo della mail.`);
-        } else if (action.type === 'hold') {
-            Object.assign(incident, { state: '3', holdReason: action.holdReason, holdExpiration: action.holdExpiration });
-            addHistory(number, operator, 'system', `Stato: On Hold fino al ${action.holdExpiration}.`);
-        } else if (incident.state === '3') {
-            Object.assign(incident, { state: '2', holdReason: '', holdExpiration: '' });
-            addHistory(number, operator, 'system', 'Stato: In Progress.');
-        }
-        delete db.pending[number];
+    // Cosa succede quando parte la risposta (logica "lato server"): ServiceNow, poi SharePoint.
+    function applyReply(number, body, operator) {
+        const action = db.sp.tickets[number]?.pendingAction || { type: 'comment' };
+        const incident = applyOnServiceNow(number, operator, 'risposta', action.type, item => {
+            addHistory(number, operator, 'comment', body);
+            if (action.workNotes) addHistory(number, operator, 'work_note', action.workNotes);
+            if (action.type === 'resolve' || action.type === 'cancel') {
+                Object.assign(item, {
+                    state: action.type === 'resolve' ? '6' : '8', resolutionCode: action.resolutionCode || '',
+                    resolutionNotes: body, holdReason: '', holdExpiration: '', closedAt: now()
+                });
+                addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[item.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo della mail.`);
+            } else if (action.type === 'hold') {
+                Object.assign(item, { state: '3', holdReason: action.holdReason, holdExpiration: action.holdExpiration });
+                addHistory(number, operator, 'system', `Stato: On Hold fino al ${action.holdExpiration}.`);
+            } else if (item.state === '3') {
+                Object.assign(item, { state: '2', holdReason: '', holdExpiration: '' });
+                addHistory(number, operator, 'system', 'Stato: In Progress.');
+            }
+        });
+        db.sp.tickets[number].pendingAction = null;
         return { type: action.type, state: incident.state, number };
     }
 

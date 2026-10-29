@@ -69,6 +69,8 @@
   <button type="button" id="preview-seed">Carica configurazioni di esempio</button>
   <button type="button" id="preview-reset-mail">Ripristina mail e ticket</button>
   <button type="button" id="preview-reset-config">Azzera configurazioni</button>
+  <button type="button" id="preview-external" title="Un collega modifica due ticket direttamente su AMP: SharePoint non lo sa ancora">Simula modifica su AMP</button>
+  <button type="button" id="preview-sync" title="Il job della Function App che riallinea SharePoint con ServiceNow">Allinea ora</button>
   <span class="note">Dati inventati · le configurazioni restano solo in questo browser</span>
 </div>
 
@@ -162,7 +164,7 @@
     const messages = selectedMessages();
     const pane = byId('ol-read');
     if (!messages) {
-      pane.replaceChildren(el('div', { class: 'ol-empty' }, 'Seleziona una mail.'));
+      pane.replaceChildren(...[toast ? el('div', { class: 'ol-toast' }, toast) : null, el('div', { class: 'ol-empty' }, 'Seleziona una mail.')].filter(Boolean));
       return;
     }
     const last = messages[messages.length - 1];
@@ -286,6 +288,16 @@
       preferences: { favoritesGroupBy: 'none' }
     }));
     location.reload();
+  });
+  byId('preview-external').addEventListener('click', () => {
+    const changes = mailbox.simulateExternalChange();
+    toast = changes.length ? `Su AMP (fuori dal pannello): ${changes.join('; ')}. Il pannello lo vedrà al prossimo allineamento.` : 'Nessuna modifica da simulare.';
+    renderReading();
+  });
+  byId('preview-sync').addEventListener('click', async () => {
+    const result = await window.AmpBackend.sync();
+    toast = `Allineamento: ${result.changed} ticket aggiornati su SharePoint.`;
+    renderReading();
   });
   byId('preview-reset-mail').addEventListener('click', () => { mailbox.reset(); location.reload(); });
   byId('preview-reset-config').addEventListener('click', () => {

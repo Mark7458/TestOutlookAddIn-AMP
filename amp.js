@@ -9,10 +9,13 @@
  *   - Impostazioni profilo, Agenzie (con i domini email), Attività, risposte salvate.
  *
  * Regole:
- *   - ServiceNow è l'unica fonte per il ticket: stato, assegnatario (= chi l'ha in carico),
- *     tempo, scadenza On Hold e storico si leggono sempre da lì. Il pannello non li conserva.
- *   - Ogni modifica va prima su ServiceNow; solo se riesce si registra su SharePoint
- *     (collegamento mail ↔ ticket, mail scartate, azione all'invio).
+ *   - ServiceNow resta il riferimento; il pannello legge dai servizi la copia su SharePoint
+ *     (stato, assegnatario = chi l'ha in carico, tempo, scadenze), allineata periodicamente.
+ *     Il pannello non conserva dati dei ticket. Lo storico completo si legge su richiesta.
+ *   - Ogni modifica va prima su ServiceNow; solo se riesce si aggiorna SharePoint
+ *     (copia del ticket, thread in gestione / libero / scartato, registro dei movimenti).
+ *   - In coda: un thread per conversazione, se non è in gestione. A ticket chiuso il thread
+ *     torna libero e ricompare solo con un messaggio nuovo.
  *   - Mail e ticket si collegano per triangolazione: numero INC nel thread, collegamento
  *     registrato, oppure somiglianza (oggetto = Short description, arrivo = Reported) confermata
  *     dall'operatore. Lo stesso thread può avere più ticket nel tempo.
@@ -110,6 +113,7 @@
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
+            syncedAt: when => `Allineato con ServiceNow: ${when}`,
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`
         },
@@ -331,7 +335,7 @@
     //
     //   listQueue()                         → [{ conversationId, messageId, subject, sender, receivedAt,
     //                                            preview, previous: { number, state } | null, candidates: [numero] }]
-    //   listOpenTickets()                   → Ticket[]  (In Progress e On Hold della coda, da ServiceNow)
+    //   listOpenTickets()                   → Ticket[]  (In Progress e On Hold del gruppo, copia su SharePoint)
     //   findTicketForMail(mail)             → { ticket, via: 'inc'|'link'|'confirmed', previous, candidates: Ticket[], discarded }
     //   getTicket(numero)                   → Ticket
     //   linkTicket(conversationId, numero, utente)  → come findTicketForMail (l'operatore conferma il collegamento)
@@ -842,7 +846,9 @@
                 { value: 'all', label: TEXTS.tickets.all, count: open.length }
             ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
             items.length ? h('ul', { class: 'ao-list' }, items.map(ticket => ticketItem(ticket, user)))
-                : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
+                : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)),
+            // I dati arrivano dalla copia su SharePoint: si mostra quando è stata allineata.
+            open[0]?.syncedAt ? h('p', { class: 'ao-footnote' }, TEXTS.tickets.syncedAt(formatWhen(open[0].syncedAt))) : null);
     }
     function ticketItem(ticket, user) {
         const mine = isMine(ticket, user);
