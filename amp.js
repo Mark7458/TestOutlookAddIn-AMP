@@ -1617,7 +1617,7 @@
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
-#ao-root .ao-counter { display: inline-block; min-width: 16px; padding: 1px 5px; border-radius: var(--ao-radius-pill); color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 13px; text-align: center; }
+#ao-root .ao-counter { display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: var(--ao-radius-pill); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 15px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-accent); }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
@@ -1633,9 +1633,9 @@
 #ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
-/* Ignora: rosso al passaggio del mouse, senza bordo (anche quando chiede conferma) */
-#ao-root .ao-ignore:hover { color: var(--ao-danger); background: var(--ao-danger-bg); border-color: transparent; }
-#ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { border-color: transparent !important; }
+/* Ignora: solo la scritta diventa rossa (niente sfondo né bordo), anche quando chiede conferma */
+#ao-root .ao-ignore:hover { color: var(--ao-danger); background: transparent; border-color: transparent; }
+#ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { background: transparent !important; border-color: transparent !important; }
 #ao-root .ao-armed, #ao-root .ao-armed:hover { background: var(--ao-danger-bg) !important; border-color: var(--ao-danger) !important; color: var(--ao-danger) !important; }
 #ao-root .ao-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-icon-button:hover { background: var(--ao-bg-soft); border-color: var(--ao-line); }
