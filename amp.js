@@ -1720,9 +1720,9 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-left: 3px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: solo il bordo diventa blu (la barra a sinistra mantiene il suo significato) */
-#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-top-color: var(--ao-accent); border-right-color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
-#ao-root .ao-ticket-compact:hover { border-left-color: var(--ao-accent); }
+/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu e barra blu a sinistra (resta rossa sull'On Hold scaduto) */
+#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); }
+#ao-root .ao-item.ao-item-alert:hover { border-left-color: var(--ao-danger); }
 #ao-root .ao-item-alert { border-left-color: var(--ao-danger); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
@@ -1837,7 +1837,7 @@
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
-#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-left-width: 3px; border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-ticket-compact.ao-expanded { border-color: var(--ao-accent-border); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
