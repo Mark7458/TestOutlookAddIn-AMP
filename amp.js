@@ -832,9 +832,10 @@
             ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
             showIgnored
                 ? [
-                    state.ignored.length ? h('p', { class: 'ao-hint' }, TEXTS.queue.ignoredHint) : null,
                     state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
-                        : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty))
+                        : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty)),
+                    // Spiegazione in fondo, come nota.
+                    state.ignored.length ? h('p', { class: 'ao-footnote' }, TEXTS.queue.ignoredHint) : null
                 ]
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
