@@ -119,7 +119,6 @@
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
-            newMessages: n => `+${n}`,
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             threadGroup: n => `Stesso thread · ${n} ticket`,
             syncedAt: when => `Allineato con ServiceNow: ${when}`,
@@ -552,6 +551,12 @@
         });
         return element;
     }
+    // Contatore: numero senza sfondo; il pallino rosso sotto il numero segnala una novità.
+    function counter(count, alert = false, title = '') {
+        return h('span', { class: `ao-counter${alert ? ' ao-counter-alert' : ''}`, title: title || undefined, hidden: !count && !alert },
+            h('span', { class: 'ao-counter-n' }, count || ''),
+            h('span', { class: 'ao-counter-dot', 'aria-hidden': 'true' }));
+    }
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
     const stateChip = ticket => {
         const info = TICKET_STATES[ticket.state] || { label: ticket.state, tone: 'neutral' };
@@ -752,8 +757,7 @@
                 ['queue', 'tickets', 'mail'].map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
                     onclick: () => setView(view)
-                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), h('span', { class: 'ao-badge', hidden: true }),
-                    view === 'tickets' ? h('span', { class: 'ao-dot', hidden: true }) : null)),
+                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0, false))),
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
                     title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
@@ -774,16 +778,9 @@
             const active = tab.dataset.view === state.view;
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
-            const badge = tab.querySelector('.ao-badge');
-            const count = counts[tab.dataset.view];
-            badge.hidden = !count;
-            badge.textContent = count || '';
-            // Ticket: pallino rosso se nei thread dei miei ticket ci sono messaggi nuovi.
-            const dot = tab.querySelector('.ao-dot');
-            if (dot) {
-                dot.hidden = !newReplies;
-                dot.title = newReplies ? TEXTS.tickets.newMessagesTitle(newReplies) : '';
-            }
+            // Numero = conteggio; pallino sotto = novità (Ticket: messaggi nuovi nei thread dei miei ticket).
+            const alert = tab.dataset.view === 'tickets' && newReplies > 0;
+            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], alert, alert ? TEXTS.tickets.newMessagesTitle(newReplies) : ''));
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
@@ -939,13 +936,13 @@
             // I dati arrivano dalla copia su SharePoint: si mostra quando è stata allineata.
             open[0]?.syncedAt ? h('p', { class: 'ao-footnote' }, TEXTS.tickets.syncedAt(formatWhen(open[0].syncedAt))) : null);
     }
-    // +N e inizio dell'ultimo messaggio arrivato nel thread (chi scrive, quando, prime righe).
+    // Messaggi nuovi (numero con il pallino) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
     function newMessagesPreview(ticket) {
         if (!ticket.newMessages) return null;
         const last = ticket.lastNewMessage;
         return h('div', { class: 'ao-new-preview', title: TEXTS.tickets.newMessagesTitle(ticket.newMessages) },
             h('div', { class: 'ao-new-head' },
-                h('span', { class: 'ao-new-count' }, TEXTS.tickets.newMessages(ticket.newMessages)),
+                counter(ticket.newMessages, true),
                 last ? h('span', { class: 'ao-new-from' }, last.from) : null,
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
@@ -1618,7 +1615,13 @@
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
-#ao-root .ao-badge { min-width: 18px; padding: 0 5px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-xs); line-height: 16px; text-align: center; }
+#ao-root .ao-counter { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 10px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 1; }
+#ao-root .ao-counter-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ao-danger); visibility: hidden; }
+#ao-root .ao-counter-alert .ao-counter-dot { visibility: visible; }
+#ao-root .ao-counter-alert .ao-counter-n { color: var(--ao-text); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab .ao-counter { margin-top: 5px; }
+#ao-root .ao-tab.ao-active .ao-counter-n { color: var(--ao-accent); }
+#ao-root .ao-new-head .ao-counter { align-self: center; font-size: var(--ao-fs-md); }
 #ao-root .ao-body { flex: 1; }
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
 
@@ -1771,7 +1774,6 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
-#ao-root .ao-dot { display: inline-block; width: 7px; height: 7px; margin-left: 4px; border-radius: 50%; background: var(--ao-danger); vertical-align: middle; }
 #ao-root .ao-item-new { border-left-color: var(--ao-accent); }
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-multi { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
@@ -1785,7 +1787,6 @@
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-white); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
-#ao-root .ao-new-count { padding: 0 6px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 #ao-root .ao-new-from { flex: 1; font-weight: var(--ao-fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ao-root .ao-new-text { color: var(--ao-text-muted); font-size: var(--ao-fs-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
