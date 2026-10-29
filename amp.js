@@ -878,7 +878,7 @@
         const config = loadConfig();
         const mail = mailFromQueueItem(item);
         const expanded = state.queueExpanded === item.conversationId;
-        return h('li', { class: `ao-item ao-queue-item ao-item-muted${expanded ? ' ao-expanded' : ''}` },
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}` },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button',
                 onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
@@ -1857,7 +1857,6 @@
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-text-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
-#ao-root .ao-item-muted { background: var(--ao-bg-soft); }
 #ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
 #ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; }
 #ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
