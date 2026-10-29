@@ -924,7 +924,7 @@
         form.classList.remove('ao-animate-expand');
         form.classList.add('ao-animate-collapse');
         form.addEventListener('animationend', finish, { once: true });
-        setTimeout(finish, 450); // riserva, se l'animazione non parte
+        setTimeout(finish, 300); // riserva, se l'animazione non parte
     }
     function mailFromQueueItem(item) {
         return {
@@ -1882,7 +1882,7 @@
 /* Apertura del modulo Prendi in carico: si allunga e compare con dolcezza */
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
-#ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .35s ease-in-out forwards; }
+#ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
 /* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
 #ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
 @keyframes ao-slide-left { to { transform: translateX(-110%); opacity: 0; } }
