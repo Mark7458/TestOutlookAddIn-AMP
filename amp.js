@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-29 18:12';
+    const BUILD = '2026-10-29 18:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1905,12 +1905,12 @@
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
-/* Presa in carico: la card si richiude del tutto (si schiaccia e svanisce) */
-#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; transform-origin: top center; animation: ao-collapse-out .45s ease-in-out forwards; }
+/* Presa in carico: la card si richiude del tutto e svanisce (le scritte non si deformano: si accorcia solo l'altezza) */
+#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; animation: ao-collapse-out .45s ease-in-out forwards; }
 @keyframes ao-collapse-out {
-    0% { max-height: var(--ao-card-height, 400px); opacity: 1; transform: scaleY(1); }
-    60% { opacity: .35; }
-    100% { max-height: 0; opacity: 0; transform: scaleY(.6); padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
+    0% { max-height: var(--ao-card-height, 400px); opacity: 1; }
+    60% { opacity: .4; }
+    100% { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
 }
 /* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
 #ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
