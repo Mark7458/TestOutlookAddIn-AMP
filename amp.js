@@ -1641,7 +1641,7 @@
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
 /* Scheda aperta: leggero zoom della scritta (e del numero), che resta finché è selezionata */
-#ao-root .ao-tab > * { transition: transform .18s ease; }
+#ao-root .ao-tab > * { transition: transform .35s ease-in-out; }
 #ao-root .ao-tab.ao-active > * { transform: scale(1.04); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
