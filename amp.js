@@ -789,7 +789,14 @@
             tab.setAttribute('aria-selected', String(active));
             // Conteggio sempre; sfondo blu se c'è una notifica (Ticket: messaggi nuovi nei thread dei miei ticket).
             const notify = tab.dataset.view === 'tickets' && newReplies > 0;
-            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], notify, notify ? TEXTS.tickets.newMessagesTitle(newReplies) : ''));
+            // Aggiornato sul posto (non ricreato), così segue lo zoom animato insieme alla scritta.
+            const tabCounter = tab.querySelector('.ao-counter');
+            const count = counts[tab.dataset.view];
+            tabCounter.textContent = count || '';
+            tabCounter.hidden = !count && !notify;
+            tabCounter.classList.toggle('ao-counter-notify', notify);
+            if (notify) tabCounter.title = TEXTS.tickets.newMessagesTitle(newReplies);
+            else tabCounter.removeAttribute('title');
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         renderStatusBar();
