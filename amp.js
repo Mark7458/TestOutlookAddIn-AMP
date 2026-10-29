@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-29 18:10';
+    const BUILD = '2026-10-29 18:12';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -923,6 +923,7 @@
             render();
         };
         if (!form || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return finish();
+        form.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
         form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
         form.classList.remove('ao-animate-expand');
         form.classList.add('ao-animate-collapse');
