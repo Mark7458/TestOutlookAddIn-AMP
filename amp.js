@@ -1221,38 +1221,41 @@
     function ticketSection(ticket, config, user, { isCurrentMail, showOpen = false, inDetails = false }) {
         const open = OPEN_STATES.includes(ticket.state);
         return [
-            assigneeCard(ticket, user),
-            ticketCard(ticket, showOpen, inDetails),
+            ticketCard(ticket, showOpen, inDetails, user),
             open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
             open && (!ticket.messageId || ticket.mailUnconfirmed) ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
             historyCard(ticket)
         ];
     }
-    function assigneeCard(ticket, user) {
+    // Assegnatario come etichetta (me / nome del collega) e, se è di un collega, "Prendi in carico".
+    function assigneeTag(ticket, user) {
         const mine = isMine(ticket, user);
-        const name = ticket.assignedTo?.name;
-        return h('div', { class: 'ao-owner' },
-            h('span', { class: `ao-owner-dot${name ? (mine ? ' ao-tone-success' : ' ao-tone-neutral') : ''}` }),
-            h('span', { class: 'ao-owner-text' }, name ? (mine ? TEXTS.mail.assignedToMe(name) : TEXTS.mail.assignedTo(name)) : TEXTS.mail.notAssigned),
-            mine || !OPEN_STATES.includes(ticket.state) ? null : confirmButton(TEXTS.mail.takeOver, 'ao-button ao-small', async () => {
-                const config = loadConfig();
-                if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
-                const updated = await run(() => Services.assignTicket(ticket.number, config.profile.assignedTo), TEXTS.mail.taken(ticket.number));
-                if (!updated) return;
-                rememberTicket(updated);
-                render();
-                refreshLists();
-            }));
+        return chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'neutral', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
+    }
+    function takeOverButton(ticket, user) {
+        if (isMine(ticket, user) || !OPEN_STATES.includes(ticket.state)) return null;
+        return confirmButton(TEXTS.mail.takeOver, 'ao-button ao-small ao-take', async () => {
+            const config = loadConfig();
+            if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+            const updated = await run(() => Services.assignTicket(ticket.number, config.profile.assignedTo), TEXTS.mail.taken(ticket.number));
+            if (!updated) return;
+            rememberTicket(updated);
+            render();
+            refreshLists();
+        });
     }
     // inDetails: dentro i dettagli di un ticket compatto, senza ripetere numero, stato e descrizione.
-    function ticketCard(ticket, showOpen, inDetails = false) {
+    function ticketCard(ticket, showOpen, inDetails = false, user = currentUser()) {
         const open = OPEN_STATES.includes(ticket.state);
+        const takeOver = takeOverButton(ticket, user);
         return h('section', { class: 'ao-card' },
             inDetails ? null : h('div', { class: 'ao-ticket-head' },
                 h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
                 stateChip(ticket)),
             inDetails ? null : h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
+            // Assegnatario: etichetta (nei dettagli compatti c'è già nell'intestazione) ed eventuale presa in carico.
+            !inDetails || takeOver ? h('div', { class: 'ao-item-meta' }, inDetails ? null : assigneeTag(ticket, user), takeOver) : null,
             ticket.state === '3' && ticket.holdExpiration
                 ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
                     `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
@@ -1743,15 +1746,10 @@
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
 
-/* Mail aperta e presa in carico */
+/* Mail aperta */
 #ao-root .ao-mail-head { display: grid; gap: 2px; padding: 2px 2px 0; }
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
-#ao-root .ao-owner { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
-#ao-root .ao-owner-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--ao-line-strong); }
-#ao-root .ao-owner-dot.ao-tone-success { background: var(--ao-success); }
-#ao-root .ao-owner-dot.ao-tone-neutral { background: var(--ao-text-subtle); }
-#ao-root .ao-owner-text { flex: 1; font-size: var(--ao-fs-md); }
 
 /* Campi */
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
