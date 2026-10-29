@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-29 18:15';
+    const BUILD = '2026-10-29 18:18';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1183,8 +1183,9 @@
                 }, `${config.companies[item.company].name} · ${config.activities[item.activity].name}`)))) : null,
             selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.companyId, value => { draft.companyId = value; rerender(); }),
-            draft.suggestion && draft.suggestion.id === draft.companyId
-                ? h('div', { class: 'ao-hint ao-hint-accent' }, TEXTS.mail.suggestedFrom(draft.suggestion.reason)) : null,
+            // Riga sempre presente (anche vuota): se l'avviso sparisce, il modulo non cambia altezza.
+            h('div', { class: 'ao-hint ao-hint-accent ao-hint-slot' },
+                draft.suggestion && draft.suggestion.id === draft.companyId ? TEXTS.mail.suggestedFrom(draft.suggestion.reason) : ''),
             selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.activityId, value => { draft.activityId = value; rerender(); }),
             textField(TEXTS.mail.shortDescription, draft.subject, value => {
@@ -1833,6 +1834,7 @@
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-text-accent); }
+#ao-root .ao-hint-slot { min-height: 1.4em; }
 #ao-root .ao-hint-danger { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
