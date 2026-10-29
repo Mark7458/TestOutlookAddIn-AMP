@@ -1275,7 +1275,7 @@
         },
         activities: {
             properties: item => [
-                [TEXTS.settings.category, referenceValue(item.category)],
+                [TEXTS.settings.category, referenceValue(item.category), { twoLines: true }],
                 [TEXTS.settings.impactUrgency, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`],
                 [TEXTS.settings.timeWorked, TEXTS.mail.minutes(Number(item.timeWorked) || 0)],
                 [TEXTS.settings.prefix, item.shortDescriptionPrefix || h('span', { class: 'ao-missing' }, TEXTS.common.none)]
@@ -1370,7 +1370,10 @@
                         h('button', { type: 'button', class: 'ao-icon-button', title: TEXTS.common.edit, 'aria-label': TEXTS.common.edit, onclick: () => { state.editing = { kind: tab, id }; render(); } }, '✎'),
                         confirmButton('🗑', 'ao-icon-button ao-danger', () => deleteItem(tab, id))),
                     editor.properties
-                        ? h('dl', { class: 'ao-props' }, editor.properties(item).map(([label, value]) => [h('dt', {}, label), h('dd', {}, value)]))
+                        ? h('dl', { class: 'ao-props' }, editor.properties(item).map(([label, value, options = {}]) => {
+                            const className = options.twoLines ? 'ao-prop-two-lines' : undefined;
+                            return [h('dt', { class: className }, label), h('dd', { class: className }, value)];
+                        }))
                         : editor.body(item)))))
                 : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
         ];
@@ -1636,8 +1639,10 @@
 #ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
 #ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; }
 #ao-root .ao-config-card-head .ao-config-name { flex: 1; }
-#ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: var(--ao-fs-md); }
-#ao-root .ao-props dt { color: var(--ao-text-muted); }
+#ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; margin: 0; font-size: var(--ao-fs-md); line-height: 1.35; }
+#ao-root .ao-props dt { align-self: center; color: var(--ao-text-muted); }
+/* Category: spazio per due righe, etichetta centrata in altezza */
+#ao-root .ao-props dd.ao-prop-two-lines { min-height: calc(2em * 1.35); }
 #ao-root .ao-props dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; overflow-wrap: anywhere; }
 #ao-root .ao-props .ao-missing { color: var(--ao-text-subtle); font-style: italic; }
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
