@@ -1720,7 +1720,9 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-left: 3px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-#ao-root .ao-item:hover { border-color: var(--ao-accent-border); border-left-color: var(--ao-accent); background: var(--ao-accent-bg); }
+/* Passaggio del mouse, uguale in tutte le sezioni: solo il bordo diventa blu (la barra a sinistra mantiene il suo significato) */
+#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-top-color: var(--ao-accent); border-right-color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
+#ao-root .ao-ticket-compact:hover { border-left-color: var(--ao-accent); }
 #ao-root .ao-item-alert { border-left-color: var(--ao-danger); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
@@ -1807,13 +1809,11 @@
 
 /* In coda: riga con azioni e modulo compatto */
 #ao-root .ao-queue-item { cursor: default; gap: 6px; }
-#ao-root .ao-queue-item:hover { background: var(--ao-white); }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
 #ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
 #ao-root .ao-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 160px; }
 /* Le etichette lunghe vanno a capo invece di essere tagliate */
 #ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
-#ao-root .ao-item-main:hover .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
@@ -1840,7 +1840,6 @@
 #ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-ticket-compact.ao-expanded { border-color: var(--ao-accent-border); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
-#ao-root .ao-ticket-compact-head:hover { background: var(--ao-accent-bg); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-accent); }
