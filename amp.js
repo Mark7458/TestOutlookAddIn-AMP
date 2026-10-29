@@ -1719,11 +1719,10 @@
 
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-left: 3px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu e barra blu a sinistra (resta rossa sull'On Hold scaduto) */
-#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); }
-#ao-root .ao-item.ao-item-alert:hover { border-left-color: var(--ao-danger); }
-#ao-root .ao-item-alert { border-left-color: var(--ao-danger); }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
+/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu e barra blu a sinistra; di base nessuna barra */
+/* La barra a sinistra è un'ombra interna: compare senza spostare il contenuto */
+#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-accent); }
@@ -1817,7 +1816,7 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
-#ao-root .ao-expanded { border-left-color: var(--ao-accent); }
+#ao-root .ao-expanded { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1833,11 +1832,11 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
-#ao-root .ao-item-new { border-left-color: var(--ao-accent); }
+#ao-root .ao-item-new { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
-#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-left-width: 3px; border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-ticket-compact.ao-expanded { border-color: var(--ao-accent-border); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
