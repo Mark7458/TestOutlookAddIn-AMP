@@ -102,8 +102,10 @@
         },
         queue: {
             empty: 'Nessuna richiesta in coda.',
-            suggested: name => `Agenzia: ${name}`,
-            previous: number => `Thread già usato: ${number}`,
+            suggested: name => name,
+            suggestedTitle: 'Agenzia suggerita',
+            previous: number => `Già usato: ${number}`,
+            previousTitle: 'Thread già usato per un ticket chiuso: questa è una richiesta nuova',
             active: 'Attive',
             ignoredTab: 'Ignorate',
             ignoredEmpty: 'Nessun thread ignorato.',
@@ -880,13 +882,14 @@
                 class: 'ao-item-main', tabindex: '0', role: 'button',
                 onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
             },
-                h('div', { class: 'ao-item-top' },
+                // A sinistra oggetto e mittente; a destra ora di arrivo ed etichette, una sotto l'altra.
+                h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
-                h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
-                company || item.previous ? h('div', { class: 'ao-item-meta' },
-                    company ? chip(TEXTS.queue.suggested(company.name), 'accent') : null,
-                    item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral') : null) : null),
+                    h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
+                h('div', { class: 'ao-item-right' },
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
+                    company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null,
+                    item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral', TEXTS.queue.previousTitle) : null)),
             expanded
                 ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
@@ -1737,7 +1740,11 @@
 /* In coda: riga con azioni e modulo compatto */
 #ao-root .ao-queue-item { cursor: default; gap: 6px; }
 #ao-root .ao-queue-item:hover { background: var(--ao-white); }
-#ao-root .ao-item-main { display: grid; gap: 3px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
+#ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
+#ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
+#ao-root .ao-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 160px; }
+/* Le etichette lunghe vanno a capo invece di essere tagliate */
+#ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-item-main:hover .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-item-actions { display: flex; gap: 6px; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
