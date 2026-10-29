@@ -1720,9 +1720,11 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu più spesso (2 px), senza barre.
+/* Passaggio del mouse, uguale in tutte le sezioni: sfondo azzurro chiaro, bordo invariato.
+   Selezionata (modulo o dettagli aperti): bordo blu spesso, sfondo bianco.
    Lo spessore in più è un'ombra, così il contenuto non si sposta. */
-#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
+#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { background: var(--ao-accent-bg); }
+#ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-white); border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-accent); }
@@ -1816,7 +1818,6 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
-#ao-root .ao-expanded { border-color: var(--ao-accent); }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1836,7 +1837,6 @@
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
 #ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
-#ao-root .ao-ticket-compact.ao-expanded { border-color: var(--ao-accent-border); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
@@ -1845,7 +1845,7 @@
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 #ao-root .ao-item-muted { background: var(--ao-bg-soft); }
 #ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
-#ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; background: var(--ao-accent-bg); }
+#ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; }
 #ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-white); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
