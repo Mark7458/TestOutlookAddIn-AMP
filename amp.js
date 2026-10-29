@@ -1020,10 +1020,12 @@
                     };
                     content.push(h('section', { class: `ao-ticket-compact${expanded ? ' ao-expanded' : ''}` },
                         h('div', { class: 'ao-ticket-compact-head', tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); } },
-                            h('div', { class: 'ao-item-top' }, h('span', { class: 'ao-item-number' }, ticket.number), stateChip(ticket)),
-                            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
+                            h('div', { class: 'ao-ticket-head' },
+                                h('div', { class: 'ao-item-left' },
+                                    h('span', { class: 'ao-item-number' }, ticket.number),
+                                    h('div', { class: 'ao-item-title' }, ticket.shortDescription)),
+                                ticketTags(ticket, user)),
                             h('div', { class: 'ao-item-meta' },
-                                chip(isMine(ticket, user) ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), isMine(ticket, user) ? 'success' : 'neutral'),
                                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null,
                                 h('span', { class: 'ao-toggle' }, expanded ? `${TEXTS.mail.hideDetails} ▴` : `${TEXTS.mail.showDetails} ▾`))),
@@ -1230,7 +1232,11 @@
     // Assegnatario come etichetta (me / nome del collega) e, se è di un collega, "Prendi in carico".
     function assigneeTag(ticket, user) {
         const mine = isMine(ticket, user);
-        return chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'neutral', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
+        return chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'person', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
+    }
+    // In alto a destra, uno sotto l'altro: stato, poi assegnatario.
+    function ticketTags(ticket, user) {
+        return h('div', { class: 'ao-tags' }, stateChip(ticket), assigneeTag(ticket, user));
     }
     function takeOverButton(ticket, user) {
         if (isMine(ticket, user) || !OPEN_STATES.includes(ticket.state)) return null;
@@ -1250,12 +1256,13 @@
         const takeOver = takeOverButton(ticket, user);
         return h('section', { class: 'ao-card' },
             inDetails ? null : h('div', { class: 'ao-ticket-head' },
-                h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
-                stateChip(ticket)),
-            inDetails ? null : h('div', { class: 'ao-item-title' }, ticket.shortDescription),
+                h('div', { class: 'ao-item-left' },
+                    h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
+                    h('div', { class: 'ao-item-title' }, ticket.shortDescription)),
+                ticketTags(ticket, user)),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
             // Assegnatario: etichetta (nei dettagli compatti c'è già nell'intestazione) ed eventuale presa in carico.
-            !inDetails || takeOver ? h('div', { class: 'ao-item-meta' }, inDetails ? null : assigneeTag(ticket, user), takeOver) : null,
+            takeOver ? h('div', { class: 'ao-item-meta' }, takeOver) : null,
             ticket.state === '3' && ticket.holdExpiration
                 ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
                     `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
@@ -1727,6 +1734,8 @@
 /* Etichette colorate */
 #ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
 #ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
+#ao-root .ao-chip.ao-tone-person { background: var(--ao-white); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
+#ao-root .ao-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 #ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-accent); }
 #ao-root .ao-chip.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
@@ -1769,7 +1778,7 @@
 #ao-root .ao-fields dd { margin: 0; overflow-wrap: anywhere; }
 
 /* Ticket */
-#ao-root .ao-ticket-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 #ao-root .ao-ticket-number { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); color: var(--ao-accent); text-decoration: none; }
 #ao-root .ao-ticket-number:hover { text-decoration: underline; }
 #ao-root .ao-time { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--ao-line-light); }
