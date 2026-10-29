@@ -894,7 +894,7 @@
                 ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
                         openTicketButton(mail, config),
-                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
+                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget) }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
                     // Chi l'ha ignorata, in basso a destra sulla stessa riga del pulsante.
@@ -906,6 +906,24 @@
         state.animateExpand = conversationId;
         render();
         state.animateExpand = null;
+        // L'animazione usa l'altezza vera del modulo, così la velocità è uniforme.
+        const form = root.querySelector('.ao-animate-expand');
+        if (form) form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
+    }
+    // Annulla: il modulo si richiude con l'animazione inversa, poi la card torna normale.
+    function closeTakeCharge(button) {
+        const form = button.closest('.ao-inline-form');
+        const finish = () => {
+            if (!state.queueExpanded) return;
+            state.queueExpanded = null;
+            render();
+        };
+        if (!form || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return finish();
+        form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
+        form.classList.remove('ao-animate-expand');
+        form.classList.add('ao-animate-collapse');
+        form.addEventListener('animationend', finish, { once: true });
+        setTimeout(finish, 450); // riserva, se l'animazione non parte
     }
     function mailFromQueueItem(item) {
         return {
@@ -935,7 +953,7 @@
                 ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
                         openTicketButton(mail, config),
-                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
+                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget) }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
                     ignoreButton(mail, 'ao-button ao-small ao-subtle')));
@@ -1841,8 +1859,10 @@
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Apertura del modulo Prendi in carico: si allunga e compare con dolcezza */
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
-@keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: 600px; opacity: 1; padding-top: 8px; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand { animation: none; } }
+@keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
+#ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .35s ease-in-out forwards; }
+@keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse { animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
