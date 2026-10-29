@@ -95,6 +95,7 @@
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
         common: {
             me: 'me',
+            back: view => `← ${view}`,
             loading: 'Caricamento…',
             cancel: 'Annulla',
             save: 'Salva',
@@ -762,8 +763,8 @@
         root = h('div', { id: 'ao-root' },
             h('nav', { class: 'ao-tabs', role: 'tablist' },
                 h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
-                // La scheda Mail resta visibile per le prove: nell'uso si apre da sola con la mail.
-                ['queue', 'tickets', 'mail'].map(view => h('button', {
+                // La vista di lavoro del ticket non è una scheda: si apre da sola (mail o ticket) e ha il suo "←".
+                ['queue', 'tickets'].map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
                     onclick: () => setView(view)
                 }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
@@ -786,7 +787,8 @@
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
-            const active = tab.dataset.view === state.view;
+            // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
+            const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
             // Conteggio sempre; sfondo blu se c'è una notifica (Ticket: messaggi nuovi nei thread dei miei ticket).
@@ -835,6 +837,12 @@
                 type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`,
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
+    }
+    // "←" della vista di lavoro: torna all'elenco da cui si è arrivati (di base Ticket).
+    function backRow() {
+        const target = state.backTo || 'tickets';
+        return h('div', { class: 'ao-back-row' },
+            h('button', { type: 'button', class: 'ao-link ao-back-link', onclick: () => setView(target) }, TEXTS.common.back(TEXTS.tabs[target])));
     }
     function clickable(className, onopen, ...children) {
         return h('li', { class: className, tabindex: '0', role: 'button', onclick: onopen, onkeydown: event => { if (event.key === 'Enter') onopen(); } }, ...children);
@@ -996,10 +1004,10 @@
     function renderMail(config, user) {
         const notice = serviceNotice();
         const target = state.target;
-        if (!target) return h('div', { class: 'ao-view' }, notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
+        if (!target) return h('div', { class: 'ao-view' }, backRow(), notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
         if (target.kind === 'ticket') {
             const ticket = ticketByNumber(target.number);
-            return h('div', { class: 'ao-view' }, notice,
+            return h('div', { class: 'ao-view' }, backRow(), notice,
                 ticket ? ticketSection(ticket, config, user, { isCurrentMail: false, showOpen: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
         }
         const mail = target.mail;
@@ -1052,6 +1060,7 @@
             content.push(newTicketCard(mail, config, user));
         }
         return h('div', { class: 'ao-view' },
+            backRow(),
             notice,
             mailHeader(mail, !isCurrentMail),
             content);
@@ -1799,6 +1808,10 @@
 #ao-root .ao-entry-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--ao-fs-sm); color: var(--ao-text-muted); }
 #ao-root .ao-entry-kind { font-weight: var(--ao-fw-bold); color: var(--ao-text); }
 #ao-root .ao-entry-text { margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--ao-fs-md); }
+
+/* Torna all'elenco (vista di lavoro del ticket) */
+#ao-root .ao-back-row { display: flex; align-items: center; min-height: 22px; }
+#ao-root .ao-back-link { font-weight: var(--ao-fw-medium); }
 
 /* Impostazioni */
 #ao-root .ao-config-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
