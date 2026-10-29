@@ -1720,9 +1720,9 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu e barra blu a sinistra; di base nessuna barra */
-/* La barra a sinistra è un'ombra interna: compare senza spostare il contenuto */
-#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
+/* Passaggio del mouse, uguale in tutte le sezioni: bordo blu più spesso (2 px), senza barre.
+   Lo spessore in più è un'ombra, così il contenuto non si sposta. */
+#ao-root .ao-item:hover, #ao-root .ao-ticket-compact:hover { border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-accent); }
@@ -1816,7 +1816,7 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
-#ao-root .ao-expanded { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
+#ao-root .ao-expanded { border-color: var(--ao-accent); }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
