@@ -140,8 +140,9 @@
                 link: 'Collegato (registro SharePoint)',
                 confirmed: 'Collegato da un operatore'
             },
-            ticketsOnThread: n => `${n} ticket aperti su questo thread`,
-            multiHint: 'La risposta aggiorna i ticket con un’azione salvata o citati nel testo (Rif. INC…); se nessuno, il più recente.',
+            ticketsOnThread: 'Ticket aperti relativi a questo thread',
+            showDetails: 'Mostra dettagli',
+            hideDetails: 'Nascondi dettagli',
             anotherTicket: '+ Apri un altro ticket su questo thread',
             candidatesTitle: 'Possibili ticket su ServiceNow',
             candidatesHint: 'Stesso oggetto e stessa ora di arrivo. Collega quello giusto, oppure apri un ticket nuovo qui sotto.',
@@ -529,6 +530,7 @@
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
+        expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
@@ -1006,11 +1008,35 @@
         if (!result) content.push(h('p', { class: 'ao-muted' }, Services.available() ? TEXTS.mail.searching : ''));
         else if (result.tickets?.length) {
             const openCount = result.tickets.filter(ticket => OPEN_STATES.includes(ticket.state)).length;
-            if (openCount > 1) content.push(h('div', { class: 'ao-multi' }, h('b', {}, TEXTS.mail.ticketsOnThread(openCount)), h('span', { class: 'ao-hint' }, TEXTS.mail.multiHint)));
-            result.tickets.forEach(found => {
-                content.push(h('div', { class: 'ao-via' }, TEXTS.mail.via[found.via] || ''));
-                content.push(ticketSection({ ...found, ...(ticketByNumber(found.number) || {}) }, config, user, { isCurrentMail }));
-            });
+            if (openCount > 1) {
+                // Più ticket sullo stesso thread: avviso sintetico e solo i ticket; i dettagli si aprono con un clic.
+                content.push(h('div', { class: 'ao-multi' }, h('span', {}, TEXTS.mail.ticketsOnThread), h('b', { class: 'ao-multi-count' }, openCount)));
+                result.tickets.forEach(found => {
+                    const ticket = { ...found, ...(ticketByNumber(found.number) || {}) };
+                    const expanded = state.expandedTickets.includes(ticket.number);
+                    const toggle = () => {
+                        state.expandedTickets = expanded ? state.expandedTickets.filter(number => number !== ticket.number) : [...state.expandedTickets, ticket.number];
+                        render();
+                    };
+                    content.push(h('section', { class: `ao-ticket-compact${expanded ? ' ao-expanded' : ''}` },
+                        h('div', { class: 'ao-ticket-compact-head', tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); } },
+                            h('div', { class: 'ao-item-top' }, h('span', { class: 'ao-item-number' }, ticket.number), stateChip(ticket)),
+                            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
+                            h('div', { class: 'ao-item-meta' },
+                                chip(isMine(ticket, user) ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), isMine(ticket, user) ? 'success' : 'neutral'),
+                                h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
+                                ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null,
+                                h('span', { class: 'ao-toggle' }, expanded ? `${TEXTS.mail.hideDetails} ▴` : `${TEXTS.mail.showDetails} ▾`))),
+                        expanded ? h('div', { class: 'ao-ticket-details' },
+                            h('div', { class: 'ao-via' }, TEXTS.mail.via[found.via] || ''),
+                            ticketSection(ticket, config, user, { isCurrentMail, inDetails: true })) : null));
+                });
+            } else {
+                result.tickets.forEach(found => {
+                    content.push(h('div', { class: 'ao-via' }, TEXTS.mail.via[found.via] || ''));
+                    content.push(ticketSection({ ...found, ...(ticketByNumber(found.number) || {}) }, config, user, { isCurrentMail }));
+                });
+            }
             // Una stessa richiesta può richiedere un altro ticket, subito o in seguito.
             content.push(state.extraTicketFor === mail.conversationId
                 ? newTicketCard(mail, config, user, { allowIgnore: false, onCancel: () => { state.extraTicketFor = null; render(); } })
@@ -1192,11 +1218,11 @@
     }
 
     // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
-    function ticketSection(ticket, config, user, { isCurrentMail, showOpen = false }) {
+    function ticketSection(ticket, config, user, { isCurrentMail, showOpen = false, inDetails = false }) {
         const open = OPEN_STATES.includes(ticket.state);
         return [
             assigneeCard(ticket, user),
-            ticketCard(ticket, showOpen),
+            ticketCard(ticket, showOpen, inDetails),
             open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
             open && (!ticket.messageId || ticket.mailUnconfirmed) ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
             historyCard(ticket)
@@ -1218,13 +1244,14 @@
                 refreshLists();
             }));
     }
-    function ticketCard(ticket, showOpen) {
+    // inDetails: dentro i dettagli di un ticket compatto, senza ripetere numero, stato e descrizione.
+    function ticketCard(ticket, showOpen, inDetails = false) {
         const open = OPEN_STATES.includes(ticket.state);
         return h('section', { class: 'ao-card' },
-            h('div', { class: 'ao-ticket-head' },
+            inDetails ? null : h('div', { class: 'ao-ticket-head' },
                 h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow }, ticket.number),
                 stateChip(ticket)),
-            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
+            inDetails ? null : h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
             ticket.state === '3' && ticket.holdExpiration
                 ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
@@ -1801,7 +1828,14 @@
 /* Risposte nuove e più ticket sullo stesso thread */
 #ao-root .ao-item-new { border-left-color: var(--ao-accent); }
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
-#ao-root .ao-multi { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
+#ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
+#ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
+#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-ticket-compact.ao-expanded { border-color: var(--ao-accent-border); }
+#ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
+#ao-root .ao-ticket-compact-head:hover { background: var(--ao-accent-bg); }
+#ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
