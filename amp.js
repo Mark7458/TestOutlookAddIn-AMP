@@ -104,8 +104,6 @@
             empty: 'Nessuna richiesta in coda.',
             suggested: name => name,
             suggestedTitle: 'Agenzia suggerita',
-            previous: number => `Già usato: ${number}`,
-            previousTitle: 'Thread già usato per un ticket chiuso: questa è una richiesta nuova',
             active: 'Attive',
             ignoredTab: 'Ignorate',
             ignoredEmpty: 'Nessun thread ignorato.',
@@ -888,8 +886,7 @@
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
-                    company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null,
-                    item.previous ? chip(TEXTS.queue.previous(item.previous.number), 'neutral', TEXTS.queue.previousTitle) : null)),
+                    company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null)),
             expanded
                 ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
