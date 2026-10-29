@@ -84,6 +84,13 @@
     // Tutte le scritte del pannello. Le voci con (valore) sono funzioni.
     const TEXTS = {
         back: 'Torna all’add-in',
+        system: {
+            servicesOk: 'Servizi collegati',
+            servicesMissing: 'Servizi non ancora collegati',
+            serviceError: message => `Servizi non raggiungibili: ${message}`,
+            synced: when => `Allineato ${when}`,
+            syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
+        },
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
         common: {
             me: 'me',
@@ -121,7 +128,6 @@
             mailToConfirm: 'mail da confermare',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             threadGroup: n => `Stesso thread · ${n} ticket`,
-            syncedAt: when => `Allineato con ServiceNow: ${when}`,
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`
         },
@@ -764,7 +770,9 @@
                     title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
                 }, '⚙')),
             h('div', { class: 'ao-body' }),
-            h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }));
+            h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
+            // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
+            h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         container.replaceChildren(root);
     }
 
@@ -784,16 +792,33 @@
             tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], notify, notify ? TEXTS.tickets.newMessagesTitle(newReplies) : ''));
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
+        renderStatusBar();
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         root.querySelector('.ao-body').replaceChildren(views[state.view](config, user));
     }
 
-    // Avviso comune quando i servizi mancano o non rispondono.
+    // Gli avvisi sui servizi stanno nella barra di sistema in fondo: le viste non li ripetono.
     function serviceNotice() {
-        if (!Services.available()) return h('div', { class: 'ao-notice' }, TEXTS.common.servicesMissing);
-        if (state.serviceError) return h('div', { class: 'ao-notice ao-tone-danger' }, TEXTS.common.serviceError(state.serviceError));
-        if (state.loading) return h('div', { class: 'ao-notice' }, TEXTS.common.loading);
         return null;
+    }
+    // Servizi mancanti, in errore o in caricamento: gli elenchi vuoti non dicono "nessun elemento".
+    const servicesBlocked = () => !Services.available() || Boolean(state.serviceError) || state.loading;
+    function renderStatusBar() {
+        const bar = root?.querySelector('.ao-statusbar');
+        if (!bar) return;
+        let tone = 'ok';
+        let message = '';
+        if (!Services.available()) { tone = 'warning'; message = TEXTS.system.servicesMissing; }
+        else if (state.serviceError) { tone = 'danger'; message = TEXTS.system.serviceError(state.serviceError); }
+        else if (state.loading) { tone = 'neutral'; message = TEXTS.common.loading; }
+        else message = TEXTS.system.servicesOk;
+        const syncedAt = state.tickets.find(ticket => ticket.syncedAt)?.syncedAt;
+        bar.className = `ao-statusbar ao-statusbar-${tone}`;
+        bar.replaceChildren(...[
+            h('span', { class: 'ao-statusbar-dot', 'aria-hidden': 'true' }),
+            h('span', { class: 'ao-statusbar-text', title: message }, message),
+            syncedAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(syncedAt))) : null
+        ].filter(Boolean));
     }
     function filterBar(options, value, onchange) {
         return h('div', { class: 'ao-segmented', role: 'group' },
@@ -833,11 +858,11 @@
             showIgnored
                 ? [
                     state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
-                        : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty)),
+                        : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty)),
                     // Spiegazione in fondo, come nota.
                     state.ignored.length ? h('p', { class: 'ao-footnote' }, TEXTS.queue.ignoredHint) : null
                 ]
-                : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
+                : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
     // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
     function ignoredItem(item) {
@@ -934,9 +959,7 @@
                     newMessagesPreview(group.tickets[0]),
                     h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true }))))
                 : ticketItem(group.tickets[0], user))))
-                : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)),
-            // I dati arrivano dalla copia su SharePoint: si mostra quando è stata allineata.
-            open[0]?.syncedAt ? h('p', { class: 'ao-footnote' }, TEXTS.tickets.syncedAt(formatWhen(open[0].syncedAt))) : null);
+                : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
     // Messaggi nuovi (numero su sfondo blu) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
     function newMessagesPreview(ticket) {
@@ -1803,8 +1826,19 @@
 #ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
 
-/* Messaggi in fondo */
-#ao-root .ao-status { position: sticky; bottom: 0; margin: 0 12px 12px; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+/* Barra di sistema fissa in fondo al riquadro (stato dei servizi, allineamento) */
+#ao-root { padding-bottom: 30px; }
+#ao-root .ao-statusbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-white); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
+#ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
+#ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
+#ao-root .ao-statusbar-danger { color: var(--ao-danger); }
+#ao-root .ao-statusbar-neutral .ao-statusbar-dot { background: var(--ao-text-subtle); }
+#ao-root .ao-statusbar-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-statusbar-sync { flex: none; }
+
+/* Messaggi temporanei, sopra la barra di sistema */
+#ao-root .ao-status { position: fixed; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 #ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
