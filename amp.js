@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-29 18:05';
+    const BUILD = '2026-10-29 18:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1206,7 +1206,7 @@
     function openTicketButton(mail, config) {
         const draft = ticketDraft(mail, config);
         const ready = Boolean(config.companies[draft.companyId] && config.activities[draft.activityId]);
-        return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: () => openTicket(mail) }, TEXTS.mail.openTicket);
+        return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: event => openTicket(mail, event.currentTarget.closest('.ao-queue-item')) }, TEXTS.mail.openTicket);
     }
     function ignoreButton(mail, className) {
         return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
@@ -1219,7 +1219,17 @@
     }
     // Card che esce di lato e poi chiude lo spazio che occupava.
     function slideOut(card) {
-        if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+        return animateOut(card, 'ao-slide-out', 'ao-slide-collapse', 700);
+    }
+    // Presa in carico riuscita: la card si chiude del tutto e sparisce.
+    function collapseOut(card) {
+        return animateOut(card, 'ao-collapse-out', 'ao-collapse-out', 600);
+    }
+    function animateOut(card, className, lastAnimation, fallbackMs) {
+        if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+            state.holdRender = false;
+            return Promise.resolve();
+        }
         // Durante l'animazione il pannello non si ridisegna (altrimenti la card sparirebbe di colpo).
         state.holdRender = true;
         return new Promise(done => {
@@ -1229,9 +1239,9 @@
                 done();
             };
             card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
-            card.classList.add('ao-slide-out');
-            card.addEventListener('animationend', event => { if (event.animationName === 'ao-slide-collapse') resolve(); });
-            setTimeout(resolve, 700); // riserva
+            card.classList.add(className);
+            card.addEventListener('animationend', event => { if (event.animationName === lastAnimation) resolve(); });
+            setTimeout(resolve, fallbackMs); // riserva
         });
     }
     function fieldRow(label, value, previewKey) {
@@ -1243,7 +1253,8 @@
         return prefix ? `${prefix} ${clean.replace(/^\s*\[[^\]]+\]\s*/, '')}`.trim() : clean;
     }
     // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
-    async function openTicket(mail) {
+    // card: la card di In coda da cui si prende in carico (si chiude con un'animazione se va tutto bene).
+    async function openTicket(mail, card = null) {
         const config = loadConfig();
         const draft = ticketDraft(mail, config);
         const company = config.companies[draft.companyId];
@@ -1264,11 +1275,17 @@
             description: String(body || '').slice(0, 4000),
             reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
         };
+        if (card) state.holdRender = true; // la card resta ferma finché non parte l'animazione
         const ticket = await run(() => Services.createTicket(mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
         }), result => TEXTS.mail.ticketOpened(result.number));
-        if (!ticket) return;
+        if (!ticket) {
+            state.holdRender = false;
+            render();
+            return;
+        }
+        if (card) await collapseOut(card);
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
@@ -1887,12 +1904,19 @@
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
+/* Presa in carico: la card si richiude del tutto (si schiaccia e svanisce) */
+#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; transform-origin: top center; animation: ao-collapse-out .45s ease-in-out forwards; }
+@keyframes ao-collapse-out {
+    0% { max-height: var(--ao-card-height, 400px); opacity: 1; transform: scaleY(1); }
+    60% { opacity: .35; }
+    100% { max-height: 0; opacity: 0; transform: scaleY(.6); padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
+}
 /* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
 #ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
 @keyframes ao-slide-left { to { transform: translateX(-110%); opacity: 0; } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out, #ao-root .ao-collapse-out { animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
