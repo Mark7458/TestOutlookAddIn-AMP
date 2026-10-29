@@ -25,8 +25,8 @@ e `TestPluginAPI` (`getCurrentMessageContext`, `onMessageChanged`, `showMainView
    equivale a prendere in carico il thread (assegnato a chi lo apre).
 5. **In coda = un thread per conversationId, coda condivisa.** Ci sono i thread non in gestione.
    Quando tutti i ticket del thread si chiudono il thread torna **libero subito**, ma ricompare
-   **solo se arriva un messaggio nuovo**. I thread **ignorati** vanno in un archivio (in fondo a
-   In coda) da cui si possono prendere in carico; tornano da soli in coda con un messaggio nuovo.
+   **solo se arriva un messaggio nuovo**. I thread **ignorati** vanno nella sezione *Ignorate* di In coda
+   (accanto ad *Attive*), da cui si possono prendere in carico; tornano da soli in coda con un messaggio nuovo.
    Un thread in gestione resta a chi l'ha preso in carico e si segue dalla scheda **Ticket**:
    i **messaggi nuovi** (arrivati dopo l'ultima risposta o dopo l'ultimo clic sul ticket di chi
    l'ha in carico) compaiono come **+N** con l'inizio dell'ultimo messaggio, anche se qualcuno li ha

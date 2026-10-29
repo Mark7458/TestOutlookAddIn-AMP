@@ -104,8 +104,9 @@
             empty: 'Nessuna richiesta in coda.',
             suggested: name => `Agenzia: ${name}`,
             previous: number => `Thread già usato: ${number}`,
-            ignored: n => `Ignorate (${n})`,
-            hideIgnored: 'Nascondi ignorate',
+            active: 'Attive',
+            ignoredTab: 'Ignorate',
+            ignoredEmpty: 'Nessun thread ignorato.',
             ignoredHint: 'Tornano da sole In coda quando arriva un messaggio nuovo nel thread; intanto puoi prenderle in carico da qui.',
             ignoredBy: (who, when) => `Ignorata da ${who} · ${when}`,
 
@@ -522,7 +523,7 @@
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
-        showIgnored: false,
+        queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
@@ -820,26 +821,24 @@
     // ======================================================================
 
     // ---------------------------- Coda ------------------------------------
-    // Una sola coda condivisa; in fondo l'archivio dei thread ignorati, per rimetterli in coda.
+    // Coda condivisa con barra secondaria: Attive (da prendere in carico) | Ignorate (archivio).
     function renderQueue(config) {
         const notice = serviceNotice();
-        const shared = state.queue.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
+        const active = state.queue.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
+        const showIgnored = state.queueTab === 'ignored';
         return h('div', { class: 'ao-view' },
             notice,
-            shared.length ? h('ul', { class: 'ao-list' }, shared.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty)),
-            ignoredSection());
-    }
-    function ignoredSection() {
-        if (!state.ignored.length) return null;
-        return h('div', { class: 'ao-ignored' },
-            h('button', {
-                type: 'button', class: 'ao-link ao-ignored-toggle', 'aria-expanded': String(state.showIgnored),
-                onclick: () => { state.showIgnored = !state.showIgnored; render(); }
-            }, state.showIgnored ? TEXTS.queue.hideIgnored : TEXTS.queue.ignored(state.ignored.length)),
-            state.showIgnored ? [
-                h('p', { class: 'ao-hint' }, TEXTS.queue.ignoredHint),
-                h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
-            ] : null);
+            filterBar([
+                { value: 'active', label: TEXTS.queue.active, count: active.length },
+                { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
+            ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
+            showIgnored
+                ? [
+                    state.ignored.length ? h('p', { class: 'ao-hint' }, TEXTS.queue.ignoredHint) : null,
+                    state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
+                        : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty))
+                ]
+                : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
     // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
     function ignoredItem(item) {
@@ -1768,8 +1767,6 @@
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
-#ao-root .ao-ignored { display: grid; gap: 8px; padding-top: 4px; }
-#ao-root .ao-ignored-toggle { justify-self: center; color: var(--ao-text-muted); }
 #ao-root .ao-item-muted { background: var(--ao-bg-soft); }
 #ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
 #ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; background: var(--ao-accent-bg); }
