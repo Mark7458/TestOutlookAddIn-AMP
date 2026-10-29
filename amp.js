@@ -551,12 +551,14 @@
         });
         return element;
     }
-    // Contatore: numero senza sfondo; il pallino rosso sotto il numero segnala una novità.
-    function counter(count, alert = false, title = '') {
-        return h('span', { class: `ao-counter${alert ? ' ao-counter-alert' : ''}`, title: title || undefined, hidden: !count && !alert },
-            h('span', { class: 'ao-counter-n' }, count || ''),
-            h('span', { class: 'ao-counter-dot', 'aria-hidden': 'true' }));
+    // Contatore: il numero pulito è un conteggio; sotto, su sfondo blu, il numero delle novità.
+    function counter(count, news = 0, title = '') {
+        return h('span', { class: 'ao-counter', title: title || undefined, hidden: !count && !news },
+            count ? h('span', { class: 'ao-counter-n' }, count) : null,
+            news ? h('span', { class: 'ao-news' }, news) : null);
     }
+    // Solo la notifica: numero su sfondo blu.
+    const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
     const stateChip = ticket => {
         const info = TICKET_STATES[ticket.state] || { label: ticket.state, tone: 'neutral' };
@@ -757,7 +759,7 @@
                 ['queue', 'tickets', 'mail'].map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
                     onclick: () => setView(view)
-                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0, false))),
+                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
                     title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
@@ -778,9 +780,9 @@
             const active = tab.dataset.view === state.view;
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
-            // Numero = conteggio; pallino sotto = novità (Ticket: messaggi nuovi nei thread dei miei ticket).
-            const alert = tab.dataset.view === 'tickets' && newReplies > 0;
-            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], alert, alert ? TEXTS.tickets.newMessagesTitle(newReplies) : ''));
+            // Numero pulito = conteggio; sotto, su sfondo blu = novità (Ticket: thread dei miei ticket con messaggi nuovi).
+            const news = tab.dataset.view === 'tickets' ? newReplies : 0;
+            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], news, news ? TEXTS.tickets.newMessagesTitle(news) : ''));
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
@@ -936,13 +938,13 @@
             // I dati arrivano dalla copia su SharePoint: si mostra quando è stata allineata.
             open[0]?.syncedAt ? h('p', { class: 'ao-footnote' }, TEXTS.tickets.syncedAt(formatWhen(open[0].syncedAt))) : null);
     }
-    // Messaggi nuovi (numero con il pallino) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
+    // Messaggi nuovi (numero su sfondo blu) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
     function newMessagesPreview(ticket) {
         if (!ticket.newMessages) return null;
         const last = ticket.lastNewMessage;
         return h('div', { class: 'ao-new-preview', title: TEXTS.tickets.newMessagesTitle(ticket.newMessages) },
             h('div', { class: 'ao-new-head' },
-                counter(ticket.newMessages, true),
+                newsBadge(ticket.newMessages),
                 last ? h('span', { class: 'ao-new-from' }, last.from) : null,
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
@@ -1615,13 +1617,11 @@
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
-#ao-root .ao-counter { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 10px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 1; }
-#ao-root .ao-counter-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ao-danger); visibility: hidden; }
-#ao-root .ao-counter-alert .ao-counter-dot { visibility: visible; }
-#ao-root .ao-counter-alert .ao-counter-n { color: var(--ao-text); font-weight: var(--ao-fw-bold); }
-#ao-root .ao-tab .ao-counter { margin-top: 5px; }
+/* Conteggi: numero pulito. Notifiche: numero bianco su sfondo blu (sotto il conteggio nelle schede). */
+#ao-root .ao-counter { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 1; }
+#ao-root .ao-news { display: inline-block; min-width: 16px; padding: 1px 5px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 13px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter-n { color: var(--ao-accent); }
-#ao-root .ao-new-head .ao-counter { align-self: center; font-size: var(--ao-fs-md); }
+#ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; }
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
 
