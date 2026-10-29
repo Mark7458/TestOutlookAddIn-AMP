@@ -1640,6 +1640,10 @@
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
+/* Scheda aperta: leggero zoom della scritta (e del numero), che resta finché è selezionata */
+#ao-root .ao-tab > * { transition: transform .18s ease; }
+#ao-root .ao-tab.ao-active > * { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-accent); }
