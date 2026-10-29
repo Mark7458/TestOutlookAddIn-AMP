@@ -1832,7 +1832,6 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
-#ao-root .ao-item-new { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
