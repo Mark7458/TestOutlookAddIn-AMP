@@ -42,6 +42,11 @@
   .ol-msg-head small { color: var(--ol-muted); }
   .ol-msg.out .ol-msg-head { background: #eff6fc; }
   .ol-msg-body { margin: 0; padding: 10px 12px; white-space: pre-wrap; font: inherit; }
+  .ol-msg { cursor: pointer; }
+  .ol-msg:hover { border-color: #a6c8ea; }
+  .ol-msg.selected { border-color: var(--ol-blue); box-shadow: 0 0 0 1px var(--ol-blue); }
+  .ol-selected-tag { padding: 0 6px; border-radius: 3px; background: var(--ol-blue); color: #fff; font-size: 11px; font-weight: 600; }
+  .ol-hint { margin: 0 0 8px; color: var(--ol-muted); font-size: 12px; }
   .ol-actions { display: flex; gap: 8px; margin: 4px 0 12px; }
   .ol-btn { padding: 5px 14px; border: 1px solid #c8c6c4; border-radius: 4px; background: #fff; font: inherit; cursor: pointer; }
   .ol-btn.primary { background: var(--ol-blue); border-color: var(--ol-blue); color: #fff; }
@@ -111,6 +116,7 @@
   const pad = value => String(value).padStart(2, '0');
   const listeners = new Set();
   let selectedConversation = null;
+  let selectedMessageId = null; // messaggio del thread selezionato (come il clic su un messaggio in Outlook)
   let compose = null; // { text } quando la risposta è aperta
   let toast = '';
 
@@ -143,8 +149,11 @@
       .sort((a, b) => b[b.length - 1].receivedAt.localeCompare(a[a.length - 1].receivedAt));
   }
   const selectedMessages = () => conversations().find(list => list[0].conversationId === selectedConversation) || null;
-  // La mail "aperta" è l'ultima della conversazione, come quando la selezioni in Outlook.
-  const selectedMessage = () => selectedMessages()?.slice(-1)[0] || null;
+  // Messaggio selezionato nel thread; se nessuno, l'ultimo (come quando apri la conversazione in Outlook).
+  const selectedMessage = () => {
+    const messages = selectedMessages();
+    return messages?.find(item => item.id === selectedMessageId) || messages?.slice(-1)[0] || null;
+  };
 
   function renderList() {
     byId('ol-mailbox').textContent = `${mailbox.address.name} <${mailbox.address.email}> · casella condivisa`;
@@ -181,20 +190,35 @@
         el('div', { class: 'ol-actions' },
           el('button', { class: 'ol-btn primary', id: 'ol-send', onclick: send }, 'Invia'),
           el('button', { class: 'ol-btn', onclick: () => { compose = null; renderReading(); } }, 'Scarta'))) : null,
-      [...messages].reverse().map(message => el('article', { class: `ol-msg ${message.direction}` },
-        el('div', { class: 'ol-msg-head' },
-          el('span', {}, el('b', {}, message.from.name), ' ', el('small', {}, `<${message.from.email}>`)),
-          el('small', {}, when(message.receivedAt))),
-        el('pre', { class: 'ol-msg-body' }, message.body)))
+      messages.length > 1 ? el('p', { class: 'ol-hint' }, 'Clicca un messaggio del thread per selezionarlo: il pannello AMP usa quello selezionato (es. per aprire il ticket).') : null,
+      [...messages].reverse().map(message => {
+        const selected = message.id === selectedMessage().id;
+        return el('article', {
+          class: `ol-msg ${message.direction}${selected ? ' selected' : ''}`,
+          onclick: () => selectMessage(message.id)
+        },
+          el('div', { class: 'ol-msg-head' },
+            el('span', {}, el('b', {}, message.from.name), ' ', el('small', {}, `<${message.from.email}>`)),
+            el('span', {}, selected ? el('span', { class: 'ol-selected-tag' }, 'selezionato') : null, ' ', el('small', {}, when(message.receivedAt)))),
+          el('pre', { class: 'ol-msg-body' }, message.body));
+      })
     ];
     pane.replaceChildren(...parts.flat().filter(Boolean));
   }
   function renderOutlook() { renderList(); renderReading(); }
 
-  function select(conversationId) {
+  function select(conversationId, messageId = null) {
     if (selectedConversation !== conversationId) { compose = null; toast = ''; }
     selectedConversation = conversationId;
+    selectedMessageId = messageId;
     renderOutlook();
+    publish();
+  }
+  // Clic su un messaggio del thread: diventa la mail selezionata che l'add-in legge.
+  function selectMessage(messageId) {
+    if (selectedMessage()?.id === messageId) return;
+    selectedMessageId = messageId;
+    renderReading();
     publish();
   }
   function openReply(text) {
@@ -254,7 +278,7 @@
     openMessage(messageId) {
       const message = mailbox.getMessage(messageId);
       if (!message) return false;
-      select(message.conversationId);
+      select(message.conversationId, message.id);
       return true;
     },
     openReply
