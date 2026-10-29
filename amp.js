@@ -1723,7 +1723,7 @@
 /* Passaggio del mouse, uguale in tutte le sezioni: solo il titolo diventa blu (sfondo e bordo invariati).
    Selezionata (modulo o dettagli aperti): bordo blu spesso, sfondo bianco.
    Lo spessore in più è un'ombra, così il contenuto non si sposta. */
-#ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-accent); }
+#ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-accent-dark); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-white); border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
