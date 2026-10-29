@@ -551,11 +551,10 @@
         });
         return element;
     }
-    // Contatore: il numero pulito è un conteggio; sotto, su sfondo blu, il numero delle novità.
-    function counter(count, news = 0, title = '') {
-        return h('span', { class: 'ao-counter', title: title || undefined, hidden: !count && !news },
-            count ? h('span', { class: 'ao-counter-n' }, count) : null,
-            news ? h('span', { class: 'ao-news' }, news) : null);
+    // Contatore delle schede: un solo numero, sempre il conteggio. Pulito di norma;
+    // con una notifica lo stesso numero prende lo sfondo blu (il dettaglio si legge nella sezione).
+    function counter(count, notify = false, title = '') {
+        return h('span', { class: `ao-counter${notify ? ' ao-counter-notify' : ''}`, title: title || undefined, hidden: !count && !notify }, count || '');
     }
     // Solo la notifica: numero su sfondo blu.
     const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
@@ -780,9 +779,9 @@
             const active = tab.dataset.view === state.view;
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
-            // Numero pulito = conteggio; sotto, su sfondo blu = novità (Ticket: thread dei miei ticket con messaggi nuovi).
-            const news = tab.dataset.view === 'tickets' ? newReplies : 0;
-            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], news, news ? TEXTS.tickets.newMessagesTitle(news) : ''));
+            // Conteggio sempre; sfondo blu se c'è una notifica (Ticket: messaggi nuovi nei thread dei miei ticket).
+            const notify = tab.dataset.view === 'tickets' && newReplies > 0;
+            tab.querySelector('.ao-counter').replaceWith(counter(counts[tab.dataset.view], notify, notify ? TEXTS.tickets.newMessagesTitle(newReplies) : ''));
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
@@ -1617,10 +1616,12 @@
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); }
-/* Conteggi: numero pulito. Notifiche: numero bianco su sfondo blu (sotto il conteggio nelle schede). */
-#ao-root .ao-counter { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 1; }
+/* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
+#ao-root .ao-counter { display: inline-block; min-width: 16px; padding: 1px 5px; border-radius: var(--ao-radius-pill); color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); line-height: 13px; text-align: center; }
+#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-accent); }
+#ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
+/* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 16px; padding: 1px 5px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 13px; text-align: center; }
-#ao-root .ao-tab.ao-active .ao-counter-n { color: var(--ao-accent); }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; }
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
