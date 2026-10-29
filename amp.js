@@ -48,6 +48,7 @@
         colors: {
             accent: '#0078d4', // pulsanti principali, scheda attiva, voci selezionate
             accentDark: '#106ebe', // colore principale al passaggio del mouse
+            textAccent: '#106ebe', // tutte le scritte blu (numeri dei ticket, link, schede attive…)
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
             headerBackground: 'linear-gradient(135deg, #005a9e, #0078d4)',
@@ -1670,17 +1671,17 @@
 /* Intestazione e schede */
 #ao-root .ao-tabs { display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
-#ao-root .ao-settings-button.ao-active { color: var(--ao-accent); background: var(--ao-accent-bg); }
+#ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
-#ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
 /* Scheda aperta: leggero zoom della scritta (e del numero), che resta finché è selezionata */
 #ao-root .ao-tab > * { transition: transform .35s ease-in-out; }
 #ao-root .ao-tab.ao-active > * { transform: scale(1.04); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
-#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-accent); }
+#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-text-accent); }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
@@ -1696,7 +1697,7 @@
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
 /* Prendi in carico (righe di In coda): azzurro leggero al passaggio del mouse */
-#ao-root .ao-take:hover { color: var(--ao-accent); background: var(--ao-accent-bg); border-color: var(--ao-accent-border); }
+#ao-root .ao-take:hover { color: var(--ao-text-accent); background: var(--ao-accent-bg); border-color: var(--ao-accent-border); }
 /* Ignora: solo la scritta diventa rossa (niente sfondo né bordo), anche quando chiede conferma */
 #ao-root .ao-ignore:hover { color: var(--ao-danger); background: transparent; border-color: transparent; }
 #ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { background: transparent !important; border-color: transparent !important; }
@@ -1704,7 +1705,7 @@
 #ao-root .ao-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-icon-button:hover { background: var(--ao-bg-soft); border-color: var(--ao-line); }
 #ao-root .ao-danger:hover { color: var(--ao-danger); }
-#ao-root .ao-link { padding: 0; border: 0; background: none; color: var(--ao-accent); font-size: var(--ao-fs-md); cursor: pointer; text-align: left; }
+#ao-root .ao-link { padding: 0; border: 0; background: none; color: var(--ao-text-accent); font-size: var(--ao-fs-md); cursor: pointer; text-align: left; }
 #ao-root .ao-link:hover { text-decoration: underline; }
 #ao-root :disabled { opacity: var(--ao-disabled-opacity); cursor: not-allowed; }
 #ao-root :focus-visible { outline: none; box-shadow: var(--ao-shadow-focus); }
@@ -1713,7 +1714,7 @@
 #ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
 #ao-root .ao-segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; }
 #ao-root .ao-segment:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
-#ao-root .ao-segment.ao-active { background: var(--ao-accent-bg); color: var(--ao-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-segment.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
@@ -1723,11 +1724,11 @@
 /* Passaggio del mouse, uguale in tutte le sezioni: solo il titolo diventa blu (sfondo e bordo invariati).
    Selezionata (modulo o dettagli aperti): bordo blu spesso, sfondo bianco.
    Lo spessore in più è un'ombra, così il contenuto non si sposta. */
-#ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-accent-dark); }
+#ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-white); border-color: var(--ao-accent); box-shadow: 0 0 0 1px var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
-#ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-accent); }
+#ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
 #ao-root .ao-item-sub { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
 #ao-root .ao-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
@@ -1739,7 +1740,7 @@
 #ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
 #ao-root .ao-chip.ao-tone-person { background: var(--ao-white); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
 #ao-root .ao-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
-#ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-accent); }
+#ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-text-accent); }
 #ao-root .ao-chip.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-chip.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
@@ -1753,7 +1754,7 @@
 #ao-root .ao-notice.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
-#ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-accent); }
+#ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-text-accent); }
 #ao-root .ao-hint-danger { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
@@ -1774,7 +1775,7 @@
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 #ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-white); font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-fav:hover { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
-#ao-root .ao-fav.ao-active { border-color: var(--ao-accent); background: var(--ao-accent-bg); color: var(--ao-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-fav.ao-active { border-color: var(--ao-accent); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-fields { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); font-size: var(--ao-fs-md); }
 #ao-root .ao-fields dt { color: var(--ao-text-muted); }
 #ao-root .ao-fields dt:first-child { font-weight: var(--ao-fw-medium); color: var(--ao-text); }
@@ -1782,7 +1783,7 @@
 
 /* Ticket */
 #ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-#ao-root .ao-ticket-number { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); color: var(--ao-accent); text-decoration: none; }
+#ao-root .ao-ticket-number { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); text-decoration: none; }
 #ao-root .ao-ticket-number:hover { text-decoration: underline; }
 #ao-root .ao-time { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-time-row { display: flex; align-items: center; gap: 5px; }
@@ -1833,14 +1834,14 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
-#ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
+#ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
-#ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-accent); }
+#ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-text-accent); }
 #ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
-#ao-root .ao-toggle { margin-left: auto; color: var(--ao-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-toggle { margin-left: auto; color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
-#ao-root .ao-add-ticket { justify-self: start; color: var(--ao-accent); }
+#ao-root .ao-add-ticket { justify-self: start; color: var(--ao-text-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 #ao-root .ao-item-muted { background: var(--ao-bg-soft); }
