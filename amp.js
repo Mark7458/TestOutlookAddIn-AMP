@@ -860,7 +860,7 @@
                         openTicketButton(mail, config),
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
                     // Chi l'ha ignorata, in basso a destra sulla stessa riga del pulsante.
                     h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
     }
@@ -894,7 +894,7 @@
                         openTicketButton(mail, config),
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
                     ignoreButton(mail, 'ao-button ao-small ao-subtle')));
     }
 
@@ -1633,6 +1633,8 @@
 #ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
+/* Prendi in carico (righe di In coda): azzurro leggero al passaggio del mouse */
+#ao-root .ao-take:hover { color: var(--ao-accent); background: var(--ao-accent-bg); border-color: var(--ao-accent-border); }
 /* Ignora: solo la scritta diventa rossa (niente sfondo né bordo), anche quando chiede conferma */
 #ao-root .ao-ignore:hover { color: var(--ao-danger); background: transparent; border-color: transparent; }
 #ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { background: transparent !important; border-color: transparent !important; }
