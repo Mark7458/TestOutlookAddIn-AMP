@@ -72,7 +72,7 @@
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
-        radius: { base: '6px', pill: '999px' },
+        radius: { base: '6px', pill: '999px', badge: '5px' }, // badge: notifiche, quadrato con gli angoli smussati
         shadow: {
             card: '0 1px 2px rgba(0,0,0,.06)',
             focus: '0 0 0 2px rgba(0,120,212,.25)'
@@ -1641,11 +1641,11 @@
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
-#ao-root .ao-counter { display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: var(--ao-radius-pill); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 15px; text-align: center; }
+#ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-accent); }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
-#ao-root .ao-news { display: inline-block; min-width: 16px; padding: 1px 5px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 13px; text-align: center; }
+#ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; }
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
