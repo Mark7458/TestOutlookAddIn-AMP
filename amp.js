@@ -1317,8 +1317,8 @@
     function renderSettings(config) {
         const tabs = Object.keys(TEXTS.settings.tabs);
         const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
+        // Niente riga ←: dalle impostazioni si esce con le schede o con l'ingranaggio.
         return h('div', { class: 'ao-view' },
-            backRow(TEXTS.settings.title),
             filterBar(tabs.map(value => ({
                 value,
                 label: TEXTS.settings.tabs[value],
