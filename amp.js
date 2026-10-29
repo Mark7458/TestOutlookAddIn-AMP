@@ -1122,7 +1122,7 @@
         return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: () => openTicket(mail) }, TEXTS.mail.openTicket);
     }
     function ignoreButton(mail, className) {
-        return confirmButton(TEXTS.mail.discard, className, async () => {
+        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async () => {
             if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await refreshLists();
         });
     }
@@ -1629,6 +1629,9 @@
 #ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
+/* Ignora: rosso al passaggio del mouse, senza bordo (anche quando chiede conferma) */
+#ao-root .ao-ignore:hover { color: var(--ao-danger); background: var(--ao-danger-bg); border-color: transparent; }
+#ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { border-color: transparent !important; }
 #ao-root .ao-armed, #ao-root .ao-armed:hover { background: var(--ao-danger-bg) !important; border-color: var(--ao-danger) !important; color: var(--ao-danger) !important; }
 #ao-root .ao-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-icon-button:hover { background: var(--ao-bg-soft); border-color: var(--ao-line); }
