@@ -850,18 +850,21 @@
                 class: 'ao-item-main', tabindex: '0', role: 'button',
                 onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
             },
-                h('div', { class: 'ao-item-top' },
+                // Stessa disposizione di Attive: oggetto e mittente a sinistra, ora a destra.
+                h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
-                h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
-                h('div', { class: 'ao-hint' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))),
+                    h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
+                h('div', { class: 'ao-item-right' },
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
             expanded
                 ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
                         openTicketButton(mail, config),
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge)));
+                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    // Chi l'ha ignorata, in basso a destra sulla stessa riga del pulsante.
+                    h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
     }
     function mailFromQueueItem(item) {
         return {
@@ -1746,7 +1749,8 @@
 /* Le etichette lunghe vanno a capo invece di essere tagliate */
 #ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-item-main:hover .ao-item-title { color: var(--ao-accent); }
-#ao-root .ao-item-actions { display: flex; gap: 6px; }
+#ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
+#ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-expanded { border-left-color: var(--ao-accent); }
 
