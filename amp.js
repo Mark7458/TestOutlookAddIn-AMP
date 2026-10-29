@@ -533,7 +533,8 @@
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
-        queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
+        queueExpanded: null,
+        animateExpand: null, // modulo appena aperto, da animare // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
     let root = null;
@@ -890,14 +891,21 @@
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
             expanded
-                ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
+                ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
                         openTicketButton(mail, config),
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
                     // Chi l'ha ignorata, in basso a destra sulla stessa riga del pulsante.
                     h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
+    }
+    // Prendi in carico: apre il modulo nella card con un'animazione (solo all'apertura, non a ogni aggiornamento).
+    function openTakeCharge(conversationId) {
+        state.queueExpanded = conversationId;
+        state.animateExpand = conversationId;
+        render();
+        state.animateExpand = null;
     }
     function mailFromQueueItem(item) {
         return {
@@ -924,12 +932,12 @@
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
                     company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null)),
             expanded
-                ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
+                ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
                     h('div', { class: 'ao-actions' },
                         openTicketButton(mail, config),
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge),
+                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
                     ignoreButton(mail, 'ao-button ao-small ao-subtle')));
     }
 
@@ -1832,6 +1840,10 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
+/* Apertura del modulo Prendi in carico: si allunga e compare con dolcezza */
+#ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
+@keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: 600px; opacity: 1; padding-top: 8px; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand { animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
