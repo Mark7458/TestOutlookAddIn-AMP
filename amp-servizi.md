@@ -98,6 +98,15 @@ sottoscrizione Microsoft Graph, così funziona anche se l'add-in è chiuso. In a
 - Rispondere con un testo pronto: `Office.context.mailbox.item.displayReplyForm(...)` (solo sulla mail aperta).
 - Elenco delle mail della casella condivisa: non disponibile da Office.js → Graph nella Function App.
 
+## Riferimenti a ServiceNow (sys_id)
+
+Nelle impostazioni Company, Assignment group, Category e Assigned to si scrivono per nome.
+Il sys_id (l'identificativo interno di ServiceNow) non si mostra né si modifica: arriva dal file
+importato da Tampermonkey oppure va trovato dal servizio cercando il nome su ServiceNow.
+Le voci senza sys_id compaiono come "da verificare". Servizio da aggiungere:
+`resolveReference(tabella, nome)` → `{ value: sys_id, displayValue }` (tabelle `core_company`,
+`sys_user_group`, `sys_user` e quella delle categorie).
+
 ## Da definire
 
 - Flusso FWD (inoltro al reparto interno competente): priorità per il primo rilascio.

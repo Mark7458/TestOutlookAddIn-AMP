@@ -84,6 +84,7 @@
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
         common: {
             me: 'me',
+            back: view => `← ${view}`,
             loading: 'Caricamento…',
             cancel: 'Annulla',
             save: 'Salva',
@@ -189,28 +190,33 @@
             kinds: { comment: 'Commento', work_note: 'Nota interna', system: 'Sistema' }
         },
         settings: {
+            title: 'Impostazioni',
+            tabs: { profile: 'Profilo', companies: 'Agenzie', activities: 'Attività', responses: 'Risposte' },
             profile: 'Profilo',
-            profileHint: 'Il tuo utente su ServiceNow: i ticket che apri vengono assegnati a te.',
+            profileHint: 'Il tuo nome come compare su ServiceNow: i ticket che apri vengono assegnati a te.',
             assignedTo: 'Assigned to',
-            displayValue: 'Nome',
-            sysId: 'sys_id',
-            companies: 'Agenzie',
-            activities: 'Attività',
-            responses: 'Risposte salvate',
-            data: 'Dati',
+            backup: 'Configurazioni',
+            backupHint: 'Agenzie, Attività e risposte stanno in questo browser: esportale per averne una copia o portarle su un altro computer. Il file di Tampermonkey si importa senza modifiche.',
             companyName: 'Nome',
             company: 'Company',
             assignmentGroup: 'Assignment group',
             domains: 'Domini email',
             domainsHint: 'Separati da virgola, es. agenziaalfa.it, alfa.it',
+            noDomains: 'nessuno: niente agenzia suggerita',
             category: 'Category',
+            impactUrgency: 'Impact / Urgency',
             impact: 'Impact',
             urgency: 'Urgency',
-            timeWorked: 'Minuti',
-            prefix: 'Prefisso Short description',
-            title: 'Titolo',
+            timeWorked: 'Tempo',
+            timeWorkedMinutes: 'Minuti',
+            prefix: 'Prefisso',
+            prefixLong: 'Prefisso Short description',
+            responseTitle: 'Titolo',
             response: 'Testo',
             empty: 'Nessuna voce.',
+            toVerify: 'da verificare',
+            toVerifyHint: 'Nome non ancora collegato a ServiceNow: verrà verificato dal servizio.',
+            referenceHint: 'Il nome come compare su ServiceNow.',
             import: 'Importa JSON',
             export: 'Esporta JSON',
             imported: 'Configurazioni importate.',
@@ -495,6 +501,8 @@
         actionDrafts: {}, // per ticket: azione all'invio
         history: {}, // per ticket: storico caricato
         editing: null, // impostazioni: { kind, id }
+        settingsTab: 'profile', // profile | companies | activities | responses
+        backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
@@ -670,12 +678,16 @@
         const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
         state.target = { kind: 'mail', mail };
         if (!sameConversation) state.result = null;
-        if (state.view !== 'settings') state.view = 'mail';
+        if (state.view !== 'settings' && state.view !== 'mail') {
+            state.backTo ||= state.view;
+            state.view = 'mail';
+        }
         render();
         refreshTarget(sameConversation);
     }
     // Dalla Coda: mostra la richiesta e apre la mail in Outlook.
     function openQueueItem(item) {
+        state.backTo = 'queue';
         showMailTarget({
             conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
             receivedAt: item.receivedAt, body: item.preview, incNumbers: []
@@ -685,14 +697,17 @@
     }
     // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
     function openTicketItem(ticket) {
+        state.backTo = 'tickets';
         state.target = { kind: 'ticket', number: ticket.number };
         state.view = 'mail';
         render();
         scrollToTop();
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
-    function setView(view) {
+    // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
+    function setView(view, backTo = null) {
         state.view = view;
+        state.backTo = backTo;
         state.editing = null;
         render();
         scrollToTop();
@@ -714,7 +729,7 @@
                 }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), h('span', { class: 'ao-badge', hidden: true }))),
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
-                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => setView(state.view === 'settings' ? 'queue' : 'settings')
+                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
                 }, '⚙')),
             h('div', { class: 'ao-body' }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }));
@@ -753,6 +768,14 @@
                 type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`,
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
+    }
+    // Riga con il pulsante per tornare alla vista di partenza (e un titolo facoltativo).
+    function backRow(title) {
+        const target = state.backTo;
+        if (!target && !title) return null;
+        return h('div', { class: 'ao-back-row' },
+            target ? h('button', { type: 'button', class: 'ao-link ao-back-link', onclick: () => setView(target) }, TEXTS.common.back(TEXTS.tabs[target])) : null,
+            title ? h('span', { class: 'ao-back-title' }, title) : null);
     }
     function clickable(className, onopen, ...children) {
         return h('li', { class: className, tabindex: '0', role: 'button', onclick: onopen, onkeydown: event => { if (event.key === 'Enter') onopen(); } }, ...children);
@@ -845,7 +868,7 @@
         if (!target) return h('div', { class: 'ao-view' }, notice, h('p', { class: 'ao-empty' }, TEXTS.mail.noMail));
         if (target.kind === 'ticket') {
             const ticket = ticketByNumber(target.number);
-            return h('div', { class: 'ao-view' }, notice,
+            return h('div', { class: 'ao-view' }, backRow(), notice,
                 ticket ? ticketSection(ticket, config, user, { isCurrentMail: false, showOpen: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
         }
         const mail = target.mail;
@@ -864,6 +887,7 @@
             content.push(newTicketCard(mail, config, user));
         }
         return h('div', { class: 'ao-view' },
+            backRow(),
             notice,
             mailHeader(mail, !isCurrentMail),
             content);
@@ -1228,12 +1252,20 @@
     }
 
     // ---------------------------- Impostazioni ----------------------------
-    // Ogni sezione è un elenco con modifica in linea. EDITORS descrive i campi di ogni tipo di voce.
+    // Profilo e configurazioni in schede separate (barra secondaria). Ogni configurazione mostra
+    // subito tutti i suoi valori; la modifica avviene in linea. EDITORS descrive i campi.
+    // I riferimenti a ServiceNow (Company, Assignment group, Category, Assigned to) si scrivono
+    // per nome: il sys_id resta interno (arriva dall'import o dalla verifica del servizio) e non
+    // si mostra né si modifica. Se il nome cambia, il sys_id si azzera e la voce è "da verificare".
     const EDITORS = {
-        company: {
-            collection: 'companies',
-            title: TEXTS.settings.companies,
-            describe: item => [item.assignmentGroup?.displayValue, (item.domains || []).map(domain => `@${domain}`).join(' ')].filter(Boolean).join(' · '),
+        companies: {
+            properties: item => [
+                [TEXTS.settings.company, referenceValue(item.company)],
+                [TEXTS.settings.assignmentGroup, referenceValue(item.assignmentGroup)],
+                [TEXTS.settings.domains, (item.domains || []).length
+                    ? (item.domains || []).map(domain => chip(`@${domain}`, 'neutral'))
+                    : h('span', { class: 'ao-missing' }, TEXTS.settings.noDomains)]
+            ],
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
                 { key: 'company', label: TEXTS.settings.company, reference: true },
@@ -1241,91 +1273,115 @@
                 { key: 'domains', label: TEXTS.settings.domains, hint: TEXTS.settings.domainsHint, list: true }
             ]
         },
-        activity: {
-            collection: 'activities',
-            title: TEXTS.settings.activities,
-            describe: item => [item.category?.displayValue, `I/U ${item.impact || '?'}/${item.urgency || '?'}`, TEXTS.mail.minutes(Number(item.timeWorked) || 0), item.shortDescriptionPrefix].filter(Boolean).join(' · '),
+        activities: {
+            properties: item => [
+                [TEXTS.settings.category, referenceValue(item.category)],
+                [TEXTS.settings.impactUrgency, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`],
+                [TEXTS.settings.timeWorked, TEXTS.mail.minutes(Number(item.timeWorked) || 0)],
+                [TEXTS.settings.prefix, item.shortDescriptionPrefix || h('span', { class: 'ao-missing' }, TEXTS.common.none)]
+            ],
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
                 { key: 'category', label: TEXTS.settings.category, reference: true },
                 { key: 'impact', label: TEXTS.settings.impact, options: ['1', '2', '3'] },
                 { key: 'urgency', label: TEXTS.settings.urgency, options: ['1', '2', '3'] },
-                { key: 'timeWorked', label: TEXTS.settings.timeWorked, number: true },
-                { key: 'shortDescriptionPrefix', label: TEXTS.settings.prefix }
+                { key: 'timeWorked', label: TEXTS.settings.timeWorkedMinutes, number: true },
+                { key: 'shortDescriptionPrefix', label: TEXTS.settings.prefixLong }
             ]
         },
-        response: {
+        responses: {
             collection: 'usefulResponses',
-            title: TEXTS.settings.responses,
             nameKey: 'title',
-            describe: item => String(item.response || '').replace(/\s+/g, ' ').slice(0, 70),
+            body: item => h('p', { class: 'ao-response-text' }, item.response || ''),
             fields: [
-                { key: 'title', label: TEXTS.settings.title, required: true },
+                { key: 'title', label: TEXTS.settings.responseTitle, required: true },
                 { key: 'response', label: TEXTS.settings.response, multiline: true }
             ]
         }
     };
+    const collectionOf = tab => EDITORS[tab].collection || tab;
+
+    // Valore di un riferimento: il nome, con l'avviso se non è ancora collegato a ServiceNow.
+    function referenceValue(reference) {
+        const normalized = normalizeReference(reference);
+        if (!normalized.displayValue) return h('span', { class: 'ao-missing' }, TEXTS.common.none);
+        return [normalized.displayValue, normalized.value ? null : chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint)];
+    }
+    // Il sys_id resta quello di prima solo se il nome non è cambiato.
+    function keepReference(previous, displayValue) {
+        const before = normalizeReference(previous);
+        const name = String(displayValue || '').trim();
+        return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
+    }
 
     function renderSettings(config) {
+        const tabs = Object.keys(TEXTS.settings.tabs);
+        const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
         return h('div', { class: 'ao-view' },
-            profileSection(config),
-            Object.keys(EDITORS).map(kind => collectionSection(kind, config)),
-            h('section', { class: 'ao-card' },
-                h('h3', { class: 'ao-card-title' }, TEXTS.settings.data),
-                h('div', { class: 'ao-actions' },
-                    h('button', { type: 'button', class: 'ao-button', onclick: importConfig }, TEXTS.settings.import),
-                    h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export))));
+            backRow(TEXTS.settings.title),
+            filterBar(tabs.map(value => ({
+                value,
+                label: TEXTS.settings.tabs[value],
+                count: value === 'profile' ? undefined : Object.keys(config[collectionOf(value)]).length
+            })), tab, value => { state.settingsTab = value; state.editing = null; render(); }),
+            tab === 'profile' ? profileSection(config) : collectionSection(tab, config));
     }
     function profileSection(config) {
-        const draft = { name: config.profile.assignedTo.displayValue, sysId: config.profile.assignedTo.value };
+        const draft = { name: config.profile.assignedTo.displayValue };
         const outlookName = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
-        return h('section', { class: 'ao-card' },
-            h('h3', { class: 'ao-card-title' }, TEXTS.settings.profile),
-            h('p', { class: 'ao-hint' }, TEXTS.settings.profileHint),
-            h('div', { class: 'ao-grid-2' },
-                textField(`${TEXTS.settings.assignedTo} · ${TEXTS.settings.displayValue}`, draft.name, value => { draft.name = value; }, { placeholder: outlookName }),
-                textField(TEXTS.settings.sysId, draft.sysId, value => { draft.sysId = value; })),
-            h('div', { class: 'ao-actions' },
-                h('button', {
-                    type: 'button', class: 'ao-button ao-primary',
-                    onclick: () => {
-                        const current = loadConfig();
-                        current.profile = { ...current.profile, assignedTo: { displayValue: draft.name.trim(), value: draft.sysId.trim() } };
-                        saveConfig(current);
-                        render();
-                        showStatus(TEXTS.settings.saved);
-                    }
-                }, TEXTS.common.save)));
+        return [
+            h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, TEXTS.settings.profile),
+                textField(TEXTS.settings.assignedTo, draft.name, value => { draft.name = value; }, { placeholder: outlookName, hint: TEXTS.settings.profileHint }),
+                config.profile.assignedTo.displayValue && !config.profile.assignedTo.value
+                    ? h('div', {}, chip(TEXTS.settings.toVerify, 'warning'), ' ', h('span', { class: 'ao-hint' }, TEXTS.settings.toVerifyHint)) : null,
+                h('div', { class: 'ao-actions' },
+                    h('button', {
+                        type: 'button', class: 'ao-button ao-primary',
+                        onclick: () => {
+                            const current = loadConfig();
+                            current.profile = { ...current.profile, assignedTo: keepReference(current.profile.assignedTo, draft.name) };
+                            saveConfig(current);
+                            render();
+                            showStatus(TEXTS.settings.saved);
+                        }
+                    }, TEXTS.common.save))),
+            h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
+                h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
+                h('div', { class: 'ao-actions' },
+                    h('button', { type: 'button', class: 'ao-button', onclick: importConfig }, TEXTS.settings.import),
+                    h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export)))
+        ];
     }
-    function collectionSection(kind, config) {
-        const editor = EDITORS[kind];
-        const items = Object.entries(config[editor.collection]).sort(byName);
-        const editing = state.editing?.kind === kind ? state.editing : null;
-        return h('section', { class: 'ao-card' },
-            h('div', { class: 'ao-card-head' },
-                h('h3', { class: 'ao-card-title' }, editor.title, h('span', { class: 'ao-count' }, items.length)),
-                editing?.id === null ? null : h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.editing = { kind, id: null }; render(); } }, `+ ${TEXTS.common.add}`)),
-            editing?.id === null ? editorForm(kind, null, {}) : null,
-            items.length ? h('ul', { class: 'ao-config-list' }, items.map(([id, item]) => editing?.id === id
-                ? h('li', {}, editorForm(kind, id, item))
-                : h('li', { class: 'ao-config-item' },
-                    h('div', { class: 'ao-config-text' },
+    function collectionSection(tab, config) {
+        const editor = EDITORS[tab];
+        const items = Object.entries(config[collectionOf(tab)]).sort(byName);
+        const editing = state.editing?.kind === tab ? state.editing : null;
+        return [
+            editing?.id === null ? editorForm(tab, null, {}) : h('div', { class: 'ao-toolbar' },
+                h('span', { class: 'ao-hint' }, `${items.length} ${TEXTS.settings.tabs[tab].toLowerCase()}`),
+                h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.editing = { kind: tab, id: null }; render(); } }, `+ ${TEXTS.common.add}`)),
+            items.length ? h('ul', { class: 'ao-config-list' }, items.map(([id, item]) => h('li', {}, editing?.id === id
+                ? editorForm(tab, id, item)
+                : h('div', { class: 'ao-config-card' },
+                    h('div', { class: 'ao-config-card-head' },
                         h('span', { class: 'ao-config-name' }, item[editor.nameKey || 'name']),
-                        h('span', { class: 'ao-hint' }, editor.describe(item))),
-                    h('button', { type: 'button', class: 'ao-icon-button', title: TEXTS.common.edit, 'aria-label': TEXTS.common.edit, onclick: () => { state.editing = { kind, id }; render(); } }, '✎'),
-                    confirmButton('🗑', 'ao-icon-button ao-danger', () => deleteItem(kind, id)))))
-                : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty)));
+                        h('button', { type: 'button', class: 'ao-icon-button', title: TEXTS.common.edit, 'aria-label': TEXTS.common.edit, onclick: () => { state.editing = { kind: tab, id }; render(); } }, '✎'),
+                        confirmButton('🗑', 'ao-icon-button ao-danger', () => deleteItem(tab, id))),
+                    editor.properties
+                        ? h('dl', { class: 'ao-props' }, editor.properties(item).map(([label, value]) => [h('dt', {}, label), h('dd', {}, value)]))
+                        : editor.body(item)))))
+                : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
+        ];
     }
-    function editorForm(kind, id, item) {
-        const editor = EDITORS[kind];
+    function editorForm(tab, id, item) {
+        const editor = EDITORS[tab];
         const values = {};
         const fields = editor.fields.map(field => {
             if (field.reference) {
-                const reference = normalizeReference(item[field.key]);
-                values[field.key] = { ...reference };
-                return h('div', { class: 'ao-grid-2' },
-                    textField(`${field.label} · ${TEXTS.settings.displayValue}`, reference.displayValue, value => { values[field.key].displayValue = value; }),
-                    textField(TEXTS.settings.sysId, reference.value, value => { values[field.key].value = value; }));
+                values[field.key] = normalizeReference(item[field.key]).displayValue;
+                return textField(field.label, values[field.key], value => { values[field.key] = value; }, { hint: TEXTS.settings.referenceHint });
             }
             if (field.options) {
                 values[field.key] = String(item[field.key] || '3');
@@ -1340,21 +1396,23 @@
             const nameKey = editor.nameKey || 'name';
             if (!String(values[nameKey] || '').trim()) return showStatus(TEXTS.settings.nameRequired, 'danger');
             const config = loadConfig();
+            const collection = collectionOf(tab);
             const targetId = id || createId(values[nameKey]);
-            const next = { ...(config[editor.collection][targetId] || {}) };
+            const previous = config[collection][targetId] || {};
+            const next = { ...previous };
             editor.fields.forEach(field => {
                 const value = values[field.key];
-                if (field.reference) next[field.key] = { value: value.value.trim(), displayValue: value.displayValue.trim() };
+                if (field.reference) next[field.key] = keepReference(previous[field.key], value);
                 else if (field.list) next[field.key] = normalizeDomains(value);
                 else if (field.number) next[field.key] = Math.max(0, Number.parseInt(value, 10) || 0);
                 else next[field.key] = field.multiline ? String(value) : String(value).trim();
             });
-            if (kind === 'response') {
+            if (tab === 'responses') {
                 const now = new Date().toISOString();
                 next.created ||= now;
                 next.updated = now;
             }
-            config[editor.collection][targetId] = next;
+            config[collection][targetId] = next;
             saveConfig(config);
             state.editing = null;
             render();
@@ -1366,12 +1424,11 @@
                 h('button', { type: 'button', class: 'ao-button ao-primary', onclick: save }, TEXTS.common.save),
                 h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.editing = null; render(); } }, TEXTS.common.cancel)));
     }
-    function deleteItem(kind, id) {
+    function deleteItem(tab, id) {
         const config = loadConfig();
-        const editor = EDITORS[kind];
-        delete config[editor.collection][id];
-        if (kind === 'company' || kind === 'activity') {
-            const key = kind === 'company' ? 'company' : 'activity';
+        delete config[collectionOf(tab)][id];
+        if (tab === 'companies' || tab === 'activities') {
+            const key = tab === 'companies' ? 'company' : 'activity';
             config.favorites = config.favorites.filter(item => item[key] !== id);
             config.recent = config.recent.filter(item => item[key] !== id);
             Object.keys(config.combinationResponses).forEach(responseKey => {
@@ -1437,7 +1494,7 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs { display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
 #ao-root .ao-settings-button.ao-active { color: var(--ao-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
@@ -1570,6 +1627,20 @@
 #ao-root .ao-item-actions { display: flex; gap: 6px; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-expanded { border-left-color: var(--ao-accent); }
+
+/* Pulsante indietro e impostazioni */
+#ao-root .ao-back-row { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+#ao-root .ao-back-link { font-weight: var(--ao-fw-medium); }
+#ao-root .ao-back-title { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); text-transform: uppercase; letter-spacing: .04em; }
+#ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+#ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; }
+#ao-root .ao-config-card-head .ao-config-name { flex: 1; }
+#ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: var(--ao-fs-md); }
+#ao-root .ao-props dt { color: var(--ao-text-muted); }
+#ao-root .ao-props dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; overflow-wrap: anywhere; }
+#ao-root .ao-props .ao-missing { color: var(--ao-text-subtle); font-style: italic; }
+#ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Collegamento mail ↔ ticket */
 #ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
