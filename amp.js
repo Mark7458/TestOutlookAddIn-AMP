@@ -534,7 +534,8 @@
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         queueExpanded: null,
-        animateExpand: null, // modulo appena aperto, da animare // conversazione con il modulo di presa in carico aperto in In coda
+        animateExpand: null, // modulo appena aperto, da animare
+        holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
     let root = null;
@@ -603,7 +604,7 @@
             if (armed) {
                 clearTimeout(armed);
                 armed = null;
-                action();
+                action(button);
                 return;
             }
             button.textContent = TEXTS.common.confirm;
@@ -781,7 +782,7 @@
     }
 
     function render() {
-        if (!root) return;
+        if (!root || state.holdRender) return;
         const config = loadConfig();
         const user = currentUser(config);
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
@@ -1205,8 +1206,29 @@
         return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: () => openTicket(mail) }, TEXTS.mail.openTicket);
     }
     function ignoreButton(mail, className) {
-        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async () => {
-            if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await refreshLists();
+        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
+            // Nella lista la card scivola via a sinistra (stile iPhone) mentre il servizio registra la scelta.
+            const card = button.closest('.ao-queue-item');
+            const [ok] = await Promise.all([run(() => Services.discardMail(mail.conversationId, currentUser())), slideOut(card)]);
+            if (ok) await refreshLists();
+            render(); // se non è riuscito, la card ricompare
+        });
+    }
+    // Card che esce di lato e poi chiude lo spazio che occupava.
+    function slideOut(card) {
+        if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+        // Durante l'animazione il pannello non si ridisegna (altrimenti la card sparirebbe di colpo).
+        state.holdRender = true;
+        return new Promise(done => {
+            const resolve = () => {
+                if (!state.holdRender) return;
+                state.holdRender = false;
+                done();
+            };
+            card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
+            card.classList.add('ao-slide-out');
+            card.addEventListener('animationend', event => { if (event.animationName === 'ao-slide-collapse') resolve(); });
+            setTimeout(resolve, 700); // riserva
         });
     }
     function fieldRow(label, value, previewKey) {
@@ -1861,8 +1883,12 @@
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .35s ease-in-out forwards; }
+/* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
+#ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
+@keyframes ao-slide-left { to { transform: translateX(-110%); opacity: 0; } }
+@keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out { animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
