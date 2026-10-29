@@ -246,7 +246,8 @@
             importInvalid: 'File JSON non valido.',
             saved: 'Salvato.',
             deleted: 'Eliminato.',
-            nameRequired: 'Il nome è obbligatorio.'
+            nameRequired: 'Il nome è obbligatorio.',
+            version: build => `Versione del pannello: ${build}`
         }
     };
 
@@ -288,6 +289,8 @@
     // ======================================================================
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
+    // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
+    const BUILD = '2026-10-29 18:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1580,7 +1583,8 @@
                 h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button', onclick: importConfig }, TEXTS.settings.import),
-                    h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export)))
+                    h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export))),
+            h('p', { class: 'ao-footnote' }, TEXTS.settings.version(BUILD))
         ];
     }
     function collectionSection(tab, config) {
