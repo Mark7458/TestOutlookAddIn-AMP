@@ -25,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v5';
+    const STORAGE_KEY = 'amp_preview_backend_v6';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -193,7 +193,12 @@
             shortDescription: '[FWD] Aggiunta membri DL acquisti@agenziabeta.it', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
         }, [entry(5.6 * HOUR, 'Marco Rossi', 'system', 'Ticket aperto dall\'add-in (Agenzia Beta · Posta elettronica).')]);
 
-        return { messages, incidents, history, links, discarded: {}, pending: {}, ticketCounter: 12101 };
+        // 12. Mail informativa già ignorata da Giulia (resta nell'archivio finché non arriva un messaggio nuovo)
+        mail('conv-11', { name: 'Ufficio Stampa Gamma', email: 'stampa@comune-gamma.it' }, 'Comunicato: chiusura uffici 1 novembre',
+            'Si comunica che il 1 novembre gli uffici resteranno chiusi.', 26 * HOUR);
+        const discarded = { 'conv-11': { by: 'Giulia Verdi', at: iso(25 * HOUR) } };
+
+        return { messages, incidents, history, links, discarded, pending: {}, ticketCounter: 12101 };
     }
 
     // ------------------------------------------------------------------
@@ -224,6 +229,9 @@
         conversationIds().forEach(id => {
             const numbers = [...new Set(incMentions(conversationMessages(id)).map(item => item.number))].filter(item => data.incidents[item]);
             numbers.reverse().forEach(number => registerThread(id, number, data.incidents[number].assignedTo.name, data.incidents[number].openedAt));
+        });
+        Object.entries(base.discarded).forEach(([id, info]) => {
+            data.sp.threads[id] = { conversationId: id, links: [], owner: '', ownerSeenAt: '', status: 'discarded', discardedBy: info.by, discardedAt: info.at, freedAt: '', updatedAt: info.at };
         });
         // Chi ha in carico il thread l'ha "visto" quando l'ha preso (le mail arrivate dopo sono nuove).
         Object.values(data.sp.threads).forEach(thread => { thread.ownerSeenAt = thread.links[0]?.linkedAt || ''; });
@@ -259,7 +267,8 @@
     function registerThread(conversationId, number, by, when = now(), confirmed = false) {
         const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
         if (!thread.links.some(link => link.number === number)) thread.links.push({ number, linkedAt: when, linkedBy: by || '', confirmedBy: confirmed ? by : '' });
-        if (thread.status !== 'managed' || !thread.owner) thread.owner = by || '';
+        // Chi prende in carico ha davanti la mail: quello che è arrivato fin qui non è "nuovo".
+        if (thread.status !== 'managed' || !thread.owner) Object.assign(thread, { owner: by || '', ownerSeenAt: when });
         Object.assign(thread, { discardedBy: '', discardedAt: '' });
         db.sp.threads[conversationId] = thread;
         refreshThreadStatus(thread);
@@ -280,6 +289,10 @@
     }
     function updateThreadForTicket(number) {
         Object.values(db.sp.threads).filter(thread => threadNumbers(thread).includes(number)).forEach(refreshThreadStatus);
+    }
+    function lastIncomingPreview(conversationId) {
+        const last = lastIncomingOf(conversationId);
+        return last ? { from: last.from.name || last.from.email, at: last.receivedAt, preview: last.body.replace(/\s+/g, ' ').slice(0, 180) } : null;
     }
     // Messaggi arrivati dopo l'ultima risposta o l'ultima visione di chi ha il thread in carico.
     function newMessagesOf(conversationId) {
@@ -385,6 +398,7 @@
             mailUnconfirmed: Boolean(similar),
             owner: conversation ? db.sp.threads[conversation]?.owner || '' : '',
             newMessages: conversation ? newMessagesOf(conversation) : 0,
+            lastNewMessage: conversation && newMessagesOf(conversation) ? lastIncomingPreview(conversation) : null,
             syncedAt: db.sp.syncedAt
         };
     }
@@ -447,11 +461,13 @@
         listQueue() {
             return respond(conversationIds().map(queueItem).filter(Boolean));
         },
-        // Coda personale: i thread in gestione di un operatore, con i messaggi nuovi da leggere.
-        listMyThreads(user) {
-            const name = user?.displayValue || '';
-            const mine = Object.values(db.sp.threads).filter(thread => thread.status === 'managed' && thread.owner === name);
-            return respond(mine.map(thread => {
+        // Archivio: thread ignorati che aspettano il prossimo messaggio.
+        listIgnored() {
+            const ignored = Object.values(db.sp.threads).filter(thread => {
+                const lastIncoming = lastIncomingOf(thread.conversationId);
+                return thread.status === 'discarded' && (!lastIncoming || thread.discardedAt > lastIncoming.receivedAt);
+            });
+            return respond(ignored.map(thread => {
                 const messages = conversationMessages(thread.conversationId);
                 const lastIncoming = lastIncomingOf(thread.conversationId);
                 return {
@@ -459,14 +475,14 @@
                     messageId: messages[messages.length - 1]?.id || null,
                     subject: messages[0]?.subject || '',
                     sender: lastIncoming?.from || null,
-                    receivedAt: messages[messages.length - 1]?.receivedAt || '',
-                    tickets: threadNumbers(thread).map(number => db.sp.tickets[number])
-                        .filter(ticket => ticket && OPEN_STATES.includes(ticket.state)).map(ticket => ({ number: ticket.number, state: ticket.state, holdExpiration: ticket.holdExpiration })),
-                    newMessages: newMessagesOf(thread.conversationId)
+                    receivedAt: lastIncoming?.receivedAt || '',
+                    preview: lastIncoming ? lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160) : '',
+                    discardedBy: thread.discardedBy,
+                    discardedAt: thread.discardedAt
                 };
-            }));
+            }).sort((a, b) => String(b.discardedAt).localeCompare(String(a.discardedAt))));
         },
-        // Chi ha il thread in carico l'ha letto dal pannello: i messaggi fin qui non sono più "nuovi".
+        // Chi ha il thread in carico ha cliccato il ticket in Ticket: i messaggi fin qui non sono più "nuovi".
         markThreadSeen(conversationId, user) {
             const thread = db.sp.threads[conversationId];
             if (!thread || thread.owner !== user?.displayValue || !newMessagesOf(conversationId)) return respond(false);

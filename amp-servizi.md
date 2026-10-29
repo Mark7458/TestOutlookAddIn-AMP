@@ -23,14 +23,14 @@ e `TestPluginAPI` (`getCurrentMessageContext`, `onMessageChanged`, `showMainView
    fatte direttamente su AMP fuori dal pannello (colleghi, chiusure automatiche, riassegnazioni).
 4. **Chi ha in carico un ticket = *Assigned to*.** Non si usano i tag di Outlook. Aprire il ticket
    equivale a prendere in carico il thread (assegnato a chi lo apre).
-5. **In coda = un thread per conversationId.** Due elenchi:
-   - **Da prendere** (condiviso): i thread non in gestione. Quando tutti i ticket del thread si
-     chiudono il thread torna **libero subito**, ma ricompare qui **solo se arriva un messaggio
-     nuovo**. Un thread ignorato ricompare allo stesso modo.
-   - **Mie** (personale): i thread in gestione di chi li ha presi in carico, finché restano in
-     gestione. Le **risposte nuove** (messaggi arrivati dopo l'ultima risposta o l'ultima apertura
-     dal pannello di chi ha il thread) sono evidenziate, anche se qualcuno le ha già lette nella
-     casella condivisa.
+5. **In coda = un thread per conversationId, coda condivisa.** Ci sono i thread non in gestione.
+   Quando tutti i ticket del thread si chiudono il thread torna **libero subito**, ma ricompare
+   **solo se arriva un messaggio nuovo**. I thread **ignorati** vanno in un archivio (in fondo a
+   In coda) da cui si possono prendere in carico; tornano da soli in coda con un messaggio nuovo.
+   Un thread in gestione resta a chi l'ha preso in carico e si segue dalla scheda **Ticket**:
+   i **messaggi nuovi** (arrivati dopo l'ultima risposta o dopo l'ultimo clic sul ticket di chi
+   l'ha in carico) compaiono come **+N** con l'inizio dell'ultimo messaggio, anche se qualcuno li ha
+   già letti nella casella condivisa. Solo il clic sul ticket nel pannello li segna come visti.
 6. **Un thread può avere più ticket**, nel tempo (richieste successive sulla stessa scia) o
    **aperti insieme** (es. creazione della DL e aggiunta dei membri). Il thread resta in gestione
    finché almeno uno è aperto.
@@ -60,9 +60,9 @@ Ogni servizio restituisce una Promise.
 | Servizio | Cosa fa | Dove agisce |
 |---|---|---|
 | `listQueue()` | Thread della casella (uno per conversationId) da prendere in carico, secondo la regola 5 | Graph + SharePoint |
-| `listMyThreads(utente)` | Thread in gestione dell'utente, con i ticket aperti e il numero di risposte nuove | Graph + SharePoint |
-| `markThreadSeen(conversationId, utente)` | Chi ha il thread lo ha aperto dal pannello: le risposte fin qui non sono più nuove | SharePoint |
-| `listOpenTickets()` | Ticket In Progress e On Hold del gruppo, con la mail collegata e l'ora dell'ultimo allineamento (`syncedAt`) | SharePoint |
+| `listIgnored()` | Archivio dei thread ignorati in attesa del prossimo messaggio | Graph + SharePoint |
+| `markThreadSeen(conversationId, utente)` | Chi ha il thread ha cliccato il ticket: i messaggi fin qui non sono più nuovi | SharePoint |
+| `listOpenTickets()` | Ticket In Progress e On Hold del gruppo, con la mail collegata, `newMessages`, `lastNewMessage` (chi, quando, prime righe) e l'ora dell'ultimo allineamento (`syncedAt`) | Graph + SharePoint |
 | `findTicketForMail(mail)` | Triangolazione: `{ tickets (aperti, anche più di uno, ognuno con via), previous, candidates, discarded }` | SharePoint |
 | `getTicket(numero)` | Un ticket | SharePoint |
 | `linkTicket(conversationId, numero, utente)` | L'operatore conferma il collegamento: il thread passa in gestione | SharePoint |
@@ -90,7 +90,7 @@ Ogni servizio restituisce una Promise.
 
 | Lista | Una riga per | Campi |
 |---|---|---|
-| **Thread AMP** | conversazione | `conversationId`, `internetMessageId` e immutable ID dell'ultima mail, `status` (libero / in gestione / scartato), `owner` (chi l'ha in carico), `ownerSeenAt` (ultima apertura dal pannello di chi l'ha in carico), `tickets` (JSON: `number`, `linkedAt`, `linkedBy`, `confirmedBy` per ogni ticket del thread), `freedAt`, `discardedBy`, `discardedAt`, `updatedAt` |
+| **Thread AMP** | conversazione | `conversationId`, `internetMessageId` e immutable ID dell'ultima mail, `status` (libero / in gestione / scartato), `owner` (chi l'ha in carico), `ownerSeenAt` (ultimo clic sul ticket di chi l'ha in carico), `tickets` (JSON: `number`, `linkedAt`, `linkedBy`, `confirmedBy` per ogni ticket del thread), `freedAt`, `discardedBy`, `discardedAt`, `updatedAt` |
 | **Ticket AMP** | ticket del gruppo | copia dei valori di ServiceNow: `number`, `sysId`, `state`, `assignedTo`, `company`, `activity`, `shortDescription`, `reportedOn`, `openedAt`, `closedAt`, `timeWorkedMinutes`, `holdReason`, `holdExpiration`, `resolutionCode`; più `pendingAction` (JSON dell'azione all'invio) e `updatedAt` |
 | **Movimenti AMP** | azione | `at`, `type` (apertura, collegamento, tempo, assegnazione, risposta, azione all'invio, ignorata, allineamento…), `ticketNumber`, `by`, `details`, `conversationId`, esito su ServiceNow |
 

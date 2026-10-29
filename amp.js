@@ -104,10 +104,11 @@
             empty: 'Nessuna richiesta in coda.',
             suggested: name => `Agenzia: ${name}`,
             previous: number => `Thread già usato: ${number}`,
-            shared: 'Da prendere',
-            mine: 'Mie',
-            mineEmpty: 'Nessun thread in carico a te.',
-            newMessages: n => (n === 1 ? '1 risposta nuova' : `${n} risposte nuove`),
+            ignored: n => `Ignorate (${n})`,
+            hideIgnored: 'Nascondi ignorate',
+            ignoredHint: 'Tornano da sole In coda quando arriva un messaggio nuovo nel thread; intanto puoi prenderle in carico da qui.',
+            ignoredBy: (who, when) => `Ignorata da ${who} · ${when}`,
+
             takeCharge: 'Prendi in carico',
             ignore: 'Ignora'
         },
@@ -117,7 +118,9 @@
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
-            newMessages: 'risposta nuova',
+            newMessages: n => `+${n}`,
+            newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
+            threadGroup: n => `Stesso thread · ${n} ticket`,
             syncedAt: when => `Allineato con ServiceNow: ${when}`,
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`
@@ -343,8 +346,7 @@
     //
     //   listQueue()                         → [{ conversationId, messageId, subject, sender, receivedAt,
     //                                            preview, previous: { number, state } | null, candidates: [numero] }]
-    //   listMyThreads(utente)               → [{ conversationId, messageId, subject, sender, receivedAt,
-    //                                            tickets: [{ number, state, holdExpiration }], newMessages }]
+    //   listIgnored()                       → [{ conversationId, messageId, subject, sender, receivedAt, discardedBy, discardedAt }]
     //   markThreadSeen(conversationId, utente) → i messaggi del thread non sono più "nuovi" per chi l'ha in carico
     //   listOpenTickets()                   → Ticket[]  (In Progress e On Hold del gruppo, copia su SharePoint)
     //   findTicketForMail(mail)             → { tickets: (Ticket & { via: 'inc'|'link'|'confirmed' })[], previous, candidates: Ticket[], discarded }
@@ -362,10 +364,11 @@
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
-    //            holdExpiration, conversationId, messageId, pendingAction, owner, newMessages, syncedAt }
+    //            holdExpiration, conversationId, messageId, pendingAction, owner, newMessages,
+    //            lastNewMessage: { from, at, preview } | null, syncedAt }
     // ======================================================================
 
-    const SERVICE_METHODS = ['listQueue', 'listMyThreads', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
+    const SERVICE_METHODS = ['listQueue', 'listIgnored', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
         'assignTicket', 'addTime', 'getTicketActivity', 'setPendingAction', 'discardMail', 'restoreMail'];
 
     class ServicesMissingError extends Error {}
@@ -518,10 +521,9 @@
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
-        queueFilter: 'shared', // In coda: shared (da prendere) | mine (thread in carico a me)
-        myThreads: [],
-        extraTicketFor: null,
-        markSeenFor: null, // thread da segnare come letto appena trovato il suo ticket // thread su cui si sta aprendo un ticket in più
+        ignored: [], // archivio dei thread ignorati (In coda, in fondo)
+        showIgnored: false,
+        extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         queueExpanded: null, // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
     };
@@ -649,9 +651,9 @@
         state.loading = !state.loaded;
         if (state.loading) render();
         try {
-            const [queue, myThreads, tickets] = await Promise.all([Services.listQueue(), Services.listMyThreads(currentUser()), Services.listOpenTickets()]);
+            const [queue, ignored, tickets] = await Promise.all([Services.listQueue(), Services.listIgnored(), Services.listOpenTickets()]);
             state.queue = queue;
-            state.myThreads = myThreads;
+            state.ignored = ignored;
             state.tickets = tickets;
             tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             state.serviceError = '';
@@ -676,13 +678,7 @@
             render();
         }
         try {
-            const conversationId = state.target.mail.conversationId;
             const result = await Services.findTicketForMail(state.target.mail);
-            // Aperta da chi l'ha in carico: le risposte arrivate non sono più "nuove".
-            if (state.markSeenFor === conversationId && (result.tickets || []).some(ticket => ticket.newMessages)) {
-                state.markSeenFor = null;
-                Services.markThreadSeen(conversationId, currentUser()).catch(() => {});
-            }
             if (sequence !== searchSequence) return;
             state.result = result;
             [...(result.tickets || []), result.previous, ...(result.candidates || [])].forEach(ticket => { if (ticket) state.ticketCache[ticket.number] = ticket; });
@@ -704,10 +700,7 @@
     function showMailTarget(mail) {
         const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
         state.target = { kind: 'mail', mail };
-        if (!sameConversation) {
-            state.result = null;
-            state.markSeenFor = mail.conversationId;
-        }
+        if (!sameConversation) state.result = null;
         if (state.view !== 'settings' && state.view !== 'mail') {
             state.backTo ||= state.view;
             state.view = 'mail';
@@ -726,7 +719,9 @@
         Outlook.openMessage(item.messageId);
     }
     // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
+    // Solo questo clic segna come lette le risposte nuove (aprire la mail in Outlook non basta).
     function openTicketItem(ticket) {
+        if (ticket.newMessages && ticket.conversationId) Services.markThreadSeen(ticket.conversationId, currentUser()).catch(() => {});
         state.backTo = 'tickets';
         state.target = { kind: 'ticket', number: ticket.number };
         state.view = 'mail';
@@ -757,7 +752,7 @@
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
                     onclick: () => setView(view)
                 }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), h('span', { class: 'ao-badge', hidden: true }),
-                    view === 'queue' ? h('span', { class: 'ao-dot', hidden: true }) : null)),
+                    view === 'tickets' ? h('span', { class: 'ao-dot', hidden: true }) : null)),
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
                     title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
@@ -771,7 +766,8 @@
         if (!root) return;
         const config = loadConfig();
         const user = currentUser(config);
-        const newReplies = state.myThreads.filter(thread => thread.newMessages).length;
+        // Thread dei miei ticket con messaggi nuovi (uno per thread).
+        const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
             const active = tab.dataset.view === state.view;
@@ -781,11 +777,11 @@
             const count = counts[tab.dataset.view];
             badge.hidden = !count;
             badge.textContent = count || '';
-            // In coda: pallino rosso se nei thread in carico a me ci sono risposte nuove.
+            // Ticket: pallino rosso se nei thread dei miei ticket ci sono messaggi nuovi.
             const dot = tab.querySelector('.ao-dot');
             if (dot) {
                 dot.hidden = !newReplies;
-                dot.title = newReplies ? TEXTS.queue.newMessages(newReplies) : '';
+                dot.title = newReplies ? TEXTS.tickets.newMessagesTitle(newReplies) : '';
             }
         });
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
@@ -824,33 +820,49 @@
     // ======================================================================
 
     // ---------------------------- Coda ------------------------------------
-    // Due code: "Da prendere" (condivisa) e "Mie" (thread in carico a me, con le risposte nuove in evidenza).
+    // Una sola coda condivisa; in fondo l'archivio dei thread ignorati, per rimetterli in coda.
     function renderQueue(config) {
         const notice = serviceNotice();
-        const byDate = (a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt));
-        const shared = state.queue.slice().sort(byDate);
-        const mine = state.myThreads.slice().sort((a, b) => (b.newMessages ? 1 : 0) - (a.newMessages ? 1 : 0) || byDate(a, b));
-        const newReplies = mine.filter(thread => thread.newMessages).length;
-        const showMine = state.queueFilter === 'mine';
+        const shared = state.queue.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
         return h('div', { class: 'ao-view' },
             notice,
-            filterBar([
-                { value: 'shared', label: TEXTS.queue.shared, count: shared.length },
-                { value: 'mine', label: [TEXTS.queue.mine, newReplies ? h('span', { class: 'ao-dot', title: TEXTS.queue.newMessages(newReplies) }) : null], count: mine.length }
-            ], state.queueFilter, value => { state.queueFilter = value; render(); }),
-            showMine
-                ? (mine.length ? h('ul', { class: 'ao-list' }, mine.map(thread => myThreadItem(thread))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.mineEmpty)))
-                : (shared.length ? h('ul', { class: 'ao-list' }, shared.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
+            shared.length ? h('ul', { class: 'ao-list' }, shared.map(item => queueItem(item, config))) : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty)),
+            ignoredSection());
     }
-    function myThreadItem(thread) {
-        return clickable(`ao-item${thread.newMessages ? ' ao-item-new' : ''}`, () => openQueueItem(thread),
-            h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-title' }, thread.subject || '(senza oggetto)'),
-                h('span', { class: 'ao-item-time' }, formatWhen(thread.receivedAt))),
-            h('div', { class: 'ao-item-sub' }, thread.sender?.name || thread.sender?.email || ''),
-            h('div', { class: 'ao-item-meta' },
-                thread.newMessages ? chip(TEXTS.queue.newMessages(thread.newMessages), 'accent') : null,
-                thread.tickets.map(ticket => chip(`${ticket.number} · ${TICKET_STATES[ticket.state]?.label || ticket.state}`, isHoldExpired(ticket) ? 'danger' : 'neutral'))));
+    function ignoredSection() {
+        if (!state.ignored.length) return null;
+        return h('div', { class: 'ao-ignored' },
+            h('button', {
+                type: 'button', class: 'ao-link ao-ignored-toggle', 'aria-expanded': String(state.showIgnored),
+                onclick: () => { state.showIgnored = !state.showIgnored; render(); }
+            }, state.showIgnored ? TEXTS.queue.hideIgnored : TEXTS.queue.ignored(state.ignored.length)),
+            state.showIgnored ? [
+                h('p', { class: 'ao-hint' }, TEXTS.queue.ignoredHint),
+                h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
+            ] : null);
+    }
+    // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
+    function ignoredItem(item) {
+        const config = loadConfig();
+        const mail = mailFromQueueItem(item);
+        const expanded = state.queueExpanded === item.conversationId;
+        return h('li', { class: `ao-item ao-queue-item ao-item-muted${expanded ? ' ao-expanded' : ''}` },
+            h('div', {
+                class: 'ao-item-main', tabindex: '0', role: 'button',
+                onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
+            },
+                h('div', { class: 'ao-item-top' },
+                    h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
+                h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
+                h('div', { class: 'ao-hint' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))),
+            expanded
+                ? h('div', { class: 'ao-inline-form' }, ticketForm(mail, config, { compact: true }),
+                    h('div', { class: 'ao-actions' },
+                        openTicketButton(mail, config),
+                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.queueExpanded = null; render(); } }, TEXTS.common.cancel)))
+                : h('div', { class: 'ao-item-actions' },
+                    h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.queueExpanded = item.conversationId; render(); } }, TEXTS.queue.takeCharge)));
     }
     function mailFromQueueItem(item) {
         return {
@@ -887,30 +899,64 @@
     }
 
     // ---------------------------- Ticket ----------------------------------
+    // I ticket dello stesso thread stanno insieme; in cima i thread con messaggi nuovi.
     function renderTickets(config, user) {
         const notice = serviceNotice();
-        const open = state.tickets.slice()
-            .sort((a, b) => Number(isHoldExpired(b)) - Number(isHoldExpired(a)) || String(b.openedAt).localeCompare(String(a.openedAt)));
+        const open = state.tickets.slice();
         const mine = open.filter(ticket => isMine(ticket, user));
         const items = state.ticketFilter === 'mine' ? mine : open;
+        const groups = [];
+        items.forEach(ticket => {
+            const group = ticket.conversationId && groups.find(item => item.conversationId === ticket.conversationId);
+            if (group) group.tickets.push(ticket);
+            else groups.push({ conversationId: ticket.conversationId, tickets: [ticket] });
+        });
+        const rank = group => [
+            group.tickets.some(ticket => ticket.newMessages) ? 1 : 0,
+            group.tickets.some(isHoldExpired) ? 1 : 0,
+            group.tickets.map(ticket => String(ticket.openedAt)).sort().slice(-1)[0]
+        ];
+        groups.sort((a, b) => {
+            const [newA, holdA, dateA] = rank(a);
+            const [newB, holdB, dateB] = rank(b);
+            return newB - newA || holdB - holdA || dateB.localeCompare(dateA);
+        });
         return h('div', { class: 'ao-view' },
             notice,
             filterBar([
                 { value: 'mine', label: TEXTS.tickets.mine, count: mine.length },
                 { value: 'all', label: TEXTS.tickets.all, count: open.length }
             ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
-            items.length ? h('ul', { class: 'ao-list' }, items.map(ticket => ticketItem(ticket, user)))
+            groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
+                ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
+                    h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
+                    newMessagesPreview(group.tickets[0]),
+                    h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true }))))
+                : ticketItem(group.tickets[0], user))))
                 : (notice ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)),
             // I dati arrivano dalla copia su SharePoint: si mostra quando è stata allineata.
             open[0]?.syncedAt ? h('p', { class: 'ao-footnote' }, TEXTS.tickets.syncedAt(formatWhen(open[0].syncedAt))) : null);
     }
-    function ticketItem(ticket, user) {
+    // +N e inizio dell'ultimo messaggio arrivato nel thread (chi scrive, quando, prime righe).
+    function newMessagesPreview(ticket) {
+        if (!ticket.newMessages) return null;
+        const last = ticket.lastNewMessage;
+        return h('div', { class: 'ao-new-preview', title: TEXTS.tickets.newMessagesTitle(ticket.newMessages) },
+            h('div', { class: 'ao-new-head' },
+                h('span', { class: 'ao-new-count' }, TEXTS.tickets.newMessages(ticket.newMessages)),
+                last ? h('span', { class: 'ao-new-from' }, last.from) : null,
+                last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
+            last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
+    }
+    function ticketItem(ticket, user, { inGroup = false } = {}) {
         const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
-        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}`, () => openTicketItem(ticket),
+        const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
+        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, () => openTicketItem(ticket),
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, ticket.number),
                 stateChip(ticket)),
+            inGroup ? null : newMessagesPreview(ticket),
             h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
             h('div', { class: 'ao-item-meta' },
@@ -918,7 +964,6 @@
                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
                 ticket.messageId ? (ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null) : chip(TEXTS.tickets.noMail, 'neutral'),
-                ticket.newMessages ? chip(TEXTS.tickets.newMessages, 'accent') : null,
                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null));
     }
 
@@ -1721,6 +1766,20 @@
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-accent); }
 #ao-root .ao-multi { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-accent); }
+
+/* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
+#ao-root .ao-ignored { display: grid; gap: 8px; padding-top: 4px; }
+#ao-root .ao-ignored-toggle { justify-self: center; color: var(--ao-text-muted); }
+#ao-root .ao-item-muted { background: var(--ao-bg-soft); }
+#ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
+#ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; background: var(--ao-accent-bg); }
+#ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-white); border: 1px solid var(--ao-accent-border); }
+#ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
+#ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
+#ao-root .ao-new-count { padding: 0 6px; border-radius: var(--ao-radius-pill); background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-new-from { flex: 1; font-weight: var(--ao-fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-new-text { color: var(--ao-text-muted); font-size: var(--ao-fs-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Collegamento mail ↔ ticket */
 #ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
