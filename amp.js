@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:05';
+    const BUILD = '2026-10-30 21:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1451,7 +1451,7 @@
     //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
     //  - removeCard: una scheda lascia l'elenco e le altre salgono.
     // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
-    const MOTION = { fold: 460, hold: 650, exit: 360, remove: 260 };
+    const MOTION = { fold: 460, hold: 150, exit: 380, remove: 260 };
     const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const wait = ms => new Promise(next => setTimeout(next, ms));
     function playOn(element, frames, duration, easing = 'ease-in-out') {
@@ -1515,9 +1515,10 @@
         try { return await task(); } finally { releaseRender(); }
     }
 
-    // Esito su una scheda di In coda: fold della tendina, poi la scheda (compatta) diventa un banner
-    // colorato ed esce di lato. Ignora → rosso, a sinistra; Prendi in carico → blu, a destra.
-    // Durante l'attesa di ServiceNow il banner resta fermo con la rotellina.
+    // Esito su una scheda di In coda, in un movimento solo: mentre la tendina si chiude la scheda prende
+    // pian piano il colore dell'esito (banner che affiora), poi esce di lato e, mentre esce, lo spazio si chiude.
+    // Ignora → rosso, a sinistra; Prendi in carico → blu, a destra.
+    // Se ServiceNow non ha ancora risposto, il banner resta fermo con la rotellina finché non arriva l'esito.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
     const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
@@ -1526,13 +1527,13 @@
         holdRender(); // rilasciato da outcomeRelease, dopo che gli elenchi sono aggiornati
         card.classList.add('ao-resolving');
         card.aoOutcome = { tone, html, cancelled: false, held: true };
-        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form')).then(() => {
-            if (card.aoOutcome.cancelled) return;
-            const banner = h('div', { class: 'ao-outcome', role: 'status' });
-            banner.innerHTML = card.aoOutcome.html;
-            card.append(banner);
-            card.classList.add(`ao-outcome-${tone}`);
-        });
+        const banner = h('div', { class: 'ao-outcome', role: 'status' });
+        banner.innerHTML = html;
+        card.append(banner);
+        card.classList.add(`ao-outcome-${tone}`);
+        // il colore affiora insieme alla chiusura della tendina (più deciso verso la fine)
+        banner.animate([{ opacity: 0 }, { opacity: .35, offset: .4 }, { opacity: 1 }], { duration: MOTION.fold, easing: 'ease-in', fill: 'backwards' });
+        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form'));
     }
     function outcomeText(card, html) {
         if (!card?.aoOutcome) return;
@@ -1543,13 +1544,14 @@
     async function outcomeEnd(card) {
         if (card?.aoOutcome) {
             await card.aoOutcome.ready;
-            await wait(MOTION.hold);
+            await wait(MOTION.hold); // un attimo per leggere l'esito
             const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
-            await playOn(card, [
+            const exit = playOn(card, [
                 { transform: 'none', opacity: 1 },
                 { transform: `translateX(${direction * 110}%)`, opacity: .6 }
             ], MOTION.exit, 'cubic-bezier(.5, 0, .75, 0)');
-            await removeCard(card);
+            await wait(MOTION.exit * .5); // lo spazio comincia a chiudersi mentre la scheda esce
+            await Promise.all([exit, removeCard(card)]);
         }
     }
     function outcomeRelease(card) {
@@ -2308,9 +2310,7 @@
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
     background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
-    animation: ao-fade-in .25s ease-out backwards;
 }
-@keyframes ao-fade-in { from { opacity: 0; } to { opacity: 1; } }
 #ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
