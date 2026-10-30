@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:35';
+    const BUILD = '2026-10-30 20:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1116,7 +1116,8 @@
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
-            h('div', { class: 'ao-item-actions ao-queue-foot' }, note, h('span', { class: 'ao-spacer' }), chipNode),
+            // Anche la riga delle etichette apre e chiude la scheda (fa parte dell'intestazione).
+            h('div', { class: 'ao-item-actions ao-queue-foot', onclick: toggle }, note, h('span', { class: 'ao-spacer' }), chipNode),
             expanded ? queueDetails(item, config, allowIgnore) : null);
     }
     function queueDetails(item, config, allowIgnore) {
@@ -2283,6 +2284,7 @@
 #ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { text-align: left; }
+#ao-root .ao-queue-foot { cursor: pointer; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
