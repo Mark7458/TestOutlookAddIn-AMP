@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 13:45';
+    const BUILD = '2026-10-30 13:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1327,7 +1327,7 @@
     }
     // Presa in carico riuscita: la card si chiude del tutto e sparisce.
     function collapseOut(card) {
-        return animateOut(card, 'ao-collapse-out', 'ao-collapse-out', 600);
+        return animateOut(card, 'ao-collapse-out', 'ao-collapse-out', 800);
     }
     function animateOut(card, className, lastAnimation, fallbackMs) {
         if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
@@ -2045,7 +2045,7 @@
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
 /* Presa in carico: la card si richiude del tutto e svanisce (le scritte non si deformano: si accorcia solo l'altezza) */
-#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; animation: ao-collapse-out .45s ease-in-out forwards; }
+#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; animation: ao-collapse-out .6s ease-in-out forwards; }
 @keyframes ao-collapse-out {
     0% { max-height: var(--ao-card-height, 400px); opacity: 1; }
     70% { opacity: 1; }
@@ -2062,8 +2062,7 @@
 /* Il rosso avanza con un bordo sfumato (gradiente), non con un taglio netto */
 #ao-root .ao-slide-out::after { background: linear-gradient(90deg, var(--ao-danger) 0 40%, transparent 60% 100%) 100% 0 / 250% 100% no-repeat; animation: ao-fill-right .3s ease-out forwards; }
 @keyframes ao-fill-right { from { background-position: 100% 0; } to { background-position: 0 0; } }
-#ao-root .ao-collapse-out { border-color: var(--ao-accent); }
-#ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .16s ease-out forwards; }
+#ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .5s ease-in-out forwards; }
 @keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
