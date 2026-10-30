@@ -206,7 +206,6 @@
             byDomain: domain => `dal dominio @${domain}`,
             byText: 'dal testo della mail',
             favorites: 'Preferiti',
-            shortDescription: 'Short description',
             fieldsPreview: 'Su ServiceNow',
             openTicket: 'Prendi in carico',
             discard: 'Ignora',
@@ -327,7 +326,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 19:30';
+    const BUILD = '2026-10-30 19:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1408,11 +1407,8 @@
                 draft.suggestion && draft.suggestion.id === draft.companyId ? TEXTS.mail.suggestedFrom(draft.suggestion.reason) : ''),
             selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.activityId, value => { draft.activityId = value; rerender(); }),
-            textField(TEXTS.mail.shortDescription, draft.subject, value => {
-                draft.subject = value;
-                const preview = root.querySelector('[data-preview="short"]');
-                if (preview) preview.textContent = buildShortDescription(value, activity);
-            }, { maxlength: '160' }),
+            // Short description = oggetto della mail (+ prefisso dell'attività), Description = corpo: non si modificano.
+            // I prefissi tra parentesi quadre (es. [FWD]) li gestirà in automatico il flusso dell'inoltro.
             !compact && company && activity ? h('dl', { class: 'ao-fields' },
                 h('dt', {}, TEXTS.mail.fieldsPreview), h('dd', {}),
                 fieldRow('Company', company.company?.displayValue || company.name),
@@ -1421,7 +1417,7 @@
                 fieldRow('Category', activity.category?.displayValue),
                 fieldRow('Impact / Urgency', `${activity.impact || '?'} / ${activity.urgency || '?'}`),
                 fieldRow('Time worked', TEXTS.mail.minutes(Number(activity.timeWorked) || 0)),
-                fieldRow('Short description', buildShortDescription(draft.subject, activity), 'short'),
+                fieldRow('Short description', buildShortDescription(draft.subject, activity)),
                 fieldRow('Reported', formatWhen(mail.receivedAt))) : null
         ];
     }
@@ -1544,8 +1540,8 @@
         }
         render();
     }
-    function fieldRow(label, value, previewKey) {
-        return [h('dt', {}, label), h('dd', previewKey ? { dataset: { preview: previewKey } } : {}, value || TEXTS.common.none)];
+    function fieldRow(label, value) {
+        return [h('dt', {}, label), h('dd', {}, value || TEXTS.common.none)];
     }
     function buildShortDescription(subject, activity) {
         const clean = String(subject || '').replace(/^\s*((re|r|fw|fwd|i)\s*:\s*)+/i, '').trim();
