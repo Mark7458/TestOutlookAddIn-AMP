@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 11:55';
+    const BUILD = '2026-10-30 12:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -860,35 +860,35 @@
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
         if (!previousScroll) state.barHidden = false;
-        const bar = fixed.length ? h('div', { class: `ao-fixed${state.barHidden ? ' ao-hidden' : ''}` }, ...fixed) : null;
-        view.replaceChildren(...[bar, scroll].filter(Boolean));
+        // La barra è il primo elemento dell'area che scorre: la sua "casa" è in cima all'elenco.
+        const bar = fixed.length ? h('div', { class: `ao-fixed${state.barHidden ? ' ao-hidden' : ''}${previousScroll ? ' ao-floating' : ''}` }, ...fixed) : null;
+        if (bar) scroll.prepend(bar);
+        view.replaceChildren(scroll);
         body.replaceChildren(view);
         body.dataset.scrollKey = scrollKey;
         scroll.scrollTop = previousScroll;
         if (bar) watchScroll(scroll, bar);
     }
-    // Barra secondaria: si nasconde scorrendo verso il basso, ricompare con un minimo scorrimento verso l'alto
-    // (in qualsiasi punto dell'elenco) e quando si torna in cima.
-    const BAR_HIDE_AFTER = 24; // px dall'inizio prima di poterla nascondere
-    const BAR_DOWN_DELTA = 6; // scorrimento minimo verso il basso per nasconderla
+    // Barra secondaria: sta in cima all'elenco (la sua "casa") e scorre via con il contenuto.
+    // Risalendo anche di poco riappare sovrapposta in alto (con un'ombra); tornando in cima si riappoggia.
+    const BAR_DOWN_DELTA = 6; // scorrimento minimo verso il basso per rimandarla via
     const BAR_UP_DELTA = 4; // scorrimento minimo verso l'alto per richiamarla
     function watchScroll(scroll, bar) {
         let last = scroll.scrollTop;
-        let lockedUntil = 0; // mentre la barra si apre/chiude l'area cambia altezza: si ignorano quegli scorrimenti
-        const setHidden = hidden => {
-            if (state.barHidden === hidden) return;
-            state.barHidden = hidden;
-            bar.classList.toggle('ao-hidden', hidden);
-            lockedUntil = Date.now() + 350;
+        const update = hidden => {
+            const home = scroll.scrollTop <= 0;
+            state.barHidden = !home && hidden;
+            bar.classList.toggle('ao-hidden', state.barHidden);
+            bar.classList.toggle('ao-floating', !home);
         };
         scroll.addEventListener('scroll', () => {
             const top = scroll.scrollTop;
             const delta = top - last;
             last = top;
-            if (top <= 0) return setHidden(false);
-            if (Date.now() < lockedUntil) return;
-            if (delta > BAR_DOWN_DELTA && top > BAR_HIDE_AFTER) setHidden(true);
-            else if (delta < -BAR_UP_DELTA) setHidden(false);
+            if (top <= 0) return update(false);
+            if (delta > BAR_DOWN_DELTA) update(true);
+            else if (delta < -BAR_UP_DELTA) update(false);
+            else update(state.barHidden);
         }, { passive: true });
     }
 
@@ -1862,11 +1862,14 @@
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
-#ao-root .ao-fixed { flex: none; display: grid; gap: 10px; max-height: 160px; padding: 12px 12px 10px; overflow: hidden; border-bottom: 1px solid var(--ao-line); transition: max-height .25s ease-in-out, padding .25s ease-in-out, opacity .2s ease-in-out, border-color .25s; }
-#ao-root .ao-fixed.ao-hidden { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-bottom-color: transparent; }
+#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; margin: 0 -12px; padding: 12px 12px 10px; border-bottom: 1px solid var(--ao-line); background: var(--ao-bg); transition: transform .25s ease-in-out, box-shadow .25s; }
+/* Fuori casa: sovrapposta al contenuto, con un'ombra leggera */
+#ao-root .ao-fixed.ao-floating { box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+/* Mandata via scorrendo verso il basso: resta "agganciata" in alto, ma fuori vista */
+#ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 8px)); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
-#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 12px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
 #ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
 #ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
