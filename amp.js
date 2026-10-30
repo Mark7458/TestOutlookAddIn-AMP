@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 13:35';
+    const BUILD = '2026-10-30 13:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2059,9 +2059,9 @@
    Prendi in carico → diventa blu mentre si chiude. */
 #ao-root .ao-slide-out, #ao-root .ao-collapse-out { position: relative; }
 #ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
-#ao-root .ao-slide-out { border-color: var(--ao-danger); transition: border-color .15s; }
-#ao-root .ao-slide-out::after { background: var(--ao-danger); transform-origin: left center; animation: ao-fill-right .24s ease-out forwards; }
-@keyframes ao-fill-right { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* Il rosso avanza con un bordo sfumato (gradiente), non con un taglio netto */
+#ao-root .ao-slide-out::after { background: linear-gradient(90deg, var(--ao-danger) 0 40%, transparent 60% 100%) 100% 0 / 250% 100% no-repeat; animation: ao-fill-right .3s ease-out forwards; }
+@keyframes ao-fill-right { from { background-position: 100% 0; } to { background-position: 0 0; } }
 #ao-root .ao-collapse-out { border-color: var(--ao-accent); }
 #ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .16s ease-out forwards; }
 @keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
