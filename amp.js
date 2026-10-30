@@ -166,6 +166,7 @@
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
+            openFirst: 'Apri la mail in Outlook per prenderla in carico o ignorarla.',
             // Collegamento con il ticket
             via: {
                 inc: 'Collegato dal numero INC nel thread',
@@ -323,7 +324,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 17:15';
+    const BUILD = '2026-10-30 17:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1079,30 +1080,28 @@
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
     // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
+    // Nessun pulsante: il clic apre la mail; prendere in carico o ignorare si fa dalla vista del ticket,
+    // con la mail aperta in Outlook (in coda non c'è l'anteprima del messaggio).
     function ignoredItem(item) {
-        const config = loadConfig();
-        const mail = mailFromQueueItem(item);
-        const expanded = state.queueExpanded === item.conversationId;
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}` },
-            h('div', {
-                class: 'ao-item-main', tabindex: '0', role: 'button',
-                onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
-            },
-                // Stessa disposizione di Attive: oggetto e mittente a sinistra, ora a destra.
+        return queueCard(item, null,
+            h('div', { class: 'ao-item-actions' },
+                h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
+    }
+    function queueCard(item, chipNode, footer = null) {
+        const open = () => openQueueItem(item);
+        return h('li', {
+            class: 'ao-item ao-queue-item', tabindex: '0', role: 'button', dataset: { conversation: item.conversationId },
+            onclick: open, onkeydown: event => { if (event.key === 'Enter') open(); }
+        },
+            h('div', { class: 'ao-item-main' },
+                // A sinistra oggetto e mittente; a destra ora di arrivo ed etichette, una sotto l'altra.
                 h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
-            expanded
-                ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
-                    h('div', { class: 'ao-actions' },
-                        openTicketButton(mail, config),
-                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget) }, TEXTS.common.cancel)))
-                : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
-                    // Chi l'ha ignorata, in basso a destra sulla stessa riga del pulsante.
-                    h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
+                    chipNode)),
+            footer);
     }
     // Prendi in carico: apre il modulo nella card con un'animazione (solo all'apertura, non a ogni aggiornamento).
     function openTakeCharge(conversationId) {
@@ -1136,34 +1135,11 @@
             receivedAt: item.receivedAt, body: item.preview, incNumbers: []
         };
     }
-    // Ogni riga: clic sul testo = apre la mail; Prendi in carico = modulo compatto; Ignora = scarta.
+    // Ogni riga: il clic apre la mail e la vista del ticket (lì si prende in carico o si ignora).
     function queueItem(item, config) {
         const suggestion = suggestCompany(config, item.sender, item.subject, item.preview);
         const company = suggestion && config.companies[suggestion.id];
-        const expanded = state.queueExpanded === item.conversationId;
-        const mail = mailFromQueueItem(item);
-        const swiped = !expanded && state.swipeOpen === item.conversationId;
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${swiped ? ' ao-swiped' : ''}`, dataset: { conversation: item.conversationId } },
-            expanded ? null : swipeAction(mail),
-            h('div', {
-                class: 'ao-item-main', tabindex: '0', role: 'button',
-                onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
-            },
-                // A sinistra oggetto e mittente; a destra ora di arrivo ed etichette, una sotto l'altra.
-                h('div', { class: 'ao-item-left' },
-                    h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
-                    h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
-                h('div', { class: 'ao-item-right' },
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
-                    company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null)),
-            expanded
-                ? h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` }, ticketForm(mail, config, { compact: true }),
-                    h('div', { class: 'ao-actions' },
-                        openTicketButton(mail, config),
-                        h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget) }, TEXTS.common.cancel)))
-                : h('div', { class: 'ao-item-actions' },
-                    h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
-                    h('button', { type: 'button', class: 'ao-button ao-small ao-subtle ao-ignore', onclick: event => toggleSwipe(event.currentTarget.closest('.ao-queue-item'), item.conversationId) }, TEXTS.mail.discard)));
+        return queueCard(item, company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null);
     }
 
     // ---------------------------- Ticket ----------------------------------
@@ -1285,8 +1261,15 @@
             content.push(state.extraTicketFor === mail.conversationId
                 ? newTicketCard(mail, config, user, { allowIgnore: false, onCancel: () => { state.extraTicketFor = null; render(); } })
                 : h('button', { type: 'button', class: 'ao-button ao-subtle ao-add-ticket', onclick: () => { state.extraTicketFor = mail.conversationId; render(); } }, TEXTS.mail.anotherTicket));
+        } else if (!isCurrentMail) {
+            // Prendere in carico (o ignorare) si fa solo guardando la mail: finché Outlook non la mostra, niente azioni.
+            if (result.discarded) content.push(h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(result.discarded.by || TEXTS.common.none, formatWhen(result.discarded.at))));
+            content.push(h('div', { class: 'ao-open-first' },
+                h('p', {}, TEXTS.mail.openFirst),
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook)));
         } else if (result.discarded) {
             content.push(discardedCard(mail, result.discarded));
+            content.push(newTicketCard(mail, config, user, { allowIgnore: false }));
         } else {
             if (result.previous) content.push(previousCard(result.previous));
             if (result.candidates?.length) content.push(candidatesCard(mail, result.candidates, user));
@@ -1295,7 +1278,7 @@
         return h('div', { class: 'ao-view' },
             backRow(),
             notice,
-            mailHeader(mail, !isCurrentMail),
+            mailHeader(mail, !isCurrentMail && Boolean(result?.tickets?.length)), // senza ticket c'è già il riquadro "Apri la mail"
             content);
     }
     function mailHeader(mail, showOpen) {
@@ -1420,6 +1403,8 @@
             render(); // se non è riuscito, la card ricompare
         });
     }
+    // NB: le animazioni qui sotto (swipe di Ignora, tasto blu della presa in carico) oggi non sono collegate a
+    // nessun elenco: In coda non ha più pulsanti. Restano pronte per essere riutilizzate.
     // Ignora in In coda, come lo "swipe to delete" di Gmail / Mail di iPhone (ma con il clic):
     //  1. clic su Ignora → la scheda scorre a sinistra e scopre il tasto rosso con l'icona dell'archivio;
     //  2. clic sul tasto rosso → il tasto si allarga fino a occupare tutta la scheda, poi lo spazio si chiude;
@@ -2223,7 +2208,9 @@
 #ao-root .ao-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--ao-accent-border); border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); }
 
 /* In coda: riga con azioni e modulo compatto */
-#ao-root .ao-queue-item { cursor: default; gap: 6px; }
+#ao-root .ao-queue-item { gap: 6px; }
+#ao-root .ao-open-first { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); color: var(--ao-text-muted); }
+#ao-root .ao-open-first p { margin: 0; }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
 #ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
 #ao-root .ao-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 160px; }
