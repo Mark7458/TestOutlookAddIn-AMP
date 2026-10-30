@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 13:05';
+    const BUILD = '2026-10-30 13:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -875,6 +875,7 @@
     //    e l'ombra che si accende), sovrapposta al contenuto;
     //  - se lo scorrimento verso il basso si ferma a metà, finisce di uscire.
     const BAR_UP_DELTA = 3; // scorrimento minimo verso l'alto per richiamarla
+    const BAR_SHADOW_FADE = 40; // px prima di casa in cui l'ombra sfuma
     const BAR_SNAP_DELAY = 140; // ms senza scorrimento prima di completare l'uscita
     function watchScroll(scroll, bar) {
         let last = scroll.scrollTop;
@@ -888,6 +889,9 @@
             bar.style.transform = state.barOffset ? `translateY(${-state.barOffset}px)` : '';
             // Ombra solo quando è sovrapposta e tutta visibile: mentre scivola via non ce l'ha.
             bar.classList.toggle('ao-floating', !home && state.barOffset === 0);
+            // L'ombra non si spegne di colpo: negli ultimi pixel prima di "casa" sfuma con lo scorrimento.
+            const lift = !home && state.barOffset === 0 ? Math.min(1, scroll.scrollTop / BAR_SHADOW_FADE) : 0;
+            bar.style.setProperty('--ao-lift', lift.toFixed(3));
         };
         apply(scroll.scrollTop > 0 ? state.barOffset : 0);
         scroll.addEventListener('scroll', () => {
@@ -1888,10 +1892,13 @@
 #ao-root .ao-fixed.ao-snap { transition: transform .18s ease-out; }
 /* Ricomparsa: discesa morbida con un lieve rimbalzo; l'ombra si accende mentre arriva */
 #ao-root .ao-fixed.ao-reveal { transition: transform .42s cubic-bezier(.2, 1.3, .4, 1); }
-#ao-root .ao-fixed.ao-reveal > * { transition: box-shadow .35s ease-out .08s; }
+#ao-root .ao-fixed.ao-reveal > * { transition: box-shadow .35s ease-out .08s, background-color .35s ease-out .08s; }
 #ao-root .ao-fixed > * { pointer-events: auto; }
-#ao-root .ao-fixed.ao-floating .ao-segmented { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
-#ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+/* Ombra (e fondo della riga "indietro") graduati da --ao-lift: 0 a casa, 1 sovrapposta al contenuto */
+#ao-root .ao-fixed { --ao-lift: 0; }
+#ao-root .ao-fixed .ao-segmented,
+#ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
+#ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
