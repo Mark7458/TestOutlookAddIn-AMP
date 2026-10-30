@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:40';
+    const BUILD = '2026-10-30 20:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1094,30 +1094,29 @@
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
+        // Chi l'ha ignorata si legge passando il mouse sulla scheda.
         return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
-            note: h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt))) });
+            hover: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
     }
-    // Riga in fondo: nelle Ignorate chi l'ha ignorata a sinistra; l'etichetta della casella a destra.
-    function queueCard(item, config, chipNode, { allowIgnore = true, note = null } = {}) {
+    function queueCard(item, config, chipNode, { allowIgnore = true, hover = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
             if (!expanded) return openTakeCharge(item);
             if (!state.holdRender) closeTakeCharge(queueDetailsOf(item.conversationId));
         };
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId }, title: hover || undefined },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
             },
-                // A sinistra oggetto e mittente; a destra l'ora di arrivo.
+                // A sinistra oggetto e mittente; a destra l'ora di arrivo e, sotto, la casella condivisa.
                 h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
-            // Anche la riga delle etichette apre e chiude la scheda (fa parte dell'intestazione).
-            h('div', { class: 'ao-item-actions ao-queue-foot', onclick: toggle }, note, h('span', { class: 'ao-spacer' }), chipNode),
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
+                    chipNode)),
             expanded ? queueDetails(item, config, allowIgnore) : null);
     }
     function queueDetails(item, config, allowIgnore) {
@@ -2283,8 +2282,6 @@
 /* Le etichette lunghe vanno a capo invece di essere tagliate */
 #ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
-#ao-root .ao-ignored-by { text-align: left; }
-#ao-root .ao-queue-foot { cursor: pointer; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
