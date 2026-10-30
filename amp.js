@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 11:25';
+    const BUILD = '2026-10-30 11:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -796,8 +796,8 @@
     }
     // Cambiando vista si riparte dall'alto (se l'area è già scrollata oltre le schede).
     function scrollToTop() {
-        const body = root?.querySelector('.ao-body');
-        if (body) body.scrollTop = 0;
+        const scroll = root?.querySelector('.ao-scroll');
+        if (scroll) scroll.scrollTop = 0;
     }
 
     function buildShell(container) {
@@ -847,7 +847,20 @@
         root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         renderStatusBar();
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
-        root.querySelector('.ao-body').replaceChildren(views[state.view](config, user));
+        const body = root.querySelector('.ao-body');
+        // Chi resta fermo (barra secondaria, "←") sta fuori; tutto il resto scorre dentro una card dedicata,
+        // con un confine ben definito. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
+        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketFilter}|${state.settingsTab}`;
+        const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
+        const view = views[state.view](config, user);
+        const children = [...view.children];
+        const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row'));
+        const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
+        const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
+        view.replaceChildren(...fixed, scroll);
+        body.replaceChildren(view);
+        body.dataset.scrollKey = scrollKey;
+        scroll.scrollTop = previousScroll;
     }
 
     // Gli avvisi sui servizi stanno nella barra di sistema in fondo: le viste non li ripetono.
@@ -1817,11 +1830,14 @@
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
-#ao-root .ao-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
-#ao-root .ao-body::-webkit-scrollbar { width: 6px; }
-#ao-root .ao-body::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
-#ao-root .ao-body::-webkit-scrollbar-track { background: transparent; }
-#ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
+#ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+#ao-root .ao-view > .ao-segmented, #ao-root .ao-view > .ao-back-row { flex: none; }
+/* Card che contiene gli elementi che scorrono: confine netto, barra di scorrimento sottile con spazio riservato */
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 10px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); }
+#ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
+#ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
+#ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Pulsanti */
 #ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; }
@@ -1846,9 +1862,6 @@
 
 /* Filtri e scelte a segmenti */
 #ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
-/* Barra secondaria (Attive/Ignorate, Miei/Tutti, Profilo/Agenzie…): resta ferma in alto mentre scorre il contenuto.
-   L'ombra del colore di fondo copre le card che le passano dietro. */
-#ao-root .ao-view > .ao-segmented { position: sticky; top: 12px; z-index: 2; box-shadow: 0 0 0 12px var(--ao-bg); }
 #ao-root .ao-segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; }
 #ao-root .ao-segment:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-segment.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
