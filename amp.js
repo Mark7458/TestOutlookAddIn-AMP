@@ -326,7 +326,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 19:40';
+    const BUILD = '2026-10-30 19:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -899,7 +899,8 @@
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
     function render() {
-        if (!root || state.holdRender) return;
+        if (!root) return;
+        if (state.holdRender) { renderPending = true; return; }
         const config = loadConfig();
         const user = currentUser(config);
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
@@ -1099,7 +1100,11 @@
     }
     function queueCard(item, config, chipNode, { allowIgnore = true, footer = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
-        const toggle = () => (expanded ? closeTakeCharge(queueDetailsOf(item.conversationId)) : openTakeCharge(item));
+        // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
+        const toggle = () => {
+            if (!expanded) return openTakeCharge(item);
+            if (!state.holdRender) closeTakeCharge(queueDetailsOf(item.conversationId));
+        };
         return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
@@ -1130,6 +1135,8 @@
     }
     // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
     async function openTakeCharge(item) {
+        await whenIdle(); // se un'altra scheda si sta chiudendo, si apre subito dopo (il clic non va perso)
+        if (state.queueExpanded === item.conversationId) return;
         state.queueExpanded = item.conversationId;
         // Se il testo arriva in fretta si apre già completo; altrimenti si apre con le prime righe
         // e, quando arriva, la tendina si allunga senza scatti.
@@ -1154,13 +1161,16 @@
         if (form && before) await holdingRender(() => playOn(form, [{ maxHeight: `${before}px` }, { maxHeight: `${form.scrollHeight}px` }], 240)
             .then(result => { if (result) { result.animation.cancel(); form.style.overflow = result.overflow; } }));
     }
-    const BODY_WAIT_MS = 400;
+    const BODY_WAIT_MS = 250;
     // Chiudi (o clic sull'intestazione o fuori): la scheda si richiude con la stessa animazione, al contrario.
     async function closeTakeCharge(form) {
-        if (!state.queueExpanded) return;
+        const closing = state.queueExpanded;
+        if (!closing) return;
         form?.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
-        await holdingRender(() => fold(form));
-        state.queueExpanded = null;
+        holdRender();
+        await fold(form);
+        if (state.queueExpanded === closing) state.queueExpanded = null; // solo se nel frattempo non se n'è aperta un'altra
+        releaseRender();
         render();
     }
     const queueDetailsOf = conversationId => root?.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(conversationId)}"] .ao-inline-form`);
@@ -1478,10 +1488,30 @@
             { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-6px', borderWidth: '0px' }
         ], MOTION.remove);
     }
-    // Durante un'animazione il pannello non si ridisegna.
-    async function holdingRender(task) {
+    // Durante un'animazione il pannello non si ridisegna: i ridisegni richiesti nel frattempo
+    // (dati aggiornati, clic) si fanno appena finisce, e le azioni che aspettano (whenIdle) ripartono.
+    let renderHolds = 0;
+    let renderPending = false;
+    let idleWaiters = [];
+    function holdRender() {
+        renderHolds += 1;
         state.holdRender = true;
-        try { return await task(); } finally { state.holdRender = false; }
+    }
+    function releaseRender() {
+        if (!renderHolds) return;
+        renderHolds -= 1;
+        if (renderHolds) return;
+        state.holdRender = false;
+        idleWaiters.splice(0).forEach(resume => resume());
+        if (renderPending) {
+            renderPending = false;
+            render();
+        }
+    }
+    const whenIdle = () => (renderHolds ? new Promise(resume => idleWaiters.push(resume)) : Promise.resolve());
+    async function holdingRender(task) {
+        holdRender();
+        try { return await task(); } finally { releaseRender(); }
     }
 
     // Esito su una scheda di In coda: fold della tendina, poi la scheda (compatta) diventa un banner
@@ -1492,9 +1522,9 @@
     const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
     function outcomeStart(card, tone, html) {
         if (!card || reducedMotion()) return;
-        state.holdRender = true;
+        holdRender(); // rilasciato da outcomeRelease, dopo che gli elenchi sono aggiornati
         card.classList.add('ao-resolving');
-        card.aoOutcome = { tone, html, cancelled: false };
+        card.aoOutcome = { tone, html, cancelled: false, held: true };
         card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form')).then(() => {
             if (card.aoOutcome.cancelled) return;
             const banner = h('div', { class: 'ao-outcome', role: 'status' });
@@ -1520,14 +1550,18 @@
             ], MOTION.exit, 'cubic-bezier(.5, 0, .75, 0)');
             await removeCard(card);
         }
-        state.holdRender = false;
+    }
+    function outcomeRelease(card) {
+        if (!card?.aoOutcome?.held) return;
+        card.aoOutcome.held = false;
+        releaseRender();
     }
     // Errore: niente banner e la scheda torna com'era (al prossimo ridisegno).
     function outcomeCancel(card) {
         if (card?.aoOutcome) card.aoOutcome.cancelled = true;
         card?.querySelector('.ao-outcome')?.remove();
         card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger');
-        state.holdRender = false;
+        outcomeRelease(card);
     }
     async function ignoreFromQueue(card, mail) {
         outcomeStart(card, 'danger', `${ARCHIVE_ICON}<span>${TEXTS.queue.ignoredDone}</span>`);
@@ -1538,6 +1572,7 @@
             if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
             await refreshLists();
         }
+        outcomeRelease(card);
         render();
     }
     function fieldRow(label, value) {
@@ -1592,6 +1627,7 @@
         saveConfig(config);
         render();
         await refreshLists();
+        outcomeRelease(card);
         // Da In coda si resta in In coda (si smista la prossima); l'avviso porta al ticket per lavorarlo.
         if (card) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
     }
