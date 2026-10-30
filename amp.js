@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 12:50';
+    const BUILD = '2026-10-30 13:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -869,18 +869,22 @@
         scroll.scrollTop = previousScroll;
         if (bar) watchScroll(scroll, bar);
     }
-    // Barra secondaria: sta in cima all'elenco (la sua "casa"). Scorrendo verso il basso scivola via
-    // seguendo lo scorrimento pixel per pixel; scorrendo verso l'alto rientra allo stesso modo, sovrapposta
-    // al contenuto. Quando lo scorrimento si ferma a metà, completa il movimento più vicino.
-    const BAR_SNAP_DELAY = 140; // ms senza scorrimento prima di completare il movimento
+    // Barra secondaria: sta in cima all'elenco (la sua "casa").
+    //  - scorrendo verso il basso scivola via seguendo lo scorrimento, pixel per pixel;
+    //  - scorrendo verso l'alto ricompare con un'animazione morbida (discesa con un lieve rimbalzo
+    //    e l'ombra che si accende), sovrapposta al contenuto;
+    //  - se lo scorrimento verso il basso si ferma a metà, finisce di uscire.
+    const BAR_UP_DELTA = 3; // scorrimento minimo verso l'alto per richiamarla
+    const BAR_SNAP_DELAY = 140; // ms senza scorrimento prima di completare l'uscita
     function watchScroll(scroll, bar) {
         let last = scroll.scrollTop;
         let snapTimer = null;
         const travel = () => bar.offsetHeight + 12; // fuori vista del tutto (con un margine per l'ombra)
-        const apply = (offset, animate = false) => {
+        const apply = (offset, motion = '') => {
             state.barOffset = Math.max(0, Math.min(travel(), offset));
             const home = scroll.scrollTop <= 0;
-            bar.classList.toggle('ao-snap', animate);
+            bar.classList.toggle('ao-snap', motion === 'snap');
+            bar.classList.toggle('ao-reveal', motion === 'reveal');
             bar.style.transform = state.barOffset ? `translateY(${-state.barOffset}px)` : '';
             // Ombra solo quando è sovrapposta e tutta visibile: mentre scivola via non ce l'ha.
             bar.classList.toggle('ao-floating', !home && state.barOffset === 0);
@@ -891,12 +895,19 @@
             const delta = top - last;
             last = top;
             clearTimeout(snapTimer);
-            if (top <= 0) return apply(0);
-            apply(state.barOffset + delta);
-            snapTimer = setTimeout(() => {
-                const offset = state.barOffset;
-                if (offset > 0 && offset < travel()) apply(offset > travel() / 2 ? travel() : 0, true);
-            }, BAR_SNAP_DELAY);
+            if (top <= 0) return apply(0, bar.classList.contains('ao-reveal') ? 'reveal' : '');
+            if (delta < -BAR_UP_DELTA) {
+                // Richiamo: se non è già tutta visibile, scende con l'animazione e lì resta.
+                if (state.barOffset > 0) apply(0, 'reveal');
+                else apply(0, bar.classList.contains('ao-reveal') ? 'reveal' : '');
+                return;
+            }
+            if (delta > 0) {
+                apply(state.barOffset + delta);
+                snapTimer = setTimeout(() => {
+                    if (state.barOffset > 0 && state.barOffset < travel()) apply(travel(), 'snap');
+                }, BAR_SNAP_DELAY);
+            }
         }, { passive: true });
     }
 
@@ -1875,10 +1886,13 @@
 #ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; will-change: transform; }
 /* Completamento del movimento quando lo scorrimento si ferma a metà */
 #ao-root .ao-fixed.ao-snap { transition: transform .18s ease-out; }
+/* Ricomparsa: discesa morbida con un lieve rimbalzo; l'ombra si accende mentre arriva */
+#ao-root .ao-fixed.ao-reveal { transition: transform .42s cubic-bezier(.2, 1.3, .4, 1); }
+#ao-root .ao-fixed.ao-reveal > * { transition: box-shadow .35s ease-out .08s; }
 #ao-root .ao-fixed > * { pointer-events: auto; }
 #ao-root .ao-fixed.ao-floating .ao-segmented { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 #ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
