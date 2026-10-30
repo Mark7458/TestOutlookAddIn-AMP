@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 15:50';
+    const BUILD = '2026-10-30 16:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -949,12 +949,41 @@
             syncedAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(syncedAt))) : null
         ].filter(Boolean));
     }
+    // Selettore a segmenti. La pillola della voce scelta è un elemento a parte (.ao-segment-thumb):
+    // quando la scelta cambia, scivola dalla voce di prima a quella nuova (anche cambiando larghezza).
+    // Il pannello si ridisegna a ogni clic, quindi la voce di prima si ricorda per selettore (segmentMemory).
+    const segmentMemory = new Map();
     function filterBar(options, value, onchange) {
-        return h('div', { class: 'ao-segmented', role: 'group' },
+        const key = options.map(option => option.value).join('|');
+        const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
+        const bar = h('div', { class: 'ao-segmented', role: 'group' },
+            thumb,
             options.map(option => h('button', {
-                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`,
+                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value },
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
+        const previous = segmentMemory.get(key);
+        segmentMemory.set(key, value);
+        requestAnimationFrame(() => {
+            if (!bar.isConnected) return;
+            const place = (target, animate) => {
+                const button = bar.querySelector(`.ao-segment[data-value="${CSS.escape(String(target))}"]`);
+                if (!button) return false;
+                thumb.classList.toggle('ao-moving', animate);
+                thumb.style.width = `${button.offsetWidth}px`;
+                thumb.style.transform = `translateX(${button.offsetLeft - 2}px)`; // 2px = bordo interno del selettore
+                return true;
+            };
+            if (previous !== undefined && previous !== value && place(previous, false)) {
+                thumb.getBoundingClientRect(); // parte dalla voce di prima
+                place(value, true);
+            } else place(value, false);
+            thumb.classList.add('ao-ready');
+            // Se il riquadro cambia larghezza, la pillola segue la voce (senza animazione).
+            if (window.ResizeObserver) new ResizeObserver(() => { if (!thumb.classList.contains('ao-moving')) place(value, false); }).observe(bar);
+            thumb.addEventListener('transitionend', () => thumb.classList.remove('ao-moving'));
+        });
+        return bar;
     }
     // "←" della vista di lavoro: torna all'elenco da cui si è arrivati (di base Ticket).
     function backRow() {
@@ -2021,10 +2050,16 @@
 #ao-root :focus-visible { outline: none; box-shadow: var(--ao-shadow-focus); }
 
 /* Filtri e scelte a segmenti */
-#ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
+#ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
 #ao-root .ao-segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; }
-#ao-root .ao-segment:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
-#ao-root .ao-segment.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+/* Niente sfondo al passaggio del mouse: l'unica pillola è quella della voce scelta, che scivola */
+#ao-root .ao-segment { position: relative; z-index: 1; transition: color .25s; }
+#ao-root .ao-segment:hover { color: var(--ao-text); }
+#ao-root .ao-segment.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-accent-bg); opacity: 0; pointer-events: none; }
+#ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
+#ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
