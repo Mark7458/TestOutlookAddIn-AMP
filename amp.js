@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 16:15';
+    const BUILD = '2026-10-30 16:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1410,7 +1410,7 @@
         if (await done) await refreshLists();
         render(); // se non è riuscito, la scheda ricompare
     }
-    const SWIPE_EXPAND_MS = 280;
+    const SWIPE_EXPAND_MS = 300;
     // Presa in carico (In coda), stesso concetto di Ignora ma dal basso:
     //  1. al clic su "Prendi in carico" nel modulo il blu sale dal basso e copre tutta la scheda in un solo
     //     movimento (il contenuto sale anche lui, più piano, e viene raggiunto), con "Apro il ticket…" (resta così mentre ServiceNow lavora);
@@ -2182,7 +2182,7 @@
     position: absolute; top: 0; right: 0; bottom: 0; z-index: 1; width: var(--ao-swipe-width);
     display: grid; place-content: center; justify-items: center; gap: 3px; padding: 0; border: 0;
     background: #d13438; color: #fff; font: inherit; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium); cursor: pointer;
-    transform: translateX(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1), background-color .15s;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .3s cubic-bezier(.4, 0, .2, 1), background-color .15s;
 }
 #ao-root .ao-swiped .ao-swipe-action { transform: none; }
 /* Con il tasto laterale scoperto il pulsante Ignora non serve più: sparisce */
@@ -2191,7 +2191,8 @@
 #ao-root .ao-swipe-action:hover, #ao-root .ao-swipe-action:focus-visible { background: #a4262c; outline: none; }
 #ao-root .ao-swipe-commit { pointer-events: none; }
 #ao-root .ao-swipe-commit .ao-swipe-action { width: 100%; transform: none; }
-#ao-root .ao-swipe-commit > :not(.ao-swipe-action) { opacity: 0; }
+/* alla conferma il contenuto continua a scorrere a sinistra, più piano del rosso, che lo raggiunge e lo copre */
+#ao-root .ao-queue-item.ao-swipe-commit > :not(.ao-swipe-action) { transform: translateX(calc(-1 * var(--ao-swipe-width) - 35%)); transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
 #ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
 /* Prendi in carico (In coda): il tasto blu sale dal basso ("Apro il ticket…"), poi si allarga su tutta la scheda */
 #ao-root .ao-take-bar {
