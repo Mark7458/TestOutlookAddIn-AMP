@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 14:20';
+    const BUILD = '2026-10-30 14:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -574,6 +574,7 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
+        swipeOpen: null, // conversazione In coda con il tasto Ignora scoperto (scheda spostata a sinistra)
         animateExpand: null, // modulo appena aperto, da animare
         holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
@@ -820,6 +821,14 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+        // Con il tasto Ignora scoperto, un clic altrove (anche sulla scheda) o Esc la rimette a posto.
+        root.addEventListener('click', event => {
+            if (!state.swipeOpen || event.target.closest('.ao-swipe-action, .ao-ignore')) return;
+            const onCard = event.target.closest('.ao-queue-item.ao-swiped');
+            closeSwipe();
+            if (onCard) { event.preventDefault(); event.stopPropagation(); }
+        }, true);
+        root.addEventListener('keydown', event => { if (event.key === 'Escape') closeSwipe(); });
         container.replaceChildren(root);
     }
 
@@ -1044,7 +1053,9 @@
         const company = suggestion && config.companies[suggestion.id];
         const expanded = state.queueExpanded === item.conversationId;
         const mail = mailFromQueueItem(item);
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}` },
+        const swiped = !expanded && state.swipeOpen === item.conversationId;
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${swiped ? ' ao-swiped' : ''}`, dataset: { conversation: item.conversationId } },
+            expanded ? null : swipeAction(mail),
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button',
                 onclick: () => openQueueItem(item), onkeydown: event => { if (event.key === 'Enter') openQueueItem(item); }
@@ -1063,7 +1074,7 @@
                         h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget) }, TEXTS.common.cancel)))
                 : h('div', { class: 'ao-item-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-small ao-take', onclick: () => openTakeCharge(item.conversationId) }, TEXTS.queue.takeCharge),
-                    ignoreButton(mail, 'ao-button ao-small ao-subtle')));
+                    h('button', { type: 'button', class: 'ao-button ao-small ao-subtle ao-ignore', onclick: event => toggleSwipe(event.currentTarget.closest('.ao-queue-item'), item.conversationId) }, TEXTS.mail.discard)));
     }
 
     // ---------------------------- Ticket ----------------------------------
@@ -1314,17 +1325,56 @@
     }
     function ignoreButton(mail, className) {
         return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
-            // Nella lista la card scivola via a sinistra (stile iPhone) mentre il servizio registra la scelta.
-            const card = button.closest('.ao-queue-item');
-            const [ok] = await Promise.all([run(() => Services.discardMail(mail.conversationId, currentUser())), slideOut(card)]);
+            // Vista del ticket (in In coda si usa lo swipe: swipeAction).
+            const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
             if (ok) await refreshLists();
             render(); // se non è riuscito, la card ricompare
         });
     }
-    // Card che esce di lato e poi chiude lo spazio che occupava.
-    function slideOut(card) {
-        return animateOut(card, 'ao-slide-out', 'ao-slide-collapse', 700);
+    // Ignora in In coda, come lo "swipe to delete" di Gmail / Mail di iPhone (ma con il clic):
+    //  1. clic su Ignora → la scheda scorre a sinistra e scopre il tasto rosso con l'icona dell'archivio;
+    //  2. clic sul tasto rosso → il tasto si allarga fino a occupare tutta la scheda, poi lo spazio si chiude;
+    //  clic altrove (o Esc) → la scheda torna a posto.
+    const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
+    function swipeAction(mail) {
+        const button = h('button', {
+            type: 'button', class: 'ao-swipe-action', title: TEXTS.mail.discard, 'aria-label': TEXTS.mail.discard, tabindex: '-1',
+            onclick: event => commitSwipe(event.currentTarget.closest('.ao-queue-item'), mail)
+        });
+        button.innerHTML = `${ARCHIVE_ICON}<span>${TEXTS.mail.discard}</span>`;
+        return button;
     }
+    function toggleSwipe(card, conversationId) {
+        const open = state.swipeOpen !== conversationId;
+        closeSwipe();
+        if (!open || !card) return;
+        state.swipeOpen = conversationId;
+        card.classList.add('ao-swiped');
+        card.querySelector('.ao-swipe-action')?.setAttribute('tabindex', '0');
+    }
+    function closeSwipe() {
+        if (!state.swipeOpen) return;
+        root?.querySelectorAll('.ao-queue-item.ao-swiped').forEach(card => {
+            card.classList.remove('ao-swiped');
+            card.querySelector('.ao-swipe-action')?.setAttribute('tabindex', '-1');
+        });
+        state.swipeOpen = null;
+    }
+    async function commitSwipe(card, mail) {
+        state.swipeOpen = null;
+        const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        state.holdRender = !reduced;
+        const done = run(() => Services.discardMail(mail.conversationId, currentUser()));
+        if (card && !reduced) {
+            card.classList.add('ao-swipe-commit'); // il tasto si allarga su tutta la scheda
+            await new Promise(next => setTimeout(next, SWIPE_EXPAND_MS));
+            await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500); // poi lo spazio si chiude
+        }
+        state.holdRender = false;
+        if (await done) await refreshLists();
+        render(); // se non è riuscito, la scheda ricompare
+    }
+    const SWIPE_EXPAND_MS = 280;
     // Presa in carico riuscita: la card si chiude del tutto e sparisce.
     function collapseOut(card) {
         return animateOut(card, 'ao-collapse-out', 'ao-collapse-out', 800);
@@ -2051,26 +2101,32 @@
     70% { opacity: 1; }
     100% { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
 }
-/* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
-#ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
-@keyframes ao-slide-left { 0% { transform: none; } 80% { opacity: 1; } 100% { transform: translateX(-110%); opacity: 0; } }
-/* Colore dell'esito, sovrapposto alla card (il testo non serve che si veda):
-   Ignora → il rosso la riempie da sinistra a destra mentre scivola via;
-   Prendi in carico → diventa blu mentre si chiude. */
-#ao-root .ao-slide-out, #ao-root .ao-collapse-out { position: relative; }
-#ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
-/* Il rosso è tenue e sbilanciato verso il chiaro (rosa spento → rosa chiaro degli avvisi).
-   Non avanza da un lato: è la scheda stessa che, mentre esce, si tinge di rosso tutta insieme. */
-#ao-root .ao-slide-out::after {
-    /* rosso vivo di Fluent (#d13438), sbilanciato verso il chiaro ma senza diventare rosa */
-    background: linear-gradient(90deg, color-mix(in srgb, #d13438 85%, var(--ao-surface)) 0%, color-mix(in srgb, #d13438 62%, var(--ao-surface)) 55%, color-mix(in srgb, #d13438 45%, var(--ao-surface)) 100%);
-    animation: ao-fill-fade .26s ease-out forwards;
+/* Ignora (In coda): swipe to delete col clic. La scheda scorre a sinistra e scopre il tasto rosso;
+   confermando, il tasto si allarga su tutta la scheda e poi lo spazio si chiude. */
+#ao-root .ao-queue-item { position: relative; overflow: hidden; }
+#ao-root .ao-queue-item > :not(.ao-swipe-action) { transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
+#ao-root .ao-queue-item.ao-swiped > :not(.ao-swipe-action) { transform: translateX(calc(-1 * var(--ao-swipe-width))); }
+#ao-root .ao-queue-item { --ao-swipe-width: 76px; }
+#ao-root .ao-swipe-action {
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 1; width: var(--ao-swipe-width);
+    display: grid; place-content: center; justify-items: center; gap: 3px; padding: 0; border: 0;
+    background: #d13438; color: #fff; font: inherit; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium); cursor: pointer;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1), background-color .15s;
 }
+#ao-root .ao-swiped .ao-swipe-action { transform: none; }
+#ao-root .ao-swipe-action:hover, #ao-root .ao-swipe-action:focus-visible { background: #a4262c; outline: none; }
+#ao-root .ao-swipe-commit { pointer-events: none; }
+#ao-root .ao-swipe-commit .ao-swipe-action { width: 100%; transform: none; }
+#ao-root .ao-swipe-commit > :not(.ao-swipe-action) { opacity: 0; }
+#ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
+/* Prendi in carico → la scheda diventa blu mentre si chiude. */
+#ao-root .ao-collapse-out { position: relative; }
+#ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
 #ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .5s ease-in-out forwards; }
 @keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out, #ao-root .ao-collapse-out, #ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse, #ao-root .ao-collapse-out, #ao-root .ao-collapse-out::after { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-swipe-action { transition: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
