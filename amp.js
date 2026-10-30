@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 11:40';
+    const BUILD = '2026-10-30 11:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -848,8 +848,8 @@
         renderStatusBar();
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         const body = root.querySelector('.ao-body');
-        // Chi resta fermo (barra secondaria, "←") sta fuori; tutto il resto scorre dentro una card dedicata,
-        // con un confine ben definito. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
+        // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
+        // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketFilter}|${state.settingsTab}`;
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
@@ -857,7 +857,7 @@
         const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row'));
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
-        view.replaceChildren(...fixed, scroll);
+        view.replaceChildren(...[fixed.length ? h('div', { class: 'ao-fixed' }, ...fixed) : null, scroll].filter(Boolean));
         body.replaceChildren(view);
         body.dataset.scrollKey = scrollKey;
         scroll.scrollTop = previousScroll;
@@ -1831,10 +1831,11 @@
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-#ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
-#ao-root .ao-view > .ao-segmented, #ao-root .ao-view > .ao-back-row { flex: none; }
-/* Card che contiene gli elementi che scorrono: confine netto, barra di scorrimento sottile con spazio riservato */
-#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 10px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); }
+#ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
+#ao-root .ao-fixed { flex: none; display: grid; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid var(--ao-line); }
+/* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 12px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
 #ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
 #ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
