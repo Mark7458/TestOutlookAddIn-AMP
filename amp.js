@@ -159,6 +159,8 @@
             holdUntil: date => `fino al ${date}`
         },
         mail: {
+            takeBarWorking: 'Apro il ticket…',
+            takeBarDone: 'Preso in carico',
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
@@ -319,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 15:00';
+    const BUILD = '2026-10-30 15:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1380,9 +1382,40 @@
         render(); // se non è riuscito, la scheda ricompare
     }
     const SWIPE_EXPAND_MS = 280;
-    // Presa in carico riuscita: la card si chiude del tutto e sparisce.
-    function collapseOut(card) {
-        return animateOut(card, 'ao-collapse-out', 'ao-collapse-out', 800);
+    // Presa in carico (In coda), stesso concetto di Ignora ma dal basso:
+    //  1. al clic su "Prendi in carico" nel modulo il contenuto sale e dal fondo entra il tasto blu "Apro il ticket…"
+    //     (resta lì mentre ServiceNow lavora);
+    //  2. ticket aperto → "✓ Preso in carico", il tasto si allarga su tutta la scheda e poi lo spazio si chiude;
+    //  3. errore → il tasto riscende e la scheda resta com'era.
+    const CHECK_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
+    const TAKE_BAR_MS = 280;
+    const TAKE_EXPAND_MS = 300;
+    const takeMotion = card => card && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    function takeBarIn(card) {
+        if (!takeMotion(card)) return;
+        const bar = h('div', { class: 'ao-take-bar', role: 'status' });
+        bar.innerHTML = `<span class="ao-take-spinner" aria-hidden="true"></span><span>${TEXTS.mail.takeBarWorking}</span>`;
+        card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
+        card.append(bar);
+        bar.getBoundingClientRect(); // parte da sotto
+        card.classList.add('ao-taking');
+    }
+    async function takeBarDone(card) {
+        const bar = card?.querySelector('.ao-take-bar');
+        if (!bar) return;
+        bar.innerHTML = `${CHECK_ICON}<span>${TEXTS.mail.takeBarDone}</span>`;
+        await new Promise(next => setTimeout(next, TAKE_BAR_MS)); // la salita deve essere finita
+        bar.style.height = `${card.clientHeight}px`;
+        card.classList.add('ao-take-commit');
+        await new Promise(next => setTimeout(next, TAKE_EXPAND_MS + 120));
+        await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
+    }
+    async function takeBarOut(card) {
+        const bar = card?.querySelector('.ao-take-bar');
+        if (!bar) return;
+        card.classList.remove('ao-taking');
+        await new Promise(next => setTimeout(next, TAKE_BAR_MS));
+        bar.remove();
     }
     function animateOut(card, className, lastAnimation, fallbackMs) {
         if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
@@ -1435,16 +1468,19 @@
             reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
         };
         if (card) state.holdRender = true; // la card resta ferma finché non parte l'animazione
+        takeBarIn(card);
         const ticket = await run(() => Services.createTicket(mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
         }), result => TEXTS.mail.ticketOpened(result.number));
         if (!ticket) {
+            await takeBarOut(card);
             state.holdRender = false;
             render();
             return;
         }
-        if (card) await collapseOut(card);
+        if (takeMotion(card)) await takeBarDone(card);
+        state.holdRender = false;
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
@@ -2099,13 +2135,6 @@
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
-/* Presa in carico: la card si richiude del tutto e svanisce (le scritte non si deformano: si accorcia solo l'altezza) */
-#ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; animation: ao-collapse-out .6s ease-in-out forwards; }
-@keyframes ao-collapse-out {
-    0% { max-height: var(--ao-card-height, 400px); opacity: 1; }
-    70% { opacity: 1; }
-    100% { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
-}
 /* Ignora (In coda): swipe to delete col clic. La scheda scorre a sinistra e scopre il tasto rosso;
    confermando, il tasto si allarga su tutta la scheda e poi lo spazio si chiude. */
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
@@ -2127,14 +2156,23 @@
 #ao-root .ao-swipe-commit .ao-swipe-action { width: 100%; transform: none; }
 #ao-root .ao-swipe-commit > :not(.ao-swipe-action) { opacity: 0; }
 #ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
-/* Prendi in carico → la scheda diventa blu mentre si chiude. */
-#ao-root .ao-collapse-out { position: relative; }
-#ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
-#ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .5s ease-in-out forwards; }
-@keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Prendi in carico (In coda): il tasto blu sale dal basso ("Apro il ticket…"), poi si allarga su tutta la scheda */
+#ao-root .ao-queue-item { --ao-take-bar: 52px; }
+#ao-root .ao-take-bar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: var(--ao-take-bar);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: var(--ao-accent); color: #fff; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium);
+    transform: translateY(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), height .3s cubic-bezier(.4, 0, .2, 1);
+}
+#ao-root .ao-taking { pointer-events: none; }
+#ao-root .ao-taking .ao-take-bar { transform: none; }
+#ao-root .ao-taking > :not(.ao-take-bar) { transform: translateY(calc(-1 * var(--ao-take-bar))); }
+#ao-root .ao-take-commit > :not(.ao-take-bar) { opacity: 0; }
+#ao-root .ao-take-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
+@keyframes ao-spin { to { transform: rotate(360deg); } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse, #ao-root .ao-collapse-out, #ao-root .ao-collapse-out::after { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-swipe-action { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-swipe-action, #ao-root .ao-take-bar { transition: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
