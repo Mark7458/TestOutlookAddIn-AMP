@@ -138,11 +138,10 @@
             serviceError: message => `Servizio non disponibile: ${message}`
         },
         queue: {
+            mailboxTitle: 'Casella condivisa da cui arriva la richiesta',
             ignoredDone: 'Ignorata',
             goToTicket: 'Vai al ticket',
             empty: 'Nessuna richiesta in coda.',
-            suggested: name => name,
-            suggestedTitle: 'Agenzia suggerita',
             active: 'Attive',
             ignoredTab: 'Ignorate',
             ignoredEmpty: 'Nessun thread ignorato.',
@@ -326,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 19:55';
+    const BUILD = '2026-10-30 20:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -398,9 +397,10 @@
     // 3. SERVIZI E OUTLOOK
     // Unico punto in cui il pannello parla con l'esterno. Ogni servizio restituisce una Promise.
     //
-    //   listQueue()                         → [{ conversationId, messageId, subject, sender, receivedAt,
+    //   listQueue()                         → [{ conversationId, messageId, subject, mailbox, sender, receivedAt,
     //                                            preview, previous: { number, state } | null, candidates: [numero] }]
-    //   listIgnored()                       → [{ conversationId, messageId, subject, sender, receivedAt, discardedBy, discardedAt }]
+    //   listIgnored()                       → [{ conversationId, messageId, subject, mailbox, sender, receivedAt, discardedBy, discardedAt }]
+    //                                          (mailbox = casella condivisa da cui arriva: AMPCoE, M365 Admin Center…)
     //   markThreadSeen(conversationId, utente) → i messaggi del thread non sono più "nuovi" per chi l'ha in carico
     //   listOpenTickets()                   → Ticket[]  (In Progress e On Hold del gruppo, copia su SharePoint)
     //   findTicketForMail(mail)             → { tickets: (Ticket & { via: 'inc'|'link'|'confirmed' })[], previous, candidates: Ticket[], discarded }
@@ -1094,7 +1094,7 @@
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
-        return queueCard(item, config, null, { allowIgnore: false,
+        return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
             footer: h('div', { class: 'ao-item-actions' },
                 h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))) });
     }
@@ -1180,11 +1180,11 @@
             receivedAt: item.receivedAt, body: state.mailBodies[item.messageId] || item.preview, incNumbers: []
         };
     }
+    // Etichetta della scheda: la casella condivisa da cui arriva la richiesta (l'agenzia si sceglie nel modulo).
     function queueItem(item, config) {
-        const suggestion = suggestCompany(config, item.sender, item.subject, item.preview);
-        const company = suggestion && config.companies[suggestion.id];
-        return queueCard(item, config, company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null);
+        return queueCard(item, config, mailboxChip(item));
     }
+    const mailboxChip = item => (item.mailbox ? chip(item.mailbox, 'accent', TEXTS.queue.mailboxTitle) : null);
 
     // ---------------------------- Ticket ----------------------------------
     // I ticket dello stesso thread stanno insieme; in cima i thread con messaggi nuovi.

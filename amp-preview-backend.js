@@ -51,6 +51,9 @@
         return Number.isNaN(date.getTime()) ? null : date;
     }
     const SHARED_MAILBOX = { name: 'Supporto AMP', email: 'supporto.amp@example.com' };
+    // Caselle condivise che alimentano In coda (ogni richiesta mostra da quale arriva).
+    const QUEUE_MAILBOXES = { default: 'AMPCoE', 'conv-2': 'M365 Admin Center', 'conv-3': 'M365 Admin Center', 'conv-9': 'M365 Admin Center' };
+    const mailboxOf = conversationId => QUEUE_MAILBOXES[conversationId] || QUEUE_MAILBOXES.default;
     const OPERATORS = {
         marco: { name: 'Marco Rossi', sysId: 'sys_user_1' },
         giulia: { name: 'Giulia Verdi', sysId: 'sys_user_2' },
@@ -440,6 +443,7 @@
             conversationId,
             messageId: messages[messages.length - 1].id,
             subject: messages[0].subject,
+            mailbox: mailboxOf(conversationId),
             sender: lastIncoming.from,
             receivedAt: lastIncoming.receivedAt,
             preview: lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160),
@@ -479,6 +483,7 @@
                     conversationId: thread.conversationId,
                     messageId: messages[messages.length - 1]?.id || null,
                     subject: messages[0]?.subject || '',
+                    mailbox: mailboxOf(thread.conversationId),
                     sender: lastIncoming?.from || null,
                     receivedAt: lastIncoming?.receivedAt || '',
                     preview: lastIncoming ? lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160) : '',
