@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:20';
+    const BUILD = '2026-10-30 20:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1095,31 +1095,28 @@
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
         return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
-            footer: h('div', { class: 'ao-item-actions' },
-                h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))) });
+            note: h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt))) });
     }
-    function queueCard(item, config, chipNode, { allowIgnore = true, footer = null } = {}) {
+    // Riga in fondo: le etichette a sinistra e, nelle Ignorate, chi l'ha ignorata a destra.
+    function queueCard(item, config, chipNode, { allowIgnore = true, note = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
             if (!expanded) return openTakeCharge(item);
             if (!state.holdRender) closeTakeCharge(queueDetailsOf(item.conversationId));
         };
-        // Senza la riga in fondo (Attive) la scheda tiene lo spazio di quella riga: alta come nelle Ignorate,
-        // con i testi esattamente nella stessa posizione.
-        return h('li', { class: `ao-item ao-queue-item${footer ? '' : ' ao-roomy'}${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
             },
-                // A sinistra oggetto e mittente; a destra ora di arrivo ed etichette, una sotto l'altra.
+                // A sinistra oggetto e mittente; a destra l'ora di arrivo.
                 h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
-                    chipNode)),
-            footer,
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
+            h('div', { class: 'ao-item-actions' }, chipNode, note),
             expanded ? queueDetails(item, config, allowIgnore) : null);
     }
     function queueDetails(item, config, allowIgnore) {
@@ -2277,7 +2274,6 @@
 
 /* In coda: riga con azioni e modulo compatto */
 #ao-root .ao-queue-item { gap: 6px; }
-#ao-root .ao-queue-item.ao-roomy:not(.ao-expanded) { padding-bottom: 31px; } /* 9px + la riga "Ignorata da…" (6px + 16px) */
 #ao-root .ao-open-first { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); color: var(--ao-text-muted); }
 #ao-root .ao-open-first p { margin: 0; }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
