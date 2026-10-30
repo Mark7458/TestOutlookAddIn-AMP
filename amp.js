@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 12:05';
+    const BUILD = '2026-10-30 12:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1862,11 +1862,14 @@
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
-#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; margin: 0 -12px; padding: 12px 12px 10px; border-bottom: 1px solid var(--ao-line); background: var(--ao-bg); transition: transform .25s ease-in-out, box-shadow .25s; }
-/* Fuori casa: sovrapposta al contenuto, con un'ombra leggera */
-#ao-root .ao-fixed.ao-floating { box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+/* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
+   A casa sta in cima all'elenco; fuori casa compare sovrapposto al contenuto, con un'ombra sotto il menu stesso. */
+#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; transition: transform .25s ease-in-out; }
+#ao-root .ao-fixed > * { pointer-events: auto; transition: box-shadow .25s; }
+#ao-root .ao-fixed.ao-floating .ao-segmented { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+#ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 /* Mandata via scorrendo verso il basso: resta "agganciata" in alto, ma fuori vista */
-#ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 8px)); box-shadow: none; }
+#ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 12px)); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
