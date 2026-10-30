@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:55';
+    const BUILD = '2026-10-30 21:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1110,12 +1110,13 @@
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
             },
-                // A sinistra oggetto e mittente; a destra l'ora di arrivo e, sotto, la casella condivisa.
-                h('div', { class: 'ao-item-left' },
-                    h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
-                    h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
-                h('div', { class: 'ao-item-right' },
-                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
+                // Due righe sempre uguali: oggetto (su una riga, troncato; intero solo da aperta) e ora;
+                // mittente e casella condivisa.
+                h('div', { class: 'ao-queue-row' },
+                    h('span', { class: 'ao-item-title', title: expanded ? undefined : item.subject || undefined }, item.subject || '(senza oggetto)'),
+                    h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt))),
+                h('div', { class: 'ao-queue-row' },
+                    h('span', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
                     chipNode)),
             expanded ? queueDetails(item, config, allowIgnore, info) : null);
     }
@@ -2287,6 +2288,11 @@
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-spacer { flex: 1; }
+#ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+#ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+#ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-queue-row > :last-child { flex: none; }
+#ao-root .ao-queue-item.ao-expanded .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
 #ao-root .ao-queue-info { margin: 0; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
