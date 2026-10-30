@@ -165,7 +165,7 @@
         },
         mail: {
             takeBarWorking: 'Apro il ticket…',
-            takeBarDone: 'Preso in carico',
+            takeBarDone: number => `${number} preso in carico`,
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
@@ -327,7 +327,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 18:20';
+    const BUILD = '2026-10-30 18:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -585,7 +585,6 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
-        ignoreArmed: null, // conversazione In coda con il tasto "Confermi?" di Ignora salito dal basso
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         animateExpand: null, // modulo appena aperto, da animare
         holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
@@ -865,11 +864,6 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
-        // Con "Confermi?" di Ignora salito, un clic altrove o Esc lo fa riscendere.
-        root.addEventListener('click', event => {
-            if (state.ignoreArmed && !event.target.closest('.ao-ignore-bar, .ao-ignore')) disarmIgnore();
-        }, true);
-        root.addEventListener('keydown', event => { if (event.key === 'Escape') disarmIgnore(); });
         container.replaceChildren(root);
         // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
         if (window.ResizeObserver) new ResizeObserver(() => {
@@ -1096,7 +1090,7 @@
     function queueCard(item, config, chipNode, { allowIgnore = true, footer = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         const toggle = () => (expanded ? closeTakeCharge(root.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(item.conversationId)}"] .ao-inline-form`)) : openTakeCharge(item));
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${state.ignoreArmed === item.conversationId ? ' ao-ignore-on' : ''}`, dataset: { conversation: item.conversationId } },
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
@@ -1109,8 +1103,7 @@
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
                     chipNode)),
             footer,
-            expanded ? queueDetails(item, config, allowIgnore) : null,
-            expanded && allowIgnore ? ignoreBar(mailFromQueueItem(item)) : null);
+            expanded ? queueDetails(item, config, allowIgnore) : null);
     }
     function queueDetails(item, config, allowIgnore) {
         const mail = mailFromQueueItem(item);
@@ -1120,13 +1113,13 @@
             ticketForm(mail, config, { compact: true }),
             h('div', { class: 'ao-actions' },
                 openTicketButton(mail, config),
-                allowIgnore ? h('button', { type: 'button', class: 'ao-button ao-subtle ao-ignore', onclick: event => armIgnore(event.currentTarget.closest('.ao-queue-item'), item.conversationId) }, TEXTS.mail.discard) : null,
+                // Ignora chiede conferma sullo stesso pulsante ("Confermi?"), poi la scheda mostra l'esito.
+                allowIgnore ? confirmButton(TEXTS.mail.discard, 'ao-button ao-subtle ao-ignore', button => ignoreFromQueue(button.closest('.ao-queue-item'), mail)) : null,
                 h('span', { class: 'ao-spacer' }),
                 h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.close)));
     }
     // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
     function openTakeCharge(item) {
-        disarmIgnore();
         state.queueExpanded = item.conversationId;
         state.animateExpand = item.conversationId;
         render();
@@ -1143,7 +1136,6 @@
     }
     // Chiudi (o clic sull'intestazione): la scheda si richiude con l'animazione inversa.
     function closeTakeCharge(form) {
-        disarmIgnore();
         const finish = () => {
             if (!state.queueExpanded) return;
             state.queueExpanded = null;
@@ -1430,100 +1422,61 @@
             render(); // se non è riuscito, la card ricompare
         });
     }
-    // Ignora (In coda), stesso linguaggio della presa in carico ma rosso:
-    //  1. clic su Ignora → dal basso sale il tasto rosso "Confermi?" (il contenuto si alza un poco);
-    //     senza conferma, dopo 4 secondi (o con un clic altrove, o Esc) riscende;
-    //  2. clic sul tasto → si allarga verso l'alto e copre la scheda (il contenuto sale più piano), poi lo spazio si chiude.
-    const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
-    const IGNORE_TIMEOUT_MS = 4000;
-    const IGNORE_EXPAND_MS = 340;
-    let ignoreTimer = null;
-    function ignoreBar(mail) {
-        const button = h('button', {
-            type: 'button', class: 'ao-ignore-bar', tabindex: '-1', 'aria-label': `${TEXTS.mail.discard}: ${TEXTS.common.confirm}`,
-            onclick: event => commitIgnore(event.currentTarget.closest('.ao-queue-item'), mail)
-        });
-        button.innerHTML = `${ARCHIVE_ICON}<span>${TEXTS.common.confirm}</span>`;
-        return button;
-    }
-    function armIgnore(card, conversationId) {
-        if (state.ignoreArmed === conversationId) return disarmIgnore();
-        disarmIgnore();
-        if (!card) return;
-        state.ignoreArmed = conversationId;
-        card.classList.add('ao-ignore-on');
-        card.querySelector('.ao-ignore-bar')?.setAttribute('tabindex', '0');
-        ignoreTimer = setTimeout(disarmIgnore, IGNORE_TIMEOUT_MS);
-    }
-    function disarmIgnore() {
-        clearTimeout(ignoreTimer);
-        if (!state.ignoreArmed) return;
-        root?.querySelectorAll('.ao-queue-item.ao-ignore-on').forEach(card => {
-            card.classList.remove('ao-ignore-on');
-            card.querySelector('.ao-ignore-bar')?.setAttribute('tabindex', '-1');
-        });
-        state.ignoreArmed = null;
-    }
-    async function commitIgnore(card, mail) {
-        clearTimeout(ignoreTimer);
-        state.ignoreArmed = null;
-        const motion = card && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        state.holdRender = Boolean(motion);
-        const done = run(() => Services.discardMail(mail.conversationId, currentUser()));
-        if (motion) {
-            const bar = card.querySelector('.ao-ignore-bar');
-            card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
-            if (bar) {
-                bar.querySelector('span').textContent = TEXTS.queue.ignoredDone;
-                bar.style.height = `${card.clientHeight}px`;
-            }
-            card.classList.add('ao-ignore-commit');
-            await new Promise(next => setTimeout(next, IGNORE_EXPAND_MS + 60));
-            await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500); // poi lo spazio si chiude
+    // Esito di un'azione su una scheda di In coda (Prendi in carico, Ignora):
+    //  1. la tendina (testo della mail, campi, pulsanti) si arrotola verso l'alto;
+    //  2. la scheda diventa un banner colorato con l'esito (blu = presa in carico, rosso = ignorata);
+    //     durante l'attesa di ServiceNow il banner mostra la rotellina;
+    //  3. dopo un attimo per leggerlo, il banner si chiude e la scheda sparisce dall'elenco.
+    const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
+    const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
+    const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
+    const OUTCOME_ROLL_MS = 320; // tendina che si arrotola
+    const OUTCOME_HOLD_MS = 1100; // banner visibile prima di chiudersi
+    const outcomeMotion = card => Boolean(card) && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const wait = ms => new Promise(next => setTimeout(next, ms));
+    // Avvia l'esito: arrotola la tendina e accende il banner (tone: 'accent' | 'danger').
+    function outcomeStart(card, tone, html) {
+        if (!outcomeMotion(card)) return;
+        state.holdRender = true;
+        const details = card.querySelector('.ao-inline-form');
+        if (details) {
+            details.animate([
+                { maxHeight: `${details.scrollHeight}px`, opacity: 1, paddingTop: '8px' },
+                { maxHeight: '0px', opacity: 0, paddingTop: '0px' }
+            ], { duration: OUTCOME_ROLL_MS, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' });
         }
+        const banner = h('div', { class: 'ao-outcome', role: 'status' });
+        banner.innerHTML = html;
+        card.append(banner);
+        card.classList.add('ao-resolving', `ao-outcome-${tone}`);
+    }
+    function outcomeText(card, html) {
+        const banner = card?.querySelector('.ao-outcome');
+        if (banner) banner.innerHTML = html;
+    }
+    // Conclude: il banner resta un attimo, poi la scheda si chiude.
+    async function outcomeEnd(card) {
+        if (!card?.classList.contains('ao-resolving')) return;
+        await wait(OUTCOME_HOLD_MS);
+        await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
+    }
+    // Errore: il banner sparisce e la scheda torna com'era (al prossimo ridisegno).
+    function outcomeCancel(card) {
+        card?.querySelector('.ao-outcome')?.remove();
+        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger');
         state.holdRender = false;
-        if (await done) {
+    }
+    async function ignoreFromQueue(card, mail) {
+        outcomeStart(card, 'danger', `${ARCHIVE_ICON}<span>${TEXTS.queue.ignoredDone}</span>`);
+        const [ok] = await Promise.all([run(() => Services.discardMail(mail.conversationId, currentUser())), wait(outcomeMotion(card) ? OUTCOME_ROLL_MS : 0)]);
+        if (ok) await outcomeEnd(card);
+        else outcomeCancel(card);
+        state.holdRender = false;
+        if (ok) {
             if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
             await refreshLists();
         }
-        render(); // se non è riuscito, la scheda ricompare
-    }
-    // Presa in carico (In coda), stesso concetto di Ignora ma dal basso:
-    //  1. al clic su "Prendi in carico" nel modulo il blu sale dal basso e copre tutta la scheda in un solo
-    //     movimento (il contenuto sale anche lui, più piano, e viene raggiunto), con "Apro il ticket…" (resta così mentre ServiceNow lavora);
-    //  2. ticket aperto → "✓ Preso in carico" e lo spazio si chiude;
-    //  3. errore → il tasto riscende e la scheda resta com'era.
-    const CHECK_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
-    const TAKE_BAR_MS = 420;
-    const TAKE_HOLD_MS = 220;
-    const takeMotion = card => card && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    function takeBarIn(card) {
-        if (!takeMotion(card)) return;
-        const bar = h('div', { class: 'ao-take-bar', role: 'status' });
-        bar.innerHTML = `<span class="ao-take-spinner" aria-hidden="true"></span><span>${TEXTS.mail.takeBarWorking}</span>`;
-        card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
-        bar.style.height = `${card.clientHeight}px`; // già alto quanto la scheda: sale e la copre tutta
-        card.append(bar);
-        bar.getBoundingClientRect(); // parte da sotto
-        card.classList.add('ao-taking');
-        card.dataset.takeStart = String(performance.now());
-    }
-    async function takeBarDone(card) {
-        const bar = card?.querySelector('.ao-take-bar');
-        if (!bar) return;
-        bar.innerHTML = `${CHECK_ICON}<span>${TEXTS.mail.takeBarDone}</span>`;
-        // La chiusura parte appena il blu ha finito di salire (se ServiceNow ha già risposto).
-        const risen = performance.now() - Number(card.dataset.takeStart || 0);
-        if (risen < TAKE_BAR_MS) await new Promise(next => setTimeout(next, TAKE_BAR_MS - risen));
-        await new Promise(next => setTimeout(next, TAKE_HOLD_MS)); // un attimo per leggere la spunta
-        await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
-    }
-    async function takeBarOut(card) {
-        const bar = card?.querySelector('.ao-take-bar');
-        if (!bar) return;
-        card.classList.remove('ao-taking');
-        await new Promise(next => setTimeout(next, TAKE_BAR_MS));
-        bar.remove();
+        render();
     }
     function animateOut(card, className, lastAnimation, fallbackMs) {
         if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
@@ -1575,19 +1528,18 @@
             description: String(body || '').slice(0, 4000),
             reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
         };
-        if (card) state.holdRender = true; // la card resta ferma finché non parte l'animazione
-        takeBarIn(card);
+        outcomeStart(card, 'accent', `${SPINNER}<span>${TEXTS.mail.takeBarWorking}</span>`);
         const ticket = await run(() => Services.createTicket(mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
         }), result => TEXTS.mail.ticketOpened(result.number));
         if (!ticket) {
-            await takeBarOut(card);
-            state.holdRender = false;
+            outcomeCancel(card);
             render();
             return;
         }
-        if (takeMotion(card)) await takeBarDone(card);
+        outcomeText(card, `${CHECK_ICON}<span>${TEXTS.mail.takeBarDone(ticket.number)}</span>`);
+        await outcomeEnd(card);
         state.holdRender = false;
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
@@ -2263,38 +2215,24 @@
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
-#ao-root .ao-queue-item > :not(.ao-ignore-bar, .ao-take-bar) { transition: transform .32s cubic-bezier(.3, .8, .2, 1); }
-/* Ignora: il tasto rosso "Confermi?" sale dal basso (il contenuto si alza un poco); confermando si allarga e copre la scheda */
-#ao-root .ao-ignore-bar {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 52px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; border: 0;
-    background: #d13438; color: #fff; font: inherit; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium); cursor: pointer;
-    transform: translateY(100%); transition: transform .32s cubic-bezier(.3, .8, .2, 1), height .34s cubic-bezier(.4, 0, .2, 1), background-color .15s;
+/* Esito su una scheda di In coda: la tendina si arrotola e la scheda diventa un banner colorato */
+#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
+#ao-root .ao-resolving { pointer-events: none; }
+#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
+#ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
+#ao-root .ao-queue-item.ao-resolving { background: var(--ao-outcome); border-color: var(--ao-outcome); }
+#ao-root .ao-outcome {
+    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
+    animation: ao-fill-fade .25s ease-out .1s backwards;
 }
-#ao-root .ao-ignore-bar:hover, #ao-root .ao-ignore-bar:focus-visible { background: #a4262c; outline: none; }
-#ao-root .ao-ignore-on .ao-ignore-bar { transform: none; }
-#ao-root .ao-ignore-on > :not(.ao-ignore-bar) { transform: translateY(-18px); }
-#ao-root .ao-ignore-on .ao-ignore { opacity: 0; visibility: hidden; }
-#ao-root .ao-queue-item .ao-ignore { transition: opacity .2s, visibility .2s; }
-#ao-root .ao-ignore-commit { pointer-events: none; }
-#ao-root .ao-queue-item.ao-ignore-commit > :not(.ao-ignore-bar) { transform: translateY(calc(-18px - .35 * (var(--ao-card-height, 300px) - 52px))); transition: transform .34s cubic-bezier(.4, 0, .2, 1); }
-#ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
-/* Prendi in carico (In coda): il tasto blu sale dal basso ("Apro il ticket…"), poi si allarga su tutta la scheda */
-#ao-root .ao-take-bar {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    background: var(--ao-accent); color: #fff; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium);
-    transform: translateY(100%); transition: transform .42s cubic-bezier(.3, .8, .2, 1);
-}
-#ao-root .ao-taking { pointer-events: none; }
-#ao-root .ao-taking .ao-take-bar { transform: none; }
-/* il contenuto sale anche lui, ma più piano del blu, che lo raggiunge e lo copre (un solo movimento) */
-#ao-root .ao-taking > :not(.ao-take-bar, .ao-ignore-bar) { transform: translateY(calc(-.35 * var(--ao-card-height, 300px))); transition: transform .42s cubic-bezier(.3, .8, .2, 1); }
-#ao-root .ao-take-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
+@keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
+#ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
+#ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-ignore-bar, #ao-root .ao-take-bar { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
