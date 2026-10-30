@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 12:35';
+    const BUILD = '2026-10-30 12:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -572,7 +572,7 @@
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
-        barHidden: false, // barra secondaria nascosta mentre si scorre verso il basso
+        barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
         animateExpand: null, // modulo appena aperto, da animare
         holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
@@ -789,7 +789,7 @@
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null) {
-        state.barHidden = false;
+        state.barOffset = 0;
         state.view = view;
         state.backTo = backTo;
         state.editing = null;
@@ -859,9 +859,9 @@
         const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row'));
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
-        if (!previousScroll) state.barHidden = false;
+        if (!previousScroll) state.barOffset = 0;
         // La barra è il primo elemento dell'area che scorre: la sua "casa" è in cima all'elenco.
-        const bar = fixed.length ? h('div', { class: `ao-fixed${state.barHidden ? ' ao-hidden' : ''}${previousScroll ? ' ao-floating' : ''}` }, ...fixed) : null;
+        const bar = fixed.length ? h('div', { class: 'ao-fixed' }, ...fixed) : null;
         if (bar) scroll.prepend(bar);
         view.replaceChildren(scroll);
         body.replaceChildren(view);
@@ -869,26 +869,34 @@
         scroll.scrollTop = previousScroll;
         if (bar) watchScroll(scroll, bar);
     }
-    // Barra secondaria: sta in cima all'elenco (la sua "casa") e scorre via con il contenuto.
-    // Risalendo anche di poco riappare sovrapposta in alto (con un'ombra); tornando in cima si riappoggia.
-    const BAR_DOWN_DELTA = 6; // scorrimento minimo verso il basso per rimandarla via
-    const BAR_UP_DELTA = 4; // scorrimento minimo verso l'alto per richiamarla
+    // Barra secondaria: sta in cima all'elenco (la sua "casa"). Scorrendo verso il basso scivola via
+    // seguendo lo scorrimento pixel per pixel; scorrendo verso l'alto rientra allo stesso modo, sovrapposta
+    // al contenuto. Quando lo scorrimento si ferma a metà, completa il movimento più vicino.
+    const BAR_SNAP_DELAY = 140; // ms senza scorrimento prima di completare il movimento
     function watchScroll(scroll, bar) {
         let last = scroll.scrollTop;
-        const update = hidden => {
+        let snapTimer = null;
+        const travel = () => bar.offsetHeight + 12; // fuori vista del tutto (con un margine per l'ombra)
+        const apply = (offset, animate = false) => {
+            state.barOffset = Math.max(0, Math.min(travel(), offset));
             const home = scroll.scrollTop <= 0;
-            state.barHidden = !home && hidden;
-            bar.classList.toggle('ao-hidden', state.barHidden);
-            bar.classList.toggle('ao-floating', !home);
+            bar.classList.toggle('ao-snap', animate);
+            bar.style.transform = state.barOffset ? `translateY(${-state.barOffset}px)` : '';
+            // Ombra solo quando è sovrapposta e tutta visibile: mentre scivola via non ce l'ha.
+            bar.classList.toggle('ao-floating', !home && state.barOffset === 0);
         };
+        apply(scroll.scrollTop > 0 ? state.barOffset : 0);
         scroll.addEventListener('scroll', () => {
             const top = scroll.scrollTop;
             const delta = top - last;
             last = top;
-            if (top <= 0) return update(false);
-            if (delta > BAR_DOWN_DELTA) update(true);
-            else if (delta < -BAR_UP_DELTA) update(false);
-            else update(state.barHidden);
+            clearTimeout(snapTimer);
+            if (top <= 0) return apply(0);
+            apply(state.barOffset + delta);
+            snapTimer = setTimeout(() => {
+                const offset = state.barOffset;
+                if (offset > 0 && offset < travel()) apply(offset > travel() / 2 ? travel() : 0, true);
+            }, BAR_SNAP_DELAY);
         }, { passive: true });
     }
 
@@ -1864,15 +1872,13 @@
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
    A casa sta in cima all'elenco; fuori casa compare sovrapposto al contenuto, con un'ombra sotto il menu stesso. */
-#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; transition: transform .25s ease-in-out; }
-#ao-root .ao-fixed > * { pointer-events: auto; transition: box-shadow .25s; }
+#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; will-change: transform; }
+/* Completamento del movimento quando lo scorrimento si ferma a metà */
+#ao-root .ao-fixed.ao-snap { transition: transform .18s ease-out; }
+#ao-root .ao-fixed > * { pointer-events: auto; }
 #ao-root .ao-fixed.ao-floating .ao-segmented { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 #ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
-/* Mandata via scorrendo verso il basso: resta "agganciata" in alto, ma fuori vista */
-#ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 12px)); }
-/* Mentre va via la pillola non ha ombra (tolta subito, senza transizione) */
-#ao-root .ao-fixed.ao-hidden > * { box-shadow: none !important; transition: none; }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
