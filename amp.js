@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:50';
+    const BUILD = '2026-10-30 20:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1094,18 +1094,18 @@
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
-        // Chi l'ha ignorata si legge passando il mouse sulla scheda.
+        // Chi l'ha ignorata si legge solo aprendo la scheda, sopra il testo della mail.
         return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
-            hover: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
+            info: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
     }
-    function queueCard(item, config, chipNode, { allowIgnore = true, hover = null } = {}) {
+    function queueCard(item, config, chipNode, { allowIgnore = true, info = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
             if (!expanded) return openTakeCharge(item);
             if (!state.holdRender) closeTakeCharge(queueDetailsOf(item.conversationId));
         };
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId }, title: hover || undefined },
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
@@ -1117,12 +1117,13 @@
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
                     chipNode)),
-            expanded ? queueDetails(item, config, allowIgnore) : null);
+            expanded ? queueDetails(item, config, allowIgnore, info) : null);
     }
-    function queueDetails(item, config, allowIgnore) {
+    function queueDetails(item, config, allowIgnore, info = null) {
         const mail = mailFromQueueItem(item);
         const body = state.mailBodies[item.messageId];
         return h('div', { class: 'ao-inline-form' },
+            info ? h('p', { class: 'ao-hint ao-queue-info' }, info) : null,
             h('div', { class: 'ao-mail-preview' }, body ?? item.preview ?? '', body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
             ticketForm(mail, config, { compact: true }),
             h('div', { class: 'ao-actions' },
@@ -2286,6 +2287,7 @@
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-spacer { flex: 1; }
+#ao-root .ao-queue-info { margin: 0; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
 #ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
