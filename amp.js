@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 13:55';
+    const BUILD = '2026-10-30 14:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2059,9 +2059,15 @@
    Prendi in carico → diventa blu mentre si chiude. */
 #ao-root .ao-slide-out, #ao-root .ao-collapse-out { position: relative; }
 #ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
-/* Il rosso avanza con un bordo sfumato (gradiente), non con un taglio netto */
-#ao-root .ao-slide-out::after { background: linear-gradient(90deg, var(--ao-danger) 0 40%, transparent 60% 100%) 100% 0 / 250% 100% no-repeat; animation: ao-fill-right .3s ease-out forwards; }
-@keyframes ao-fill-right { from { background-position: 100% 0; } to { background-position: 0 0; } }
+/* Il rosso è tenue e sbilanciato verso il chiaro: un rosa spento a sinistra che sfuma nel rosa chiaro
+   degli avvisi a destra. Avanza da sinistra con il fronte sfumato (maschera che scorre), in 300 ms ease. */
+#ao-root .ao-slide-out::after {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ao-danger) 42%, var(--ao-surface)) 0%, color-mix(in srgb, var(--ao-danger) 18%, var(--ao-surface)) 55%, var(--ao-danger-bg) 100%);
+    -webkit-mask: linear-gradient(90deg, #000 0 40%, transparent 60% 100%) 100% 0 / 250% 100% no-repeat;
+    mask: linear-gradient(90deg, #000 0 40%, transparent 60% 100%) 100% 0 / 250% 100% no-repeat;
+    animation: ao-fill-right .3s ease forwards;
+}
+@keyframes ao-fill-right { from { -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
 #ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .5s ease-in-out forwards; }
 @keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
