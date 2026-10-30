@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:30';
+    const BUILD = '2026-10-30 21:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1516,7 +1516,7 @@
     }
 
     // Esito su una scheda di In coda, in un movimento solo: mentre la tendina si chiude la scheda prende
-    // pian piano il colore dell'esito (banner che affiora), poi esce di lato e, mentre esce, lo spazio si chiude.
+    // pian piano il colore dell'esito (banner che affiora), poi esce di lato e infine lo spazio si chiude.
     // Ignora → rosso, a sinistra; Prendi in carico → blu, a destra.
     // Se ServiceNow non ha ancora risposto, il banner resta fermo con la rotellina finché non arriva l'esito.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
@@ -1549,12 +1549,12 @@
             await card.aoOutcome.ready;
             await wait(MOTION.hold); // un attimo per leggere l'esito
             const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
-            const exit = playOn(card, [
-                { transform: 'none', opacity: 1 },
-                { transform: `translateX(${direction * 110}%)`, opacity: .6 }
+            // solo scorrimento laterale (la scheda resta intera); lo spazio si chiude dopo che è uscita
+            await playOn(card, [
+                { transform: 'none' },
+                { transform: `translateX(${direction * 110}%)` }
             ], MOTION.exit, 'cubic-bezier(.5, 0, .75, 0)');
-            await wait(MOTION.exit * .5); // lo spazio comincia a chiudersi mentre la scheda esce
-            await Promise.all([exit, removeCard(card)]);
+            await removeCard(card);
         }
     }
     function outcomeRelease(card) {
