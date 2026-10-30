@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:15';
+    const BUILD = '2026-10-30 21:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1533,6 +1533,8 @@
         card.classList.add(`ao-outcome-${tone}`);
         // il colore affiora insieme alla chiusura della tendina (più deciso verso la fine)
         banner.animate([{ opacity: 0 }, { opacity: .35, offset: .4 }, { opacity: 1 }], { duration: MOTION.fold, easing: 'ease-in', fill: 'backwards' });
+        // anche l'intestazione (oggetto, mittente, ora, etichetta) si affievolisce e svanisce sotto il colore
+        card.querySelector('.ao-item-main')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.fold * .7, easing: 'ease-out', fill: 'forwards' });
         card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form'));
     }
     function outcomeText(card, html) {
@@ -1564,6 +1566,7 @@
         if (card?.aoOutcome) card.aoOutcome.cancelled = true;
         card?.querySelector('.ao-outcome')?.remove();
         card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger');
+        card?.querySelector('.ao-item-main')?.getAnimations().forEach(animation => animation.cancel());
         outcomeRelease(card);
     }
     async function ignoreFromQueue(card, mail) {
