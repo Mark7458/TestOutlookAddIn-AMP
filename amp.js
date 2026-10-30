@@ -52,7 +52,8 @@
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
             headerBackground: 'linear-gradient(135deg, #005a9e, #0078d4)',
-            white: '#fff',
+            white: '#fff', // testo su sfondo blu (pulsanti, notifiche)
+            surface: '#fff', // sfondo di card, campi, schede, barra di sistema
             text: '#242424',
             textMuted: '#605e5c',
             textSubtle: '#8a8886',
@@ -69,6 +70,31 @@
             dangerBg: '#fde7e9',
             hold: '#8764b8', // On Hold
             holdBg: '#f4f0fa'
+        },
+        // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
+        // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
+        darkColors: {
+            accentDark: '#2b88d8',
+            textAccent: '#6cb8f6',
+            accentBorder: '#3a6a8f',
+            accentBg: '#19344a',
+            surface: '#2d2c2b',
+            text: '#f3f2f1',
+            textMuted: '#c8c6c4',
+            textSubtle: '#a19f9d',
+            bg: '#201f1e',
+            bgSoft: '#292827',
+            lineLight: '#3b3a39',
+            line: '#484644',
+            lineStrong: '#605e5c',
+            success: '#6ccb5f',
+            successBg: '#1f3a1d',
+            warning: '#f2c661',
+            warningBg: '#3d3214',
+            danger: '#ffb3b8',
+            dangerBg: '#442726',
+            hold: '#c3b2ff',
+            holdBg: '#2f2a45'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -218,6 +244,9 @@
             profile: 'Profilo',
             profileHint: 'Il tuo nome come compare su ServiceNow: i ticket che apri vengono assegnati a te.',
             assignedTo: 'Assigned to',
+            theme: 'Tema',
+            themes: { auto: 'Automatico', light: 'Chiaro', dark: 'Scuro' },
+            themeHint: 'Automatico segue il tema di Outlook. Chiaro e Scuro servono anche a verificare la leggibilità.',
             backup: 'Configurazioni',
             backupHint: 'Agenzie, Attività e risposte stanno in questo browser: esportale per averne una copia o portarle su un altro computer. Il file di Tampermonkey si importa senza modifiche.',
             companyName: 'Nome',
@@ -290,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 11:10';
+    const BUILD = '2026-10-30 11:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -299,7 +328,7 @@
             profile: { assignedTo: { value: '', displayValue: '' }, tag: '' },
             companies: {}, activities: {}, favorites: [], recent: [],
             combinationResponses: {}, usefulResponses: {},
-            preferences: { favoritesGroupBy: 'none' }
+            preferences: { favoritesGroupBy: 'none', theme: 'auto' }
         };
     }
     function normalizeReference(reference) {
@@ -336,6 +365,13 @@
             console.error('[AMP] Lettura configurazioni non riuscita:', error);
             return createDefaultConfig();
         }
+    }
+    // Tema del pannello: auto (come Outlook), light, dark.
+    function applyTheme(config = loadConfig()) {
+        if (!root) return;
+        const theme = config.preferences?.theme;
+        if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+        else delete root.dataset.theme;
     }
     function saveConfig(config) {
         config.version = STORAGE.version;
@@ -1599,6 +1635,16 @@
                         }
                     }, TEXTS.common.save))),
             h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, TEXTS.settings.theme),
+                filterBar(Object.entries(TEXTS.settings.themes).map(([value, label]) => ({ value, label })), config.preferences?.theme || 'auto', value => {
+                    const current = loadConfig();
+                    current.preferences = { ...(current.preferences || {}), theme: value };
+                    saveConfig(current);
+                    applyTheme(current);
+                    render();
+                }),
+                h('p', { class: 'ao-hint' }, TEXTS.settings.themeHint)),
+            h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
                 h('div', { class: 'ao-actions' },
@@ -1740,7 +1786,10 @@
             Object.entries(THEME[group]).forEach(([key, value]) => lines.push(`--ao-${prefix}${kebab(key)}: ${value};`));
         });
         lines.push(`--ao-font: ${THEME.font.family};`);
-        return `#ao-root { ${lines.join(' ')} }`;
+        const dark = Object.entries(THEME.darkColors).map(([key, value]) => `--ao-${kebab(key)}: ${value};`).join(' ') + ' color-scheme: dark;';
+        return `#ao-root { ${lines.join(' ')} }
+#ao-root[data-theme="dark"] { ${dark} }
+@media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { ${dark} } }`;
     }
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
@@ -1751,7 +1800,7 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
 #ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
@@ -1775,7 +1824,7 @@
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
 
 /* Pulsanti */
-#ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-white); font-weight: var(--ao-fw-medium); cursor: pointer; }
+#ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-button:hover:where(:not(:disabled)) { background: var(--ao-bg-soft); border-color: var(--ao-text-subtle); }
 #ao-root .ao-primary { background: var(--ao-accent); border-color: var(--ao-accent); color: var(--ao-white); }
 #ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
@@ -1796,7 +1845,7 @@
 #ao-root :focus-visible { outline: none; box-shadow: var(--ao-shadow-focus); }
 
 /* Filtri e scelte a segmenti */
-#ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+#ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
 /* Barra secondaria (Attive/Ignorate, Miei/Tutti, Profilo/Agenzie…): resta ferma in alto mentre scorre il contenuto.
    L'ombra del colore di fondo copre le card che le passano dietro. */
 #ao-root .ao-view > .ao-segmented { position: sticky; top: 12px; z-index: 2; box-shadow: 0 0 0 12px var(--ao-bg); }
@@ -1808,11 +1857,11 @@
 
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); cursor: pointer; }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; }
 /* Passaggio del mouse, uguale in tutte le sezioni: solo il titolo diventa blu (sfondo e bordo invariati).
    Selezionata (modulo o dettagli aperti): bordo blu normale, sfondo bianco. */
 #ao-root .ao-item:hover .ao-item-title, #ao-root .ao-ticket-compact-head:hover .ao-item-title { color: var(--ao-text-accent); }
-#ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-white); border-color: var(--ao-accent); }
+#ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-accent); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
@@ -1825,7 +1874,7 @@
 /* Etichette colorate */
 #ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
 #ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
-#ao-root .ao-chip.ao-tone-person { background: var(--ao-white); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
+#ao-root .ao-chip.ao-tone-person { background: var(--ao-surface); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
 #ao-root .ao-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 #ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-text-accent); }
 #ao-root .ao-chip.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
@@ -1834,7 +1883,7 @@
 #ao-root .ao-chip.ao-tone-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
 
 /* Riquadri */
-#ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #ao-root .ao-card-title { margin: 0; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-notice { padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); }
@@ -1855,13 +1904,13 @@
 /* Campi */
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
 #ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-input { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-white); color: var(--ao-text); font: inherit; }
+#ao-root .ao-input { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
 #ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
 #ao-root .ao-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #ao-root .ao-favorites { display: grid; gap: 4px; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-#ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-white); font-size: var(--ao-fs-sm); cursor: pointer; }
+#ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-fav:hover { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
 #ao-root .ao-fav.ao-active { border-color: var(--ao-accent); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-fields { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); font-size: var(--ao-fs-md); }
@@ -1931,7 +1980,7 @@
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-#ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+#ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
 #ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; }
 #ao-root .ao-config-card-head .ao-config-name { flex: 1; }
 #ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; margin: 0; font-size: var(--ao-fs-md); line-height: 1.35; }
@@ -1946,7 +1995,7 @@
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-text-accent); }
-#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
@@ -1956,7 +2005,7 @@
 #ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
 #ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; }
 #ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-white); border: 1px solid var(--ao-accent-border); }
+#ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
 #ao-root .ao-new-from { flex: 1; font-weight: var(--ao-fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1966,13 +2015,13 @@
 #ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-card-quiet { background: var(--ao-bg-soft); }
 #ao-root .ao-card-warning { border-color: var(--ao-warning-bg); border-left: 3px solid var(--ao-warning); }
-#ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+#ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
 #ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-white); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
@@ -2006,6 +2055,7 @@
         initialized = true;
         injectStyles();
         buildShell(container);
+        applyTheme();
         fillPane();
         // Il riquadro di Outlook si può ridimensionare: l'altezza dell'area si ricalcola.
         window.addEventListener('resize', fitHeight);
