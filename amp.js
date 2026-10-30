@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 16:25';
+    const BUILD = '2026-10-30 16:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -762,11 +762,13 @@
         const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
         state.target = { kind: 'mail', mail };
         if (!sameConversation) state.result = null;
-        if (state.view !== 'settings' && state.view !== 'mail') {
+        const entering = state.view !== 'settings' && state.view !== 'mail';
+        if (entering) {
             state.backTo ||= state.view;
             state.view = 'mail';
         }
         render();
+        if (entering) slideInView(1);
         refreshTarget(sameConversation);
     }
     // Dalla Coda: mostra la richiesta e apre la mail in Outlook.
@@ -785,19 +787,35 @@
         if (ticket.newMessages && ticket.conversationId) Services.markThreadSeen(ticket.conversationId, currentUser()).catch(() => {});
         state.backTo = 'tickets';
         state.target = { kind: 'ticket', number: ticket.number };
+        const entering = state.view !== 'mail';
         state.view = 'mail';
         render();
         scrollToTop();
+        if (entering) slideInView(1);
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null) {
+        const from = state.view;
         state.barOffset = 0;
         state.view = view;
         state.backTo = backTo;
         state.editing = null;
         render();
         scrollToTop();
+        if (from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
+    }
+    // Cambio di scheda: il contenuto nuovo entra nella direzione dello spostamento
+    // (da destra andando verso destra, da sinistra tornando indietro), così la navigazione si nota.
+    const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings'];
+    function slideInView(direction) {
+        // Si anima il contenitore fisso (.ao-body): il contenuto può ridisegnarsi durante l'animazione.
+        const body = root?.querySelector('.ao-body');
+        if (!body?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        body.animate([
+            { opacity: 0, transform: `translateX(${24 * direction}px)` },
+            { opacity: 1, transform: 'none' }
+        ], { duration: 280, easing: 'cubic-bezier(.2, .8, .2, 1)' });
     }
     // Cambiando vista si riparte dall'alto (se l'area è già scrollata oltre le schede).
     function scrollToTop() {
