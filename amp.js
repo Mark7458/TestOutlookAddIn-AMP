@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:25';
+    const BUILD = '2026-10-30 21:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1536,7 +1536,7 @@
         // anche l'intestazione (oggetto, mittente, ora, etichetta) si affievolisce e svanisce sotto il colore
         // (entro metà della chiusura il testo è già svanito del tutto)
         card.querySelector('.ao-item-main')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.fold * .5, easing: 'ease-out', fill: 'forwards' });
-        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form'));
+        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form')).then(() => { if (!card.aoOutcome.cancelled) card.classList.add('ao-outcome-full'); });
     }
     function outcomeText(card, html) {
         if (!card?.aoOutcome) return;
@@ -1566,7 +1566,7 @@
     function outcomeCancel(card) {
         if (card?.aoOutcome) card.aoOutcome.cancelled = true;
         card?.querySelector('.ao-outcome')?.remove();
-        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger');
+        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger', 'ao-outcome-full');
         card?.querySelector('.ao-item-main')?.getAnimations().forEach(animation => animation.cancel());
         outcomeRelease(card);
     }
@@ -2310,7 +2310,8 @@
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
 #ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
-#ao-root .ao-queue-item.ao-outcome-accent, #ao-root .ao-queue-item.ao-outcome-danger { background: var(--ao-outcome); border-color: var(--ao-outcome); }
+/* sfondo e bordo della scheda prendono il colore solo a tendina chiusa (prima lo dà solo il banner, che affiora) */
+#ao-root .ao-queue-item.ao-outcome-full { background: var(--ao-outcome); border-color: var(--ao-outcome); }
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
     background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
