@@ -59,6 +59,7 @@
             textSubtle: '#8a8886',
             bg: '#f5f5f5', // sfondo dell'area (come il riquadro dell'add-in)
             bgSoft: '#faf9f8',
+            hover: '#faf9f8', // sfondo delle schede al passaggio del mouse
             lineLight: '#edebe9',
             line: '#e1dfdd',
             lineStrong: '#c8c6c4',
@@ -84,6 +85,7 @@
             textSubtle: '#a19f9d',
             bg: '#201f1e',
             bgSoft: '#292827',
+            hover: '#3b3a39', // al passaggio si schiarisce, come i pulsanti dell'add-in di jak
             lineLight: '#3b3a39',
             line: '#484644',
             lineStrong: '#605e5c',
@@ -321,7 +323,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 17:05';
+    const BUILD = '2026-10-30 17:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2129,7 +2131,7 @@
 /* Passaggio del mouse, uguale in tutte le sezioni: sfondo grigio leggerissimo, testo invariato.
    Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover. */
 #ao-root .ao-item, #ao-root .ao-ticket-compact { transition: background-color .15s; }
-#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-bg-soft); }
+#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); }
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-accent); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
