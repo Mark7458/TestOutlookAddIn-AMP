@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 16:45';
+    const BUILD = '2026-10-30 16:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -848,7 +848,8 @@
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
                     title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
-                }, '⚙')),
+                }, '⚙'),
+                h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
@@ -862,8 +863,29 @@
         }, true);
         root.addEventListener('keydown', event => { if (event.key === 'Escape') closeSwipe(); });
         container.replaceChildren(root);
+        // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
+        if (window.ResizeObserver) new ResizeObserver(() => {
+            const indicator = root.querySelector('.ao-tab-indicator');
+            if (indicator && !indicator.classList.contains('ao-moving')) placeTabIndicator();
+        }).observe(root.querySelector('.ao-tabs'));
+        root.querySelector('.ao-tab-indicator').addEventListener('transitionend', event => event.currentTarget.classList.remove('ao-moving'));
     }
 
+    // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
+    // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
+    function placeTabIndicator() {
+        const indicator = root?.querySelector('.ao-tab-indicator');
+        if (!indicator) return;
+        const activeView = state.view === 'mail' ? (state.backTo || 'tickets') : state.view;
+        const tab = root.querySelector(`.ao-tab[data-view="${activeView}"]`);
+        if (!tab) { indicator.classList.remove('ao-ready'); return; }
+        const changed = indicator.dataset.view && indicator.dataset.view !== activeView && indicator.classList.contains('ao-ready');
+        indicator.classList.toggle('ao-moving', Boolean(changed));
+        indicator.style.width = `${tab.offsetWidth}px`;
+        indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+        indicator.dataset.view = activeView;
+        requestAnimationFrame(() => indicator.classList.add('ao-ready'));
+    }
     function render() {
         if (!root || state.holdRender) return;
         const config = loadConfig();
@@ -871,6 +893,7 @@
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
+        placeTabIndicator();
         root.querySelectorAll('.ao-tab').forEach(tab => {
             // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
             const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
@@ -2020,12 +2043,16 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
 #ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
-#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); border-bottom-color: var(--ao-accent); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
+#ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
+#ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-indicator.ao-moving { transition: none; } }
 /* Scheda aperta: leggero zoom della scritta (e del numero), che resta finché è selezionata */
 #ao-root .ao-tab > * { transition: transform .35s ease-in-out; }
 #ao-root .ao-tab.ao-active > * { transform: scale(1.04); }
