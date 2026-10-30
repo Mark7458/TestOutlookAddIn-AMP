@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 13:20';
+    const BUILD = '2026-10-30 13:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2048,15 +2048,26 @@
 #ao-root .ao-collapse-out { overflow: hidden; pointer-events: none; animation: ao-collapse-out .45s ease-in-out forwards; }
 @keyframes ao-collapse-out {
     0% { max-height: var(--ao-card-height, 400px); opacity: 1; }
-    60% { opacity: .4; }
+    70% { opacity: 1; }
     100% { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; }
 }
 /* Ignora: la card scivola via a sinistra, poi lo spazio si chiude (stile iPhone) */
 #ao-root .ao-slide-out { overflow: hidden; pointer-events: none; animation: ao-slide-left .3s ease-in forwards, ao-slide-collapse .25s ease-in-out .3s forwards; }
-@keyframes ao-slide-left { to { transform: translateX(-110%); opacity: 0; } }
+@keyframes ao-slide-left { 0% { transform: none; } 80% { opacity: 1; } 100% { transform: translateX(-110%); opacity: 0; } }
+/* Colore dell'esito, sovrapposto alla card (il testo non serve che si veda):
+   Ignora → il rosso la riempie da sinistra a destra mentre scivola via;
+   Prendi in carico → diventa blu mentre si chiude. */
+#ao-root .ao-slide-out, #ao-root .ao-collapse-out { position: relative; }
+#ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
+#ao-root .ao-slide-out { border-color: var(--ao-danger); transition: border-color .15s; }
+#ao-root .ao-slide-out::after { background: var(--ao-danger); transform-origin: left center; animation: ao-fill-right .24s ease-out forwards; }
+@keyframes ao-fill-right { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+#ao-root .ao-collapse-out { border-color: var(--ao-accent); }
+#ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .16s ease-out forwards; }
+@keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out, #ao-root .ao-collapse-out { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-slide-out, #ao-root .ao-collapse-out, #ao-root .ao-slide-out::after, #ao-root .ao-collapse-out::after { animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
