@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:00';
+    const BUILD = '2026-10-30 21:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2294,6 +2294,10 @@
 #ao-root .ao-queue-row > :last-child { flex: none; }
 #ao-root .ao-queue-item.ao-expanded .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
 #ao-root .ao-queue-info { margin: 0; }
+/* Prendi in carico: su una riga e largo, occupa lo spazio libero accanto a Ignora e Chiudi */
+#ao-root .ao-queue-item .ao-actions { flex-wrap: nowrap; }
+#ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
+#ao-root .ao-queue-item .ao-actions .ao-spacer { display: none; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
 #ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
