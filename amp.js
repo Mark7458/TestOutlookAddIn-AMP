@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-29 18:18';
+    const BUILD = '2026-10-30 11:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -760,7 +760,8 @@
     }
     // Cambiando vista si riparte dall'alto (se l'area è già scrollata oltre le schede).
     function scrollToTop() {
-        if (root && root.getBoundingClientRect().top < 0) root.scrollIntoView({ block: 'start' });
+        const body = root?.querySelector('.ao-body');
+        if (body) body.scrollTop = 0;
     }
 
     function buildShell(container) {
@@ -1742,14 +1743,15 @@
         return `#ao-root { ${lines.join(' ')} }`;
     }
     const STYLES = `
-#ao-root { display: flex; flex-direction: column; min-height: 100%; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-bg); line-height: 1.4; }
+/* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
+#ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-bg); line-height: 1.4; }
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
+#ao-root .ao-tabs { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-white); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
 #ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
@@ -1766,7 +1768,10 @@
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
-#ao-root .ao-body { flex: 1; }
+#ao-root .ao-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
+#ao-root .ao-body::-webkit-scrollbar { width: 6px; }
+#ao-root .ao-body::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
+#ao-root .ao-body::-webkit-scrollbar-track { background: transparent; }
 #ao-root .ao-view { display: grid; gap: 10px; padding: 12px; }
 
 /* Pulsanti */
@@ -1963,9 +1968,8 @@
 #ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
 
-/* Barra di sistema fissa in fondo al riquadro (stato dei servizi, allineamento) */
-#ao-root { padding-bottom: 30px; }
-#ao-root .ao-statusbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-white); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+/* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
+#ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-white); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
@@ -1975,7 +1979,7 @@
 #ao-root .ao-statusbar-sync { flex: none; }
 
 /* Messaggi temporanei, sopra la barra di sistema */
-#ao-root .ao-status { position: fixed; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+#ao-root .ao-status { position: absolute; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 #ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
@@ -2000,6 +2004,9 @@
         injectStyles();
         buildShell(container);
         fillPane();
+        // Il riquadro di Outlook si può ridimensionare: l'altezza dell'area si ricalcola.
+        window.addEventListener('resize', fitHeight);
+        if (window.ResizeObserver) new ResizeObserver(() => fitHeight()).observe(scrollContainer());
         document.getElementById('open-amp-button')?.addEventListener('click', show);
         Outlook.onMailChanged(() => handleMailChanged());
         Services.subscribe(() => { refreshLists(); });
@@ -2008,12 +2015,35 @@
         await refreshLists();
         if (state.mail?.conversationId) showMailTarget(state.mail);
     }
-    // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in.
+    // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in
+    // e prende l'altezza esatta che resta sotto l'intestazione, così la pagina non scorre più:
+    // intestazione e schede restano ferme, scorre solo il contenuto (.ao-body).
     function fillPane() {
         const host = root?.parentElement?.parentElement;
         if (!host) return;
         const style = getComputedStyle(host);
         root.style.margin = `-${style.paddingTop} -${style.paddingRight} -${style.paddingBottom} -${style.paddingLeft}`;
+        fitHeight();
+    }
+    // Contenitore che scorre: nell'add-in la pagina, nell'anteprima il riquadro simulato.
+    function scrollContainer() {
+        for (let element = root?.parentElement; element && element !== document.body; element = element.parentElement) {
+            if (/(auto|scroll)/.test(getComputedStyle(element).overflowY)) return element;
+        }
+        return document.scrollingElement || document.documentElement;
+    }
+    function fitHeight() {
+        if (!root || root.offsetParent === null) return; // area nascosta
+        const scroller = scrollContainer();
+        scroller.scrollTop = 0;
+        const isPage = scroller === document.scrollingElement || scroller === document.documentElement;
+        const top = root.getBoundingClientRect().top - (isPage ? 0 : scroller.getBoundingClientRect().top);
+        const visible = isPage ? window.innerHeight : scroller.clientHeight;
+        root.style.height = `${Math.max(240, visible - top)}px`;
+        // Quello che segue l'area (es. il piè di pagina dell'add-in) non deve far scorrere la pagina.
+        const overflow = scroller.scrollHeight - scroller.clientHeight;
+        if (overflow > 0) root.style.height = `${Math.max(240, visible - top - overflow)}px`;
+        scroller.scrollTop = 0;
     }
     function show() {
         initialize();
@@ -2025,6 +2055,7 @@
         if (headerView) headerView.hidden = true;
         if (ampView) ampView.hidden = false;
         render();
+        fitHeight();
     }
 
     window.AmpModule = Object.freeze({ initialize, show });
