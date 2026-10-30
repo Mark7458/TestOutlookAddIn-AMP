@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 14:15';
+    const BUILD = '2026-10-30 14:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2062,7 +2062,8 @@
 /* Il rosso è tenue e sbilanciato verso il chiaro (rosa spento → rosa chiaro degli avvisi).
    Non avanza da un lato: è la scheda stessa che, mentre esce, si tinge di rosso tutta insieme. */
 #ao-root .ao-slide-out::after {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--ao-danger) 42%, var(--ao-surface)) 0%, color-mix(in srgb, var(--ao-danger) 18%, var(--ao-surface)) 55%, var(--ao-danger-bg) 100%);
+    /* rosso vivo di Fluent (#d13438), sbilanciato verso il chiaro ma senza diventare rosa */
+    background: linear-gradient(90deg, color-mix(in srgb, #d13438 85%, var(--ao-surface)) 0%, color-mix(in srgb, #d13438 62%, var(--ao-surface)) 55%, color-mix(in srgb, #d13438 45%, var(--ao-surface)) 100%);
     animation: ao-fill-fade .26s ease-out forwards;
 }
 #ao-root .ao-collapse-out::after { background: var(--ao-accent); animation: ao-fill-fade .5s ease-in-out forwards; }
