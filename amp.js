@@ -327,7 +327,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 18:40';
+    const BUILD = '2026-10-30 18:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -864,6 +864,18 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+        // Anteprima aperta in In coda: un clic fuori dalla scheda prima la richiude (con l'animazione)
+        // e non fa altro; solo il clic successivo apre un'altra richiesta. Schede e selettori restano liberi.
+        root.addEventListener('click', event => {
+            if (!state.queueExpanded || state.holdRender) return;
+            const target = event.target;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar')) return;
+            const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
+            if (!form) return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeTakeCharge(form);
+        }, true);
         container.replaceChildren(root);
         // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
         if (window.ResizeObserver) new ResizeObserver(() => {
