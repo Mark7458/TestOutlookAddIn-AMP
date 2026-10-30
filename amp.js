@@ -290,7 +290,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 11:05';
+    const BUILD = '2026-10-30 11:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1797,6 +1797,9 @@
 
 /* Filtri e scelte a segmenti */
 #ao-root .ao-segmented { display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-white); }
+/* Barra secondaria (Attive/Ignorate, Miei/Tutti, Profilo/Agenzie…): resta ferma in alto mentre scorre il contenuto.
+   L'ombra del colore di fondo copre le card che le passano dietro. */
+#ao-root .ao-view > .ao-segmented { position: sticky; top: 12px; z-index: 2; box-shadow: 0 0 0 12px var(--ao-bg); }
 #ao-root .ao-segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; }
 #ao-root .ao-segment:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-segment.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
