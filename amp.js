@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:45';
+    const BUILD = '2026-10-30 21:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1451,7 +1451,7 @@
     //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
     //  - removeCard: una scheda lascia l'elenco e le altre salgono.
     // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
-    const MOTION = { unfold: 460, fold: 320, hold: 150, exit: 380, remove: 260 };
+    const MOTION = { unfold: 320, fold: 320, hold: 150, exit: 380, remove: 260 };
     const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const wait = ms => new Promise(next => setTimeout(next, ms));
     function playOn(element, frames, duration, easing = 'ease-in-out') {
