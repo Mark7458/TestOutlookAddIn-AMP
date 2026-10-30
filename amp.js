@@ -327,7 +327,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 18:50';
+    const BUILD = '2026-10-30 19:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1434,53 +1434,69 @@
             render(); // se non è riuscito, la card ricompare
         });
     }
-    // Esito di un'azione su una scheda di In coda (Prendi in carico, Ignora):
-    //  1. la tendina (testo della mail, campi, pulsanti) si arrotola verso l'alto;
-    //  2. la scheda diventa un banner colorato con l'esito (blu = presa in carico, rosso = ignorata);
-    //     durante l'attesa di ServiceNow il banner mostra la rotellina;
-    //  3. dopo un attimo per leggerlo, il banner si chiude e la scheda sparisce dall'elenco.
+    // Esito di un'azione su una scheda di In coda (Prendi in carico, Ignora), in due tempi:
+    //  1. la tendina si chiude: il testo prima si affievolisce, poi lo spazio si richiude (niente testo che si piega);
+    //  2. la scheda, tornata compatta, diventa un banner colorato con l'esito ed esce di scena di lato:
+    //     Ignora → rosso, verso sinistra; Prendi in carico → blu, verso destra.
+    //  Durante l'attesa di ServiceNow il banner resta fermo con la rotellina.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
     const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
-    const OUTCOME_ROLL_MS = 320; // tendina che si arrotola
-    const OUTCOME_HOLD_MS = 1100; // banner visibile prima di chiudersi
+    const OUTCOME_FOLD_MS = 460; // la tendina si affievolisce e si chiude
+    const OUTCOME_HOLD_MS = 650; // banner visibile prima di uscire
+    const OUTCOME_EXIT_MS = 360; // uscita laterale
     const outcomeMotion = card => Boolean(card) && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const wait = ms => new Promise(next => setTimeout(next, ms));
-    // Avvia l'esito: arrotola la tendina e accende il banner (tone: 'accent' | 'danger').
     function outcomeStart(card, tone, html) {
         if (!outcomeMotion(card)) return;
         state.holdRender = true;
+        card.classList.add('ao-resolving');
+        card.aoOutcome = { tone, html, cancelled: false };
         const details = card.querySelector('.ao-inline-form');
         if (details) {
+            const height = `${details.scrollHeight}px`;
             details.animate([
-                { maxHeight: `${details.scrollHeight}px`, opacity: 1, paddingTop: '8px' },
-                { maxHeight: '0px', opacity: 0, paddingTop: '0px' }
-            ], { duration: OUTCOME_ROLL_MS, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' });
+                { maxHeight: height, opacity: 1, paddingTop: '8px' },
+                { maxHeight: height, opacity: 0, paddingTop: '8px', offset: .4 }, // prima si affievolisce…
+                { maxHeight: '0px', opacity: 0, paddingTop: '0px' } // …poi lo spazio si chiude
+            ], { duration: OUTCOME_FOLD_MS, easing: 'ease-in-out', fill: 'forwards' });
         }
-        const banner = h('div', { class: 'ao-outcome', role: 'status' });
-        banner.innerHTML = html;
-        card.append(banner);
-        card.classList.add('ao-resolving', `ao-outcome-${tone}`);
+        card.aoOutcome.ready = wait(details ? OUTCOME_FOLD_MS : 0).then(() => {
+            if (card.aoOutcome.cancelled) return;
+            const banner = h('div', { class: 'ao-outcome', role: 'status' });
+            banner.innerHTML = card.aoOutcome.html;
+            card.append(banner);
+            card.classList.add(`ao-outcome-${tone}`);
+        });
     }
     function outcomeText(card, html) {
-        const banner = card?.querySelector('.ao-outcome');
+        if (!card?.aoOutcome) return;
+        card.aoOutcome.html = html;
+        const banner = card.querySelector('.ao-outcome');
         if (banner) banner.innerHTML = html;
     }
-    // Conclude: il banner resta un attimo, poi la scheda si chiude.
+    // Conclude: il banner resta un attimo, esce di lato, poi lo spazio si chiude.
     async function outcomeEnd(card) {
-        if (!card?.classList.contains('ao-resolving')) return;
+        if (!card?.aoOutcome) return;
+        await card.aoOutcome.ready;
         await wait(OUTCOME_HOLD_MS);
+        const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
+        await card.animate([
+            { transform: 'none', opacity: 1 },
+            { transform: `translateX(${direction * 110}%)`, opacity: .6 }
+        ], { duration: OUTCOME_EXIT_MS, easing: 'cubic-bezier(.5, 0, .75, 0)', fill: 'forwards' }).finished.catch(() => {});
         await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
     }
-    // Errore: il banner sparisce e la scheda torna com'era (al prossimo ridisegno).
+    // Errore: niente banner e la scheda torna com'era (al prossimo ridisegno).
     function outcomeCancel(card) {
+        if (card?.aoOutcome) card.aoOutcome.cancelled = true;
         card?.querySelector('.ao-outcome')?.remove();
         card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger');
         state.holdRender = false;
     }
     async function ignoreFromQueue(card, mail) {
         outcomeStart(card, 'danger', `${ARCHIVE_ICON}<span>${TEXTS.queue.ignoredDone}</span>`);
-        const [ok] = await Promise.all([run(() => Services.discardMail(mail.conversationId, currentUser())), wait(outcomeMotion(card) ? OUTCOME_ROLL_MS : 0)]);
+        const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
         if (ok) await outcomeEnd(card);
         else outcomeCancel(card);
         state.holdRender = false;
@@ -2070,7 +2086,7 @@
 #ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
-#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
 #ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
 #ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -2232,7 +2248,7 @@
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
 #ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
-#ao-root .ao-queue-item.ao-resolving { background: var(--ao-outcome); border-color: var(--ao-outcome); }
+#ao-root .ao-queue-item.ao-outcome-accent, #ao-root .ao-queue-item.ao-outcome-danger { background: var(--ao-outcome); border-color: var(--ao-outcome); }
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
     background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
