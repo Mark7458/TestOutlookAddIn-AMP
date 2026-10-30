@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 12:15';
+    const BUILD = '2026-10-30 12:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1870,6 +1870,8 @@
 #ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 /* Mandata via scorrendo verso il basso: resta "agganciata" in alto, ma fuori vista */
 #ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 12px)); }
+/* Mentre va via la pillola non ha ombra (tolta subito, senza transizione) */
+#ao-root .ao-fixed.ao-hidden > * { box-shadow: none !important; transition: none; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
