@@ -164,8 +164,8 @@
             holdUntil: date => `fino al ${date}`
         },
         mail: {
-            takeBarWorking: 'Apro il ticket…',
-            takeBarDone: number => `${number} preso in carico`,
+            outcomeWorking: 'Apro il ticket…',
+            outcomeTaken: number => `${number} preso in carico`,
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
@@ -327,7 +327,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 19:05';
+    const BUILD = '2026-10-30 19:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -586,8 +586,7 @@
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
-        animateExpand: null, // modulo appena aperto, da animare
-        holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
+        holdRender: false, // true durante un'animazione: il pannello non si ridisegna (le schede sparirebbero di colpo)
         busy: false
     };
     let root = null;
@@ -1101,7 +1100,7 @@
     }
     function queueCard(item, config, chipNode, { allowIgnore = true, footer = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
-        const toggle = () => (expanded ? closeTakeCharge(root.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(item.conversationId)}"] .ao-inline-form`)) : openTakeCharge(item));
+        const toggle = () => (expanded ? closeTakeCharge(queueDetailsOf(item.conversationId)) : openTakeCharge(item));
         return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
@@ -1120,7 +1119,7 @@
     function queueDetails(item, config, allowIgnore) {
         const mail = mailFromQueueItem(item);
         const body = state.mailBodies[item.messageId];
-        return h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` },
+        return h('div', { class: 'ao-inline-form' },
             h('div', { class: 'ao-mail-preview' }, body ?? item.preview ?? '', body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
             ticketForm(mail, config, { compact: true }),
             h('div', { class: 'ao-actions' },
@@ -1131,36 +1130,41 @@
                 h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.close)));
     }
     // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
-    function openTakeCharge(item) {
+    async function openTakeCharge(item) {
         state.queueExpanded = item.conversationId;
-        state.animateExpand = item.conversationId;
-        render();
-        state.animateExpand = null;
-        // L'animazione usa l'altezza vera del contenuto, così la velocità è uniforme.
-        const form = root.querySelector('.ao-animate-expand');
-        if (form) form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
-        if (state.mailBodies[item.messageId] === undefined && item.messageId) {
-            Services.getMailBody(item.messageId)
-                .then(text => { state.mailBodies[item.messageId] = text || item.preview || ''; })
-                .catch(() => { state.mailBodies[item.messageId] = item.preview || ''; })
-                .finally(() => { if (state.queueExpanded === item.conversationId) render(); });
+        // Se il testo arriva in fretta si apre già completo; altrimenti si apre con le prime righe
+        // e, quando arriva, la tendina si allunga senza scatti.
+        const loading = state.mailBodies[item.messageId] === undefined && item.messageId
+            ? Services.getMailBody(item.messageId).then(text => text || item.preview || '').catch(() => item.preview || '')
+            : null;
+        let arrived = false;
+        if (loading) {
+            loading.then(text => { state.mailBodies[item.messageId] = text; arrived = true; });
+            await Promise.race([loading, wait(BODY_WAIT_MS)]);
         }
+        if (state.queueExpanded !== item.conversationId) return;
+        render();
+        const complete = !loading || arrived; // aperta già con il testo intero
+        await holdingRender(() => unfold(queueDetailsOf(item.conversationId)));
+        if (complete) return;
+        await loading;
+        if (state.queueExpanded !== item.conversationId) return;
+        const before = queueDetailsOf(item.conversationId)?.offsetHeight || 0;
+        render();
+        const form = queueDetailsOf(item.conversationId);
+        if (form && before) await holdingRender(() => playOn(form, [{ maxHeight: `${before}px` }, { maxHeight: `${form.scrollHeight}px` }], 240)
+            .then(result => { if (result) { result.animation.cancel(); form.style.overflow = result.overflow; } }));
     }
-    // Chiudi (o clic sull'intestazione): la scheda si richiude con l'animazione inversa.
-    function closeTakeCharge(form) {
-        const finish = () => {
-            if (!state.queueExpanded) return;
-            state.queueExpanded = null;
-            render();
-        };
-        if (!form || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return finish();
-        form.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
-        form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
-        form.classList.remove('ao-animate-expand');
-        form.classList.add('ao-animate-collapse');
-        form.addEventListener('animationend', finish, { once: true });
-        setTimeout(finish, 300); // riserva, se l'animazione non parte
+    const BODY_WAIT_MS = 400;
+    // Chiudi (o clic sull'intestazione o fuori): la scheda si richiude con la stessa animazione, al contrario.
+    async function closeTakeCharge(form) {
+        if (!state.queueExpanded) return;
+        form?.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
+        await holdingRender(() => fold(form));
+        state.queueExpanded = null;
+        render();
     }
+    const queueDetailsOf = conversationId => root?.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(conversationId)}"] .ao-inline-form`);
     function mailFromQueueItem(item) {
         return {
             conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
@@ -1434,34 +1438,68 @@
             render(); // se non è riuscito, la card ricompare
         });
     }
-    // Esito di un'azione su una scheda di In coda (Prendi in carico, Ignora), in due tempi:
-    //  1. la tendina si chiude: il testo prima si affievolisce, poi lo spazio si richiude (niente testo che si piega);
-    //  2. la scheda, tornata compatta, diventa un banner colorato con l'esito ed esce di scena di lato:
-    //     Ignora → rosso, verso sinistra; Prendi in carico → blu, verso destra.
-    //  Durante l'attesa di ServiceNow il banner resta fermo con la rotellina.
+    // ---------------------------- Animazioni --------------------------------
+    // Regola unica per tutte le tendine del pannello: il testo non si piega mai.
+    //  - unfold: prima si apre lo spazio, poi il contenuto compare;
+    //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
+    //  - removeCard: una scheda lascia l'elenco e le altre salgono.
+    // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
+    const MOTION = { fold: 460, hold: 650, exit: 360, remove: 260 };
+    const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    const wait = ms => new Promise(next => setTimeout(next, ms));
+    function playOn(element, frames, duration, easing = 'ease-in-out') {
+        if (!element?.animate || reducedMotion()) return Promise.resolve();
+        const overflow = element.style.overflow;
+        element.style.overflow = 'hidden';
+        const animation = element.animate(frames, { duration, easing, fill: 'forwards' });
+        return animation.finished.catch(() => {}).then(() => ({ animation, overflow }));
+    }
+    async function unfold(element) {
+        if (!element) return;
+        const height = `${element.scrollHeight}px`;
+        const pad = getComputedStyle(element).paddingTop;
+        const result = await playOn(element, [
+            { maxHeight: '0px', paddingTop: '0px', opacity: 0 },
+            { maxHeight: height, paddingTop: pad, opacity: 0, offset: .55 }, // prima lo spazio…
+            { maxHeight: height, paddingTop: pad, opacity: 1 } // …poi il contenuto compare
+        ], MOTION.fold);
+        if (result) { result.animation.cancel(); element.style.overflow = result.overflow; } // torna libera (altezza naturale)
+    }
+    function fold(element) {
+        if (!element) return Promise.resolve();
+        const height = `${element.scrollHeight}px`;
+        const pad = getComputedStyle(element).paddingTop;
+        return playOn(element, [
+            { maxHeight: height, paddingTop: pad, opacity: 1 },
+            { maxHeight: height, paddingTop: pad, opacity: 0, offset: .4 }, // prima si affievolisce…
+            { maxHeight: '0px', paddingTop: '0px', opacity: 0 } // …poi lo spazio si chiude
+        ], MOTION.fold);
+    }
+    function removeCard(card) {
+        if (!card) return Promise.resolve();
+        return playOn(card, [
+            { maxHeight: `${card.offsetHeight}px` },
+            { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-6px', borderWidth: '0px' }
+        ], MOTION.remove);
+    }
+    // Durante un'animazione il pannello non si ridisegna.
+    async function holdingRender(task) {
+        state.holdRender = true;
+        try { return await task(); } finally { state.holdRender = false; }
+    }
+
+    // Esito su una scheda di In coda: fold della tendina, poi la scheda (compatta) diventa un banner
+    // colorato ed esce di lato. Ignora → rosso, a sinistra; Prendi in carico → blu, a destra.
+    // Durante l'attesa di ServiceNow il banner resta fermo con la rotellina.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
     const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
-    const OUTCOME_FOLD_MS = 460; // la tendina si affievolisce e si chiude
-    const OUTCOME_HOLD_MS = 650; // banner visibile prima di uscire
-    const OUTCOME_EXIT_MS = 360; // uscita laterale
-    const outcomeMotion = card => Boolean(card) && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const wait = ms => new Promise(next => setTimeout(next, ms));
     function outcomeStart(card, tone, html) {
-        if (!outcomeMotion(card)) return;
+        if (!card || reducedMotion()) return;
         state.holdRender = true;
         card.classList.add('ao-resolving');
         card.aoOutcome = { tone, html, cancelled: false };
-        const details = card.querySelector('.ao-inline-form');
-        if (details) {
-            const height = `${details.scrollHeight}px`;
-            details.animate([
-                { maxHeight: height, opacity: 1, paddingTop: '8px' },
-                { maxHeight: height, opacity: 0, paddingTop: '8px', offset: .4 }, // prima si affievolisce…
-                { maxHeight: '0px', opacity: 0, paddingTop: '0px' } // …poi lo spazio si chiude
-            ], { duration: OUTCOME_FOLD_MS, easing: 'ease-in-out', fill: 'forwards' });
-        }
-        card.aoOutcome.ready = wait(details ? OUTCOME_FOLD_MS : 0).then(() => {
+        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form')).then(() => {
             if (card.aoOutcome.cancelled) return;
             const banner = h('div', { class: 'ao-outcome', role: 'status' });
             banner.innerHTML = card.aoOutcome.html;
@@ -1475,17 +1513,18 @@
         const banner = card.querySelector('.ao-outcome');
         if (banner) banner.innerHTML = html;
     }
-    // Conclude: il banner resta un attimo, esce di lato, poi lo spazio si chiude.
     async function outcomeEnd(card) {
-        if (!card?.aoOutcome) return;
-        await card.aoOutcome.ready;
-        await wait(OUTCOME_HOLD_MS);
-        const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
-        await card.animate([
-            { transform: 'none', opacity: 1 },
-            { transform: `translateX(${direction * 110}%)`, opacity: .6 }
-        ], { duration: OUTCOME_EXIT_MS, easing: 'cubic-bezier(.5, 0, .75, 0)', fill: 'forwards' }).finished.catch(() => {});
-        await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
+        if (card?.aoOutcome) {
+            await card.aoOutcome.ready;
+            await wait(MOTION.hold);
+            const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
+            await playOn(card, [
+                { transform: 'none', opacity: 1 },
+                { transform: `translateX(${direction * 110}%)`, opacity: .6 }
+            ], MOTION.exit, 'cubic-bezier(.5, 0, .75, 0)');
+            await removeCard(card);
+        }
+        state.holdRender = false;
     }
     // Errore: niente banner e la scheda torna com'era (al prossimo ridisegno).
     function outcomeCancel(card) {
@@ -1499,31 +1538,11 @@
         const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
         if (ok) await outcomeEnd(card);
         else outcomeCancel(card);
-        state.holdRender = false;
         if (ok) {
             if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
             await refreshLists();
         }
         render();
-    }
-    function animateOut(card, className, lastAnimation, fallbackMs) {
-        if (!card || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-            state.holdRender = false;
-            return Promise.resolve();
-        }
-        // Durante l'animazione il pannello non si ridisegna (altrimenti la card sparirebbe di colpo).
-        state.holdRender = true;
-        return new Promise(done => {
-            const resolve = () => {
-                if (!state.holdRender) return;
-                state.holdRender = false;
-                done();
-            };
-            card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
-            card.classList.add(className);
-            card.addEventListener('animationend', event => { if (event.animationName === lastAnimation) resolve(); });
-            setTimeout(resolve, fallbackMs); // riserva
-        });
     }
     function fieldRow(label, value, previewKey) {
         return [h('dt', {}, label), h('dd', previewKey ? { dataset: { preview: previewKey } } : {}, value || TEXTS.common.none)];
@@ -1556,7 +1575,7 @@
             description: String(body || '').slice(0, 4000),
             reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
         };
-        outcomeStart(card, 'accent', `${SPINNER}<span>${TEXTS.mail.takeBarWorking}</span>`);
+        outcomeStart(card, 'accent', `${SPINNER}<span>${TEXTS.mail.outcomeWorking}</span>`);
         const ticket = await run(() => Services.createTicket(mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
@@ -1566,9 +1585,8 @@
             render();
             return;
         }
-        outcomeText(card, `${CHECK_ICON}<span>${TEXTS.mail.takeBarDone(ticket.number)}</span>`);
+        outcomeText(card, `${CHECK_ICON}<span>${TEXTS.mail.outcomeTaken(ticket.number)}</span>`);
         await outcomeEnd(card);
-        state.holdRender = false;
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
@@ -2235,15 +2253,11 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
-/* Apertura del modulo Prendi in carico: si allunga e compare con dolcezza */
-#ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
-@keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
-#ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
-/* Esito su una scheda di In coda: la tendina si arrotola e la scheda diventa un banner colorato */
+/* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
 #ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
@@ -2252,15 +2266,12 @@
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
     background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
-    animation: ao-fill-fade .25s ease-out .1s backwards;
+    animation: ao-fade-in .25s ease-out backwards;
 }
-@keyframes ao-fill-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ao-fade-in { from { opacity: 0; } to { opacity: 1; } }
 #ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
-#ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
-@keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
-@keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
