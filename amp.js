@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 12:30';
+    const BUILD = '2026-10-30 12:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -572,7 +572,7 @@
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
-        barFloating: false, // barra secondaria richiamata in sovrapposizione (scorrimento verso l'alto)
+        barHidden: false, // barra secondaria nascosta mentre si scorre verso il basso
         queueExpanded: null,
         animateExpand: null, // modulo appena aperto, da animare
         holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
@@ -789,7 +789,7 @@
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null) {
-        state.barFloating = false;
+        state.barHidden = false;
         state.view = view;
         state.backTo = backTo;
         state.editing = null;
@@ -859,9 +859,9 @@
         const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row'));
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
-        if (!previousScroll) state.barFloating = false;
+        if (!previousScroll) state.barHidden = false;
         // La barra è il primo elemento dell'area che scorre: la sua "casa" è in cima all'elenco.
-        const bar = fixed.length ? h('div', { class: `ao-fixed${state.barFloating ? ' ao-floating ao-still' : ''}` }, ...fixed) : null; // ao-still: già richiamata, niente animazione
+        const bar = fixed.length ? h('div', { class: `ao-fixed${state.barHidden ? ' ao-hidden' : ''}${previousScroll ? ' ao-floating' : ''}` }, ...fixed) : null;
         if (bar) scroll.prepend(bar);
         view.replaceChildren(scroll);
         body.replaceChildren(view);
@@ -869,26 +869,26 @@
         scroll.scrollTop = previousScroll;
         if (bar) watchScroll(scroll, bar);
     }
-    // Barra secondaria: sta a casa in cima all'elenco e scorre via con il contenuto (niente animazione di uscita).
-    // Uno scorrimento verso l'alto la richiama sovrapposta in alto; scorrendo verso il basso torna a casa.
-    const BAR_DOWN_DELTA = 6; // scorrimento verso il basso che la rimanda a casa
-    const BAR_UP_DELTA = 4; // scorrimento verso l'alto che la richiama
+    // Barra secondaria: sta in cima all'elenco (la sua "casa") e scorre via con il contenuto.
+    // Risalendo anche di poco riappare sovrapposta in alto (con un'ombra); tornando in cima si riappoggia.
+    const BAR_DOWN_DELTA = 6; // scorrimento minimo verso il basso per rimandarla via
+    const BAR_UP_DELTA = 4; // scorrimento minimo verso l'alto per richiamarla
     function watchScroll(scroll, bar) {
         let last = scroll.scrollTop;
-        const setFloating = floating => {
-            if (state.barFloating === floating) return;
-            state.barFloating = floating;
-            bar.classList.remove('ao-still');
-            bar.classList.toggle('ao-floating', floating);
+        const update = hidden => {
+            const home = scroll.scrollTop <= 0;
+            state.barHidden = !home && hidden;
+            bar.classList.toggle('ao-hidden', state.barHidden);
+            bar.classList.toggle('ao-floating', !home);
         };
         scroll.addEventListener('scroll', () => {
             const top = scroll.scrollTop;
             const delta = top - last;
             last = top;
-            // Vicino alla cima è già visibile a casa: niente sovrapposizione.
-            if (top <= bar.offsetHeight) return setFloating(false);
-            if (delta < -BAR_UP_DELTA) setFloating(true);
-            else if (delta > BAR_DOWN_DELTA) setFloating(false);
+            if (top <= 0) return update(false);
+            if (delta > BAR_DOWN_DELTA) update(true);
+            else if (delta < -BAR_UP_DELTA) update(false);
+            else update(state.barHidden);
         }, { passive: true });
     }
 
@@ -1863,16 +1863,16 @@
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
-   Sta a casa, in cima all'elenco, e scorre via con il contenuto. Scorrendo verso l'alto viene richiamata:
-   compare sovrapposta in alto (con un'ombra sotto il menu); scorrendo verso il basso torna a casa. */
-#ao-root .ao-fixed { position: relative; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; }
-#ao-root .ao-fixed > * { pointer-events: auto; }
-#ao-root .ao-fixed.ao-floating { position: sticky; top: 0; animation: ao-bar-in .25s ease-out; }
-@keyframes ao-bar-in { from { transform: translateY(-100%); } to { transform: none; } }
-#ao-root .ao-fixed.ao-still { animation: none; }
+   A casa sta in cima all'elenco; fuori casa compare sovrapposto al contenuto, con un'ombra sotto il menu stesso. */
+#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; transition: transform .25s ease-in-out; }
+#ao-root .ao-fixed > * { pointer-events: auto; transition: box-shadow .25s; }
 #ao-root .ao-fixed.ao-floating .ao-segmented { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 #ao-root .ao-fixed.ao-floating .ao-back-row { justify-self: start; padding: 4px 10px; border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-floating { animation: none; } }
+/* Mandata via scorrendo verso il basso: resta "agganciata" in alto, ma fuori vista */
+#ao-root .ao-fixed.ao-hidden { transform: translateY(calc(-100% - 12px)); }
+/* Mentre va via la pillola non ha ombra (tolta subito, senza transizione) */
+#ao-root .ao-fixed.ao-hidden > * { box-shadow: none !important; transition: none; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
 #ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
