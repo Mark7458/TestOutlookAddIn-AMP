@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 16:35';
+    const BUILD = '2026-10-30 16:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -807,6 +807,18 @@
     }
     // Cambio di scheda: il contenuto nuovo entra nella direzione dello spostamento
     // (da destra andando verso destra, da sinistra tornando indietro), così la navigazione si nota.
+    // Contenuto sotto un selettore: nella barra fissa è l'elenco; altrove gli elementi che lo seguono.
+    function slideInContent(bar, direction) {
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        const fixed = bar.closest('.ao-fixed');
+        const targets = fixed
+            ? [...fixed.parentElement.children].filter(child => child !== fixed)
+            : (() => { const after = []; for (let next = bar.nextElementSibling; next; next = next.nextElementSibling) after.push(next); return after; })();
+        targets.forEach(target => target.animate?.([
+            { opacity: 0, transform: `translateX(${24 * direction}px)` },
+            { opacity: 1, transform: 'none' }
+        ], { duration: 280, easing: 'cubic-bezier(.2, .8, .2, 1)' }));
+    }
     const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings'];
     function slideInView(direction) {
         // Si anima il contenitore fisso (.ao-body): il contenuto può ridisegnarsi durante l'animazione.
@@ -995,6 +1007,9 @@
             if (previous !== undefined && previous !== value && place(previous, false)) {
                 thumb.getBoundingClientRect(); // parte dalla voce di prima
                 place(value, true);
+                // Anche il contenuto che dipende dal selettore entra nella direzione dello spostamento.
+                const values = options.map(option => option.value);
+                slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
             } else place(value, false);
             thumb.classList.add('ao-ready');
             // Se il riquadro cambia larghezza, la pillola segue la voce (senza animazione).
