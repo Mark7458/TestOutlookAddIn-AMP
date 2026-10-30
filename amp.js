@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 15:20';
+    const BUILD = '2026-10-30 15:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1399,15 +1399,18 @@
         card.append(bar);
         bar.getBoundingClientRect(); // parte da sotto
         card.classList.add('ao-taking');
+        card.dataset.takeStart = String(performance.now());
     }
     async function takeBarDone(card) {
         const bar = card?.querySelector('.ao-take-bar');
         if (!bar) return;
         bar.innerHTML = `${CHECK_ICON}<span>${TEXTS.mail.takeBarDone}</span>`;
-        await new Promise(next => setTimeout(next, TAKE_BAR_MS)); // la salita deve essere finita
+        // Si allarga appena la salita è finita (se ServiceNow ha già risposto), senza pause in mezzo.
+        const risen = performance.now() - Number(card.dataset.takeStart || 0);
+        if (risen < TAKE_BAR_MS) await new Promise(next => setTimeout(next, TAKE_BAR_MS - risen));
         bar.style.height = `${card.clientHeight}px`;
         card.classList.add('ao-take-commit');
-        await new Promise(next => setTimeout(next, TAKE_EXPAND_MS + 120));
+        await new Promise(next => setTimeout(next, TAKE_EXPAND_MS + 40));
         await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500);
     }
     async function takeBarOut(card) {
@@ -2138,7 +2141,7 @@
 /* Ignora (In coda): swipe to delete col clic. La scheda scorre a sinistra e scopre il tasto rosso;
    confermando, il tasto si allarga su tutta la scheda e poi lo spazio si chiude. */
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
-#ao-root .ao-queue-item > :not(.ao-swipe-action) { transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
+#ao-root .ao-queue-item > :not(.ao-swipe-action, .ao-take-bar) { transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
 #ao-root .ao-queue-item.ao-swiped > :not(.ao-swipe-action) { transform: translateX(calc(-1 * var(--ao-swipe-width))); }
 #ao-root .ao-queue-item { --ao-swipe-width: 76px; }
 #ao-root .ao-swipe-action {
