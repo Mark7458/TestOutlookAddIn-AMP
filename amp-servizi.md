@@ -73,6 +73,7 @@ Ogni servizio restituisce una Promise.
 | `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento) | SharePoint |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
 | `subscribe(listener)` | Facoltativo: avvisa il pannello quando i dati cambiano | — |
+| `getMailBody(messageId)` | Testo (semplice, senza HTML) di una mail della casella condivisa: in In coda si legge la richiesta e la si prende in carico o la si ignora senza aprirla in Outlook | Graph |
 | `sync()` | Job periodico della Function App (non lo chiama il pannello): allinea SharePoint a ServiceNow | ServiceNow → SharePoint |
 
 - `mail` = `{ conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }`
@@ -112,12 +113,17 @@ Quando dalla casella parte una risposta in una conversazione con ticket aperti:
    (ticket chiuso → thread libero), si registra il movimento e l'azione si cancella.
 
 Proposta: farlo nella Function App osservando la Posta inviata della casella con una
-sottoscrizione Microsoft Graph, così funziona anche se l'add-in è chiuso. In alternativa l'evento
+sottoscrizione Microsoft Graph, così funziona anche se l'add-in è chiuso. Da verificare con chi
+gestisce Exchange: rispondendo dalla casella condivisa, di base la copia inviata può finire nella
+Posta inviata personale di chi scrive; va attivato il salvataggio della copia anche nella casella
+condivisa (`MessageCopyForSentAsEnabled` / `MessageCopyForSendOnBehalfEnabled`). In alternativa l'evento
 `OnMessageSend` dell'add-in (va dichiarato nel manifest e verificato sulle caselle condivise).
 
 ## Outlook (Office.js) usato dal pannello
 
-- Aprire una mail: `Office.context.mailbox.displayMessageForm(messageId)`.
+- Un add-in non può selezionare una mail nell'elenco di Outlook: `displayMessageForm(messageId)` la apre
+  in una finestra (o scheda) a parte. Per questo In coda mostra il testo della mail (`getMailBody`) e la
+  lavorazione del ticket segue la mail selezionata dall'operatore (evento di cambio mail dell'add-in).
 - Rispondere con un testo pronto: `Office.context.mailbox.item.displayReplyForm(...)` (solo sulla mail aperta).
 - Elenco delle mail della casella condivisa: non disponibile da Office.js → Graph nella Function App.
 

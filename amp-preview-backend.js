@@ -461,6 +461,11 @@
         listQueue() {
             return respond(conversationIds().map(queueItem).filter(Boolean));
         },
+        // Testo della mail per l'anteprima in In coda (in produzione: Graph dalla Function App).
+        getMailBody(messageId) {
+            const message = db.messages.find(item => item.id === messageId);
+            return respond(message ? message.body : '');
+        },
         // Archivio: thread ignorati che aspettano il prossimo messaggio.
         listIgnored() {
             const ignored = Object.values(db.sp.threads).filter(thread => {

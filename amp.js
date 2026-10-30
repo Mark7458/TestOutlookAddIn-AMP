@@ -130,6 +130,7 @@
             edit: 'Modifica',
             delete: 'Elimina',
             confirm: 'Confermi?',
+            close: 'Chiudi',
             add: 'Aggiungi',
             none: '—',
             unassigned: 'Non assegnato',
@@ -137,6 +138,8 @@
             serviceError: message => `Servizio non disponibile: ${message}`
         },
         queue: {
+            ignoredDone: 'Ignorata',
+            goToTicket: 'Vai al ticket',
             empty: 'Nessuna richiesta in coda.',
             suggested: name => name,
             suggestedTitle: 'Agenzia suggerita',
@@ -324,7 +327,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 17:40';
+    const BUILD = '2026-10-30 18:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -411,6 +414,8 @@
     //   setPendingAction(numero, azione | null)      → Ticket   (eseguita all'invio della risposta)
     //   discardMail(conversationId, utente) / restoreMail(conversationId)
     //   subscribe(listener)                 → funzione per smettere (facoltativo)
+    //   getMailBody(messageId)              → testo della mail (Graph, casella condivisa) per l'anteprima in In coda
+    //                                          (facoltativo: senza, il pannello mostra le prime righe di listQueue)
     //
     // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
@@ -433,6 +438,7 @@
     }]));
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
+    Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
 
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
@@ -579,7 +585,8 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
-        swipeOpen: null, // conversazione In coda con il tasto Ignora scoperto (scheda spostata a sinistra)
+        ignoreArmed: null, // conversazione In coda con il tasto "Confermi?" di Ignora salito dal basso
+        mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         animateExpand: null, // modulo appena aperto, da animare
         holdRender: false, // true mentre una card esce con l'animazione // conversazione con il modulo di presa in carico aperto in In coda
         busy: false
@@ -664,14 +671,15 @@
         return button;
     }
 
-    function showStatus(message, tone = 'success') {
+    function showStatus(message, tone = 'success', action = null) {
         const status = root?.querySelector('.ao-status');
         if (!status) return;
-        status.textContent = message;
+        status.replaceChildren(h('span', {}, message),
+            action ? h('button', { type: 'button', class: 'ao-status-action', onclick: () => { status.hidden = true; action.onclick(); } }, action.label) : null);
         status.className = `ao-status ao-tone-${tone}`;
         status.hidden = false;
         clearTimeout(statusTimer);
-        statusTimer = setTimeout(() => { status.hidden = true; }, tone === 'danger' ? 7000 : 4000);
+        statusTimer = setTimeout(() => { status.hidden = true; }, tone === 'danger' || action ? 7000 : 4000);
     }
     // Esegue una chiamata ai servizi mostrando l'esito; restituisce il risultato o null.
     async function run(task, successMessage) {
@@ -857,14 +865,11 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
-        // Con il tasto Ignora scoperto, un clic altrove (anche sulla scheda) o Esc la rimette a posto.
+        // Con "Confermi?" di Ignora salito, un clic altrove o Esc lo fa riscendere.
         root.addEventListener('click', event => {
-            if (!state.swipeOpen || event.target.closest('.ao-swipe-action, .ao-ignore')) return;
-            const onCard = event.target.closest('.ao-queue-item.ao-swiped');
-            closeSwipe();
-            if (onCard) { event.preventDefault(); event.stopPropagation(); }
+            if (state.ignoreArmed && !event.target.closest('.ao-ignore-bar, .ao-ignore')) disarmIgnore();
         }, true);
-        root.addEventListener('keydown', event => { if (event.key === 'Escape') closeSwipe(); });
+        root.addEventListener('keydown', event => { if (event.key === 'Escape') disarmIgnore(); });
         container.replaceChildren(root);
         // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
         if (window.ResizeObserver) new ResizeObserver(() => {
@@ -1072,7 +1077,7 @@
             ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
             showIgnored
                 ? [
-                    state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item)))
+                    state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item, config)))
                         : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.ignoredEmpty)),
                     // Spiegazione in fondo, come nota.
                     state.ignored.length ? h('p', { class: 'ao-footnote' }, TEXTS.queue.ignoredHint) : null
@@ -1080,20 +1085,22 @@
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
     // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
-    // Nessun pulsante: il clic apre la mail; prendere in carico o ignorare si fa dalla vista del ticket,
-    // con la mail aperta in Outlook (in coda non c'è l'anteprima del messaggio).
-    function ignoredItem(item) {
-        return queueCard(item, null,
-            h('div', { class: 'ao-item-actions' },
-                h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))));
+    // Scheda di In coda (Attive e Ignorate). Chiusa: oggetto, mittente, ora, etichette; il clic la apre.
+    // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
+    // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
+    function ignoredItem(item, config) {
+        return queueCard(item, config, null, { allowIgnore: false,
+            footer: h('div', { class: 'ao-item-actions' },
+                h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)))) });
     }
-    function queueCard(item, chipNode, footer = null) {
-        const open = () => openQueueItem(item);
-        return h('li', {
-            class: 'ao-item ao-queue-item', tabindex: '0', role: 'button', dataset: { conversation: item.conversationId },
-            onclick: open, onkeydown: event => { if (event.key === 'Enter') open(); }
-        },
-            h('div', { class: 'ao-item-main' },
+    function queueCard(item, config, chipNode, { allowIgnore = true, footer = null } = {}) {
+        const expanded = state.queueExpanded === item.conversationId;
+        const toggle = () => (expanded ? closeTakeCharge(root.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(item.conversationId)}"] .ao-inline-form`)) : openTakeCharge(item));
+        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${state.ignoreArmed === item.conversationId ? ' ao-ignore-on' : ''}`, dataset: { conversation: item.conversationId } },
+            h('div', {
+                class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
+                onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
+            },
                 // A sinistra oggetto e mittente; a destra ora di arrivo ed etichette, una sotto l'altra.
                 h('div', { class: 'ao-item-left' },
                     h('span', { class: 'ao-item-title' }, item.subject || '(senza oggetto)'),
@@ -1101,21 +1108,42 @@
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)),
                     chipNode)),
-            footer);
+            footer,
+            expanded ? queueDetails(item, config, allowIgnore) : null,
+            expanded && allowIgnore ? ignoreBar(mailFromQueueItem(item)) : null);
     }
-    // Prendi in carico: apre il modulo nella card con un'animazione (solo all'apertura, non a ogni aggiornamento).
-    function openTakeCharge(conversationId) {
-        state.queueExpanded = conversationId;
-        state.animateExpand = conversationId;
+    function queueDetails(item, config, allowIgnore) {
+        const mail = mailFromQueueItem(item);
+        const body = state.mailBodies[item.messageId];
+        return h('div', { class: `ao-inline-form${state.animateExpand === item.conversationId ? ' ao-animate-expand' : ''}` },
+            h('div', { class: 'ao-mail-preview' }, body ?? item.preview ?? '', body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
+            ticketForm(mail, config, { compact: true }),
+            h('div', { class: 'ao-actions' },
+                openTicketButton(mail, config),
+                allowIgnore ? h('button', { type: 'button', class: 'ao-button ao-subtle ao-ignore', onclick: event => armIgnore(event.currentTarget.closest('.ao-queue-item'), item.conversationId) }, TEXTS.mail.discard) : null,
+                h('span', { class: 'ao-spacer' }),
+                h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.close)));
+    }
+    // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
+    function openTakeCharge(item) {
+        disarmIgnore();
+        state.queueExpanded = item.conversationId;
+        state.animateExpand = item.conversationId;
         render();
         state.animateExpand = null;
-        // L'animazione usa l'altezza vera del modulo, così la velocità è uniforme.
+        // L'animazione usa l'altezza vera del contenuto, così la velocità è uniforme.
         const form = root.querySelector('.ao-animate-expand');
         if (form) form.style.setProperty('--ao-form-height', `${form.scrollHeight}px`);
+        if (state.mailBodies[item.messageId] === undefined && item.messageId) {
+            Services.getMailBody(item.messageId)
+                .then(text => { state.mailBodies[item.messageId] = text || item.preview || ''; })
+                .catch(() => { state.mailBodies[item.messageId] = item.preview || ''; })
+                .finally(() => { if (state.queueExpanded === item.conversationId) render(); });
+        }
     }
-    // Annulla: il modulo si richiude con l'animazione inversa, poi la card torna normale.
-    function closeTakeCharge(button) {
-        const form = button.closest('.ao-inline-form');
+    // Chiudi (o clic sull'intestazione): la scheda si richiude con l'animazione inversa.
+    function closeTakeCharge(form) {
+        disarmIgnore();
         const finish = () => {
             if (!state.queueExpanded) return;
             state.queueExpanded = null;
@@ -1132,14 +1160,13 @@
     function mailFromQueueItem(item) {
         return {
             conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
-            receivedAt: item.receivedAt, body: item.preview, incNumbers: []
+            receivedAt: item.receivedAt, body: state.mailBodies[item.messageId] || item.preview, incNumbers: []
         };
     }
-    // Ogni riga: il clic apre la mail e la vista del ticket (lì si prende in carico o si ignora).
     function queueItem(item, config) {
         const suggestion = suggestCompany(config, item.sender, item.subject, item.preview);
         const company = suggestion && config.companies[suggestion.id];
-        return queueCard(item, company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null);
+        return queueCard(item, config, company ? chip(TEXTS.queue.suggested(company.name), 'accent', TEXTS.queue.suggestedTitle) : null);
     }
 
     // ---------------------------- Ticket ----------------------------------
@@ -1397,63 +1424,70 @@
     }
     function ignoreButton(mail, className) {
         return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
-            // Vista del ticket (in In coda si usa lo swipe: swipeAction).
+            // Vista del ticket (in In coda c'è il tasto rosso dal basso: ignoreBar).
             const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
             if (ok) await refreshLists();
             render(); // se non è riuscito, la card ricompare
         });
     }
-    // NB: le animazioni qui sotto (swipe di Ignora, tasto blu della presa in carico) oggi non sono collegate a
-    // nessun elenco: In coda non ha più pulsanti. Restano pronte per essere riutilizzate.
-    // Ignora in In coda, come lo "swipe to delete" di Gmail / Mail di iPhone (ma con il clic):
-    //  1. clic su Ignora → la scheda scorre a sinistra e scopre il tasto rosso con l'icona dell'archivio;
-    //  2. clic sul tasto rosso → il tasto si allarga fino a occupare tutta la scheda, poi lo spazio si chiude;
-    //  clic altrove (o Esc) → la scheda torna a posto.
+    // Ignora (In coda), stesso linguaggio della presa in carico ma rosso:
+    //  1. clic su Ignora → dal basso sale il tasto rosso "Confermi?" (il contenuto si alza un poco);
+    //     senza conferma, dopo 4 secondi (o con un clic altrove, o Esc) riscende;
+    //  2. clic sul tasto → si allarga verso l'alto e copre la scheda (il contenuto sale più piano), poi lo spazio si chiude.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
-    function swipeAction(mail) {
+    const IGNORE_TIMEOUT_MS = 4000;
+    const IGNORE_EXPAND_MS = 340;
+    let ignoreTimer = null;
+    function ignoreBar(mail) {
         const button = h('button', {
-            type: 'button', class: 'ao-swipe-action', title: TEXTS.mail.discard, 'aria-label': TEXTS.mail.discard, tabindex: '-1',
-            onclick: event => commitSwipe(event.currentTarget.closest('.ao-queue-item'), mail)
+            type: 'button', class: 'ao-ignore-bar', tabindex: '-1', 'aria-label': `${TEXTS.mail.discard}: ${TEXTS.common.confirm}`,
+            onclick: event => commitIgnore(event.currentTarget.closest('.ao-queue-item'), mail)
         });
         button.innerHTML = `${ARCHIVE_ICON}<span>${TEXTS.common.confirm}</span>`;
         return button;
     }
-    function toggleSwipe(card, conversationId) {
-        const open = state.swipeOpen !== conversationId;
-        closeSwipe();
-        if (!open || !card) return;
-        state.swipeOpen = conversationId;
-        card.classList.add('ao-swiped');
-        card.querySelector('.ao-swipe-action')?.setAttribute('tabindex', '0');
-        swipeTimer = setTimeout(closeSwipe, SWIPE_TIMEOUT_MS); // senza conferma torna da sola a posto
+    function armIgnore(card, conversationId) {
+        if (state.ignoreArmed === conversationId) return disarmIgnore();
+        disarmIgnore();
+        if (!card) return;
+        state.ignoreArmed = conversationId;
+        card.classList.add('ao-ignore-on');
+        card.querySelector('.ao-ignore-bar')?.setAttribute('tabindex', '0');
+        ignoreTimer = setTimeout(disarmIgnore, IGNORE_TIMEOUT_MS);
     }
-    const SWIPE_TIMEOUT_MS = 4000;
-    let swipeTimer = null;
-    function closeSwipe() {
-        clearTimeout(swipeTimer);
-        if (!state.swipeOpen) return;
-        root?.querySelectorAll('.ao-queue-item.ao-swiped').forEach(card => {
-            card.classList.remove('ao-swiped');
-            card.querySelector('.ao-swipe-action')?.setAttribute('tabindex', '-1');
+    function disarmIgnore() {
+        clearTimeout(ignoreTimer);
+        if (!state.ignoreArmed) return;
+        root?.querySelectorAll('.ao-queue-item.ao-ignore-on').forEach(card => {
+            card.classList.remove('ao-ignore-on');
+            card.querySelector('.ao-ignore-bar')?.setAttribute('tabindex', '-1');
         });
-        state.swipeOpen = null;
+        state.ignoreArmed = null;
     }
-    async function commitSwipe(card, mail) {
-        clearTimeout(swipeTimer);
-        state.swipeOpen = null;
-        const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        state.holdRender = !reduced;
+    async function commitIgnore(card, mail) {
+        clearTimeout(ignoreTimer);
+        state.ignoreArmed = null;
+        const motion = card && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        state.holdRender = Boolean(motion);
         const done = run(() => Services.discardMail(mail.conversationId, currentUser()));
-        if (card && !reduced) {
-            card.classList.add('ao-swipe-commit'); // il tasto si allarga su tutta la scheda
-            await new Promise(next => setTimeout(next, SWIPE_EXPAND_MS));
+        if (motion) {
+            const bar = card.querySelector('.ao-ignore-bar');
+            card.style.setProperty('--ao-card-height', `${card.offsetHeight}px`);
+            if (bar) {
+                bar.querySelector('span').textContent = TEXTS.queue.ignoredDone;
+                bar.style.height = `${card.clientHeight}px`;
+            }
+            card.classList.add('ao-ignore-commit');
+            await new Promise(next => setTimeout(next, IGNORE_EXPAND_MS + 60));
             await animateOut(card, 'ao-swipe-collapse', 'ao-slide-collapse', 500); // poi lo spazio si chiude
         }
         state.holdRender = false;
-        if (await done) await refreshLists();
+        if (await done) {
+            if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
+            await refreshLists();
+        }
         render(); // se non è riuscito, la scheda ricompare
     }
-    const SWIPE_EXPAND_MS = 300;
     // Presa in carico (In coda), stesso concetto di Ignora ma dal basso:
     //  1. al clic su "Prendi in carico" nel modulo il blu sale dal basso e copre tutta la scheda in un solo
     //     movimento (il contenuto sale anche lui, più piano, e viene raggiunto), con "Apro il ticket…" (resta così mentre ServiceNow lavora);
@@ -1564,6 +1598,8 @@
         saveConfig(config);
         render();
         await refreshLists();
+        // Da In coda si resta in In coda (si smista la prossima); l'avviso porta al ticket per lavorarlo.
+        if (card) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
     }
 
     // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
@@ -2223,27 +2259,25 @@
 #ao-root .ao-animate-expand { overflow: hidden; animation: ao-expand .35s ease-in-out; }
 @keyframes ao-expand { from { max-height: 0; opacity: 0; padding-top: 0; } to { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } }
 #ao-root .ao-animate-collapse { overflow: hidden; animation: ao-collapse .2s ease-in forwards; }
-/* Ignora (In coda): swipe to delete col clic. La scheda scorre a sinistra e scopre il tasto rosso;
-   confermando, il tasto si allarga su tutta la scheda e poi lo spazio si chiude. */
+/* Scheda di In coda aperta: testo della mail */
+#ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
-#ao-root .ao-queue-item > :not(.ao-swipe-action, .ao-take-bar) { transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
-#ao-root .ao-queue-item.ao-swiped > :not(.ao-swipe-action) { transform: translateX(calc(-1 * var(--ao-swipe-width))); }
-#ao-root .ao-queue-item { --ao-swipe-width: 76px; }
-#ao-root .ao-swipe-action {
-    position: absolute; top: 0; right: 0; bottom: 0; z-index: 1; width: var(--ao-swipe-width);
-    display: grid; place-content: center; justify-items: center; gap: 3px; padding: 0; border: 0;
+#ao-root .ao-queue-item > :not(.ao-ignore-bar, .ao-take-bar) { transition: transform .32s cubic-bezier(.3, .8, .2, 1); }
+/* Ignora: il tasto rosso "Confermi?" sale dal basso (il contenuto si alza un poco); confermando si allarga e copre la scheda */
+#ao-root .ao-ignore-bar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 52px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; border: 0;
     background: #d13438; color: #fff; font: inherit; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium); cursor: pointer;
-    transform: translateX(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .3s cubic-bezier(.4, 0, .2, 1), background-color .15s;
+    transform: translateY(100%); transition: transform .32s cubic-bezier(.3, .8, .2, 1), height .34s cubic-bezier(.4, 0, .2, 1), background-color .15s;
 }
-#ao-root .ao-swiped .ao-swipe-action { transform: none; }
-/* Con il tasto laterale scoperto il pulsante Ignora non serve più: sparisce */
+#ao-root .ao-ignore-bar:hover, #ao-root .ao-ignore-bar:focus-visible { background: #a4262c; outline: none; }
+#ao-root .ao-ignore-on .ao-ignore-bar { transform: none; }
+#ao-root .ao-ignore-on > :not(.ao-ignore-bar) { transform: translateY(-18px); }
+#ao-root .ao-ignore-on .ao-ignore { opacity: 0; visibility: hidden; }
 #ao-root .ao-queue-item .ao-ignore { transition: opacity .2s, visibility .2s; }
-#ao-root .ao-swiped .ao-ignore { opacity: 0; visibility: hidden; }
-#ao-root .ao-swipe-action:hover, #ao-root .ao-swipe-action:focus-visible { background: #a4262c; outline: none; }
-#ao-root .ao-swipe-commit { pointer-events: none; }
-#ao-root .ao-swipe-commit .ao-swipe-action { width: 100%; transform: none; }
-/* alla conferma il contenuto continua a scorrere a sinistra, più piano del rosso, che lo raggiunge e lo copre */
-#ao-root .ao-queue-item.ao-swipe-commit > :not(.ao-swipe-action) { transform: translateX(calc(-1 * var(--ao-swipe-width) - 35%)); transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
+#ao-root .ao-ignore-commit { pointer-events: none; }
+#ao-root .ao-queue-item.ao-ignore-commit > :not(.ao-ignore-bar) { transform: translateY(calc(-18px - .35 * (var(--ao-card-height, 300px) - 52px))); transition: transform .34s cubic-bezier(.4, 0, .2, 1); }
 #ao-root .ao-swipe-collapse { overflow: hidden; pointer-events: none; animation: ao-slide-collapse .25s ease-in-out forwards; }
 /* Prendi in carico (In coda): il tasto blu sale dal basso ("Apro il ticket…"), poi si allarga su tutta la scheda */
 #ao-root .ao-take-bar {
@@ -2255,12 +2289,12 @@
 #ao-root .ao-taking { pointer-events: none; }
 #ao-root .ao-taking .ao-take-bar { transform: none; }
 /* il contenuto sale anche lui, ma più piano del blu, che lo raggiunge e lo copre (un solo movimento) */
-#ao-root .ao-taking > :not(.ao-take-bar) { transform: translateY(calc(-.35 * var(--ao-card-height, 300px))); transition: transform .42s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-taking > :not(.ao-take-bar, .ao-ignore-bar) { transform: translateY(calc(-.35 * var(--ao-card-height, 300px))); transition: transform .42s cubic-bezier(.3, .8, .2, 1); }
 #ao-root .ao-take-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
 @keyframes ao-collapse { from { max-height: var(--ao-form-height, 600px); opacity: 1; padding-top: 8px; } to { max-height: 0; opacity: 0; padding-top: 0; border-top-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-swipe-action, #ao-root .ao-take-bar { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-animate-expand, #ao-root .ao-animate-collapse, #ao-root .ao-swipe-collapse { animation: none; } #ao-root .ao-queue-item > *, #ao-root .ao-ignore-bar, #ao-root .ao-take-bar { transition: none; } }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -2315,6 +2349,9 @@
 #ao-root .ao-statusbar-sync { flex: none; }
 
 /* Messaggi temporanei, sopra la barra di sistema */
+#ao-root .ao-status:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#ao-root .ao-status-action { flex: none; padding: 0; border: 0; background: none; color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-bold); cursor: pointer; }
+#ao-root .ao-status-action:hover { text-decoration: underline; }
 #ao-root .ao-status { position: absolute; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 #ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
