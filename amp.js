@@ -321,7 +321,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 16:05';
+    const BUILD = '2026-10-30 16:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1413,11 +1413,11 @@
     const SWIPE_EXPAND_MS = 280;
     // Presa in carico (In coda), stesso concetto di Ignora ma dal basso:
     //  1. al clic su "Prendi in carico" nel modulo il blu sale dal basso e copre tutta la scheda in un solo
-    //     movimento, con "Apro il ticket…" (resta così mentre ServiceNow lavora);
+    //     movimento (il contenuto sale anche lui, più piano, e viene raggiunto), con "Apro il ticket…" (resta così mentre ServiceNow lavora);
     //  2. ticket aperto → "✓ Preso in carico" e lo spazio si chiude;
     //  3. errore → il tasto riscende e la scheda resta com'era.
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
-    const TAKE_BAR_MS = 380;
+    const TAKE_BAR_MS = 420;
     const TAKE_HOLD_MS = 220;
     const takeMotion = card => card && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     function takeBarIn(card) {
@@ -2198,11 +2198,12 @@
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     background: var(--ao-accent); color: #fff; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium);
-    transform: translateY(100%); transition: transform .38s cubic-bezier(.3, .8, .2, 1);
+    transform: translateY(100%); transition: transform .42s cubic-bezier(.3, .8, .2, 1);
 }
 #ao-root .ao-taking { pointer-events: none; }
 #ao-root .ao-taking .ao-take-bar { transform: none; }
-#ao-root .ao-taking > :not(.ao-take-bar) { opacity: 0; transition: opacity .3s ease-in; }
+/* il contenuto sale anche lui, ma più piano del blu, che lo raggiunge e lo copre (un solo movimento) */
+#ao-root .ao-taking > :not(.ao-take-bar) { transform: translateY(calc(-.35 * var(--ao-card-height, 300px))); transition: transform .42s cubic-bezier(.3, .8, .2, 1); }
 #ao-root .ao-take-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @keyframes ao-slide-collapse { from { max-height: var(--ao-card-height, 200px); } to { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; } }
