@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:20';
+    const BUILD = '2026-10-30 21:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1531,10 +1531,11 @@
         banner.innerHTML = html;
         card.append(banner);
         card.classList.add(`ao-outcome-${tone}`);
-        // il colore affiora insieme alla chiusura della tendina (più deciso verso la fine)
-        banner.animate([{ opacity: 0 }, { opacity: .35, offset: .4 }, { opacity: 1 }], { duration: MOTION.fold, easing: 'ease-in', fill: 'backwards' });
+        // il colore affiora piano e diventa pieno solo alla fine, quando la tendina è del tutto chiusa
+        banner.animate([{ opacity: 0 }, { opacity: .12, offset: .5 }, { opacity: .4, offset: .8 }, { opacity: 1 }], { duration: MOTION.fold, easing: 'linear', fill: 'backwards' });
         // anche l'intestazione (oggetto, mittente, ora, etichetta) si affievolisce e svanisce sotto il colore
-        card.querySelector('.ao-item-main')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.fold * .7, easing: 'ease-out', fill: 'forwards' });
+        // (entro metà della chiusura il testo è già svanito del tutto)
+        card.querySelector('.ao-item-main')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.fold * .5, easing: 'ease-out', fill: 'forwards' });
         card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form'));
     }
     function outcomeText(card, html) {
