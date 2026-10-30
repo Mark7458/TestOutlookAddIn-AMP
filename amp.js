@@ -325,7 +325,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 20:30';
+    const BUILD = '2026-10-30 20:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1097,7 +1097,7 @@
         return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
             note: h('span', { class: 'ao-hint ao-ignored-by' }, TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt))) });
     }
-    // Riga in fondo: le etichette a sinistra e, nelle Ignorate, chi l'ha ignorata a destra.
+    // Riga in fondo: nelle Ignorate chi l'ha ignorata a sinistra; l'etichetta della casella a destra.
     function queueCard(item, config, chipNode, { allowIgnore = true, note = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
@@ -1116,7 +1116,7 @@
                     h('div', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || '')),
                 h('div', { class: 'ao-item-right' },
                     h('span', { class: 'ao-item-time' }, formatWhen(item.receivedAt)))),
-            h('div', { class: 'ao-item-actions' }, chipNode, note),
+            h('div', { class: 'ao-item-actions ao-queue-foot' }, note, h('span', { class: 'ao-spacer' }), chipNode),
             expanded ? queueDetails(item, config, allowIgnore) : null);
     }
     function queueDetails(item, config, allowIgnore) {
@@ -2282,7 +2282,7 @@
 /* Le etichette lunghe vanno a capo invece di essere tagliate */
 #ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
-#ao-root .ao-ignored-by { margin-left: auto; text-align: right; }
+#ao-root .ao-ignored-by { text-align: left; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
