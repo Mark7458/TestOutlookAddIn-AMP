@@ -319,7 +319,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 14:45';
+    const BUILD = '2026-10-30 15:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1341,7 +1341,7 @@
             type: 'button', class: 'ao-swipe-action', title: TEXTS.mail.discard, 'aria-label': TEXTS.mail.discard, tabindex: '-1',
             onclick: event => commitSwipe(event.currentTarget.closest('.ao-queue-item'), mail)
         });
-        button.innerHTML = `${ARCHIVE_ICON}<span>${TEXTS.mail.discard}</span>`;
+        button.innerHTML = `${ARCHIVE_ICON}<span>${TEXTS.common.confirm}</span>`;
         return button;
     }
     function toggleSwipe(card, conversationId) {
@@ -1351,8 +1351,12 @@
         state.swipeOpen = conversationId;
         card.classList.add('ao-swiped');
         card.querySelector('.ao-swipe-action')?.setAttribute('tabindex', '0');
+        swipeTimer = setTimeout(closeSwipe, SWIPE_TIMEOUT_MS); // senza conferma torna da sola a posto
     }
+    const SWIPE_TIMEOUT_MS = 4000;
+    let swipeTimer = null;
     function closeSwipe() {
+        clearTimeout(swipeTimer);
         if (!state.swipeOpen) return;
         root?.querySelectorAll('.ao-queue-item.ao-swiped').forEach(card => {
             card.classList.remove('ao-swiped');
@@ -1361,6 +1365,7 @@
         state.swipeOpen = null;
     }
     async function commitSwipe(card, mail) {
+        clearTimeout(swipeTimer);
         state.swipeOpen = null;
         const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         state.holdRender = !reduced;
@@ -2114,6 +2119,9 @@
     transform: translateX(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1), background-color .15s;
 }
 #ao-root .ao-swiped .ao-swipe-action { transform: none; }
+/* Con il tasto laterale scoperto il pulsante Ignora non serve più: sparisce */
+#ao-root .ao-queue-item .ao-ignore { transition: opacity .2s, visibility .2s; }
+#ao-root .ao-swiped .ao-ignore { opacity: 0; visibility: hidden; }
 #ao-root .ao-swipe-action:hover, #ao-root .ao-swipe-action:focus-visible { background: #a4262c; outline: none; }
 #ao-root .ao-swipe-commit { pointer-events: none; }
 #ao-root .ao-swipe-commit .ao-swipe-action { width: 100%; transform: none; }
