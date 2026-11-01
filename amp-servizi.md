@@ -66,7 +66,7 @@ Ogni servizio restituisce una Promise.
 | `findTicketForMail(mail)` | Triangolazione: `{ tickets (aperti, anche più di uno, ognuno con via), previous, candidates, discarded }` | SharePoint |
 | `getTicket(numero)` | Un ticket | SharePoint |
 | `linkTicket(conversationId, numero, utente)` | L'operatore conferma il collegamento: il thread passa in gestione | SharePoint |
-| `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento | ServiceNow → SharePoint |
+| `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento. Con `mail = null` è un ticket aperto da Ticket senza mail: nessun thread da collegare, Caller = chi lo apre, `reportedOn` = data e ora scritte dall'operatore | ServiceNow → SharePoint |
 | `assignTicket(numero, utente)` | Prende in carico il ticket di un collega (*Assigned to*) | ServiceNow → SharePoint |
 | `addTime(numero, minuti, nome)` | Aggiunge (o toglie, se negativo) tempo lavorato | ServiceNow → SharePoint |
 | `getTicketActivity(numero, { offset, limit })` | Storico completo, dal più recente, a pagine (solo su richiesta) | ServiceNow (journal) |

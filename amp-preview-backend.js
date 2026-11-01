@@ -528,6 +528,7 @@
             return respond(result);
         },
         // Apre l'Incident su ServiceNow; solo se riesce aggiorna SharePoint (copia, thread, movimento).
+        // mail = null: ticket aperto da Ticket senza mail (nessun thread da collegare).
         createTicket(mail, payload) {
             db.ticketCounter += 1;
             const number = `INC00${db.ticketCounter}`;
@@ -543,12 +544,12 @@
             };
             db.history[number] = [];
             addHistory(number, assignee.displayValue, 'system', `Ticket aperto dall'add-in (${payload.companyName} · ${payload.activityName}).`);
-            addHistory(number, mail.sender?.name || 'Cliente', 'comment', payload.fields.description || '');
+            addHistory(number, mail?.sender?.name || assignee.displayValue, 'comment', payload.fields.description || '');
             mirror(number);
-            registerThread(mail.conversationId, number, assignee.displayValue);
-            record('apertura', number, assignee.displayValue, `${payload.companyName} · ${payload.activityName}`, mail.conversationId);
+            if (mail?.conversationId) registerThread(mail.conversationId, number, assignee.displayValue);
+            record('apertura', number, assignee.displayValue, `${payload.companyName} · ${payload.activityName}`, mail?.conversationId || '');
             persist();
-            return respond(decorate(db.sp.tickets[number], mail.conversationId));
+            return respond(decorate(db.sp.tickets[number], mail?.conversationId || null));
         },
         // Prende in carico un ticket di un collega: cambia Assigned to su ServiceNow.
         assignTicket(number, assignee) {

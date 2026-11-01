@@ -152,6 +152,16 @@
             ignore: 'Ignora'
         },
         tickets: {
+            newTicket: '+ Nuovo ticket',
+            newTicketTitle: 'Nuovo ticket',
+            newTicketCaller: 'Richiesta a tuo nome (Caller compilato in automatico).',
+            shortDescription: 'Short description',
+            description: 'Description',
+            receivedDate: 'Ricevuta il',
+            receivedTime: 'alle (hh:mm)',
+            openNew: 'Apri ticket',
+            missingShort: 'Scrivi la Short description.',
+            badTime: "Scrivi l'ora come hh:mm (per esempio 09:30).",
             mine: 'Miei',
             all: 'Tutti',
             empty: 'Nessun ticket aperto.',
@@ -325,7 +335,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-10-30 21:50';
+    const BUILD = '2026-11-01 20:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -407,6 +417,7 @@
     //   getTicket(numero)                   → Ticket
     //   linkTicket(conversationId, numero, utente)  → come findTicketForMail (l'operatore conferma il collegamento)
     //   createTicket(mail, { companyId, companyName, activityId, activityName, fields }) → Ticket
+    //                                          (mail = null: ticket aperto da Ticket senza mail, senza thread)
     //   assignTicket(numero, utente)        → Ticket    (Assigned to = utente)
     //   addTime(numero, minuti, nome)       → Ticket    (minuti anche negativi)
     //   getTicketActivity(numero, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
@@ -572,6 +583,7 @@
         result: null, // triangolazione della mail mostrata
         searching: false,
         ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
+        newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
         history: {}, // per ticket: storico caricato
@@ -1216,6 +1228,7 @@
                 { value: 'mine', label: TEXTS.tickets.mine, count: mine.length },
                 { value: 'all', label: TEXTS.tickets.all, count: open.length }
             ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
+            newTicketSection(config),
             groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
                 ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
@@ -1223,6 +1236,58 @@
                     h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true }))))
                 : ticketItem(group.tickets[0], user))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
+    }
+    // Nuovo ticket senza mail: si apre da Ticket. Stesso modulo della presa in carico, più Short description,
+    // data e ora di ricezione (hh:mm, poi nel formato di ServiceNow) e Description. Caller = chi apre il ticket.
+    const NEW_TICKET_KEY = '__new__';
+    function manualMail() {
+        return { conversationId: NEW_TICKET_KEY, manual: true, subject: '', body: '', sender: null, receivedAt: null, incNumbers: [] };
+    }
+    function newTicketSection(config) {
+        if (!state.newTicketOpen) {
+            return h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewTicket() }, TEXTS.tickets.newTicket);
+        }
+        const mail = manualMail();
+        const draft = ticketDraft(mail, config);
+        const today = new Date();
+        draft.date ||= `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+        draft.time ??= `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+        draft.description ??= '';
+        const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId] && String(draft.subject || '').trim());
+        const refreshButton = () => { const button = root.querySelector('.ao-new-ticket-card .ao-primary'); if (button) button.disabled = !ready(); };
+        // Scrivendo la Short description si aggiornano solo i suggerimenti (il campo non perde il cursore).
+        const refreshSuggestions = () => {
+            const slot = root.querySelector(`[data-suggest-for="${NEW_TICKET_KEY}"]`);
+            if (slot) slot.replaceChildren(...[suggestionPills(draft, config, draft.subject)].filter(Boolean));
+        };
+        return h('section', { class: 'ao-card ao-new-ticket-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.tickets.newTicketTitle),
+            h('p', { class: 'ao-hint' }, TEXTS.tickets.newTicketCaller),
+            h('div', { class: 'ao-inline-form' },
+                textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshSuggestions(); refreshButton(); }, { maxlength: '160' }),
+                ticketForm(mail, config, { compact: true }),
+                h('div', { class: 'ao-field-row' },
+                    textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
+                    textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
+                textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }),
+                h('div', { class: 'ao-actions' },
+                    h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready(), onclick: () => openTicket(manualMail()) }, TEXTS.tickets.openNew),
+                    h('span', { class: 'ao-spacer' }),
+                    h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeNewTicket(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.cancel))));
+    }
+    async function openNewTicket() {
+        await whenIdle();
+        state.newTicketOpen = true;
+        render();
+        await holdingRender(() => unfold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
+    }
+    async function closeNewTicket(form) {
+        holdRender();
+        await fold(form);
+        state.newTicketOpen = false;
+        delete state.ticketDrafts[NEW_TICKET_KEY];
+        releaseRender();
+        render();
     }
     // Messaggi nuovi (numero su sfondo blu) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
     function newMessagesPreview(ticket) {
@@ -1376,6 +1441,52 @@
     }
 
     // Apertura del ticket: Agenzia suggerita, Attività, anteprima dei campi.
+    // ---------------------------- Suggerimenti --------------------------------
+    // Ogni operatore ha i suoi: il pannello conta, senza mostrarlo, le combinazioni agenzia · attività con cui
+    // apre i ticket e le parole degli oggetti. Con l'agenzia individuata (dal dominio o scelta a mano) propone
+    // le combinazioni più usate per quell'agenzia; quelle che corrispondono alle parole della richiesta vanno in cima.
+    // Il contatore parte vuoto e sta in una chiave a parte (non è nel file delle configurazioni).
+    const USAGE_KEY = 'amp_panel_usage_v1';
+    const USAGE_STOPWORDS = new Set(['buongiorno', 'buonasera', 'salve', 'grazie', 'saluti', 'cordiali', 'della', 'delle', 'dello', 'degli', 'nella', 'nelle', 'sono', 'questo', 'questa', 'anche', 'come', 'però', 'dopo', 'prima', 'molto', 'mille', 'potete', 'possiamo', 'vorrei', 'richiesta']);
+    const usageWords = text => [...new Set((String(text || '').toLowerCase().replace(/^\s*((re|r|fw|fwd|i)\s*:\s*)+/i, '').match(/[a-zàèéìòù0-9]{4,}/g) || [])
+        .filter(word => !USAGE_STOPWORDS.has(word)))];
+    const Usage = {
+        load() {
+            try { return JSON.parse(localStorage.getItem(USAGE_KEY) || '{}') || {}; } catch { return {}; }
+        },
+        record(companyId, activityId, text) {
+            if (!companyId || !activityId) return;
+            const data = Usage.load();
+            const key = `${companyId}|${activityId}`;
+            const entry = data[key] || (data[key] = { n: 0, w: {} });
+            entry.n += 1;
+            usageWords(text).forEach(word => { entry.w[word] = (entry.w[word] || 0) + 1; });
+            try { localStorage.setItem(USAGE_KEY, JSON.stringify(data)); } catch { /* memoria piena o bloccata */ }
+        },
+        // Attività più probabili per l'agenzia, al massimo 3.
+        suggest(companyId, text, config) {
+            if (!companyId) return [];
+            const words = usageWords(text);
+            return Object.entries(Usage.load())
+                .filter(([key]) => key.startsWith(`${companyId}|`))
+                .map(([key, entry]) => ({ activityId: key.slice(companyId.length + 1), score: entry.n + 5 * words.reduce((sum, word) => sum + (entry.w[word] || 0), 0) }))
+                .filter(item => config.activities[item.activityId])
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3)
+                .map(item => item.activityId);
+        }
+    };
+    function suggestionPills(draft, config, text) {
+        const company = config.companies[draft.companyId];
+        const ids = company ? Usage.suggest(draft.companyId, text, config) : [];
+        if (!ids.length) return null;
+        return h('div', { class: 'ao-chips ao-suggestions' }, ids.map(activityId => h('button', {
+            type: 'button',
+            class: `ao-fav${activityId === draft.activityId ? ' ao-active' : ''}`,
+            onclick: () => { draft.activityId = activityId; render(); }
+        }, `${company.name} · ${config.activities[activityId].name}`)));
+    }
+
     function ticketDraft(mail, config) {
         if (!state.ticketDrafts[mail.conversationId]) {
             const suggestion = suggestCompany(config, mail.sender, mail.subject, mail.body);
@@ -1401,21 +1512,16 @@
         const activities = Object.entries(config.activities).sort(byName);
         const company = config.companies[draft.companyId];
         const activity = config.activities[draft.activityId];
-        const favorites = config.favorites.filter(item => config.companies[item.company] && config.activities[item.activity]);
         const rerender = () => render();
+        // Parole per i suggerimenti: oggetto e inizio della mail; senza mail, la Short description scritta.
+        const suggestText = mail.manual ? draft.subject : `${mail.subject || ''} ${String(mail.body || '').slice(0, 400)}`;
         return [
-            favorites.length ? h('div', { class: 'ao-favorites' },
-                compact ? null : h('span', { class: 'ao-label' }, TEXTS.mail.favorites),
-                h('div', { class: 'ao-chips' }, favorites.map(item => h('button', {
-                    type: 'button',
-                    class: `ao-fav${item.company === draft.companyId && item.activity === draft.activityId ? ' ao-active' : ''}`,
-                    onclick: () => { Object.assign(draft, { companyId: item.company, activityId: item.activity }); rerender(); }
-                }, `${config.companies[item.company].name} · ${config.activities[item.activity].name}`)))) : null,
             selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.companyId, value => { draft.companyId = value; rerender(); }),
             // Riga sempre presente (anche vuota): se l'avviso sparisce, il modulo non cambia altezza.
             h('div', { class: 'ao-hint ao-hint-accent ao-hint-slot' },
                 draft.suggestion && draft.suggestion.id === draft.companyId ? TEXTS.mail.suggestedFrom(draft.suggestion.reason) : ''),
+            h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
             selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.activityId, value => { draft.activityId = value; rerender(); }),
             // Short description = oggetto della mail (+ prefisso dell'attività), Description = corpo: non si modificano.
@@ -1599,8 +1705,16 @@
         const activity = config.activities[draft.activityId];
         if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
         if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
-        // Corpo completo se è la mail aperta in Outlook; altrimenti l'anteprima della Coda.
-        const body = state.mail?.conversationId === mail.conversationId ? state.mail.body : mail.body;
+        // Corpo completo se è la mail aperta in Outlook; altrimenti l'anteprima della Coda. Senza mail: quanto scritto.
+        const body = mail.manual ? draft.description : (state.mail?.conversationId === mail.conversationId ? state.mail.body : mail.body);
+        let reportedOn = mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '';
+        if (mail.manual) {
+            if (!String(draft.subject || '').trim()) return showStatus(TEXTS.tickets.missingShort, 'danger');
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time || '')) return showStatus(TEXTS.tickets.badTime, 'danger');
+            const when = parseDate(`${draft.date} ${draft.time}`);
+            if (!when) return showStatus(TEXTS.tickets.badTime, 'danger');
+            reportedOn = formatServiceNowDate(when);
+        }
         const fields = {
             company: normalizeReference(company.company),
             assignmentGroup: normalizeReference(company.assignmentGroup),
@@ -1611,10 +1725,10 @@
             timeWorkedMinutes: Number(activity.timeWorked) || 0,
             shortDescription: buildShortDescription(draft.subject, activity),
             description: String(body || '').slice(0, 4000),
-            reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : ''
+            reportedOn
         };
         outcomeStart(card, 'accent', `${SPINNER}<span>${TEXTS.mail.outcomeWorking}</span>`);
-        const ticket = await run(() => Services.createTicket(mail, {
+        const ticket = await run(() => Services.createTicket(mail.manual ? null : mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
         }), result => TEXTS.mail.ticketOpened(result.number));
@@ -1629,6 +1743,11 @@
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
         if (state.extraTicketFor === mail.conversationId) state.extraTicketFor = null;
+        Usage.record(draft.companyId, draft.activityId, mail.manual ? draft.subject : mail.subject);
+        if (mail.manual) {
+            await holdingRender(() => fold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
+            state.newTicketOpen = false;
+        }
         config.recent = [{ company: draft.companyId, activity: draft.activityId, timestamp: new Date().toISOString() },
             ...config.recent.filter(item => !(item.company === draft.companyId && item.activity === draft.activityId))].slice(0, 10);
         saveConfig(config);
@@ -1636,7 +1755,7 @@
         await refreshLists();
         outcomeRelease(card);
         // Da In coda si resta in In coda (si smista la prossima); l'avviso porta al ticket per lavorarlo.
-        if (card) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
+        if (card || mail.manual) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
     }
 
     // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
@@ -2239,6 +2358,12 @@
 #ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
 #ao-root .ao-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #ao-root .ao-favorites { display: grid; gap: 4px; }
+#ao-root .ao-suggestions-slot:empty { display: none; }
+#ao-root .ao-new-ticket { padding: 8px; border: 1px dashed var(--ao-accent); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .15s; }
+#ao-root .ao-new-ticket:hover { background: var(--ao-hover); }
+#ao-root .ao-new-ticket-card { border-color: var(--ao-accent); }
+#ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
+#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 #ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-fav:hover { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
