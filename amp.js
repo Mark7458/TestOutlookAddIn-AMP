@@ -179,7 +179,7 @@
             missingShort: 'Scrivi la Short description.',
             badTime: "Scrivi l'ora come hh:mm (per esempio 09:30).",
             mine: 'Miei',
-            all: 'Tutti',
+            others: 'Altri',
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
@@ -351,7 +351,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 17:30';
+    const BUILD = '2026-11-02 17:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1371,7 +1371,9 @@
         const notice = serviceNotice();
         const open = state.tickets.slice();
         const mine = open.filter(ticket => isMine(ticket, user));
-        const items = state.ticketFilter === 'mine' ? mine : open;
+        // Miei | Altri: i due elenchi non si sovrappongono (Altri = tutti i ticket aperti tranne i miei).
+        const others = open.filter(ticket => !isMine(ticket, user));
+        const items = state.ticketFilter === 'mine' ? mine : others;
         const groups = [];
         items.forEach(ticket => {
             const group = ticket.conversationId && groups.find(item => item.conversationId === ticket.conversationId);
@@ -1392,7 +1394,7 @@
             notice,
             filterBar([
                 { value: 'mine', label: TEXTS.tickets.mine, count: mine.length },
-                { value: 'all', label: TEXTS.tickets.all, count: open.length }
+                { value: 'others', label: TEXTS.tickets.others, count: others.length }
             ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
             newTicketSection(config),
             groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
