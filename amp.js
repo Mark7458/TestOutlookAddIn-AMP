@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 12:40';
+    const BUILD = '2026-11-02 12:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -622,6 +622,7 @@
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
         queueChoice: {}, // scheda di In coda aperta: azione scelta nel selettore e gruppo dell'inoltro
+        previewScroll: null, // scheda aperta del tutto: il testo della mail può scorrere
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         holdRender: false, // true durante un'animazione: il pannello non si ridisegna (le schede sparirebbero di colpo)
         busy: false
@@ -1212,7 +1213,9 @@
         ].filter(Boolean);
         return h('div', { class: 'ao-inline-form' },
             info ? h('p', { class: 'ao-hint ao-queue-info' }, info) : null,
-            h('div', { class: 'ao-mail-preview' }, body ?? item.preview ?? '', body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
+            // Testo limitato a PREVIEW_MAX_CHARS; la barra di scorrimento compare solo a scheda aperta del tutto.
+            h('div', { class: `ao-mail-preview${state.previewScroll === item.conversationId ? ' ao-scrollable' : ''}` },
+                clipText(body ?? item.preview ?? '', PREVIEW_MAX_CHARS), body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
             choiceBar(`action:${item.conversationId}`, actions, choice.action, value => pickQueueAction(item, value)),
             h('div', { class: 'ao-choice-zone' }, choice.action ? h('div', { class: 'ao-choice-content' }, queueActionContent(item, mail, config, choice)) : null),
             h('button', {
@@ -1267,6 +1270,7 @@
         if (state.queueExpanded === item.conversationId) return;
         state.queueExpanded = item.conversationId;
         state.queueChoice = { [item.conversationId]: {} }; // ogni apertura riparte senza scelta
+        state.previewScroll = null;
         // Se il testo arriva in fretta si apre già completo; altrimenti si apre con le prime righe
         // e, quando arriva, la tendina si allunga senza scatti.
         const loading = state.mailBodies[item.messageId] === undefined && item.messageId
@@ -1281,7 +1285,7 @@
         render();
         const complete = !loading || arrived; // aperta già con il testo intero
         await holdingRender(() => unfold(queueDetailsOf(item.conversationId)));
-        if (complete) return;
+        if (complete) return allowPreviewScroll(item.conversationId);
         await loading;
         if (state.queueExpanded !== item.conversationId) return;
         const before = queueDetailsOf(item.conversationId)?.offsetHeight || 0;
@@ -1289,13 +1293,27 @@
         const form = queueDetailsOf(item.conversationId);
         if (form && before) await holdingRender(() => playOn(form, [{ maxHeight: `${before}px` }, { maxHeight: `${form.scrollHeight}px` }], 240)
             .then(result => { if (result) { result.animation.cancel(); form.style.overflow = result.overflow; } }));
+        allowPreviewScroll(item.conversationId);
     }
     const BODY_WAIT_MS = 250;
+    const PREVIEW_MAX_CHARS = 500;
+    const clipText = (text, max) => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
+    // Barra di scorrimento del testo della mail: solo ad animazione finita (durante le tendine non deve comparire).
+    function allowPreviewScroll(conversationId) {
+        if (state.queueExpanded !== conversationId) return;
+        state.previewScroll = conversationId;
+        queueDetailsOf(conversationId)?.querySelector('.ao-mail-preview')?.classList.add('ao-scrollable');
+    }
+    function stopPreviewScroll(element) {
+        state.previewScroll = null;
+        element?.querySelector('.ao-mail-preview')?.classList.remove('ao-scrollable');
+    }
     // Chiudi (o clic sull'intestazione o fuori): la scheda si richiude con la stessa animazione, al contrario.
     async function closeTakeCharge(form) {
         const closing = state.queueExpanded;
         if (!closing) return;
         form?.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
+        stopPreviewScroll(form);
         holdRender();
         await fold(form);
         if (state.queueExpanded === closing) { state.queueExpanded = null; delete state.queueChoice[closing]; } // solo se nel frattempo non se n'è aperta un'altra
@@ -1747,6 +1765,7 @@
         if (!card || reducedMotion()) return;
         holdRender(); // rilasciato da outcomeRelease, dopo che gli elenchi sono aggiornati
         card.classList.add('ao-resolving');
+        stopPreviewScroll(card);
         card.aoOutcome = { tone, html, cancelled: false, held: true };
         const banner = h('div', { class: 'ao-outcome', role: 'status' });
         banner.innerHTML = html;
@@ -2550,7 +2569,8 @@
 #ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
-#ao-root .ao-mail-preview { max-height: 180px; overflow: auto; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-mail-preview.ao-scrollable { overflow: auto; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 #ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
