@@ -73,7 +73,12 @@
             holdBg: '#f4f0fa',
             forward: '#7c5bbf', // Inoltra (In coda): pulsante ed esito
             forwardText: '#6b47b0',
-            forwardBg: '#f1ecf9'
+            forwardBg: '#f1ecf9',
+            // Selettore della scheda aperta (Inoltra, Ignora): pillola e scritta della voce scelta
+            choiceForwardBg: '#f1ecf9',
+            choiceForwardText: '#6b47b0',
+            choiceDangerBg: '#fde7e9',
+            choiceDangerText: '#a4262c'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -101,7 +106,12 @@
             hold: '#c3b2ff',
             holdBg: '#2f2a45',
             forwardText: '#c3b2ff',
-            forwardBg: '#2f2a45'
+            forwardBg: '#2f2a45',
+            // Tema scuro: viola e rosso accesi quanto il blu (prima risultavano spenti)
+            choiceForwardBg: 'color-mix(in srgb, #7c5bbf 26%, #2d2c2b)',
+            choiceForwardText: '#b79bff',
+            choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
+            choiceDangerText: '#ff8f94'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -341,7 +351,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 16:00';
+    const BUILD = '2026-11-02 16:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2654,8 +2664,8 @@
 #ao-root .ao-choice-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1), background-color .25s; }
 @keyframes ao-fade-in { from { opacity: 0; } }
 #ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
-#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-forward-bg); --ao-choice-text: var(--ao-forward-text); }
-#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-danger-bg); --ao-choice-text: var(--ao-danger); }
+#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-text: var(--ao-choice-forward-text); }
+#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-choice-danger-bg); --ao-choice-text: var(--ao-choice-danger-text); }
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
@@ -2680,8 +2690,8 @@
 /* Titolo: neutro finché non si sceglie l'azione, poi del suo colore */
 #ao-root .ao-queue-item.ao-expanded .ao-item-title { color: var(--ao-text); transition: color .25s; }
 #ao-root .ao-queue-item.ao-expanded[data-choice="take"] .ao-item-title { color: var(--ao-text-accent); }
-#ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-forward-text); }
-#ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-danger); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
 #ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
