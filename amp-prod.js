@@ -129,7 +129,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 16:30';
+    const BUILD = '2026-11-02 16:40';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -1075,9 +1075,16 @@
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 `;
+    // Fuori dal pannello: solo l'intestazione dell'add-in (barra sottile, senza la riga della versione).
+    const HEADER_STYLES = `
+body .app-header.ao-header-slim { gap: 8px; height: 36px; padding: 0 12px; }
+body .app-header.ao-header-slim img { width: 20px; height: 20px; border-radius: 5px; }
+body .app-header.ao-header-slim h1 { font-size: 13px; font-weight: 600; line-height: 1; }
+body .app-header.ao-header-slim p { display: none; }
+`;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
-        document.head.append(h('style', { id: 'ao-styles' }, themeCssVariables() + STYLES));
+        document.head.append(h('style', { id: 'ao-styles' }, themeCssVariables() + STYLES + HEADER_STYLES));
     }
 
     // ======================================================================
@@ -1099,6 +1106,8 @@
         container.hidden = false;
         initialized = true;
         injectStyles();
+        // Intestazione dell'add-in di jak in versione sottile: icona piccola e nome su una barra blu.
+        document.querySelector('.app-header')?.classList.add('ao-header-slim');
         buildShell(container);
         fillPane();
         // Il riquadro di Outlook si può ridimensionare: l'altezza dell'area si ricalcola.
