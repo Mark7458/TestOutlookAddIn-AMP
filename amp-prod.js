@@ -1,7 +1,8 @@
 /*
  * AMP - SNOW Assistant: area AMP dell'add-in Outlook — VERSIONE DI PRODUZIONE.
  *
- * Contiene solo la scheda In coda (mail della casella condivisa):
+ * Due schede: In coda (mail della casella condivisa) e Debug (le sezioni dell'add-in di jak).
+ * In coda:
  *   - Attive / Ignorate;
  *   - scheda aperta: testo della mail e selettore Prendi in carico · Inoltra · Ignora;
  *     Prendi in carico c'è ma non è attiva (fino a nuovo ordine); Inoltra (gruppi ES, PEL, PO) e Ignora sì.
@@ -9,8 +10,10 @@
  * Le parti in comune sono copiate da amp.js: una modifica fatta lì va riportata qui.
  *
  * Collegamento con l'add-in di jak (nessun suo file viene modificato):
- *   - espone window.AmpModule { initialize, show }; "Apri area AMP" chiama show();
- *   - la freccia in alto torna alla schermata principale (TestPluginAPI.showMainView);
+ *   - espone window.AmpModule { initialize, show }; il pannello si apre da solo all'avvio;
+ *   - la scheda Debug contiene la sua schermata (#main-view: Dettagli email, Impostazioni plugin, Diagnostica)
+ *     e la vista dell'header (#header-view), spostate così come sono: il suo codice continua a funzionare;
+ *   - se la pagina non ha #amp-view, il pannello lo crea in cima a <main>;
  *   - l'utente è quello di Outlook (TestPluginAPI.getCurrentMessageContext, altrimenti Office).
  *
  * Servizi (window.AmpBackend, da collegare alla Function App; vedi amp-servizi.md):
@@ -92,8 +95,7 @@
     };
 
     const TEXTS = {
-        back: 'Torna all’add-in',
-        tabs: { queue: 'In coda' },
+        tabs: { queue: 'In coda', debug: 'Debug' },
         common: {
             loading: 'Caricamento…',
             confirm: 'Confermi?',
@@ -117,7 +119,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 16:00';
+    const BUILD = '2026-11-02 16:20';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -187,6 +189,7 @@
     }
 
     const state = {
+        view: 'queue', // queue | debug
         queue: [],
         ignored: [], // thread ignorati (archivio)
         loaded: false,
@@ -203,6 +206,7 @@
         busy: false
     };
     let root = null;
+    let debugHost = null; // contenuto della scheda Debug: le sezioni dell'add-in di jak (sempre nella pagina)
     let statusTimer = null;
 
     // Crea un elemento: h('button', { class: 'x', onclick: fn, disabled: true }, 'testo', figlio, ...)
@@ -299,14 +303,18 @@
     }
 
     function buildShell(container) {
-        // Una sola barra: freccia per tornare all'add-in e la scheda In coda.
+        // Una sola barra con le schede In coda e Debug.
+        // Le sezioni di jak stanno sempre dentro il pannello (nascoste fuori da Debug): il suo codice le cerca per id.
+        debugHost = h('div', { class: 'ao-debug', hidden: true },
+            ['main-view', 'header-view'].map(id => document.getElementById(id)).filter(Boolean));
         root = h('div', { id: 'ao-root', dataset: { build: BUILD } },
             h('nav', { class: 'ao-tabs', role: 'tablist' },
-                h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
-                h('button', { type: 'button', role: 'tab', class: 'ao-tab ao-active', 'aria-selected': 'true', dataset: { view: 'queue' } },
-                    h('span', { class: 'ao-tab-label' }, TEXTS.tabs.queue), counter(0)),
+                VIEWS.map(view => h('button', {
+                    type: 'button', role: 'tab', class: 'ao-tab', dataset: { view }, onclick: () => setView(view)
+                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
+            debugHost,
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }));
         // Scheda aperta: un clic fuori prima la richiude (con l'animazione) e non fa altro;
         // solo il clic successivo apre un'altra richiesta. Scheda e selettore restano liberi.
@@ -321,31 +329,59 @@
             closeTakeCharge(form);
         }, true);
         container.replaceChildren(root);
-        // La sottolineatura blu segue la larghezza della scheda.
-        if (window.ResizeObserver) new ResizeObserver(placeTabIndicator).observe(root.querySelector('.ao-tabs'));
+        // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
+        const indicator = root.querySelector('.ao-tab-indicator');
+        if (window.ResizeObserver) new ResizeObserver(() => { if (!indicator.classList.contains('ao-moving')) placeTabIndicator(); }).observe(root.querySelector('.ao-tabs'));
+        indicator.addEventListener('transitionend', () => indicator.classList.remove('ao-moving'));
     }
+    const VIEWS = ['queue', 'debug'];
+    // Cambio di scheda: la sottolineatura scivola e il contenuto entra dal lato verso cui ci si sposta.
+    function setView(view) {
+        if (view === state.view) return;
+        const direction = VIEWS.indexOf(view) > VIEWS.indexOf(state.view) ? 1 : -1;
+        state.view = view;
+        state.barOffset = 0;
+        render();
+        const shown = root.querySelector(view === 'debug' ? '.ao-debug' : '.ao-body');
+        if (shown?.animate && !reducedMotion()) shown.animate([
+            { opacity: 0, transform: `translateX(${24 * direction}px)` },
+            { opacity: 1, transform: 'none' }
+        ], { duration: 280, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+    }
+    // Sottolineatura blu: un elemento solo che scivola sotto la scheda attiva.
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
-        const tab = root?.querySelector('.ao-tab');
+        const tab = root?.querySelector(`.ao-tab[data-view="${state.view}"]`);
         if (!indicator || !tab) return;
+        const changed = indicator.dataset.view && indicator.dataset.view !== state.view && indicator.classList.contains('ao-ready');
+        indicator.classList.toggle('ao-moving', Boolean(changed));
         indicator.style.width = `${tab.offsetWidth}px`;
         indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
-        indicator.classList.add('ao-ready');
+        indicator.dataset.view = state.view;
+        requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
     // Segnalino (numero) accanto al nome della scheda: solo se le schede sono più di una.
     const counterAllowed = () => (root?.querySelectorAll('.ao-tab').length || 0) > 1;
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
-        placeTabIndicator();
         // Regola dei segnalini: nessuno con una scheda sola, e mai sulla scheda che si sta guardando.
-        // Qui c'è solo In coda (ed è quella aperta): il segnalino resta nel codice ma non si vede.
+        // Solo In coda ha un numero (le richieste attive): si vede quando si è su Debug.
+        const counts = { queue: state.queue.length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
+            const active = tab.dataset.view === state.view;
+            tab.classList.toggle('ao-active', active);
+            tab.setAttribute('aria-selected', String(active));
             const tabCounter = tab.querySelector('.ao-counter');
-            tabCounter.textContent = state.queue.length || '';
-            tabCounter.classList.toggle('ao-counter-off', !state.queue.length || tab.classList.contains('ao-active') || !counterAllowed());
+            const count = counts[tab.dataset.view] || 0;
+            tabCounter.textContent = count || '';
+            tabCounter.classList.toggle('ao-counter-off', !count || active || !counterAllowed());
         });
+        placeTabIndicator();
         const body = root.querySelector('.ao-body');
+        body.hidden = state.view !== 'queue';
+        debugHost.hidden = state.view !== 'debug';
+        if (state.view !== 'queue') return;
         // Il selettore Attive / Ignorate sta in cima all'elenco e scivola via scorrendo (watchScroll).
         // La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = state.queueTab;
@@ -860,7 +896,7 @@
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
-#ao-root button { font: inherit; color: inherit; }
+#ao-root :is(.ao-tabs, .ao-body, .ao-status) button { font: inherit; color: inherit; } /* i pulsanti di jak (Debug) tengono il loro stile */
 
 /* Intestazione e schede */
 #ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
@@ -885,6 +921,8 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Scheda Debug: le sezioni dell'add-in di jak con il loro stile, scorrono dentro il pannello */
+#ao-root .ao-debug { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
@@ -1041,8 +1079,14 @@
     // AmpModule.initialize().catch(...) all'avvio dell'add-in.
     async function initialize() {
         if (initialized) return;
-        const container = document.getElementById('amp-view');
-        if (!container) return;
+        // Nella pagina di jak l'area AMP può mancare: il pannello la crea in cima a <main>.
+        let container = document.getElementById('amp-view');
+        if (!container) {
+            const host = document.querySelector('main') || document.body;
+            container = h('section', { class: 'amp-view', id: 'amp-view' });
+            host.prepend(container);
+        }
+        container.hidden = false;
         initialized = true;
         injectStyles();
         buildShell(container);
@@ -1050,7 +1094,6 @@
         // Il riquadro di Outlook si può ridimensionare: l'altezza dell'area si ricalcola.
         window.addEventListener('resize', fitHeight);
         if (window.ResizeObserver) new ResizeObserver(() => fitHeight()).observe(scrollContainer());
-        document.getElementById('open-amp-button')?.addEventListener('click', show);
         Services.subscribe(() => { refreshLists(); });
         render();
         await refreshLists();
@@ -1088,11 +1131,7 @@
     function show() {
         initialize();
         fillPane();
-        const mainView = document.getElementById('main-view');
-        const headerView = document.getElementById('header-view');
         const ampView = document.getElementById('amp-view');
-        if (mainView) mainView.hidden = true;
-        if (headerView) headerView.hidden = true;
         if (ampView) ampView.hidden = false;
         render();
         fitHeight();

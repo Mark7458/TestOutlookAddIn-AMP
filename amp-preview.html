@@ -104,6 +104,14 @@
       <div id="main-view">
         <div class="notice">Schermata principale dell'add-in (simulata).</div>
         <button class="secondary-button amp-open-button" id="open-amp-button" type="button">Apri area AMP</button>
+        <!-- Sezioni come nella pagina di jak (v.0.2-config), semplificate: in produzione stanno nella scheda Debug -->
+        <section class="toggle-card"><button aria-expanded="false" class="section-toggle" type="button">Dettagli email</button>
+          <div class="toggle-panel" hidden>ID del messaggio, conversationId, categorie, oggetto, mittente, destinatari, data, allegati e corpo della mail selezionata (simulati).</div></section>
+        <section class="toggle-card"><button aria-expanded="false" class="section-toggle" type="button">Impostazioni plugin</button>
+          <div class="toggle-panel" hidden><label class="setting-row"><input type="checkbox"> Ricorda la vista aperta</label><label class="setting-row"><input type="checkbox" checked> Diagnostica attiva</label></div></section>
+        <section class="toggle-card"><button aria-expanded="false" class="section-toggle" type="button">Diagnostica</button>
+          <div class="toggle-panel" hidden><button class="secondary-button compact-button" type="button">Test Connessione</button> <button class="secondary-button compact-button" type="button">Reset completo auth</button> <button class="secondary-button compact-button" type="button">Aggiorna dati SharePoint</button>
+          <p>Host, versione, piattaforma, utente, mailbox, permessi delegati, versioni dei componenti (simulati).</p></div></section>
       </div>
       <div id="header-view" hidden></div>
       <section class="amp-view" hidden id="amp-view"></section>
@@ -354,6 +362,14 @@
   // ?prod nell'indirizzo: anteprima della versione di produzione (amp-prod.js) invece di quella di sviluppo (amp.js).
   (function () {
     const prod = /[?&]prod\b/.test(location.search);
+    // Sezioni simulate di jak: si aprono e chiudono come nella sua pagina.
+    document.querySelectorAll('#main-view .section-toggle').forEach(toggle => toggle.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.nextElementSibling.hidden = !open;
+    }));
+    // In produzione la pagina di jak non ha più "Apri area AMP" né la schermata principale da sola.
+    if (prod) document.querySelectorAll('#main-view .notice, #open-amp-button').forEach(element => element.remove());
     // Pulsanti Sviluppo / Produzione: ricaricano l'anteprima con l'altra versione.
     document.querySelectorAll('.preview-bar .version button').forEach(button => {
       const isProd = button.dataset.version === 'prod';
