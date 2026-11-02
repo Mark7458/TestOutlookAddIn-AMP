@@ -354,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:30';
+    const BUILD = '2026-11-02 18:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1423,14 +1423,14 @@
                 : ticketItem(group.tickets[0], user))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
-    // Selettore Da mail | Senza mail. All'inizio della stessa barra c'è il filtro operatore (vale per entrambi gli elenchi).
-    // Sui miei ticket (vista iniziale) è solo un imbuto; su un collega o su Tutti mostra il nome con la freccia.
+    // Selettore Da mail | Senza mail (simmetrico, come gli altri). Sotto, nella riga dove nel ticket aperto c'è "← Ticket",
+    // il filtro operatore, sempre visibile: imbuto, nome (Miei, il collega o Tutti) e freccia. Vale per entrambi gli elenchi.
     // Menu: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
-        const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator.split(' ')[0]);
+        const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator);
         const bar = filterBar([
             { value: 'mail', label: TEXTS.tickets.fromMail, count: counts.mail },
             { value: 'none', label: TEXTS.tickets.withoutMail, count: counts.none }
@@ -1440,19 +1440,16 @@
             state.operatorMenu = false;
             render();
         });
-        const personal = operator === 'mine';
-        bar.prepend(h('button', {
-            type: 'button', class: `ao-operator${personal ? ' ao-operator-icon' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
-            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName,
-            title: operator === 'all' || personal ? undefined : operator,
+        const filter = h('div', { class: 'ao-filter-row' }, h('button', {
+            type: 'button', class: `ao-operator${state.operatorMenu ? ' ao-open' : ''}`,
+            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu),
             onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
-        }, personal ? svgIcon(FILTER_ICON)
-            : [h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')]));
+        }, svgIcon(FILTER_ICON), h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')));
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
-        return h('div', { class: 'ao-source-bar' }, bar,
+        return h('div', { class: 'ao-source-bar' }, bar, filter,
             state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
@@ -2573,11 +2570,12 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
 #ao-root .ao-source-bar { position: relative; display: grid; }
-#ao-root .ao-operator { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 40%; margin-right: 2px; padding: 0 10px 0 8px; border: 0; border-right: 1px solid var(--ao-line-light); border-radius: calc(var(--ao-radius-base) - 2px) 0 0 calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
+#ao-root .ao-source-bar { gap: 6px; }
+#ao-root .ao-filter-row { display: flex; align-items: center; min-height: 22px; }
+#ao-root .ao-operator { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; margin-left: -6px; padding: 2px 6px; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-operator:hover, #ao-root .ao-operator.ao-open { background: var(--ao-hover); }
-#ao-root .ao-operator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ao-root .ao-operator.ao-operator-icon { padding: 0 8px; color: var(--ao-text-muted); }
-#ao-root .ao-source-bar .ao-menu { left: 0; }
+#ao-root .ao-operator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ao-text); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-source-bar .ao-menu { left: 0; top: 100%; }
 #ao-root .ao-source-caret { font-size: var(--ao-fs-xs); opacity: .75; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
