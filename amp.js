@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 14:30';
+    const BUILD = '2026-11-02 14:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -513,7 +513,7 @@
         const companies = Object.entries(config.companies);
         if (domain) {
             const match = companies.find(([, company]) => company.domains.some(item => domain === item || domain.endsWith(`.${item}`)));
-            if (match) return { id: match[0], reason: TEXTS.mail.byDomain(domain) };
+            if (match) return { id: match[0], reason: TEXTS.mail.byDomain(domain), tag: `@${domain}` };
         }
         const text = `${subject || ''}\n${body || ''}`.toLowerCase();
         const byText = companies.find(([, company]) => company.name && text.includes(company.name.toLowerCase()));
@@ -1233,7 +1233,7 @@
     }
     function queueActionContent(item, mail, config, choice) {
         const card = button => button.closest('.ao-queue-item');
-        if (choice.action === 'take') return [ticketForm(mail, config, { compact: true }), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
+        if (choice.action === 'take') return [ticketForm(mail, config, { compact: true, zone: true }), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
         if (choice.action === 'forward') {
             const group = FORWARD_GROUPS.find(entry => entry.id === choice.group);
             return [
@@ -1631,7 +1631,7 @@
             type: 'button',
             class: `ao-fav${activityId === draft.activityId ? ' ao-active' : ''}`,
             onclick: () => { draft.activityId = activityId; render(); }
-        }, `${company.name} · ${config.activities[activityId].name}`)));
+        }, h('span', { class: 'ao-fav-company' }, `${company.name} ·`), ` ${config.activities[activityId].name}`)));
     }
 
     function ticketDraft(mail, config) {
@@ -1653,7 +1653,7 @@
     }
     // Campi della presa in carico: Preferiti, Agenzia (suggerita), Attività, Short description.
     // Nella versione compatta (In coda) mancano l'anteprima dei campi su ServiceNow.
-    function ticketForm(mail, config, { compact = false, user = currentUser(config) } = {}) {
+    function ticketForm(mail, config, { compact = false, zone = false, user = currentUser(config) } = {}) {
         const draft = ticketDraft(mail, config);
         const companies = Object.entries(config.companies).sort(byName);
         const activities = Object.entries(config.activities).sort(byName);
@@ -1662,6 +1662,20 @@
         const rerender = () => render();
         // Parole per i suggerimenti: oggetto e inizio della mail; senza mail, la Short description scritta.
         const suggestText = mail.manual ? draft.subject : `${mail.subject || ''} ${String(mail.body || '').slice(0, 400)}`;
+        // In coda: campi raccolti in un riquadro; l'agenzia suggerita è un'etichetta accanto ad "Agenzia"
+        // (la frase intera passando sopra) e le pillole stanno sotto "Attività", che è quello che scelgono.
+        if (zone) {
+            const suggested = draft.suggestion && draft.suggestion.id === draft.companyId;
+            const companyField = selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
+                draft.companyId, value => { draft.companyId = value; rerender(); });
+            if (suggested) companyField.querySelector('.ao-label').append(
+                h('span', { class: 'ao-suggest-tag', title: TEXTS.mail.suggestedFrom(draft.suggestion.reason) }, draft.suggestion.tag || TEXTS.mail.suggestedFrom(draft.suggestion.reason)));
+            const activityField = selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
+                draft.activityId, value => { draft.activityId = value; rerender(); });
+            activityField.insertBefore(h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
+                activityField.querySelector('select'));
+            return h('div', { class: 'ao-take-zone' }, companyField, activityField);
+        }
         return [
             selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.companyId, value => { draft.companyId = value; rerender(); }),
@@ -2526,6 +2540,18 @@
 #ao-root .ao-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #ao-root .ao-favorites { display: grid; gap: 4px; }
 #ao-root .ao-suggestions-slot:empty { display: none; }
+/* In coda, Prendi in carico: campi in un riquadro grigio, campi e pillole bianchi con un'ombra leggera (niente bordo) */
+#ao-root .ao-take-zone { display: grid; gap: 8px; padding: 9px; border-radius: var(--ao-radius-base); background: var(--ao-bg); }
+#ao-root .ao-take-zone .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-take-zone .ao-input { min-height: 30px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+#ao-root .ao-take-zone .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); }
+#ao-root .ao-take-zone .ao-suggestions-slot { margin-bottom: 3px; }
+#ao-root .ao-take-zone .ao-fav { padding: 4px 10px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
+#ao-root .ao-take-zone .ao-fav:hover { border-color: transparent; background: var(--ao-hover); }
+#ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
+#ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
 #ao-root .ao-new-ticket { padding: 8px; border: 1px dashed var(--ao-accent); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .15s; }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); }
 #ao-root .ao-new-ticket-card { border-color: var(--ao-accent); }
