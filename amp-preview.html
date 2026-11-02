@@ -362,6 +362,18 @@
   // ?prod nell'indirizzo: anteprima della versione di produzione (amp-prod.js) invece di quella di sviluppo (amp.js).
   (function () {
     const prod = /[?&]prod\b/.test(location.search);
+    // Configurazione operativa di esempio (in Outlook la scarica il core dell'add-in): solo i gruppi, niente dati reali.
+    try {
+      if (!localStorage.getItem('test-plugin-operational-config')) localStorage.setItem('test-plugin-operational-config', JSON.stringify({
+        schemaVersion: 1, dataVersion: 1, downloadedAt: new Date().toISOString(),
+        payload: { schemaVersion: 1, dataVersion: 1, agencies: {}, operators: {}, groups: {
+          'GRP-01': { displayName: 'Competence Center', shortName: 'AMPCoE', type: 'internal', enabled: true },
+          'GRP-02': { displayName: 'Post Office', shortName: 'PO', type: 'external', enabled: true },
+          'GRP-03': { displayName: 'Amministratori PEL', shortName: 'PEL', type: 'external', enabled: true },
+          'GRP-04': { displayName: 'Email Security', shortName: 'ES', type: 'external', enabled: true }
+        } }
+      }));
+    } catch (error) { console.error(error); }
     // Sezioni simulate di jak: si aprono e chiudono come nella sua pagina.
     document.querySelectorAll('#main-view .section-toggle').forEach(toggle => toggle.addEventListener('click', () => {
       const open = toggle.getAttribute('aria-expanded') !== 'true';
