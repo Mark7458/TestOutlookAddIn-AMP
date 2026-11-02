@@ -183,6 +183,8 @@
             fromMail: 'Da mail',
             withoutMail: 'Senza mail',
             allOperators: 'Tutti',
+            search: 'Cerca',
+            searchPlaceholder: 'INC o oggetto',
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
@@ -354,7 +356,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:40';
+    const BUILD = '2026-11-02 18:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -600,6 +602,7 @@
         { id: 'PEL', name: 'Amministratori PEL' },
         { id: 'PO', name: 'Post Office' }
     ];
+    const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     function svgIcon(markup) {
@@ -619,6 +622,8 @@
         ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
         ticketOperator: 'mine', // Ticket: mine (vista iniziale) | nome del collega | all
         operatorMenu: false, // menu degli operatori aperto
+        ticketSearchOpen: false, // ricerca (lente) aperta
+        ticketQuery: '', // testo cercato: numero INC o oggetto
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
@@ -925,7 +930,7 @@
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
         root.addEventListener('click', event => {
-            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-operator')) return;
+            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-bar-icon-start')) return;
             state.operatorMenu = false;
             render();
         }, true);
@@ -999,7 +1004,7 @@
         const body = root.querySelector('.ao-body');
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
-        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.settingsTab}`;
+        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.ticketQuery}|${state.settingsTab}`;
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
         const children = [...view.children];
@@ -1390,8 +1395,11 @@
         const byOperator = ticket => operator === 'all' || (operator === 'mine' ? isMine(ticket, user)
             : !isMine(ticket, user) && (ticket.assignedTo?.name || TEXTS.common.unassigned) === operator);
         const fromMail = ticket => Boolean(ticket.messageId);
-        const visible = open.filter(byOperator);
-        const items = visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
+        // Ricerca (lente): numero INC o oggetto, in entrambi gli elenchi; il filtro operatore resta valido.
+        const query = state.ticketQuery.trim().toLowerCase();
+        const matches = ticket => !query || `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
+        const visible = open.filter(ticket => byOperator(ticket) && matches(ticket));
+        const items = query ? visible : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
         const groups = [];
         items.forEach(ticket => {
             const group = ticket.conversationId && groups.find(item => item.conversationId === ticket.conversationId);
@@ -1419,18 +1427,20 @@
                 ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
                     newMessagesPreview(group.tickets[0]),
-                    h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true }))))
-                : ticketItem(group.tickets[0], user))))
+                    h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))))
+                : ticketItem(group.tickets[0], user, { query }))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
-    // Selettore Da mail | Senza mail (simmetrico, come gli altri). Sotto, nella riga dove nel ticket aperto c'è "← Ticket",
-    // il filtro operatore, sempre visibile: imbuto, nome (Miei, il collega o Tutti) e freccia. Vale per entrambi gli elenchi.
-    // Menu: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
+    // Barra di Ticket, simmetrica: imbuto (filtro operatore) | Da mail | Senza mail | lente (ricerca).
+    // Sotto, solo quando serve: a sinistra l'etichetta del collega filtrato (×: torna ai miei),
+    // a destra, sotto la lente, la ricerca a pillola. Il filtro vale per entrambi gli elenchi.
+    // Menu dell'imbuto: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
         const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator);
+        const searching = state.ticketSearchOpen || Boolean(state.ticketQuery);
         const bar = filterBar([
             { value: 'mail', label: TEXTS.tickets.fromMail, count: counts.mail },
             { value: 'none', label: TEXTS.tickets.withoutMail, count: counts.none }
@@ -1440,22 +1450,63 @@
             state.operatorMenu = false;
             render();
         });
-        const filter = h('div', { class: 'ao-filter-row' }, h('button', {
-            type: 'button', class: `ao-operator${state.operatorMenu ? ' ao-open' : ''}`,
-            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu),
+        bar.prepend(h('button', {
+            type: 'button', class: `ao-bar-icon ao-bar-icon-start${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
+            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName, title: filterName,
             onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
-        }, svgIcon(FILTER_ICON), h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')));
+        }, svgIcon(FILTER_ICON)));
+        bar.append(h('button', {
+            type: 'button', class: `ao-bar-icon ao-bar-icon-end${searching ? ' ao-active' : ''}`, 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
+            onclick: () => {
+                state.operatorMenu = false;
+                if (searching) { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); }
+                else { state.ticketSearchOpen = true; render(); focusTicketSearch(); }
+            }
+        }, svgIcon(SEARCH_ICON)));
+        const closeSearch = () => { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); };
+        const row = operator !== 'mine' || searching ? h('div', { class: 'ao-filter-row' },
+            operator !== 'mine' ? h('span', { class: 'ao-filter-chip' },
+                h('span', { class: 'ao-filter-chip-name' }, filterName),
+                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: () => { state.ticketOperator = 'mine'; render(); } }, '×')) : null,
+            searching ? h('label', { class: 'ao-search-pill' },
+                h('input', {
+                    class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder,
+                    oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); },
+                    onkeydown: event => { if (event.key === 'Escape') closeSearch(); }
+                }),
+                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: closeSearch }, '×')) : null) : null;
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
-        return h('div', { class: 'ao-source-bar' }, bar, filter,
+        return h('div', { class: 'ao-source-bar' }, bar, row,
             state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
                 colleagues.map(name => item(name, name)),
                 h('hr', { class: 'ao-menu-sep' }),
                 item('all', TEXTS.tickets.allOperators)) : null);
+    }
+    // Dopo ogni ridisegno il campo di ricerca torna attivo, con il cursore in fondo.
+    function focusTicketSearch() {
+        const input = root?.querySelector('.ao-search-input');
+        if (!input) return;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    }
+    // Testo con le parti trovate dalla ricerca evidenziate.
+    function markText(text, query) {
+        const value = String(text || '');
+        if (!query) return value;
+        const parts = [];
+        let from = 0;
+        const lower = value.toLowerCase();
+        for (let at = lower.indexOf(query); at >= 0; at = lower.indexOf(query, from)) {
+            parts.push(value.slice(from, at), h('mark', { class: 'ao-mark' }, value.slice(at, at + query.length)));
+            from = at + query.length;
+        }
+        parts.push(value.slice(from));
+        return parts;
     }
     // Nuovo ticket senza mail: si apre da Ticket. Stesso modulo della presa in carico, più Short description,
     // data e ora di ricezione (hh:mm, poi nel formato di ServiceNow) e Description. Caller = chi apre il ticket.
@@ -1518,17 +1569,18 @@
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
     }
-    function ticketItem(ticket, user, { inGroup = false } = {}) {
+    function ticketItem(ticket, user, { inGroup = false, query = '' } = {}) {
         const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
         return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, () => openTicketItem(ticket),
             // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
             h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-number' }, ticket.number),
+                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
                 stateChip(ticket)),
-            h('div', { class: 'ao-item-title' }, ticket.shortDescription),
-            h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
+            h('div', { class: 'ao-item-title' }, markText(ticket.shortDescription, query)),
+            // Durante una ricerca i risultati arrivano da entrambi gli elenchi: si dice da quale.
+            h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')),
             inGroup ? null : newMessagesPreview(ticket),
             h('div', { class: 'ao-item-meta' },
                 mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'),
@@ -2571,12 +2623,27 @@
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
 #ao-root .ao-source-bar { position: relative; display: grid; }
 #ao-root .ao-source-bar { gap: 6px; }
-#ao-root .ao-filter-row { display: flex; align-items: center; min-height: 22px; }
-#ao-root .ao-operator { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; margin-left: -6px; padding: 2px 6px; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
-#ao-root .ao-operator:hover, #ao-root .ao-operator.ao-open { background: var(--ao-hover); }
-#ao-root .ao-operator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ao-text); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-source-bar .ao-menu { left: 0; top: 100%; }
-#ao-root .ao-source-caret { font-size: var(--ao-fs-xs); opacity: .75; }
+/* Icone ai lati della barra: stessa larghezza, così Da mail e Senza mail restano al centro */
+#ao-root .ao-bar-icon { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; padding: 0; border: 0; background: none; color: var(--ao-text-muted); cursor: pointer; }
+#ao-root .ao-bar-icon-start { margin-right: 2px; border-right: 1px solid var(--ao-line-light); border-radius: calc(var(--ao-radius-base) - 2px) 0 0 calc(var(--ao-radius-base) - 2px); }
+#ao-root .ao-bar-icon-end { margin-left: 2px; border-left: 1px solid var(--ao-line-light); border-radius: 0 calc(var(--ao-radius-base) - 2px) calc(var(--ao-radius-base) - 2px) 0; }
+#ao-root .ao-bar-icon:hover, #ao-root .ao-bar-icon.ao-open { background: var(--ao-hover); }
+#ao-root .ao-bar-icon.ao-active { color: var(--ao-text-accent); }
+#ao-root .ao-bar-icon.ao-active::after { content: ""; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
+/* Riga sotto la barra: collega filtrato a sinistra, ricerca a pillola a destra (sotto la lente) */
+#ao-root .ao-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#ao-root .ao-filter-chip, #ao-root .ao-search-pill { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; }
+#ao-root .ao-filter-chip { min-width: 0; }
+#ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
+#ao-root .ao-search-pill { flex: 0 1 58%; margin-left: auto; border-color: var(--ao-accent-border); }
+#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
+#ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
+#ao-root .ao-search-pill:focus-within { border-color: var(--ao-accent); }
+#ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
+#ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
+#ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
+#ao-root .ao-source-bar .ao-menu { left: 0; top: 38px; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 #ao-root .ao-menu-item { padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
