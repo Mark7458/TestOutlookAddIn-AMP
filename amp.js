@@ -354,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:00';
+    const BUILD = '2026-11-02 18:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1439,13 +1439,13 @@
             else { state.ticketSource = value; state.operatorMenu = false; }
             render();
         });
-        bar.classList.add('ao-segmented-compact');
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
         return h('div', { class: 'ao-source-bar' }, bar,
-            state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
+            // Il menu si apre sotto la voce scelta (a sinistra per Da mail, a destra per Senza mail).
+            state.operatorMenu ? h('div', { class: `ao-menu ao-menu-${state.ticketSource === 'none' ? 'right' : 'left'}`, role: 'menu' },
                 item('all', TEXTS.tickets.allOperators),
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
@@ -2562,13 +2562,13 @@
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
-/* Ticket: selettore compatto e centrato, con il filtro operatore nella voce scelta e il menu sotto */
-#ao-root .ao-source-bar { position: relative; display: flex; justify-content: center; }
-#ao-root .ao-segmented.ao-segmented-compact { display: inline-flex; }
-#ao-root .ao-segmented-compact .ao-segment { flex: none; padding: 0 14px; }
+/* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
+#ao-root .ao-source-bar { position: relative; display: grid; }
+#ao-root .ao-menu-left { left: 0; }
+#ao-root .ao-menu-right { right: 0; }
 #ao-root .ao-source-filter { font-weight: var(--ao-fw-normal); }
 #ao-root .ao-source-caret { order: 2; margin-left: -1px; font-size: var(--ao-fs-xs); opacity: .75; } /* la freccia dopo il numero */
-#ao-root .ao-segmented-compact .ao-count { order: 1; }
+#ao-root .ao-source-bar .ao-count { order: 1; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 #ao-root .ao-menu-item { padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
