@@ -15,6 +15,9 @@
   .preview-bar strong { font-size: 14px; margin-right: 4px; }
   .preview-bar button { padding: 4px 9px; border: 1px solid #8a8886; border-radius: 4px; background: #fff; color: #242424; font: inherit; cursor: pointer; }
   .preview-bar .note { color: #c8c6c4; font-size: 12px; }
+  .preview-bar .version { display: inline-flex; border: 1px solid #8a8886; border-radius: 4px; overflow: hidden; }
+  .preview-bar .version button { border: 0; border-radius: 0; background: transparent; color: #f3f2f1; }
+  .preview-bar .version button.on { background: #fff; color: #242424; font-weight: 600; cursor: default; }
   .layout { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 12px; }
 
   /* Outlook simulata */
@@ -73,6 +76,9 @@
 
 <div class="preview-bar">
   <strong>Anteprima area AMP</strong>
+  <span class="version" role="group" aria-label="Versione del pannello">
+    <button type="button" data-version="dev">Sviluppo</button><button type="button" data-version="prod">Produzione</button>
+  </span>
   <button type="button" id="preview-seed">Carica configurazioni di esempio</button>
   <button type="button" id="preview-reset-mail">Ripristina mail e ticket</button>
   <button type="button" id="preview-reset-config">Azzera configurazioni</button>
@@ -347,8 +353,15 @@
 <script>
   // ?prod nell'indirizzo: anteprima della versione di produzione (amp-prod.js) invece di quella di sviluppo (amp.js).
   (function () {
+    const prod = /[?&]prod\b/.test(location.search);
+    // Pulsanti Sviluppo / Produzione: ricaricano l'anteprima con l'altra versione.
+    document.querySelectorAll('.preview-bar .version button').forEach(button => {
+      const isProd = button.dataset.version === 'prod';
+      button.classList.toggle('on', isProd === prod);
+      button.addEventListener('click', () => { if (isProd !== prod) location.search = isProd ? '?prod' : ''; });
+    });
     const script = document.createElement('script');
-    script.src = /[?&]prod\b/.test(location.search) ? 'amp-prod.js' : 'amp.js';
+    script.src = prod ? 'amp-prod.js' : 'amp.js';
     script.onload = () => window.AmpModule?.show();
     document.head.append(script);
   })();
