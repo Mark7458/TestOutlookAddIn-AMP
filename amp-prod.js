@@ -117,7 +117,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:30';
+    const BUILD = '2026-11-02 15:40';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -975,7 +975,7 @@
 #ao-root .ao-fill-forward:hover:where(:not(:disabled)) { filter: brightness(.92); }
 #ao-root .ao-fill-danger, #ao-root .ao-fill-danger:hover:where(:not(:disabled)) { background: #d13438; border-color: #d13438; color: var(--ao-white); }
 #ao-root .ao-fill-danger:hover:where(:not(:disabled)) { filter: brightness(.92); }
-#ao-root .ao-collapse { display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
+#ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-svg-icon { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
