@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:40';
+    const BUILD = '2026-11-02 15:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -938,6 +938,8 @@
         indicator.dataset.view = activeView;
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
+    // Segnalino (numero) accanto al nome della scheda: solo se le schede sono più di una.
+    const counterAllowed = () => (root?.querySelectorAll('.ao-tab').length || 0) > 1;
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
@@ -958,7 +960,8 @@
             const tabCounter = tab.querySelector('.ao-counter');
             const count = counts[tab.dataset.view];
             tabCounter.textContent = count || '';
-            tabCounter.hidden = !count && !notify;
+            // Regola dei segnalini: nessuno con una scheda sola, e mai sulla scheda che si sta guardando.
+            tabCounter.hidden = (!count && !notify) || active || !counterAllowed();
             tabCounter.classList.toggle('ao-counter-notify', notify);
             if (notify) tabCounter.title = TEXTS.tickets.newMessagesTitle(newReplies);
             else tabCounter.removeAttribute('title');

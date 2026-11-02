@@ -117,7 +117,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:40';
+    const BUILD = '2026-11-02 15:50';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -331,13 +331,19 @@
         indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
         indicator.classList.add('ao-ready');
     }
+    // Segnalino (numero) accanto al nome della scheda: solo se le schede sono più di una.
+    const counterAllowed = () => (root?.querySelectorAll('.ao-tab').length || 0) > 1;
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
         placeTabIndicator();
-        const tabCounter = root.querySelector('.ao-tab .ao-counter');
-        tabCounter.textContent = state.queue.length || '';
-        tabCounter.hidden = !state.queue.length;
+        // Regola dei segnalini: nessuno con una scheda sola, e mai sulla scheda che si sta guardando.
+        // Qui c'è solo In coda (ed è quella aperta): il segnalino resta nel codice ma non si vede.
+        root.querySelectorAll('.ao-tab').forEach(tab => {
+            const tabCounter = tab.querySelector('.ao-counter');
+            tabCounter.textContent = state.queue.length || '';
+            tabCounter.hidden = !state.queue.length || tab.classList.contains('ao-active') || !counterAllowed();
+        });
         const body = root.querySelector('.ao-body');
         // Il selettore Attive / Ignorate sta in cima all'elenco e scivola via scorrendo (watchScroll).
         // La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
