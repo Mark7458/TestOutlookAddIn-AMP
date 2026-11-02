@@ -180,6 +180,9 @@
             badTime: "Scrivi l'ora come hh:mm (per esempio 09:30).",
             mine: 'Miei',
             others: 'Altri',
+            fromMail: 'Da mail',
+            withoutMail: 'Senza mail',
+            allOperators: 'Tutti',
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
@@ -351,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 17:40';
+    const BUILD = '2026-11-02 18:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -612,7 +615,9 @@
         loaded: false,
         loading: false,
         serviceError: '',
-        ticketFilter: 'mine',
+        ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
+        ticketOperator: 'all', // Ticket: all | mine | nome del collega
+        operatorMenu: false, // menu degli operatori aperto
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
@@ -863,6 +868,7 @@
         state.view = view;
         state.backTo = backTo;
         state.editing = null;
+        state.operatorMenu = false;
         render();
         scrollToTop();
         if (from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
@@ -916,6 +922,12 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+        // Menu degli operatori (Ticket): un clic fuori lo chiude.
+        root.addEventListener('click', event => {
+            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-source-bar .ao-segment.ao-active')) return;
+            state.operatorMenu = false;
+            render();
+        }, true);
         // Anteprima aperta in In coda: un clic fuori dalla scheda prima la richiude (con l'animazione)
         // e non fa altro; solo il clic successivo apre un'altra richiesta. Schede e selettori restano liberi.
         root.addEventListener('click', event => {
@@ -986,11 +998,11 @@
         const body = root.querySelector('.ao-body');
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
-        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketFilter}|${state.settingsTab}`;
+        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.settingsTab}`;
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
         const children = [...view.children];
-        const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row'));
+        const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row, .ao-source-bar'));
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
         if (!previousScroll) state.barOffset = 0;
@@ -1367,13 +1379,18 @@
 
     // ---------------------------- Ticket ----------------------------------
     // I ticket dello stesso thread stanno insieme; in cima i thread con messaggi nuovi.
+    // Ticket: in alto il selettore Da mail | Senza mail (centrato). Ricliccando la voce scelta si apre il menu
+    // degli operatori: Tutti (vista generale), Miei, poi un collega alla volta. Il filtro scelto si legge nella voce.
+    // "+ Nuovo ticket" apre un ticket senza mail, quindi sta solo in Senza mail.
     function renderTickets(config, user) {
         const notice = serviceNotice();
         const open = state.tickets.slice();
-        const mine = open.filter(ticket => isMine(ticket, user));
-        // Miei | Altri: i due elenchi non si sovrappongono (Altri = tutti i ticket aperti tranne i miei).
-        const others = open.filter(ticket => !isMine(ticket, user));
-        const items = state.ticketFilter === 'mine' ? mine : others;
+        const operator = state.ticketOperator;
+        const byOperator = ticket => operator === 'all' || (operator === 'mine' ? isMine(ticket, user)
+            : !isMine(ticket, user) && (ticket.assignedTo?.name || TEXTS.common.unassigned) === operator);
+        const fromMail = ticket => Boolean(ticket.messageId);
+        const visible = open.filter(byOperator);
+        const items = visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
         const groups = [];
         items.forEach(ticket => {
             const group = ticket.conversationId && groups.find(item => item.conversationId === ticket.conversationId);
@@ -1392,11 +1409,11 @@
         });
         return h('div', { class: 'ao-view' },
             notice,
-            filterBar([
-                { value: 'mine', label: TEXTS.tickets.mine, count: mine.length },
-                { value: 'others', label: TEXTS.tickets.others, count: others.length }
-            ], state.ticketFilter, value => { state.ticketFilter = value; render(); }),
-            newTicketSection(config),
+            ticketSourceBar(open, user, {
+                mail: visible.filter(fromMail).length,
+                none: visible.filter(ticket => !fromMail(ticket)).length
+            }),
+            state.ticketSource === 'none' ? newTicketSection(config) : null,
             groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
                 ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
@@ -1404,6 +1421,35 @@
                     h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true }))))
                 : ticketItem(group.tickets[0], user))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
+    }
+    // Selettore Da mail | Senza mail con il menu degli operatori (si apre ricliccando la voce scelta).
+    function ticketSourceBar(open, user, counts) {
+        const operator = state.ticketOperator;
+        const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
+            .sort((a, b) => a.localeCompare(b, 'it'));
+        const filterName = operator === 'all' ? '' : (operator === 'mine' ? TEXTS.tickets.mine : operator.split(' ')[0]);
+        const label = (value, text) => (state.ticketSource === value
+            ? [text, filterName ? h('span', { class: 'ao-source-filter' }, ` · ${filterName}`) : null, h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')]
+            : text);
+        const bar = filterBar([
+            { value: 'mail', label: label('mail', TEXTS.tickets.fromMail), count: counts.mail },
+            { value: 'none', label: label('none', TEXTS.tickets.withoutMail), count: counts.none }
+        ], state.ticketSource, value => {
+            if (value === state.ticketSource) state.operatorMenu = !state.operatorMenu;
+            else { state.ticketSource = value; state.operatorMenu = false; }
+            render();
+        });
+        bar.classList.add('ao-segmented-compact');
+        const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
+        const item = (value, text) => h('button', {
+            type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
+        }, text);
+        return h('div', { class: 'ao-source-bar' }, bar,
+            state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
+                item('all', TEXTS.tickets.allOperators),
+                item('mine', TEXTS.tickets.mine),
+                colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
+                colleagues.map(name => item(name, name))) : null);
     }
     // Nuovo ticket senza mail: si apre da Ticket. Stesso modulo della presa in carico, più Short description,
     // data e ora di ricezione (hh:mm, poi nel formato di ServiceNow) e Description. Caller = chi apre il ticket.
@@ -2516,6 +2562,20 @@
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
+/* Ticket: selettore compatto e centrato, con il filtro operatore nella voce scelta e il menu sotto */
+#ao-root .ao-source-bar { position: relative; display: flex; justify-content: center; }
+#ao-root .ao-segmented.ao-segmented-compact { display: inline-flex; }
+#ao-root .ao-segmented-compact .ao-segment { flex: none; padding: 0 14px; }
+#ao-root .ao-source-filter { font-weight: var(--ao-fw-normal); }
+#ao-root .ao-source-caret { order: 2; margin-left: -1px; font-size: var(--ao-fs-xs); opacity: .75; } /* la freccia dopo il numero */
+#ao-root .ao-segmented-compact .ao-count { order: 1; }
+#ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
+@keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
+#ao-root .ao-menu-item { padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
+#ao-root .ao-menu-item:hover { background: var(--ao-hover); }
+#ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
