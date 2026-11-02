@@ -123,7 +123,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 13:30';
+    const BUILD = '2026-11-02 14:20';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -542,11 +542,13 @@
         const choice = expanded ? state.queueChoice[item.conversationId]?.action : undefined;
         return h('li', {
             class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${expanded && state.liftFrom === item.conversationId ? ' ao-unlifted' : ''}`,
-            dataset: { conversation: item.conversationId, choice }
+            dataset: { conversation: item.conversationId, choice },
+            // Chiusa: si apre con un clic in qualsiasi punto della scheda (anche sui bordi).
+            onclick: () => { if (!expanded) openTakeCharge(item); }
         },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
-                onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
+                onclick: event => { event.stopPropagation(); toggle(); }, onkeydown: event => { if (event.key === 'Enter') toggle(); }
             },
                 h('div', { class: 'ao-queue-row' },
                     h('span', { class: 'ao-item-title', title: expanded ? undefined : item.subject || undefined }, item.subject || '(senza oggetto)'),

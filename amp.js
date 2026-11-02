@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 13:05';
+    const BUILD = '2026-11-02 14:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1189,11 +1189,13 @@
         const choice = expanded ? state.queueChoice[item.conversationId]?.action : undefined;
         return h('li', {
             class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${expanded && state.liftFrom === item.conversationId ? ' ao-unlifted' : ''}`,
-            dataset: { conversation: item.conversationId, choice }
+            dataset: { conversation: item.conversationId, choice },
+            // Chiusa: si apre con un clic in qualsiasi punto della scheda (anche sui bordi).
+            onclick: () => { if (!expanded) openTakeCharge(item); }
         },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
-                onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
+                onclick: event => { event.stopPropagation(); toggle(); }, onkeydown: event => { if (event.key === 'Enter') toggle(); }
             },
                 // Due righe sempre uguali: oggetto (su una riga, troncato; intero solo da aperta) e ora;
                 // mittente e casella condivisa.
