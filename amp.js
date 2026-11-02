@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:45';
+    const BUILD = '2026-11-02 19:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -638,9 +638,7 @@
         operatorMenu: false, // menu degli operatori aperto
         ticketSearchOpen: false, // ricerca (lente) aperta
         ticketQuery: '', // testo cercato: numero INC o oggetto
-        ticketSearchEnter: false, // ricerca appena aperta (animazione di entrata)
         ticketSearchShown: '', // testo dei risultati mostrati
-        ticketSearchExit: false, // ricerca appena chiusa (il selettore ricompare con una dissolvenza)
         ticketSearchPending: false, // si sta scrivendo: scheletro di caricamento al posto dei risultati
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
@@ -1466,29 +1464,13 @@
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         if (state.ticketSearchOpen) {
-            // Chiusura: la barra di ricerca si ritira verso la lente, poi ricompare il selettore.
-            const close = async event => {
-                if (state.holdRender) return;
-                clearTimeout(searchTimer);
-                const searchBar = event?.currentTarget?.closest('.ao-search-bar');
-                if (searchBar?.animate && !reducedMotion()) {
-                    await holdingRender(() => searchBar.animate([
-                        { clipPath: 'inset(0 0 0 0 round 6px)' },
-                        { clipPath: `inset(0 0 0 calc(100% - 36px) round 6px)` }
-                    ], { duration: 240, easing: 'cubic-bezier(.4, 0, .6, 1)', fill: 'forwards' }).finished.catch(() => {}));
-                }
-                Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false, ticketSearchExit: true });
-                render();
-                requestAnimationFrame(() => { state.ticketSearchExit = false; });
-            };
-            requestAnimationFrame(() => { state.ticketSearchEnter = false; }); // l'apertura si anima una volta sola, non a ogni tasto
             return h('div', { class: 'ao-source-bar' },
-                h('div', { class: `ao-segmented ao-search-bar${state.ticketSearchEnter ? ' ao-entering' : ''}`, role: 'search' },
+                h('div', { class: 'ao-segmented ao-search-bar', role: 'search' },
                     h('input', {
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
                         oninput: event => runTicketSearch(event.target.value)
                     }),
-                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: close }, svgIcon(SEARCH_ICON))));
+                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: closeTicketSearch }, svgIcon(SEARCH_ICON))));
         }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
@@ -1502,7 +1484,6 @@
             state.operatorMenu = false;
             render();
         });
-        if (state.ticketSearchExit) bar.classList.add('ao-returning'); // dopo la ricerca il selettore ricompare morbido
         bar.prepend(h('button', {
             type: 'button', class: `ao-bar-icon ao-bar-icon-start${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
             'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName, title: filterName,
@@ -1510,7 +1491,7 @@
         }, svgIcon(FILTER_ICON)));
         bar.append(h('button', {
             type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
-            onclick: () => { state.operatorMenu = false; Object.assign(state, { ticketSearchOpen: true, ticketSearchEnter: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false }); render(); focusTicketSearch(); }
+            onclick: openTicketSearch
         }, svgIcon(SEARCH_ICON)));
         const row = operator !== 'mine' ? h('div', { class: 'ao-filter-row' },
             h('span', { class: 'ao-filter-chip' },
@@ -1527,6 +1508,56 @@
                 colleagues.map(name => item(name, name)),
                 h('hr', { class: 'ao-menu-sep' }),
                 item('all', TEXTS.tickets.allOperators)) : null);
+    }
+    // Apertura e chiusura della ricerca, sincronizzate: la barra di ricerca si allarga dalla lente verso sinistra
+    // sopra il selettore mentre selettore ed elenco svaniscono; in chiusura si ritira verso la lente mentre ricompaiono.
+    const SEARCH_MOTION = { duration: 300, easing: 'cubic-bezier(.3, .8, .2, 1)' };
+    const SEARCH_CLIP_CLOSED = 'inset(0 0 0 calc(100% - 36px) round 6px)';
+    const SEARCH_CLIP_OPEN = 'inset(0 0 0 0 round 6px)';
+    function searchOverlay(sourceBar, value) {
+        const bar = sourceBar.querySelector('.ao-segmented');
+        const overlay = h('div', { class: 'ao-segmented ao-search-bar ao-search-overlay', 'aria-hidden': 'true' },
+            h('input', { class: 'ao-search-input', type: 'text', value, placeholder: TEXTS.tickets.searchPlaceholder, tabindex: '-1', readonly: true }),
+            h('span', { class: 'ao-bar-icon ao-bar-icon-end ao-active' }, svgIcon(SEARCH_ICON)));
+        overlay.style.top = `${bar.offsetTop}px`;
+        overlay.style.height = `${bar.offsetHeight}px`;
+        sourceBar.append(overlay);
+        return overlay;
+    }
+    // Quello che svanisce o ricompare insieme alla barra: il selettore (tranne la lente, che resta ferma) e l'elenco.
+    const searchCompanions = () => [
+        ...root.querySelectorAll('.ao-source-bar .ao-segmented:not(.ao-search-overlay) > :not(.ao-bar-icon-end), .ao-source-bar .ao-filter-row'),
+        ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
+    ];
+    async function openTicketSearch() {
+        if (state.holdRender) return;
+        state.operatorMenu = false;
+        const sourceBar = root.querySelector('.ao-source-bar');
+        if (sourceBar && !reducedMotion()) {
+            await holdingRender(async () => {
+                const overlay = searchOverlay(sourceBar, '');
+                const fades = searchCompanions().map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], { ...SEARCH_MOTION, fill: 'forwards' }).finished);
+                await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_CLOSED }, { clipPath: SEARCH_CLIP_OPEN }], { ...SEARCH_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
+            });
+        }
+        Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        render();
+        focusTicketSearch();
+    }
+    async function closeTicketSearch() {
+        if (state.holdRender) return;
+        clearTimeout(searchTimer);
+        const value = state.ticketQuery;
+        Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        render();
+        const sourceBar = root.querySelector('.ao-source-bar');
+        if (!sourceBar || reducedMotion()) return;
+        await holdingRender(async () => {
+            const overlay = searchOverlay(sourceBar, value);
+            const fades = searchCompanions().map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], SEARCH_MOTION).finished);
+            await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_OPEN }, { clipPath: SEARCH_CLIP_CLOSED }], { ...SEARCH_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
+            overlay.remove();
+        });
     }
     // Ricerca mentre si scrive: subito lo scheletro di caricamento, i risultati quando ci si ferma un attimo.
     let searchTimer = null;
@@ -2707,11 +2738,8 @@
 #ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
 #ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-accent-border); }
-/* Apertura: la barra si allarga dalla lente verso sinistra, poi compare il testo; chiusura al contrario */
-#ao-root .ao-search-bar.ao-entering { animation: ao-search-in .3s cubic-bezier(.3, .8, .2, 1); }
-#ao-root .ao-search-bar.ao-entering .ao-search-input { animation: ao-fade-in .2s linear .12s backwards; }
-@keyframes ao-search-in { from { clip-path: inset(0 0 0 calc(100% - 36px) round 6px); } to { clip-path: inset(0 0 0 0 round 6px); } }
-#ao-root .ao-segmented.ao-returning > :not(.ao-segment-thumb) { animation: ao-fade-in .2s linear; }
+/* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
+#ao-root .ao-search-overlay { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; }
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
 #ao-root .ao-search-bar .ao-bar-icon.ao-active::after { display: none; }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
@@ -2740,7 +2768,7 @@
 #ao-root .ao-menu-item:hover { background: var(--ao-hover); }
 #ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu, #ao-root .ao-search-bar, #ao-root .ao-search-bar .ao-search-input, #ao-root .ao-returning > * { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
