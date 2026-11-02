@@ -131,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 17:20';
+    const BUILD = '2026-11-02 19:05';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -205,6 +205,19 @@
     function svgIcon(markup) {
         const icon = h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' });
         icon.innerHTML = markup;
+        return icon;
+    }
+
+    // Icone delle schede principali
+    const TAB_ICONS = {
+        queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
+        tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
+        debug: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.5 13.8a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a3.5 3.5 0 0 0 4.6-3.3l-2 2-2-.5-.5-2z"/></svg>'
+    };
+    function tabIcon(view) {
+        if (!TAB_ICONS[view]) return null;
+        const icon = h('span', { class: 'ao-tab-icon', 'aria-hidden': 'true' });
+        icon.innerHTML = TAB_ICONS[view];
         return icon;
     }
 
@@ -331,7 +344,7 @@
             h('nav', { class: 'ao-tabs', role: 'tablist' },
                 VIEWS.map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view }, onclick: () => setView(view)
-                }, h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
+                }, tabIcon(view), h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             debugHost,
@@ -375,8 +388,11 @@
         if (!indicator || !tab) return;
         const changed = indicator.dataset.view && indicator.dataset.view !== state.view && indicator.classList.contains('ao-ready');
         indicator.classList.toggle('ao-moving', Boolean(changed));
-        indicator.style.width = `${tab.offsetWidth}px`;
-        indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+        // Linea corta e arrotondata, centrata sotto icona e nome della scheda.
+        const content = (tab.querySelector('.ao-tab-label')?.offsetWidth || 0) + (tab.querySelector('.ao-tab-icon')?.offsetWidth || 0) + 6;
+        const width = Math.min(tab.offsetWidth, Math.max(36, content + 12));
+        indicator.style.width = `${width}px`;
+        indicator.style.transform = `translateX(${tab.offsetLeft + (tab.offsetWidth - width) / 2}px)`;
         indicator.dataset.view = state.view;
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
@@ -925,8 +941,10 @@
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-hover); }
-#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-bold); }
-#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
+#ao-root .ao-tab.ao-active { color: var(--ao-text); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab-icon { display: inline-flex; margin-right: 5px; opacity: .8; transition: color .25s, opacity .25s; }
+#ao-root .ao-tab.ao-active .ao-tab-icon { color: var(--ao-accent); opacity: 1; }
+#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
 #ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
 #ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-indicator.ao-moving { transition: none; } }
