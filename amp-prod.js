@@ -93,11 +93,6 @@
 
     const TEXTS = {
         back: 'Torna all’add-in',
-        system: {
-            servicesOk: 'Servizi collegati',
-            servicesMissing: 'Servizi non ancora collegati',
-            serviceError: message => `Servizi non raggiungibili: ${message}`
-        },
         tabs: { queue: 'In coda' },
         common: {
             loading: 'Caricamento…',
@@ -122,7 +117,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:25';
+    const BUILD = '2026-11-02 15:30';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -311,15 +306,13 @@
                     h('span', { class: 'ao-tab-label' }, TEXTS.tabs.queue), counter(0)),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
-            h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
-            // Barra di sistema fissa in fondo: stato dei servizi, sempre visibile.
-            h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+            h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }));
         // Scheda aperta: un clic fuori prima la richiude (con l'animazione) e non fa altro;
         // solo il clic successivo apre un'altra richiesta. Scheda e selettore restano liberi.
         root.addEventListener('click', event => {
             if (!state.queueExpanded || state.holdRender) return;
             const target = event.target;
-            if (target.closest('.ao-queue-item.ao-expanded, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar')) return;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-tabs, .ao-fixed, .ao-status')) return;
             const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
             if (!form) return;
             event.preventDefault();
@@ -345,7 +338,6 @@
         const tabCounter = root.querySelector('.ao-tab .ao-counter');
         tabCounter.textContent = state.queue.length || '';
         tabCounter.hidden = !state.queue.length;
-        renderStatusBar();
         const body = root.querySelector('.ao-body');
         // Il selettore Attive / Ignorate sta in cima all'elenco e scivola via scorrendo (watchScroll).
         // La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
@@ -409,20 +401,6 @@
 
     // Servizi mancanti, in errore o in caricamento: gli elenchi vuoti non dicono "nessun elemento".
     const servicesBlocked = () => !Services.available() || Boolean(state.serviceError) || state.loading;
-    function renderStatusBar() {
-        const bar = root?.querySelector('.ao-statusbar');
-        if (!bar) return;
-        let tone = 'ok';
-        let message = '';
-        if (!Services.available()) { tone = 'warning'; message = TEXTS.system.servicesMissing; }
-        else if (state.serviceError) { tone = 'danger'; message = TEXTS.system.serviceError(state.serviceError); }
-        else if (state.loading) { tone = 'neutral'; message = TEXTS.common.loading; }
-        else message = TEXTS.system.servicesOk;
-        bar.className = `ao-statusbar ao-statusbar-${tone}`;
-        bar.replaceChildren(
-            h('span', { class: 'ao-statusbar-dot', 'aria-hidden': 'true' }),
-            h('span', { class: 'ao-statusbar-text', title: message }, message));
-    }
     // Selettore a segmenti. La pillola della voce scelta è un elemento a parte (.ao-segment-thumb):
     // quando la scelta cambia, scivola dalla voce di prima a quella nuova (anche cambiando larghezza).
     // Il pannello si ridisegna a ogni clic, quindi la voce di prima si ricorda per selettore (segmentMemory).
@@ -1029,21 +1007,11 @@
 #ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
-/* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
-#ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
-#ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
-#ao-root .ao-statusbar-danger { color: var(--ao-danger); }
-#ao-root .ao-statusbar-neutral .ao-statusbar-dot { background: var(--ao-text-subtle); }
-#ao-root .ao-statusbar-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ao-root .ao-statusbar-sync { flex: none; }
-
-/* Messaggi temporanei, sopra la barra di sistema */
+/* Messaggi temporanei, in fondo all'area */
 #ao-root .ao-status:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #ao-root .ao-status-action { flex: none; padding: 0; border: 0; background: none; color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-bold); cursor: pointer; }
 #ao-root .ao-status-action:hover { text-decoration: underline; }
-#ao-root .ao-status { position: absolute; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+#ao-root .ao-status { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 #ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
