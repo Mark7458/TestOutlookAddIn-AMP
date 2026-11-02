@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 12:55';
+    const BUILD = '2026-11-02 13:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -622,6 +622,7 @@
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
         queueChoice: {}, // scheda di In coda aperta: azione scelta nel selettore e gruppo dell'inoltro
+        liftFrom: null, // scheda che si sta aprendo: disegnata non sollevata, poi si solleva
         previewScroll: null, // scheda aperta del tutto: il testo della mail può scorrere
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         holdRender: false, // true durante un'animazione: il pannello non si ridisegna (le schede sparirebbero di colpo)
@@ -1184,7 +1185,12 @@
             if (!expanded) return openTakeCharge(item);
             if (!state.holdRender) closeTakeCharge(queueDetailsOf(item.conversationId));
         };
-        return h('li', { class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}`, dataset: { conversation: item.conversationId } },
+        // Aperta: la scheda si solleva in primo piano (ombra, leggero ingrandimento) e il titolo prende il colore dell'azione scelta.
+        const choice = expanded ? state.queueChoice[item.conversationId]?.action : undefined;
+        return h('li', {
+            class: `ao-item ao-queue-item${expanded ? ' ao-expanded' : ''}${expanded && state.liftFrom === item.conversationId ? ' ao-unlifted' : ''}`,
+            dataset: { conversation: item.conversationId, choice }
+        },
             h('div', {
                 class: 'ao-item-main', tabindex: '0', role: 'button', 'aria-expanded': String(expanded),
                 onclick: toggle, onkeydown: event => { if (event.key === 'Enter') toggle(); }
@@ -1246,6 +1252,8 @@
         if (choice.action === action || state.holdRender) return;
         holdRender();
         const zone = queueDetailsOf(id)?.querySelector('.ao-choice-zone');
+        const card = zone?.closest('.ao-queue-item');
+        if (card) card.dataset.choice = action; // il titolo cambia colore mentre il contenuto svanisce
         const from = zone?.offsetHeight || 0;
         const old = zone?.firstElementChild;
         if (old) await playOn(old, [{ opacity: 1 }, { opacity: 0 }], MOTION.swap * .45, 'linear');
@@ -1282,7 +1290,12 @@
             await Promise.race([loading, wait(BODY_WAIT_MS)]);
         }
         if (state.queueExpanded !== item.conversationId) return;
+        state.liftFrom = item.conversationId; // si disegna ancora "a terra", poi si solleva con la transizione
         render();
+        state.liftFrom = null;
+        const lifted = queueDetailsOf(item.conversationId)?.closest('.ao-queue-item');
+        lifted?.getBoundingClientRect();
+        lifted?.classList.remove('ao-unlifted');
         const complete = !loading || arrived; // aperta già con il testo intero
         await holdingRender(() => unfold(queueDetailsOf(item.conversationId)));
         if (complete) return allowPreviewScroll(item.conversationId);
@@ -2608,7 +2621,18 @@
 #ao-root .ao-svg-icon { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
-#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
+#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease; }
+/* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
+#ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
+    z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
+    box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+}
+#ao-root .ao-queue-item.ao-expanded.ao-unlifted, #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
+/* Titolo: neutro finché non si sceglie l'azione, poi del suo colore */
+#ao-root .ao-queue-item.ao-expanded .ao-item-title { color: var(--ao-text); transition: color .25s; }
+#ao-root .ao-queue-item.ao-expanded[data-choice="take"] .ao-item-title { color: var(--ao-text-accent); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-forward-text); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-danger); }
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
 #ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
