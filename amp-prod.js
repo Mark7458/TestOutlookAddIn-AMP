@@ -123,7 +123,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 14:20';
+    const BUILD = '2026-11-02 14:30';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -994,13 +994,15 @@
 #ao-root .ao-svg-icon { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
-#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease; }
+#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease, filter .32s ease; }
 /* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
 #ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
     box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
 }
 #ao-root .ao-queue-item.ao-expanded.ao-unlifted, #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
+/* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
+#ao-root .ao-list:has(.ao-queue-item.ao-expanded:not(.ao-unlifted):not(.ao-resolving)) .ao-queue-item:not(.ao-expanded) { filter: blur(5px); }
 /* Titolo: neutro finché non si sceglie l'azione, poi del suo colore */
 #ao-root .ao-queue-item.ao-expanded .ao-item-title { color: var(--ao-text); transition: color .25s; }
 #ao-root .ao-queue-item.ao-expanded[data-choice="take"] .ao-item-title { color: var(--ao-text-accent); }
