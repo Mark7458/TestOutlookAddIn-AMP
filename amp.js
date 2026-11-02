@@ -351,7 +351,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 16:50';
+    const BUILD = '2026-11-02 17:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -671,9 +671,12 @@
     // Solo la notifica: numero su sfondo blu.
     const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
+    // Stato del ticket: In Progress è la normalità e non ha etichetta; si vedono solo gli altri stati.
     const stateChip = ticket => {
+        if (isHoldExpired(ticket)) return chip(TEXTS.tickets.holdExpired, 'danger');
+        if (ticket.state === '2') return null;
         const info = TICKET_STATES[ticket.state] || { label: ticket.state, tone: 'neutral' };
-        return isHoldExpired(ticket) ? chip(TEXTS.tickets.holdExpired, 'danger') : chip(info.label, info.tone);
+        return chip(info.label, info.tone);
     };
     function selectField(label, options, value, onchange, extra = {}) {
         return h('label', { class: 'ao-field' },
@@ -1466,14 +1469,15 @@
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
         return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, () => openTicketItem(ticket),
+            // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, ticket.number),
                 stateChip(ticket)),
-            inGroup ? null : newMessagesPreview(ticket),
             h('div', { class: 'ao-item-title' }, ticket.shortDescription),
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName].filter(Boolean).join(' · ')),
+            inGroup ? null : newMessagesPreview(ticket),
             h('div', { class: 'ao-item-meta' },
-                chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'neutral'),
+                mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'),
                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
                 ticket.messageId ? (ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null) : chip(TEXTS.tickets.noMail, 'neutral'),
@@ -1975,9 +1979,10 @@
         ];
     }
     // Assegnatario come etichetta (me / nome del collega) e, se è di un collega, "Prendi in carico".
+    // Assegnatario: solo se non sono io (i miei ticket non hanno l'etichetta col nome).
     function assigneeTag(ticket, user) {
-        const mine = isMine(ticket, user);
-        return chip(mine ? TEXTS.common.me : (ticket.assignedTo?.name || TEXTS.common.unassigned), mine ? 'success' : 'person', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
+        if (isMine(ticket, user)) return null;
+        return chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'person', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
     }
     // In alto a destra, uno sotto l'altro: stato, poi assegnatario.
     function ticketTags(ticket, user) {
