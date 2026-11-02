@@ -153,8 +153,6 @@
         },
         tickets: {
             newTicket: '+ Nuovo ticket',
-            newTicketTitle: 'Nuovo ticket',
-            newTicketCaller: 'Richiesta a tuo nome (Caller compilato in automatico).',
             shortDescription: 'Short description',
             description: 'Description',
             receivedDate: 'Ricevuta il',
@@ -335,7 +333,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-01 20:20';
+    const BUILD = '2026-11-02 09:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1261,8 +1259,6 @@
             if (slot) slot.replaceChildren(...[suggestionPills(draft, config, draft.subject)].filter(Boolean));
         };
         return h('section', { class: 'ao-card ao-new-ticket-card' },
-            h('h3', { class: 'ao-card-title' }, TEXTS.tickets.newTicketTitle),
-            h('p', { class: 'ao-hint' }, TEXTS.tickets.newTicketCaller),
             h('div', { class: 'ao-inline-form' },
                 textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshSuggestions(); refreshButton(); }, { maxlength: '160' }),
                 ticketForm(mail, config, { compact: true }),
