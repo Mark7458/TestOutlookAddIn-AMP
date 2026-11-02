@@ -341,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 14:40';
+    const BUILD = '2026-11-02 14:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -711,8 +711,8 @@
     function showStatus(message, tone = 'success', action = null) {
         const status = root?.querySelector('.ao-status');
         if (!status) return;
-        status.replaceChildren(h('span', {}, message),
-            action ? h('button', { type: 'button', class: 'ao-status-action', onclick: () => { status.hidden = true; action.onclick(); } }, action.label) : null);
+        status.replaceChildren(...[h('span', {}, message),
+            action ? h('button', { type: 'button', class: 'ao-status-action', onclick: () => { status.hidden = true; action.onclick(); } }, action.label) : null].filter(Boolean));
         status.className = `ao-status ao-tone-${tone}`;
         status.hidden = false;
         clearTimeout(statusTimer);
