@@ -205,7 +205,6 @@
             taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
             newTicket: 'Presa in carico',
-            newTicketHint: 'Apre il ticket su ServiceNow assegnato a te.',
             company: 'Agenzia',
             activity: 'Attività',
             choose: 'Seleziona…',
@@ -333,7 +332,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 09:20';
+    const BUILD = '2026-11-02 09:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1493,7 +1492,6 @@
     function newTicketCard(mail, config, user, { allowIgnore = true, onCancel = null } = {}) {
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.mail.newTicket),
-            h('p', { class: 'ao-hint' }, TEXTS.mail.newTicketHint),
             ticketForm(mail, config, { user }),
             h('div', { class: 'ao-actions' },
                 openTicketButton(mail, config),
