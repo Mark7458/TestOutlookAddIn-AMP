@@ -123,7 +123,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 14:50';
+    const BUILD = '2026-11-02 15:00';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -979,7 +979,7 @@
 #ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
 #ao-root .ao-choice-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1), background-color .25s; }
 @keyframes ao-fade-in { from { opacity: 0; } }
-#ao-root .ao-choice-accent { --ao-choice-bg: var(--ao-accent-bg); --ao-choice-text: var(--ao-text-accent); }
+#ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
 #ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-forward-bg); --ao-choice-text: var(--ao-forward-text); }
 #ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-danger-bg); --ao-choice-text: var(--ao-danger); }
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
