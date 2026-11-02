@@ -354,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:05';
+    const BUILD = '2026-11-02 18:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1428,9 +1428,9 @@
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
         const filterName = operator === 'all' ? '' : (operator === 'mine' ? TEXTS.tickets.mine : operator.split(' ')[0]);
-        const label = (value, text) => (state.ticketSource === value
-            ? [text, filterName ? h('span', { class: 'ao-source-filter' }, ` · ${filterName}`) : null, h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')]
-            : text);
+        // Il filtro vale per entrambi gli elenchi, quindi il nome compare in tutte e due le voci; la freccia solo sulla scelta.
+        const label = (value, text) => [text, filterName ? h('span', { class: 'ao-source-filter' }, ` · ${filterName}`) : null,
+            state.ticketSource === value ? h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾') : null];
         const bar = filterBar([
             { value: 'mail', label: label('mail', TEXTS.tickets.fromMail), count: counts.mail },
             { value: 'none', label: label('none', TEXTS.tickets.withoutMail), count: counts.none }
