@@ -344,7 +344,15 @@
   renderOutlook();
 })();
 </script>
-<script defer src="amp.js"></script>
+<script>
+  // ?prod nell'indirizzo: anteprima della versione di produzione (amp-prod.js) invece di quella di sviluppo (amp.js).
+  (function () {
+    const script = document.createElement('script');
+    script.src = /[?&]prod\b/.test(location.search) ? 'amp-prod.js' : 'amp.js';
+    script.onload = () => window.AmpModule?.show();
+    document.head.append(script);
+  })();
+</script>
 <script>
   // Nell'anteprima l'area AMP si apre subito.
   window.addEventListener('DOMContentLoaded', () => window.AmpModule?.show());
