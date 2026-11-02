@@ -123,7 +123,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:10';
+    const BUILD = '2026-11-02 15:20';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -691,7 +691,7 @@
     //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
     //  - removeCard: una scheda lascia l'elenco e le altre salgono.
     // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
-    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260 };
+    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260, collapse: 380 };
     const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const wait = ms => new Promise(next => setTimeout(next, ms));
     function playOn(element, frames, duration, easing = 'ease-in-out') {
@@ -757,7 +757,7 @@
 
     // Esito su una scheda di In coda, in un movimento solo: mentre la tendina si chiude la scheda prende
     // pian piano il colore dell'esito (banner che affiora), poi esce di lato e infine lo spazio si chiude.
-    // Ignora → rosso, a sinistra; Prendi in carico → blu, a destra.
+    // Ignora → rosso, esce a sinistra; Inoltra → viola, esce a destra; Prendi in carico → blu, si richiude verso l'alto.
     // Se ServiceNow non ha ancora risposto, il banner resta fermo con la rotellina finché non arriva l'esito.
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
@@ -790,8 +790,19 @@
         if (card?.aoOutcome) {
             await card.aoOutcome.ready;
             await wait(MOTION.hold); // un attimo per leggere l'esito
+            if (card.aoOutcome.tone === 'accent') {
+                // Prendi in carico: la scheda blu si richiude verso l'alto (la scritta svanisce mentre si chiude)
+                [...(card.querySelector('.ao-outcome')?.children || [])].forEach(child =>
+                    child.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.collapse * .5, easing: 'linear', fill: 'forwards' }));
+                await playOn(card, [
+                    { maxHeight: `${card.offsetHeight}px` },
+                    { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-6px', borderWidth: '0px' }
+                ], MOTION.collapse, 'cubic-bezier(.4, 0, .2, 1)');
+                return;
+            }
+            // Ignora a sinistra, Inoltra a destra: solo scorrimento laterale (la scheda resta intera),
+            // lo spazio si chiude dopo che è uscita
             const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
-            // solo scorrimento laterale (la scheda resta intera); lo spazio si chiude dopo che è uscita
             await playOn(card, [
                 { transform: 'none' },
                 { transform: `translateX(${direction * 110}%)` }
