@@ -356,7 +356,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:05';
+    const BUILD = '2026-11-02 19:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -637,6 +637,7 @@
         operatorMenu: false, // menu degli operatori aperto
         ticketSearchOpen: false, // ricerca (lente) aperta
         ticketQuery: '', // testo cercato: numero INC o oggetto
+        ticketSearchEnter: false, // ricerca appena aperta (animazione di entrata)
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
@@ -1411,11 +1412,14 @@
         const byOperator = ticket => operator === 'all' || (operator === 'mine' ? isMine(ticket, user)
             : !isMine(ticket, user) && (ticket.assignedTo?.name || TEXTS.common.unassigned) === operator);
         const fromMail = ticket => Boolean(ticket.messageId);
-        // Ricerca (lente): numero INC o oggetto, in entrambi gli elenchi; il filtro operatore resta valido.
-        const query = state.ticketQuery.trim().toLowerCase();
+        // Ricerca (lente) "super partes": numero INC o oggetto su tutti i ticket aperti, di qualunque sezione e operatore.
+        // Mentre si cerca, sezione e filtro non contano (e non si vedono); chiudendo la ricerca si torna dove si era.
+        const searching = state.ticketSearchOpen;
+        const query = searching ? state.ticketQuery.trim().toLowerCase() : '';
         const matches = ticket => !query || `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
-        const visible = open.filter(ticket => byOperator(ticket) && matches(ticket));
-        const items = query ? visible : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
+        const visible = open.filter(byOperator);
+        const items = searching ? open.filter(matches)
+            : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
         const groups = [];
         items.forEach(ticket => {
             const group = ticket.conversationId && groups.find(item => item.conversationId === ticket.conversationId);
@@ -1438,7 +1442,7 @@
                 mail: visible.filter(fromMail).length,
                 none: visible.filter(ticket => !fromMail(ticket)).length
             }),
-            state.ticketSource === 'none' ? newTicketSection(config) : null,
+            state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
             groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
                 ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
@@ -1448,15 +1452,27 @@
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
     // Barra di Ticket, simmetrica: imbuto (filtro operatore) | Da mail | Senza mail | lente (ricerca).
-    // Sotto, solo quando serve: a sinistra l'etichetta del collega filtrato (×: torna ai miei),
-    // a destra, sotto la lente, la ricerca a pillola. Il filtro vale per entrambi gli elenchi.
+    // Sotto, solo fuori dai miei ticket: l'etichetta del collega filtrato (×: torna ai miei). Il filtro vale per entrambi gli elenchi.
     // Menu dell'imbuto: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
+    // La lente trasforma la barra nel campo di ricerca (stessa misura): si cerca su tutti i ticket; × o Esc riportano la barra.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
+        if (state.ticketSearchOpen) {
+            const close = () => { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); };
+            requestAnimationFrame(() => { state.ticketSearchEnter = false; }); // l'apertura si anima una volta sola, non a ogni tasto
+            return h('div', { class: 'ao-source-bar' },
+                h('div', { class: `ao-segmented ao-search-bar${state.ticketSearchEnter ? ' ao-entering' : ''}`, role: 'search' },
+                    h('span', { class: 'ao-bar-icon ao-bar-icon-start ao-active', 'aria-hidden': 'true' }, svgIcon(SEARCH_ICON)),
+                    h('input', {
+                        class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
+                        oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); },
+                        onkeydown: event => { if (event.key === 'Escape') close(); }
+                    }),
+                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: close }, '×')));
+        }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
         const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator);
-        const searching = state.ticketSearchOpen || Boolean(state.ticketQuery);
         const bar = filterBar([
             { value: 'mail', label: TEXTS.tickets.fromMail, count: counts.mail },
             { value: 'none', label: TEXTS.tickets.withoutMail, count: counts.none }
@@ -1472,25 +1488,13 @@
             onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
         }, svgIcon(FILTER_ICON)));
         bar.append(h('button', {
-            type: 'button', class: `ao-bar-icon ao-bar-icon-end${searching ? ' ao-active' : ''}`, 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
-            onclick: () => {
-                state.operatorMenu = false;
-                if (searching) { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); }
-                else { state.ticketSearchOpen = true; render(); focusTicketSearch(); }
-            }
+            type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
+            onclick: () => { state.operatorMenu = false; state.ticketSearchOpen = true; state.ticketSearchEnter = true; state.ticketQuery = ''; render(); focusTicketSearch(); }
         }, svgIcon(SEARCH_ICON)));
-        const closeSearch = () => { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); };
-        const row = operator !== 'mine' || searching ? h('div', { class: 'ao-filter-row' },
-            operator !== 'mine' ? h('span', { class: 'ao-filter-chip' },
+        const row = operator !== 'mine' ? h('div', { class: 'ao-filter-row' },
+            h('span', { class: 'ao-filter-chip' },
                 h('span', { class: 'ao-filter-chip-name' }, filterName),
-                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: () => { state.ticketOperator = 'mine'; render(); } }, '×')) : null,
-            searching ? h('label', { class: 'ao-search-pill' },
-                h('input', {
-                    class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder,
-                    oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); },
-                    onkeydown: event => { if (event.key === 'Escape') closeSearch(); }
-                }),
-                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: closeSearch }, '×')) : null) : null;
+                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: () => { state.ticketOperator = 'mine'; render(); } }, '×'))) : null;
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
@@ -2650,14 +2654,19 @@
 #ao-root .ao-bar-icon.ao-active::after { content: ""; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
 /* Riga sotto la barra: collega filtrato a sinistra, ricerca a pillola a destra (sotto la lente) */
 #ao-root .ao-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-#ao-root .ao-filter-chip, #ao-root .ao-search-pill { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; }
+#ao-root .ao-filter-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; }
 #ao-root .ao-filter-chip { min-width: 0; }
 #ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
-#ao-root .ao-search-pill { flex: 0 1 58%; margin-left: auto; border-color: var(--ao-accent-border); }
-#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+/* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
+#ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-accent-border); }
+#ao-root .ao-search-bar.ao-entering { animation: ao-search-in .22s cubic-bezier(.3, .8, .2, 1); }
+@keyframes ao-search-in { from { opacity: 0; transform: scaleX(.97); } }
+#ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
+#ao-root .ao-search-bar .ao-bar-icon-end { font-size: var(--ao-fs-lg); }
+#ao-root .ao-search-bar .ao-bar-icon.ao-active::after { display: none; }
+#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 6px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
-#ao-root .ao-search-pill:focus-within { border-color: var(--ao-accent); }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
@@ -2668,7 +2677,7 @@
 #ao-root .ao-menu-item:hover { background: var(--ao-hover); }
 #ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu, #ao-root .ao-search-bar { animation: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
