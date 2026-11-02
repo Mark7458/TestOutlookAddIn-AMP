@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-src.js-2
+// Test-Plugin file version: 0.2-auth-src.js-3
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -813,15 +813,8 @@ async function getAccessTokenSilently() {
   }
   if (persistedBridgeRejectedThisRun) {
     persistedBridgeRejectedThisRun = false;
-    recordAuthDiagnostic("expired_bridge_preflight_start", { flow: AUTH_FLOW });
-    try {
-      const recovered = await acquireTokenWithOfficeDialog({ mode: "recovery", forceCloseAfterMs: 3000, height: 10, width: 10 });
-      recordAuthDiagnostic("expired_bridge_preflight_success", { acquisitionMode: recovered?.acquisitionMode || null });
-      return recovered;
-    } catch (error) {
-      recordAuthDiagnostic("expired_bridge_preflight_empty", { errorCode: error?.errorCode || null });
-      return connectPlugin();
-    }
+    recordAuthDiagnostic("expired_bridge_delegate_to_connect_dialog", { flow: AUTH_FLOW });
+    return connectPlugin();
   }
   recordAuthDiagnostic("taskpane_silent_empty_recover_via_dialog");
   return recoverConnection();

@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-dialog-src.js-2
+// Test-Plugin file version: 0.2-auth-dialog-src.js-3
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -586,6 +586,8 @@ async function runPersistentRecovery(client) {
 }
 
 function setPopupUi(state, message = null) {
+  const card = document.getElementById("auth-card");
+  if (card) card.hidden = false;
   const button = document.getElementById("start-popup-auth");
   const cancelButton = document.getElementById("cancel-popup-auth");
   const spinner = document.getElementById("auth-spinner");
@@ -850,7 +852,6 @@ if (document.readyState === "loading") {
 recordDiagnostic(
   "bundle_loaded"
 );
-if (DIALOG_MODE === "connect") setPopupUi("waiting");
 runDialogStorageProbe();
 
 if (DIALOG_MODE === "reset") {

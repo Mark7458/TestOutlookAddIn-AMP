@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.2-taskpane.js-3
+// Test-Plugin file version: 0.2-taskpane.js-4
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-initial',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-2',
-    'taskpane.js': '0.2-taskpane.js-3',
-    'taskpane.css': '0.2-taskpane.css-2',
-    'auth-src.js': '0.2-auth-src.js-2',
-    'auth-dialog.html': '0.2-auth-dialog.html-1',
-    'auth-dialog-src.js': '0.2-auth-dialog-src.js-2',
+    'taskpane.html': '0.2-taskpane.html-3',
+    'taskpane.js': '0.2-taskpane.js-4',
+    'taskpane.css': '0.2-taskpane.css-3',
+    'auth-src.js': '0.2-auth-src.js-3',
+    'auth-dialog.html': '0.2-auth-dialog.html-2',
+    'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 1, requiredDataVersion: 1 }),
+  database: Object.freeze({ schemaVersion: 1, requiredDataVersion: 2 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -1072,8 +1072,8 @@ function registerHealthButton() {
 
     try {
       const conversationId = currentMessageContext?.normalizedConversationId;
-      logLookup("conversation_id", { available: Boolean(conversationId) });
       if (!conversationId) {
+        logLookup("conversation_id_missing");
         throw new Error("Conversation ID non disponibile per il messaggio selezionato.");
       }
       if (!window.WorkflowHealth?.getAccessTokenSilently) {
@@ -1112,7 +1112,6 @@ function registerHealthButton() {
       clearTimeout(fetchPendingTimer);
       logLookup("fetch_response_received", { status: fetchResponse.status, ok: fetchResponse.ok, elapsedMs: Date.now() - startedAt });
       const body = await fetchResponse.text();
-      logLookup("body_read", { elapsedMs: Date.now() - startedAt, bodyLength: body.length });
 
       if (sequence !== null && sequence !== loadSequence) {
         logLookup("stale_result_ignored", { sequence, currentSequence: loadSequence });

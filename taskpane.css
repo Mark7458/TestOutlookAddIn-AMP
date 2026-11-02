@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-2 */
+/* Test-Plugin file version: 0.2-taskpane.css-3 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -480,3 +480,5 @@ footer {
 
 .diagnostic-sharepoint-tools { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .diagnostic-sharepoint-tools h3 { margin: 0 0 8px; font-size: 13px; }
+
+.diagnostic-subheading { margin: 14px 0 8px; font-size: 13px; }
