@@ -436,6 +436,7 @@
         const thread = db.sp.threads[conversationId];
         if (thread?.status === 'managed') return null;
         if (thread?.status === 'discarded' && thread.discardedAt > lastIncoming.receivedAt) return null;
+        if (thread?.status === 'forwarded' && thread.forwardedAt > lastIncoming.receivedAt) return null;
         if (thread?.status === 'free' && thread.freedAt && lastIncoming.receivedAt <= thread.freedAt) return null;
         const result = resolveConversation(conversationId);
         if (result.tickets.length || result.candidates.length) return null;
@@ -599,6 +600,16 @@
             record('ignorata', '', by?.displayValue, '', conversationId);
             persist();
             return respond({ by: thread.discardedBy, at: thread.discardedAt });
+        },
+        // Inoltro a un gruppo (ES, PEL, PO): nella Function App invio con il tag nell'oggetto e aggiornamento di SharePoint.
+        // Qui solo SharePoint: il thread lascia In coda finché non arriva un messaggio nuovo.
+        forwardMail(conversationId, group, by) {
+            const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
+            Object.assign(thread, { status: 'forwarded', forwardedTo: group, forwardedBy: by?.displayValue || '', forwardedAt: now(), updatedAt: now() });
+            db.sp.threads[conversationId] = thread;
+            record('inoltrata', '', by?.displayValue, group, conversationId);
+            persist();
+            return respond(true);
         },
         restoreMail(conversationId) {
             const thread = db.sp.threads[conversationId];

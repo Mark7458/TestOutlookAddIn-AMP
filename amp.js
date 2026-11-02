@@ -70,7 +70,10 @@
             danger: '#a4262c',
             dangerBg: '#fde7e9',
             hold: '#8764b8', // On Hold
-            holdBg: '#f4f0fa'
+            holdBg: '#f4f0fa',
+            forward: '#7c5bbf', // Inoltra (In coda): pulsante ed esito
+            forwardText: '#6b47b0',
+            forwardBg: '#f1ecf9'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -96,7 +99,9 @@
             danger: '#ffb3b8',
             dangerBg: '#442726',
             hold: '#c3b2ff',
-            holdBg: '#2f2a45'
+            holdBg: '#2f2a45',
+            forwardText: '#c3b2ff',
+            forwardBg: '#2f2a45'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -140,6 +145,9 @@
         queue: {
             mailboxTitle: 'Casella condivisa da cui arriva la richiesta',
             ignoredDone: 'Ignorata',
+            forward: 'Inoltra',
+            forwardWorking: 'Inoltro…',
+            forwardDone: group => `Inoltrata a ${group}`,
             goToTicket: 'Vai al ticket',
             empty: 'Nessuna richiesta in coda.',
             active: 'Attive',
@@ -333,7 +341,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 09:30';
+    const BUILD = '2026-11-02 12:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -424,6 +432,8 @@
     //   subscribe(listener)                 → funzione per smettere (facoltativo)
     //   getMailBody(messageId)              → testo della mail (Graph, casella condivisa) per l'anteprima in In coda
     //                                          (facoltativo: senza, il pannello mostra le prime righe di listQueue)
+    //   forwardMail(conversationId, gruppo, utente) → inoltro della richiesta a un gruppo (ES, PEL, PO); il thread lascia In coda
+    //                                          (facoltativo: senza, Inoltra avvisa che i servizi non sono collegati)
     //
     // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
@@ -447,6 +457,10 @@
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
+    Services.forwardMail = async (...args) => {
+        if (typeof window.AmpBackend?.forwardMail !== 'function') throw new ServicesMissingError('forwardMail');
+        return window.AmpBackend.forwardMail(...args);
+    };
 
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
@@ -567,6 +581,19 @@
     // 5. INTERFACCIA: STRUTTURA E NAVIGAZIONE
     // ======================================================================
 
+    // Gruppi a cui si inoltra da In coda (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
+    const FORWARD_GROUPS = [
+        { id: 'ES', name: 'Email Security' },
+        { id: 'PEL', name: 'Amministratori PEL' },
+        { id: 'PO', name: 'Post Office' }
+    ];
+    const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
+    function svgIcon(markup) {
+        const icon = h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' });
+        icon.innerHTML = markup;
+        return icon;
+    }
+
     // Solo stato dell'interfaccia: i dati dei ticket arrivano ogni volta dai servizi.
     const state = {
         view: 'queue', // queue | tickets | mail | settings
@@ -594,6 +621,7 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
+        queueChoice: {}, // scheda di In coda aperta: azione scelta nel selettore e gruppo dell'inoltro
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         holdRender: false, // true durante un'animazione: il pannello non si ridisegna (le schede sparirebbero di colpo)
         busy: false
@@ -1064,6 +1092,46 @@
         });
         return bar;
     }
+    // Selettore di scelta (scheda di In coda: azione e gruppo dell'inoltro). Come il selettore a segmenti,
+    // ma all'inizio nessuna voce è scelta e la voce scelta si illumina del colore della sua azione
+    // (sfondo pastello, senza bordo). Cambiando scelta la pillola scivola sulla voce nuova.
+    const choiceMemory = new Map();
+    function choiceBar(key, options, value, onpick) {
+        const thumb = h('span', { class: 'ao-choice-thumb', 'aria-hidden': 'true' });
+        const tone = options.find(option => option.value === value)?.tone;
+        const bar = h('div', { class: `ao-choice${tone ? ` ao-choice-${tone}` : ''}`, role: 'group' },
+            thumb,
+            options.map(option => h('button', {
+                type: 'button', class: `ao-choice-option${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value },
+                'aria-pressed': String(option.value === value), onclick: () => onpick(option.value)
+            }, h('span', { class: 'ao-choice-label' }, option.label), option.sub ? h('span', { class: 'ao-choice-sub' }, option.sub) : null)));
+        const previous = choiceMemory.get(key);
+        choiceMemory.set(key, value);
+        if (value === undefined || value === null) return bar;
+        requestAnimationFrame(() => {
+            if (!bar.isConnected) return;
+            const place = (target, animate) => {
+                const button = bar.querySelector(`.ao-choice-option[data-value="${CSS.escape(String(target))}"]`);
+                if (!button) return false;
+                thumb.classList.toggle('ao-moving', animate);
+                thumb.style.width = `${button.offsetWidth}px`;
+                thumb.style.transform = `translateX(${button.offsetLeft - 3}px)`; // 3px = bordo interno del selettore
+                return true;
+            };
+            if (previous != null && previous !== value && place(previous, false)) {
+                thumb.classList.add('ao-ready');
+                thumb.getBoundingClientRect(); // parte dalla voce di prima
+                place(value, true);
+            } else {
+                place(value, false);
+                if (previous == null) thumb.classList.add('ao-appearing'); // prima scelta: la pillola compare sul posto
+            }
+            thumb.classList.add('ao-ready');
+            if (window.ResizeObserver) new ResizeObserver(() => { if (!thumb.classList.contains('ao-moving')) place(value, false); }).observe(bar);
+            thumb.addEventListener('transitionend', () => thumb.classList.remove('ao-moving'));
+        });
+        return bar;
+    }
     // "←" della vista di lavoro: torna all'elenco da cui si è arrivati (di base Ticket).
     function backRow() {
         const target = state.backTo || 'tickets';
@@ -1130,25 +1198,75 @@
                     chipNode)),
             expanded ? queueDetails(item, config, allowIgnore, info) : null);
     }
+    // Scheda aperta: testo della mail, poi il selettore dell'azione (nessuna scelta all'inizio: si decide dopo aver letto).
+    // Sotto compare il contenuto dell'azione scelta, con il suo pulsante; in fondo la freccia richiude la scheda.
+    //  - Prendi in carico: agenzia e attività;  - Inoltra: gruppo (ES, PEL, PO);  - Ignora: "Confermi?".
     function queueDetails(item, config, allowIgnore, info = null) {
         const mail = mailFromQueueItem(item);
         const body = state.mailBodies[item.messageId];
+        const choice = state.queueChoice[item.conversationId] || {};
+        const actions = [
+            { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent' },
+            { value: 'forward', label: TEXTS.queue.forward, tone: 'forward' },
+            allowIgnore ? { value: 'ignore', label: TEXTS.mail.discard, tone: 'danger' } : null
+        ].filter(Boolean);
         return h('div', { class: 'ao-inline-form' },
             info ? h('p', { class: 'ao-hint ao-queue-info' }, info) : null,
             h('div', { class: 'ao-mail-preview' }, body ?? item.preview ?? '', body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
-            ticketForm(mail, config, { compact: true }),
-            h('div', { class: 'ao-actions' },
-                openTicketButton(mail, config),
-                // Ignora chiede conferma sullo stesso pulsante ("Confermi?"), poi la scheda mostra l'esito.
-                allowIgnore ? confirmButton(TEXTS.mail.discard, 'ao-button ao-subtle ao-ignore', button => ignoreFromQueue(button.closest('.ao-queue-item'), mail)) : null,
-                h('span', { class: 'ao-spacer' }),
-                h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.close)));
+            choiceBar(`action:${item.conversationId}`, actions, choice.action, value => pickQueueAction(item, value)),
+            h('div', { class: 'ao-choice-zone' }, choice.action ? h('div', { class: 'ao-choice-content' }, queueActionContent(item, mail, config, choice)) : null),
+            h('button', {
+                type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close,
+                onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form'))
+            }, svgIcon(CHEVRON_UP_ICON)));
+    }
+    function queueActionContent(item, mail, config, choice) {
+        const card = button => button.closest('.ao-queue-item');
+        if (choice.action === 'take') return [ticketForm(mail, config, { compact: true }), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
+        if (choice.action === 'forward') {
+            const group = FORWARD_GROUPS.find(entry => entry.id === choice.group);
+            return [
+                choiceBar(`group:${item.conversationId}`, FORWARD_GROUPS.map(entry => ({ value: entry.id, label: entry.id, sub: entry.name, tone: 'forward' })),
+                    choice.group, value => { choice.group = value; render(); }),
+                h('div', { class: 'ao-actions' },
+                    h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group, onclick: event => forwardFromQueue(card(event.currentTarget), mail, group) }, TEXTS.queue.forward))
+            ];
+        }
+        if (choice.action === 'ignore') return h('div', { class: 'ao-actions' },
+            h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-danger', onclick: event => ignoreFromQueue(card(event.currentTarget), mail) }, TEXTS.common.confirm));
+        return null;
+    }
+    // Cambio di azione nella stessa scheda: il contenuto di prima svanisce, l'altezza si adatta, il nuovo compare (dissolvenza).
+    async function pickQueueAction(item, action) {
+        const id = item.conversationId;
+        const choice = state.queueChoice[id] || (state.queueChoice[id] = {});
+        if (choice.action === action || state.holdRender) return;
+        holdRender();
+        const zone = queueDetailsOf(id)?.querySelector('.ao-choice-zone');
+        const from = zone?.offsetHeight || 0;
+        const old = zone?.firstElementChild;
+        if (old) await playOn(old, [{ opacity: 1 }, { opacity: 0 }], MOTION.swap * .45, 'linear');
+        choice.action = action;
+        releaseRender();
+        render();
+        const next = queueDetailsOf(id)?.querySelector('.ao-choice-zone');
+        const content = next?.firstElementChild;
+        if (!next || !content) return;
+        await holdingRender(async () => {
+            content.style.opacity = '0';
+            const result = await playOn(next, [{ height: `${from}px` }, { height: `${next.scrollHeight}px` }], MOTION.swap);
+            if (result) { result.animation.cancel(); next.style.overflow = result.overflow; }
+            const shown = await playOn(content, [{ opacity: 0 }, { opacity: 1 }], MOTION.swap * .55, 'linear');
+            if (shown) { shown.animation.cancel(); content.style.overflow = shown.overflow; }
+            content.style.opacity = '';
+        });
     }
     // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
     async function openTakeCharge(item) {
         await whenIdle(); // se un'altra scheda si sta chiudendo, si apre subito dopo (il clic non va perso)
         if (state.queueExpanded === item.conversationId) return;
         state.queueExpanded = item.conversationId;
+        state.queueChoice = { [item.conversationId]: {} }; // ogni apertura riparte senza scelta
         // Se il testo arriva in fretta si apre già completo; altrimenti si apre con le prime righe
         // e, quando arriva, la tendina si allunga senza scatti.
         const loading = state.mailBodies[item.messageId] === undefined && item.messageId
@@ -1180,7 +1298,7 @@
         form?.closest('.ao-expanded')?.classList.remove('ao-expanded'); // il bordo blu va via subito
         holdRender();
         await fold(form);
-        if (state.queueExpanded === closing) state.queueExpanded = null; // solo se nel frattempo non se n'è aperta un'altra
+        if (state.queueExpanded === closing) { state.queueExpanded = null; delete state.queueChoice[closing]; } // solo se nel frattempo non se n'è aperta un'altra
         releaseRender();
         render();
     }
@@ -1553,7 +1671,7 @@
     //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
     //  - removeCard: una scheda lascia l'elenco e le altre salgono.
     // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
-    const MOTION = { unfold: 320, fold: 320, hold: 150, exit: 380, remove: 260 };
+    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260 };
     const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const wait = ms => new Promise(next => setTimeout(next, ms));
     function playOn(element, frames, duration, easing = 'ease-in-out') {
@@ -1624,6 +1742,7 @@
     const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
     const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
+    const FORWARD_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 4.5l5 5-5 5"/><path d="M16.5 9.5H8a4.5 4.5 0 0 0-4.5 4.5v1.5"/></svg>';
     function outcomeStart(card, tone, html) {
         if (!card || reducedMotion()) return;
         holdRender(); // rilasciato da outcomeRelease, dopo che gli elenchi sono aggiornati
@@ -1668,7 +1787,7 @@
     function outcomeCancel(card) {
         if (card?.aoOutcome) card.aoOutcome.cancelled = true;
         card?.querySelector('.ao-outcome')?.remove();
-        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-danger', 'ao-outcome-full');
+        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-forward', 'ao-outcome-danger', 'ao-outcome-full');
         card?.querySelector('.ao-item-main')?.getAnimations().forEach(animation => animation.cancel());
         outcomeRelease(card);
     }
@@ -1679,6 +1798,24 @@
         else outcomeCancel(card);
         if (ok) {
             if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
+            delete state.queueChoice[mail.conversationId];
+            await refreshLists();
+        }
+        outcomeRelease(card);
+        render();
+    }
+    // Inoltro a un gruppo: viola, esce a destra come la presa in carico.
+    async function forwardFromQueue(card, mail, group) {
+        if (!group) return;
+        outcomeStart(card, 'forward', `${SPINNER}<span>${TEXTS.queue.forwardWorking}</span>`);
+        const ok = await run(() => Services.forwardMail(mail.conversationId, group.id, currentUser()));
+        if (ok) {
+            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.id)}</span>`);
+            await outcomeEnd(card);
+        } else outcomeCancel(card);
+        if (ok) {
+            if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
+            delete state.queueChoice[mail.conversationId];
             await refreshLists();
         }
         outcomeRelease(card);
@@ -2426,11 +2563,36 @@
 #ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
 #ao-root .ao-queue-item .ao-actions .ao-spacer { display: none; }
 #ao-root .ao-queue-item { position: relative; overflow: hidden; }
+/* Scheda aperta: selettore dell'azione (e del gruppo), contenuto dell'azione, freccia per richiudere */
+#ao-root .ao-choice { position: relative; display: flex; padding: 3px; border-radius: var(--ao-radius-base); background: var(--ao-bg); }
+#ao-root .ao-choice-option { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 30px; padding: 4px 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; white-space: nowrap; line-height: 1.25; transition: color .25s; }
+#ao-root .ao-choice-sub { font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-choice-option:hover:not(.ao-active) { color: var(--ao-text); }
+#ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-choice-bg); opacity: 0; pointer-events: none; transition: background-color .25s; }
+#ao-root .ao-choice-thumb.ao-ready { opacity: 1; }
+#ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
+#ao-root .ao-choice-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1), background-color .25s; }
+@keyframes ao-fade-in { from { opacity: 0; } }
+#ao-root .ao-choice-accent { --ao-choice-bg: var(--ao-accent-bg); --ao-choice-text: var(--ao-text-accent); }
+#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-forward-bg); --ao-choice-text: var(--ao-forward-text); }
+#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-danger-bg); --ao-choice-text: var(--ao-danger); }
+#ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
+#ao-root .ao-choice-zone:empty { display: none; }
+#ao-root .ao-choice-content { display: grid; gap: 8px; }
+#ao-root .ao-fill-forward, #ao-root .ao-fill-forward:hover:where(:not(:disabled)) { background: var(--ao-forward); border-color: var(--ao-forward); color: var(--ao-white); }
+#ao-root .ao-fill-forward:hover:where(:not(:disabled)) { filter: brightness(.92); }
+#ao-root .ao-fill-danger, #ao-root .ao-fill-danger:hover:where(:not(:disabled)) { background: #d13438; border-color: #d13438; color: var(--ao-white); }
+#ao-root .ao-fill-danger:hover:where(:not(:disabled)) { filter: brightness(.92); }
+#ao-root .ao-collapse { display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
+#ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
+#ao-root .ao-svg-icon { display: inline-flex; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
 #ao-root .ao-queue-item { transition: background-color .3s, border-color .3s; }
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
 #ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
+#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-forward); }
 /* sfondo e bordo della scheda prendono il colore solo a tendina chiusa (prima lo dà solo il banner, che affiora) */
 #ao-root .ao-queue-item.ao-outcome-full { background: var(--ao-outcome); border-color: var(--ao-outcome); }
 #ao-root .ao-outcome {
