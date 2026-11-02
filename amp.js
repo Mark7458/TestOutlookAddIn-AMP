@@ -185,6 +185,7 @@
             allOperators: 'Tutti',
             search: 'Cerca',
             searchPlaceholder: 'INC o oggetto',
+            noResults: 'Nessun risultato.',
             empty: 'Nessun ticket aperto.',
             noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
@@ -356,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:25';
+    const BUILD = '2026-11-02 19:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -638,6 +639,8 @@
         ticketSearchOpen: false, // ricerca (lente) aperta
         ticketQuery: '', // testo cercato: numero INC o oggetto
         ticketSearchEnter: false, // ricerca appena aperta (animazione di entrata)
+        ticketSearchShown: '', // testo dei risultati mostrati
+        ticketSearchPending: false, // si sta scrivendo: scheletro di caricamento al posto dei risultati
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
@@ -1021,7 +1024,7 @@
         const body = root.querySelector('.ao-body');
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
-        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.ticketQuery}|${state.settingsTab}`;
+        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.ticketSearchOpen}|${state.settingsTab}`;
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
         const children = [...view.children];
@@ -1414,11 +1417,12 @@
         const fromMail = ticket => Boolean(ticket.messageId);
         // Ricerca (lente) "super partes": numero INC o oggetto su tutti i ticket aperti, di qualunque sezione e operatore.
         // Mentre si cerca, sezione e filtro non contano (e non si vedono); chiudendo la ricerca si torna dove si era.
+        // Finché non si scrive niente non compare nessun risultato; mentre si scrive, un attimo di caricamento e poi i risultati.
         const searching = state.ticketSearchOpen;
-        const query = searching ? state.ticketQuery.trim().toLowerCase() : '';
-        const matches = ticket => !query || `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
+        const query = searching ? state.ticketSearchShown : '';
+        const matches = ticket => `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
         const visible = open.filter(byOperator);
-        const items = searching ? open.filter(matches)
+        const items = searching ? (query && !state.ticketSearchPending ? open.filter(matches) : [])
             : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
         const groups = [];
         items.forEach(ticket => {
@@ -1443,13 +1447,15 @@
                 none: visible.filter(ticket => !fromMail(ticket)).length
             }),
             state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
-            groups.length ? h('ul', { class: 'ao-list' }, groups.map(group => (group.tickets.length > 1
+            searching && state.ticketSearchPending ? searchSkeleton() : null,
+            groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
                 ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
                     newMessagesPreview(group.tickets[0]),
                     h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))))
                 : ticketItem(group.tickets[0], user, { query }))))
-                : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
+                : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
+                    : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)));
     }
     // Barra di Ticket, simmetrica: imbuto (filtro operatore) | Da mail | Senza mail | lente (ricerca).
     // Sotto, solo fuori dai miei ticket: l'etichetta del collega filtrato (×: torna ai miei). Il filtro vale per entrambi gli elenchi.
@@ -1459,13 +1465,13 @@
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         if (state.ticketSearchOpen) {
-            const close = () => { state.ticketSearchOpen = false; state.ticketQuery = ''; render(); };
+            const close = () => { clearTimeout(searchTimer); Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false }); render(); };
             requestAnimationFrame(() => { state.ticketSearchEnter = false; }); // l'apertura si anima una volta sola, non a ogni tasto
             return h('div', { class: 'ao-source-bar' },
                 h('div', { class: `ao-segmented ao-search-bar${state.ticketSearchEnter ? ' ao-entering' : ''}`, role: 'search' },
                     h('input', {
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
-                        oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); }
+                        oninput: event => runTicketSearch(event.target.value)
                     }),
                     h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: close }, svgIcon(SEARCH_ICON))));
         }
@@ -1488,7 +1494,7 @@
         }, svgIcon(FILTER_ICON)));
         bar.append(h('button', {
             type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
-            onclick: () => { state.operatorMenu = false; state.ticketSearchOpen = true; state.ticketSearchEnter = true; state.ticketQuery = ''; render(); focusTicketSearch(); }
+            onclick: () => { state.operatorMenu = false; Object.assign(state, { ticketSearchOpen: true, ticketSearchEnter: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false }); render(); focusTicketSearch(); }
         }, svgIcon(SEARCH_ICON)));
         const row = operator !== 'mine' ? h('div', { class: 'ao-filter-row' },
             h('span', { class: 'ao-filter-chip' },
@@ -1505,6 +1511,33 @@
                 colleagues.map(name => item(name, name)),
                 h('hr', { class: 'ao-menu-sep' }),
                 item('all', TEXTS.tickets.allOperators)) : null);
+    }
+    // Ricerca mentre si scrive: subito lo scheletro di caricamento, i risultati quando ci si ferma un attimo.
+    let searchTimer = null;
+    const SEARCH_DELAY = 350;
+    function runTicketSearch(value) {
+        state.ticketQuery = value;
+        clearTimeout(searchTimer);
+        const query = value.trim().toLowerCase();
+        if (!query) {
+            Object.assign(state, { ticketSearchShown: '', ticketSearchPending: false });
+        } else {
+            state.ticketSearchPending = true;
+            searchTimer = setTimeout(() => {
+                Object.assign(state, { ticketSearchShown: query, ticketSearchPending: false });
+                render();
+                focusTicketSearch();
+            }, SEARCH_DELAY);
+        }
+        render();
+        focusTicketSearch();
+    }
+    function searchSkeleton() {
+        return h('div', { class: 'ao-skeleton-list', 'aria-busy': 'true', 'aria-label': TEXTS.common.loading },
+            [0, 1, 2].map(() => h('div', { class: 'ao-skeleton' },
+                h('span', { class: 'ao-skeleton-line ao-skeleton-short' }),
+                h('span', { class: 'ao-skeleton-line' }),
+                h('span', { class: 'ao-skeleton-line ao-skeleton-mid' }))));
     }
     // Dopo ogni ridisegno il campo di ricerca torna attivo, con il cursore in fondo.
     function focusTicketSearch() {
@@ -2667,6 +2700,19 @@
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
+/* Ricerca: scheletro di caricamento che pulsa, poi i risultati entrano dal basso */
+#ao-root .ao-skeleton-list { display: grid; gap: 6px; }
+#ao-root .ao-skeleton { display: grid; gap: 7px; padding: 11px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
+#ao-root .ao-skeleton-line { display: block; height: 9px; border-radius: 5px; background: linear-gradient(90deg, var(--ao-line-light) 25%, var(--ao-bg) 50%, var(--ao-line-light) 75%); background-size: 200% 100%; animation: ao-shimmer 1.1s linear infinite; }
+#ao-root .ao-skeleton-short { width: 32%; }
+#ao-root .ao-skeleton-mid { width: 58%; }
+@keyframes ao-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+#ao-root .ao-results-in > * { animation: ao-result-in .28s cubic-bezier(.2, .8, .2, 1) backwards; }
+#ao-root .ao-results-in > :nth-child(2) { animation-delay: .04s; }
+#ao-root .ao-results-in > :nth-child(3) { animation-delay: .08s; }
+#ao-root .ao-results-in > :nth-child(n+4) { animation-delay: .12s; }
+@keyframes ao-result-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-skeleton-line, #ao-root .ao-results-in > * { animation: none; } }
 #ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
 #ao-root .ao-source-bar .ao-menu { left: 0; top: 38px; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
