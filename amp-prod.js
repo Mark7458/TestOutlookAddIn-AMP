@@ -117,7 +117,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:50';
+    const BUILD = '2026-11-02 16:00';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -228,7 +228,8 @@
     // Contatore delle schede: un solo numero, sempre il conteggio. Pulito di norma;
     // con una notifica lo stesso numero prende lo sfondo blu (il dettaglio si legge nella sezione).
     function counter(count, notify = false, title = '') {
-        return h('span', { class: `ao-counter${notify ? ' ao-counter-notify' : ''}`, title: title || undefined, hidden: !count && !notify }, count || '');
+        // Nascosto con una classe (non con hidden), così compare e sparisce con un'animazione.
+        return h('span', { class: `ao-counter${notify ? ' ao-counter-notify' : ''}${!count && !notify ? ' ao-counter-off' : ''}`, title: title || undefined }, count || '');
     }
 
     function showStatus(message, tone = 'success', action = null) {
@@ -342,7 +343,7 @@
         root.querySelectorAll('.ao-tab').forEach(tab => {
             const tabCounter = tab.querySelector('.ao-counter');
             tabCounter.textContent = state.queue.length || '';
-            tabCounter.hidden = !state.queue.length || tab.classList.contains('ao-active') || !counterAllowed();
+            tabCounter.classList.toggle('ao-counter-off', !state.queue.length || tab.classList.contains('ao-active') || !counterAllowed());
         });
         const body = root.querySelector('.ao-body');
         // Il selettore Attive / Ignorate sta in cima all'elenco e scivola via scorrendo (watchScroll).
@@ -864,7 +865,7 @@
 /* Intestazione e schede */
 #ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
-#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-bold); }
 #ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
@@ -878,6 +879,10 @@
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-text-accent); }
+/* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
+#ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
+#ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
