@@ -18,7 +18,9 @@
  *
  * Servizi (window.AmpBackend, da collegare alla Function App; vedi amp-servizi.md):
  *   listQueue(), listIgnored(), discardMail(conversationId, utente)       → necessari
- *   getMailBody(messageId), forwardMail(conversationId, gruppo, utente), subscribe(listener) → facoltativi
+ *   getMailBody(messageId), forwardMail(conversationId, idGruppo, utente), subscribe(listener) → facoltativi
+ * Gruppi dell'inoltro: dalla configurazione operativa del core (localStorage test-plugin-operational-config),
+ *   quelli attivi con type "external".
  */
 (function () {
     'use strict';
@@ -129,14 +131,22 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 17:10';
+    const BUILD = '2026-11-02 17:20';
 
-    // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
-    const FORWARD_GROUPS = [
-        { id: 'ES', name: 'Email Security' },
-        { id: 'PEL', name: 'Amministratori PEL' },
-        { id: 'PO', name: 'Post Office' }
-    ];
+    // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
+    // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
+    const PLUGIN_CONFIG_KEY = 'test-plugin-operational-config';
+    function pluginConfig() {
+        try { return JSON.parse(localStorage.getItem(PLUGIN_CONFIG_KEY) || 'null')?.payload ?? null; }
+        catch { return null; }
+    }
+    // Gruppi a cui si inoltra: quelli attivi di tipo "external" (es. ES, PEL, PO). La sigla va davanti all'oggetto: [ES].
+    function forwardGroups() {
+        return Object.entries(pluginConfig()?.groups || {})
+            .filter(([, group]) => group?.enabled && group.type === 'external')
+            .map(([id, group]) => ({ id, tag: group.shortName || id, name: group.displayName || '' }))
+            .sort((a, b) => a.tag.localeCompare(b.tag, 'it'));
+    }
 
     // ======================================================================
     // 1. SERVIZI E UTENTE
@@ -593,7 +603,8 @@
         const choice = state.queueChoice[item.conversationId] || {};
         const actions = [
             { value: 'take', label: TEXTS.queue.take, tone: 'accent', disabled: true },
-            { value: 'forward', label: TEXTS.queue.forward, tone: 'forward' },
+            // Senza gruppi esterni nella configurazione non c'è a chi inoltrare
+            { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: !forwardGroups().length },
             allowIgnore ? { value: 'ignore', label: TEXTS.queue.ignore, tone: 'danger' } : null
         ].filter(Boolean);
         return h('div', { class: 'ao-inline-form' },
@@ -612,9 +623,10 @@
         const mail = { conversationId: item.conversationId };
         const card = button => button.closest('.ao-queue-item');
         if (choice.action === 'forward') {
-            const group = FORWARD_GROUPS.find(entry => entry.id === choice.group);
+            const groups = forwardGroups();
+            const group = groups.find(entry => entry.id === choice.group);
             return [
-                choiceBar(`group:${item.conversationId}`, FORWARD_GROUPS.map(entry => ({ value: entry.id, label: entry.id, sub: entry.name, tone: 'forward' })),
+                choiceBar(`group:${item.conversationId}`, groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name, tone: 'forward' })),
                     choice.group, value => { choice.group = value; render(); }),
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group, onclick: event => forwardFromQueue(card(event.currentTarget), mail, group) }, TEXTS.queue.forward))
@@ -871,7 +883,7 @@
         outcomeStart(card, 'forward', `${SPINNER}<span>${TEXTS.queue.forwardWorking}</span>`);
         const ok = await run(() => Services.forwardMail(mail.conversationId, group.id, currentUser()));
         if (ok) {
-            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.id)}</span>`);
+            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.tag)}</span>`);
             await outcomeEnd(card);
         } else outcomeCancel(card);
         if (ok) {
