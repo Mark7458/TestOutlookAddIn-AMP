@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:35';
+    const BUILD = '2026-11-02 19:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -640,6 +640,7 @@
         ticketQuery: '', // testo cercato: numero INC o oggetto
         ticketSearchEnter: false, // ricerca appena aperta (animazione di entrata)
         ticketSearchShown: '', // testo dei risultati mostrati
+        ticketSearchExit: false, // ricerca appena chiusa (il selettore ricompare con una dissolvenza)
         ticketSearchPending: false, // si sta scrivendo: scheletro di caricamento al posto dei risultati
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
@@ -1465,7 +1466,21 @@
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         if (state.ticketSearchOpen) {
-            const close = () => { clearTimeout(searchTimer); Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false }); render(); };
+            // Chiusura: la barra di ricerca si ritira verso la lente, poi ricompare il selettore.
+            const close = async event => {
+                if (state.holdRender) return;
+                clearTimeout(searchTimer);
+                const searchBar = event?.currentTarget?.closest('.ao-search-bar');
+                if (searchBar?.animate && !reducedMotion()) {
+                    await holdingRender(() => searchBar.animate([
+                        { clipPath: 'inset(0 0 0 0 round 6px)' },
+                        { clipPath: `inset(0 0 0 calc(100% - 36px) round 6px)` }
+                    ], { duration: 240, easing: 'cubic-bezier(.4, 0, .6, 1)', fill: 'forwards' }).finished.catch(() => {}));
+                }
+                Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false, ticketSearchExit: true });
+                render();
+                requestAnimationFrame(() => { state.ticketSearchExit = false; });
+            };
             requestAnimationFrame(() => { state.ticketSearchEnter = false; }); // l'apertura si anima una volta sola, non a ogni tasto
             return h('div', { class: 'ao-source-bar' },
                 h('div', { class: `ao-segmented ao-search-bar${state.ticketSearchEnter ? ' ao-entering' : ''}`, role: 'search' },
@@ -1487,6 +1502,7 @@
             state.operatorMenu = false;
             render();
         });
+        if (state.ticketSearchExit) bar.classList.add('ao-returning'); // dopo la ricerca il selettore ricompare morbido
         bar.prepend(h('button', {
             type: 'button', class: `ao-bar-icon ao-bar-icon-start${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
             'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName, title: filterName,
@@ -2691,8 +2707,11 @@
 #ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
 #ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-accent-border); }
-#ao-root .ao-search-bar.ao-entering { animation: ao-search-in .22s cubic-bezier(.3, .8, .2, 1); }
-@keyframes ao-search-in { from { opacity: 0; transform: scaleX(.97); } }
+/* Apertura: la barra si allarga dalla lente verso sinistra, poi compare il testo; chiusura al contrario */
+#ao-root .ao-search-bar.ao-entering { animation: ao-search-in .3s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-search-bar.ao-entering .ao-search-input { animation: ao-fade-in .2s linear .12s backwards; }
+@keyframes ao-search-in { from { clip-path: inset(0 0 0 calc(100% - 36px) round 6px); } to { clip-path: inset(0 0 0 0 round 6px); } }
+#ao-root .ao-segmented.ao-returning > :not(.ao-segment-thumb) { animation: ao-fade-in .2s linear; }
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
 #ao-root .ao-search-bar .ao-bar-icon.ao-active::after { display: none; }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
@@ -2721,7 +2740,7 @@
 #ao-root .ao-menu-item:hover { background: var(--ao-hover); }
 #ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu, #ao-root .ao-search-bar { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu, #ao-root .ao-search-bar, #ao-root .ao-search-bar .ao-search-input, #ao-root .ao-returning > * { animation: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
