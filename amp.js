@@ -356,7 +356,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:15';
+    const BUILD = '2026-11-02 19:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1454,7 +1454,8 @@
     // Barra di Ticket, simmetrica: imbuto (filtro operatore) | Da mail | Senza mail | lente (ricerca).
     // Sotto, solo fuori dai miei ticket: l'etichetta del collega filtrato (×: torna ai miei). Il filtro vale per entrambi gli elenchi.
     // Menu dell'imbuto: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
-    // La lente trasforma la barra nel campo di ricerca (stessa misura): si cerca su tutti i ticket; × o Esc riportano la barra.
+    // La lente trasforma la barra nel campo di ricerca (stessa misura) e resta al suo posto, a destra:
+    // apre e chiude la ricerca (come un interruttore). Si cerca su tutti i ticket, mentre si scrive.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         if (state.ticketSearchOpen) {
@@ -1462,13 +1463,11 @@
             requestAnimationFrame(() => { state.ticketSearchEnter = false; }); // l'apertura si anima una volta sola, non a ogni tasto
             return h('div', { class: 'ao-source-bar' },
                 h('div', { class: `ao-segmented ao-search-bar${state.ticketSearchEnter ? ' ao-entering' : ''}`, role: 'search' },
-                    h('span', { class: 'ao-bar-icon ao-bar-icon-start ao-active', 'aria-hidden': 'true' }, svgIcon(SEARCH_ICON)),
                     h('input', {
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
-                        oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); },
-                        onkeydown: event => { if (event.key === 'Escape') close(); }
+                        oninput: event => { state.ticketQuery = event.target.value; render(); focusTicketSearch(); }
                     }),
-                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: close }, '×')));
+                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: close }, svgIcon(SEARCH_ICON))));
         }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
@@ -2662,9 +2661,8 @@
 #ao-root .ao-search-bar.ao-entering { animation: ao-search-in .22s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-search-in { from { opacity: 0; transform: scaleX(.97); } }
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
-#ao-root .ao-search-bar .ao-bar-icon-end { font-size: var(--ao-fs-lg); }
 #ao-root .ao-search-bar .ao-bar-icon.ao-active::after { display: none; }
-#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 6px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
