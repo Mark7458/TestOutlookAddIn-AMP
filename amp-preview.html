@@ -313,6 +313,16 @@
       },
       preferences: { favoritesGroupBy: 'none' }
     }));
+    // Contatore di esempio per i suggerimenti (nel pannello vero parte vuoto e si riempie con l'uso).
+    localStorage.setItem('amp_panel_usage_v1', JSON.stringify({
+      'alfa|posta': { n: 8, w: { casella: 4, piena: 3, posta: 3, mail: 2 } },
+      'alfa|stampante': { n: 4, w: { stampante: 3, toner: 1 } },
+      'alfa|password': { n: 2, w: { password: 2 } },
+      'beta|password': { n: 6, w: { password: 4, scaduta: 2, utenza: 3, accesso: 1 } },
+      'beta|posta': { n: 3, w: { casella: 1, lista: 2, distribuzione: 2 } },
+      'gamma|stampante': { n: 5, w: { stampante: 4, stampa: 2 } },
+      'gamma|password': { n: 2, w: { password: 2 } }
+    }));
     location.reload();
   });
   byId('preview-external').addEventListener('click', () => {
