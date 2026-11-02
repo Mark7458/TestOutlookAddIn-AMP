@@ -354,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:20';
+    const BUILD = '2026-11-02 18:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -600,6 +600,7 @@
         { id: 'PEL', name: 'Amministratori PEL' },
         { id: 'PO', name: 'Post Office' }
     ];
+    const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     function svgIcon(markup) {
         const icon = h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' });
@@ -616,7 +617,7 @@
         loading: false,
         serviceError: '',
         ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
-        ticketOperator: 'all', // Ticket: all | mine | nome del collega
+        ticketOperator: 'mine', // Ticket: mine (vista iniziale) | nome del collega | all
         operatorMenu: false, // menu degli operatori aperto
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
@@ -1422,8 +1423,9 @@
                 : ticketItem(group.tickets[0], user))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
-    // Selettore Da mail | Senza mail. All'inizio della stessa barra c'è il filtro operatore (vale per entrambi gli elenchi):
-    // mostra Tutti, Miei o il nome del collega, e cliccandolo si apre il menu degli operatori.
+    // Selettore Da mail | Senza mail. All'inizio della stessa barra c'è il filtro operatore (vale per entrambi gli elenchi).
+    // Sui miei ticket (vista iniziale) è solo un imbuto; su un collega o su Tutti mostra il nome con la freccia.
+    // Menu: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
@@ -1438,21 +1440,25 @@
             state.operatorMenu = false;
             render();
         });
+        const personal = operator === 'mine';
         bar.prepend(h('button', {
-            type: 'button', class: `ao-operator${state.operatorMenu ? ' ao-open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu),
-            title: operator === 'all' || operator === 'mine' ? undefined : operator,
+            type: 'button', class: `ao-operator${personal ? ' ao-operator-icon' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
+            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName,
+            title: operator === 'all' || personal ? undefined : operator,
             onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
-        }, h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')));
+        }, personal ? svgIcon(FILTER_ICON)
+            : [h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')]));
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
         return h('div', { class: 'ao-source-bar' }, bar,
             state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
-                item('all', TEXTS.tickets.allOperators),
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
-                colleagues.map(name => item(name, name))) : null);
+                colleagues.map(name => item(name, name)),
+                h('hr', { class: 'ao-menu-sep' }),
+                item('all', TEXTS.tickets.allOperators)) : null);
     }
     // Nuovo ticket senza mail: si apre da Ticket. Stesso modulo della presa in carico, più Short description,
     // data e ora di ricezione (hh:mm, poi nel formato di ServiceNow) e Description. Caller = chi apre il ticket.
@@ -2570,6 +2576,7 @@
 #ao-root .ao-operator { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 40%; margin-right: 2px; padding: 0 10px 0 8px; border: 0; border-right: 1px solid var(--ao-line-light); border-radius: calc(var(--ao-radius-base) - 2px) 0 0 calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
 #ao-root .ao-operator:hover, #ao-root .ao-operator.ao-open { background: var(--ao-hover); }
 #ao-root .ao-operator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-operator.ao-operator-icon { padding: 0 8px; color: var(--ao-text-muted); }
 #ao-root .ao-source-bar .ao-menu { left: 0; }
 #ao-root .ao-source-caret { font-size: var(--ao-fs-xs); opacity: .75; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
