@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-dialog-src.js-1
+// Test-Plugin file version: 0.2-auth-dialog-src.js-2
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -27,7 +27,7 @@ const AUTH_CONFIG = {
 
 const DIAGNOSTIC_KEY =
   "outlook-sogei-auth-diagnostics";
-const MAX_DIAGNOSTIC_EVENTS = 500;
+const MAX_DIAGNOSTIC_EVENTS = 150;
 const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
@@ -425,7 +425,7 @@ async function sendMessageToParent(message) {
       ...message,
       dialogOperationId: DIALOG_OPERATION_ID,
       dialogMode: DIALOG_MODE,
-      dialogDiagnostics: readDiagnosticEvents().slice(-500)
+      dialogDiagnostics: readDiagnosticEvents().slice(-12)
     })
   );
 

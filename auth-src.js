@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-src.js-1
+// Test-Plugin file version: 0.2-auth-src.js-2
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -23,7 +23,7 @@ let dialogOperationSequence = 0;
 let currentAuthentication = null;
 let persistedBridgeRejectedThisRun = false;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
-const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
+const MAX_AUTH_DIAGNOSTIC_EVENTS = 150;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 
@@ -196,7 +196,7 @@ async function resetAuthenticationCompletely() {
 function importDialogDiagnostics(entries) {
   if (!Array.isArray(entries)) return;
 
-  entries.slice(-60).forEach((entry) => {
+  entries.slice(-12).forEach((entry) => {
     const details = {
       operationId: entry?.details?.operationId ?? null,
       dialogMode: entry?.details?.dialogMode || null,
@@ -812,12 +812,16 @@ async function getAccessTokenSilently() {
     return connectPlugin();
   }
   if (persistedBridgeRejectedThisRun) {
-    recordAuthDiagnostic("expired_bridge_skip_pre_recovery", {
-      flow: AUTH_FLOW,
-      nextStep: "interactiveConnectPlugin"
-    });
     persistedBridgeRejectedThisRun = false;
-    return connectPlugin();
+    recordAuthDiagnostic("expired_bridge_preflight_start", { flow: AUTH_FLOW });
+    try {
+      const recovered = await acquireTokenWithOfficeDialog({ mode: "recovery", forceCloseAfterMs: 3000, height: 10, width: 10 });
+      recordAuthDiagnostic("expired_bridge_preflight_success", { acquisitionMode: recovered?.acquisitionMode || null });
+      return recovered;
+    } catch (error) {
+      recordAuthDiagnostic("expired_bridge_preflight_empty", { errorCode: error?.errorCode || null });
+      return connectPlugin();
+    }
   }
   recordAuthDiagnostic("taskpane_silent_empty_recover_via_dialog");
   return recoverConnection();

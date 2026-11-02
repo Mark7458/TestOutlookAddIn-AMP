@@ -1,20 +1,18 @@
-// Test-Plugin file version: 0.2-taskpane.js-2
+// Test-Plugin file version: 0.2-taskpane.js-3
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-initial',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-1',
-    'taskpane.js': '0.2-taskpane.js-2',
-    'taskpane.css': '0.2-taskpane.css-1',
-    'auth-src.js': '0.2-auth-src.js-1',
+    'taskpane.html': '0.2-taskpane.html-2',
+    'taskpane.js': '0.2-taskpane.js-3',
+    'taskpane.css': '0.2-taskpane.css-2',
+    'auth-src.js': '0.2-auth-src.js-2',
     'auth-dialog.html': '0.2-auth-dialog.html-1',
-    'auth-dialog-src.js': '0.2-auth-dialog-src.js-1',
+    'auth-dialog-src.js': '0.2-auth-dialog-src.js-2',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
-    'amp.js': '0.2-amp.js-1',
-    'amp.css': '0.2-amp.css-1',
-    'amp-view.html': '0.2-amp-view.html-1'
   }),
+  database: Object.freeze({ schemaVersion: 1, requiredDataVersion: 1 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -41,7 +39,9 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
 
   let currentHeaderText = "";
   let currentMessageContext = null;
+  let currentSharePointData = null;
   const messageContextListeners = new Set();
+  const sharePointDataListeners = new Set();
   const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
   const sectionIds = ["email-details", "settings", "diagnostics"];
   function readUiPreferences() {
@@ -507,11 +507,22 @@ function registerHealthButton() {
     messageContextListeners.add(listener);
     return () => messageContextListeners.delete(listener);
   }
+  function publishSharePointData() {
+    const snapshot = cloneContext(currentSharePointData);
+    sharePointDataListeners.forEach((listener) => {
+      try { listener(snapshot); } catch (error) { console.error("Listener SharePoint non riuscito:", error); }
+    });
+  }
+  function getCurrentSharePointData() { return cloneContext(currentSharePointData); }
+  function onSharePointDataChanged(listener) {
+    if (typeof listener !== "function") throw new TypeError("Il listener deve essere una funzione.");
+    sharePointDataListeners.add(listener);
+    return () => sharePointDataListeners.delete(listener);
+  }
 
   function showMainView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
-    const ampView = byId("amp-view");
 
     if (mainView) {
       mainView.hidden = false;
@@ -519,9 +530,6 @@ function registerHealthButton() {
 
     if (headerView) {
       headerView.hidden = true;
-    }
-    if (ampView) {
-      ampView.hidden = true;
     }
   }
 
@@ -943,6 +951,57 @@ function registerHealthButton() {
     }
   }
   function registerPluginSettingsControls() { document.getElementById("persist-view-setting")?.addEventListener("change", savePluginSettings); document.getElementById("diagnostics-enabled-setting")?.addEventListener("change", savePluginSettings); loadPluginSettings(); }
+  const OPERATIONAL_CONFIG_URL = "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/PluginConfig";
+  const OPERATIONAL_CONFIG_KEY = "test-plugin-operational-config";
+  function readOperationalConfigCache() {
+    try { return JSON.parse(localStorage.getItem(OPERATIONAL_CONFIG_KEY) || "null"); }
+    catch (error) { window.WorkflowHealth?.recordDiagnostic?.("config_cache_invalid", { message: error?.message || String(error) }); return null; }
+  }
+  function refreshOperationalConfigDiagnostics(cache = readOperationalConfigCache(), status = null) {
+    const payload = cache?.payload;
+    const lines = [
+      `Stato: ${status || (payload ? "disponibile" : "non disponibile")}`,
+      `Schema richiesto: ${TEST_PLUGIN_BUILD.database.schemaVersion}`,
+      `Versione richiesta: ${TEST_PLUGIN_BUILD.database.requiredDataVersion}`,
+      `Schema disponibile: ${cache?.schemaVersion ?? "-"}`,
+      `Versione disponibile: ${cache?.dataVersion ?? "-"}`,
+      `Scaricata: ${cache?.downloadedAt || "-"}`,
+      `Agenzie: ${Object.keys(payload?.agencies || {}).length}`,
+      `Operatori: ${Object.keys(payload?.operators || {}).length}`,
+      `Gruppi: ${Object.keys(payload?.groups || {}).length}`
+    ];
+    setText("diagnostic-database", lines.join("\n"));
+  }
+  async function ensureOperationalConfig(accessToken) {
+    const required = TEST_PLUGIN_BUILD.database;
+    const cached = readOperationalConfigCache();
+    window.WorkflowHealth?.recordDiagnostic?.("config_cache_read", { schemaVersion: cached?.schemaVersion ?? null, dataVersion: cached?.dataVersion ?? null });
+    if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
+      window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
+      refreshOperationalConfigDiagnostics(cached, "cache valida");
+      return cached.payload;
+    }
+    window.WorkflowHealth?.recordDiagnostic?.("config_version_mismatch", { requiredSchemaVersion: required.schemaVersion, requiredDataVersion: required.requiredDataVersion, cachedSchemaVersion: cached?.schemaVersion ?? null, cachedDataVersion: cached?.dataVersion ?? null });
+    refreshOperationalConfigDiagnostics(cached, "aggiornamento necessario");
+    window.WorkflowHealth?.recordDiagnostic?.("config_download_start");
+    try {
+      const response = await fetch(OPERATIONAL_CONFIG_URL, { method: "GET", headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
+      if (!response.ok) throw new Error(`PluginConfig HTTP ${response.status} ${response.statusText || ""}`.trim());
+      const payload = await response.json();
+      if (payload?.schemaVersion !== required.schemaVersion || payload?.dataVersion !== required.requiredDataVersion) {
+        throw new Error(`PluginConfig incompatibile: schema ${payload?.schemaVersion}, dati ${payload?.dataVersion}.`);
+      }
+      const stored = { schemaVersion: payload.schemaVersion, dataVersion: payload.dataVersion, downloadedAt: new Date().toISOString(), payload };
+      localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
+      window.WorkflowHealth?.recordDiagnostic?.("config_cache_saved", { schemaVersion: stored.schemaVersion, dataVersion: stored.dataVersion, agencies: Object.keys(payload.agencies || {}).length, operators: Object.keys(payload.operators || {}).length, groups: Object.keys(payload.groups || {}).length });
+      refreshOperationalConfigDiagnostics(stored, "scaricata");
+      return payload;
+    } catch (error) {
+      window.WorkflowHealth?.recordDiagnostic?.("config_download_error", { message: error?.message || String(error) });
+      refreshOperationalConfigDiagnostics(cached, `errore: ${error?.message || String(error)}`);
+      throw error;
+    }
+  }
   const GET_TICKET_BY_CONVERSATION_ID_URL =
     "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId";
 
@@ -962,7 +1021,7 @@ function registerHealthButton() {
       return;
     }
     button.disabled = isLoading;
-    button.textContent = isLoading ? "Aggiornamento..." : "Aggiorna ticket";
+    button.textContent = isLoading ? "Aggiornamento..." : "Aggiorna dati SharePoint";
   }
 
   function showTicketResult(result) {
@@ -1037,6 +1096,7 @@ function registerHealthButton() {
       if (!authentication?.accessToken) {
         throw new Error("Token di accesso non disponibile dopo il tentativo di connessione.");
       }
+      await ensureOperationalConfig(authentication.accessToken);
 
       const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
       const startedAt = Date.now();
@@ -1066,8 +1126,6 @@ function registerHealthButton() {
         authenticationMode: authentication.acquisitionMode,
         body
       };
-      logLookup("result_ready", { status: result.status, ok: result.ok, elapsedMs: Date.now() - lookupStartedAt });
-      try { JSON.parse(body || "{}"); logLookup("json_parsed", { parsed: true }); } catch { logLookup("json_parsed", { parsed: false }); }
       console.info("GetTicketByConversationId:", {
         trigger: manual ? "manual" : "automatic",
         status: result.status,
@@ -1077,8 +1135,11 @@ function registerHealthButton() {
         body: result.body
       });
       showTicketResult(result);
-      logLookup("ui_updated");
-      logLookup("complete", { status: result.status, ok: result.ok, elapsedMs: Date.now() - lookupStartedAt });
+      let parsedData = null;
+      try { parsedData = JSON.parse(body || "{}"); } catch {}
+      currentSharePointData = { conversationId, ok: result.ok, status: result.status, statusText: result.statusText, authenticationMode: result.authenticationMode, retrievedAt: new Date().toISOString(), data: parsedData, rawBody: parsedData ? null : body };
+      publishSharePointData();
+      logLookup("complete", { status: result.status, ok: result.ok, authenticationMode: result.authenticationMode, elapsedMs: Date.now() - lookupStartedAt, responseBytes: body.length });
       return result;
     } catch (error) {
       logLookup("error", { name: error?.name || "Error", errorCode: error?.errorCode || null, message: error?.message || String(error), elapsedMs: Date.now() - lookupStartedAt });
@@ -1090,7 +1151,6 @@ function registerHealthButton() {
     } finally {
       if (sequence === null || sequence === loadSequence) {
         setTicketButtonLoading(false);
-        logLookup("loading_cleared", { elapsedMs: Date.now() - lookupStartedAt });
       }
     }
   }
@@ -1223,6 +1283,8 @@ function registerHealthButton() {
     version: window.TestPluginBuild?.application || "0.2",
     getCurrentMessageContext,
     onMessageChanged,
+    getCurrentSharePointData,
+    onSharePointDataChanged,
     showMainView
   });
 
@@ -1238,10 +1300,10 @@ function registerHealthButton() {
     registerTicketTestControls();
     registerAuthDiagnosticsControls();
     loadBuildVersions();
+    refreshOperationalConfigDiagnostics();
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    window.AmpModule?.initialize?.().catch((error) => console.error("AMP init error:", error));
     // UI subito disponibile; autenticazione solo alla prima chiamata che ne ha bisogno.
     loadSelectedMessage();
     refreshAuthDiagnostics();
