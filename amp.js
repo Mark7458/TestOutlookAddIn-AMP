@@ -354,7 +354,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 18:10';
+    const BUILD = '2026-11-02 18:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -924,7 +924,7 @@
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
         root.addEventListener('click', event => {
-            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-source-bar .ao-segment.ao-active')) return;
+            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-operator')) return;
             state.operatorMenu = false;
             render();
         }, true);
@@ -1422,30 +1422,33 @@
                 : ticketItem(group.tickets[0], user))))
                 : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.tickets.empty)));
     }
-    // Selettore Da mail | Senza mail con il menu degli operatori (si apre ricliccando la voce scelta).
+    // Selettore Da mail | Senza mail. All'inizio della stessa barra c'è il filtro operatore (vale per entrambi gli elenchi):
+    // mostra Tutti, Miei o il nome del collega, e cliccandolo si apre il menu degli operatori.
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
-        const filterName = operator === 'all' ? '' : (operator === 'mine' ? TEXTS.tickets.mine : operator.split(' ')[0]);
-        // Il filtro vale per entrambi gli elenchi, quindi il nome compare in tutte e due le voci; la freccia solo sulla scelta.
-        const label = (value, text) => [text, filterName ? h('span', { class: 'ao-source-filter' }, ` · ${filterName}`) : null,
-            state.ticketSource === value ? h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾') : null];
+        const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator.split(' ')[0]);
         const bar = filterBar([
-            { value: 'mail', label: label('mail', TEXTS.tickets.fromMail), count: counts.mail },
-            { value: 'none', label: label('none', TEXTS.tickets.withoutMail), count: counts.none }
+            { value: 'mail', label: TEXTS.tickets.fromMail, count: counts.mail },
+            { value: 'none', label: TEXTS.tickets.withoutMail, count: counts.none }
         ], state.ticketSource, value => {
-            if (value === state.ticketSource) state.operatorMenu = !state.operatorMenu;
-            else { state.ticketSource = value; state.operatorMenu = false; }
+            if (value === state.ticketSource) return;
+            state.ticketSource = value;
+            state.operatorMenu = false;
             render();
         });
+        bar.prepend(h('button', {
+            type: 'button', class: `ao-operator${state.operatorMenu ? ' ao-open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu),
+            title: operator === 'all' || operator === 'mine' ? undefined : operator,
+            onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
+        }, h('span', { class: 'ao-operator-name' }, filterName), h('span', { class: 'ao-source-caret', 'aria-hidden': 'true' }, '▾')));
         const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
         return h('div', { class: 'ao-source-bar' }, bar,
-            // Il menu si apre sotto la voce scelta (a sinistra per Da mail, a destra per Senza mail).
-            state.operatorMenu ? h('div', { class: `ao-menu ao-menu-${state.ticketSource === 'none' ? 'right' : 'left'}`, role: 'menu' },
+            state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
                 item('all', TEXTS.tickets.allOperators),
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
@@ -2564,11 +2567,11 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
 #ao-root .ao-source-bar { position: relative; display: grid; }
-#ao-root .ao-menu-left { left: 0; }
-#ao-root .ao-menu-right { right: 0; }
-#ao-root .ao-source-filter { font-weight: var(--ao-fw-normal); }
-#ao-root .ao-source-caret { order: 2; margin-left: -1px; font-size: var(--ao-fs-xs); opacity: .75; } /* la freccia dopo il numero */
-#ao-root .ao-source-bar .ao-count { order: 1; }
+#ao-root .ao-operator { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 40%; margin-right: 2px; padding: 0 10px 0 8px; border: 0; border-right: 1px solid var(--ao-line-light); border-radius: calc(var(--ao-radius-base) - 2px) 0 0 calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; }
+#ao-root .ao-operator:hover, #ao-root .ao-operator.ao-open { background: var(--ao-hover); }
+#ao-root .ao-operator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-source-bar .ao-menu { left: 0; }
+#ao-root .ao-source-caret { font-size: var(--ao-fs-xs); opacity: .75; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 #ao-root .ao-menu-item { padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
