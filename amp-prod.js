@@ -123,7 +123,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 15:00';
+    const BUILD = '2026-11-02 15:10';
 
     // Gruppi a cui si inoltra (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
     const FORWARD_GROUPS = [
@@ -871,7 +871,7 @@
 /* Intestazione e schede */
 #ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
-#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-bg-soft); }
 #ao-root .ao-tab.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-bold); }
 #ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
