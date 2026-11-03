@@ -92,11 +92,12 @@
             selectionShadow: '0 0 transparent', // ombra della voce scelta
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
             selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
-            // + Nuovo ticket: nel flat bordo tratteggiato; nel vetro sempre acceso col bagliore, come una card al passaggio del mouse
+            // + Nuovo ticket: nel flat bordo tratteggiato; nel vetro card come le altre con un bagliore fisso che "chiama",
+            // un po' più forte al passaggio del mouse; aperto tiene il bagliore
             callBorder: '1px dashed var(--ao-accent)',
-            callBg: 'var(--ao-surface)',
-            callFilter: 'none',
+            callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
+            callGlowHover: '0 0 transparent',
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -169,9 +170,9 @@
             selectionTone: '0%',
             selectionMotion: '.44s cubic-bezier(.32, 1.12, .5, 1)', // scivola con un leggero rimbalzo finale, come iOS
             callBorder: '1px solid var(--ao-line)',
-            callBg: 'var(--ao-hover)',
-            callFilter: 'var(--ao-hover-filter)',
-            callGlow: '0 0 16px rgba(120, 170, 255, .4)', // più deciso del passaggio del mouse: ti chiama
+            callOpenBorder: 'var(--ao-line)',
+            callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
+            callGlowHover: '0 0 21px rgba(80, 150, 255, .58), 0 0 5px rgba(80, 150, 255, .3)',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -198,7 +199,8 @@
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
-            callGlow: '0 0 16px rgba(90, 150, 255, .34)',
+            callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
+            callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
             toneFill: '24%',
             toneFillHover: '30%',
             toneLine: 'rgba(255, 255, 255, .12)'
@@ -453,7 +455,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 15:05';
+    const BUILD = '2026-11-03 15:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3077,8 +3079,12 @@
 #ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
 #ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-call-bg); filter: var(--ao-call-filter); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
-#ao-root .ao-new-ticket-card { border-color: var(--ao-accent); }
+#ao-root .ao-new-ticket { padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+/* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
+#ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
+@keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
+#ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-item, #ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-ticket-compact { filter: blur(5px); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-new-ticket-card { animation: none; } }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -3244,7 +3250,7 @@
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-filter-chip, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-#ao-root .ao-new-ticket:hover { background: var(--ao-hover); } /* il bagliore è già il suo, più forte */
+#ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
