@@ -485,7 +485,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 16:55';
+    const BUILD = '2026-11-03 17:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1953,14 +1953,18 @@
             const slot = root.querySelector(`[data-suggest-for="${NEW_TICKET_KEY}"]`);
             if (slot) slot.replaceChildren(...[suggestionPills(draft, config, draft.subject)].filter(Boolean));
         };
+        const zone = ticketForm(mail, config, { zone: true });
+        zone.append(
+            h('div', { class: 'ao-field-row' },
+                textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
+                textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
+            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshSuggestions(); refreshButton(); }, { maxlength: '160' }),
+            textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }));
         return h('section', { class: 'ao-card ao-new-ticket-card' },
+            // Stesso riquadro della presa in carico da In coda: Agenzia, Attività, data e ora di ricezione,
+            // poi Short description e Description.
             h('div', { class: 'ao-inline-form' },
-                textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshSuggestions(); refreshButton(); }, { maxlength: '160' }),
-                ticketForm(mail, config, { compact: true }),
-                h('div', { class: 'ao-field-row' },
-                    textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
-                    textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
-                textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }),
+                zone,
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready(), onclick: () => openTicket(manualMail()) }, TEXTS.tickets.openNew),
                     h('span', { class: 'ao-spacer' }),
@@ -3308,12 +3312,12 @@
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
-/* Pulsanti di conferma (Prendi in carico, Inoltra, Ignora) nel colore dell'azione: pieni nel flat, velati nel vetro */
-#ao-root .ao-queue-item .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
+/* Pulsanti di conferma (Prendi in carico, Inoltra, Ignora, Apri ticket) nel colore dell'azione: pieni nel flat, velati nel vetro */
+#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
 #ao-root .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
 #ao-root .ao-queue-item .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
-#ao-root .ao-queue-item .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
-#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
+#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-new-ticket-card .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-svg-icon { display: inline-flex; }
