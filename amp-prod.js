@@ -131,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 11:55';
+    const BUILD = '2026-11-03 14:35';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -510,10 +510,20 @@
     // Selettore a segmenti. La pillola della voce scelta è un elemento a parte (.ao-segment-thumb):
     // quando la scelta cambia, scivola dalla voce di prima a quella nuova (anche cambiando larghezza).
     // Il pannello si ridisegna a ogni clic, quindi la voce di prima si ricorda per selettore (segmentMemory).
+    // Si ricorda anche dove stava la pillola: ridisegnando con la stessa scelta (es. un clic su una mail in Outlook)
+    // compare subito al suo posto, senza un istante di vuoto.
     const segmentMemory = new Map();
+    const segmentPlace = new Map();
+    const segmentKey = options => options.map(option => option.value).join('|');
     function filterBar(options, value, onchange) {
-        const key = options.map(option => option.value).join('|');
+        const key = segmentKey(options);
         const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
+        const kept = segmentMemory.get(key) === value && segmentPlace.get(key);
+        if (kept) {
+            thumb.style.width = kept.width;
+            thumb.style.transform = kept.transform;
+            thumb.classList.add('ao-ready');
+        }
         const bar = h('div', { class: 'ao-segmented', role: 'group' },
             thumb,
             options.map(option => h('button', {
@@ -530,6 +540,7 @@
                 thumb.classList.toggle('ao-moving', animate);
                 thumb.style.width = `${button.offsetWidth}px`;
                 thumb.style.transform = `translateX(${button.offsetLeft - 2}px)`; // 2px = bordo interno del selettore
+                if (!animate) segmentPlace.set(key, { width: thumb.style.width, transform: thumb.style.transform });
                 return true;
             };
             if (previous !== undefined && previous !== value && place(previous, false)) {
@@ -542,7 +553,10 @@
             thumb.classList.add('ao-ready');
             // Se il riquadro cambia larghezza, la pillola segue la voce (senza animazione).
             if (window.ResizeObserver) new ResizeObserver(() => { if (!thumb.classList.contains('ao-moving')) place(value, false); }).observe(bar);
-            thumb.addEventListener('transitionend', () => thumb.classList.remove('ao-moving'));
+            thumb.addEventListener('transitionend', () => {
+                thumb.classList.remove('ao-moving');
+                segmentPlace.set(key, { width: thumb.style.width, transform: thumb.style.transform });
+            });
         });
         return bar;
     }
@@ -550,12 +564,15 @@
     // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
     // Il numero compare solo sulla voce scelta.
     function iconBar(options, value, onchange) {
+        // Il nome compare in dissolvenza solo quando la scelta cambia, non a ogni ridisegno.
+        const previous = segmentMemory.get(segmentKey(options));
+        const entering = previous !== undefined && previous !== value;
         const bar = filterBar(options.map(option => {
             const active = option.value === value;
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: [svgIcon(option.icon), active ? h('span', { class: 'ao-segment-name' }, option.label) : null],
+                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name-in' : null }, option.label) : null],
                 count: active ? option.count : undefined
             };
         }), value, onchange);
@@ -1062,8 +1079,8 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 #ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; }
 #ao-root .ao-segmented-icons .ao-segment.ao-active { flex: 2.6; }
-#ao-root .ao-segment-name { animation: ao-fade-in .25s linear; }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name { animation: none; } }
+#ao-root .ao-segment-name-in { animation: ao-fade-in .25s linear; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name-in { animation: none; } }
 #ao-root .ao-source-bar { position: relative; display: grid; }
 #ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
