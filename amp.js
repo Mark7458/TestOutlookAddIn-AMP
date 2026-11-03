@@ -47,7 +47,6 @@
     const THEME = {
         colors: {
             accent: '#0078d4', // pulsanti principali, scheda attiva, voci selezionate
-            accentDark: '#106ebe', // colore principale al passaggio del mouse
             textAccent: '#106ebe', // tutte le scritte blu (numeri dei ticket, link, schede attive…)
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
@@ -68,19 +67,18 @@
             warningBg: '#fff4ce',
             danger: '#a4262c',
             dangerBg: '#fde7e9',
-            hold: '#8a5a00', // On Hold: giallo d'attesa
-            holdBg: '#fbf1d0',
+            hold: '#8a6d00', // On Hold: citrino
+            holdBg: '#fbf3cc',
             forward: '#7c5bbf', // Inoltra (In coda): pulsante ed esito
-            forwardText: '#6b47b0',
             // Selettore della scheda aperta (Inoltra, Ignora): pillola e scritta della voce scelta
             choiceForwardBg: '#f1ecf9',
             choiceForwardText: '#6b47b0',
             choiceDangerBg: '#fde7e9',
             choiceDangerText: '#a4262c',
-            choiceResolveBg: '#dff2f2', // Risolvi: acqua
-            choiceResolveText: '#026c6f',
-            choiceHoldBg: '#fbf1d0', // On Hold: giallo d'attesa
-            choiceHoldText: '#8a5a00',
+            choiceResolveBg: '#e3f1e9', // Risolvi: giada
+            choiceResolveText: '#22693f',
+            choiceHoldBg: '#fbf3cc', // On Hold: citrino
+            choiceHoldText: '#8a6d00',
             // Stile: valori dello stile flat. Lo stile vetro ridefinisce gli stessi nomi in glassColors e glassDarkColors;
             // gli elementi usano solo questi nomi, così flat/vetro e chiaro/scuro cambiano tutto insieme.
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
@@ -96,6 +94,7 @@
             selectionShadow: '0 0 transparent', // ombra della voce scelta
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
             selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
+            menuBg: 'var(--ao-surface)', // elenchi aperti: sempre pieni, si leggono sopra a tutto
             // + Nuovo ticket: nel flat bordo tratteggiato; nel vetro card come le altre con un bagliore fisso che "chiama",
             // un po' più forte al passaggio del mouse; aperto tiene il bagliore
             callBorder: '1px dashed var(--ao-accent)',
@@ -108,13 +107,19 @@
             searchLine: 'var(--ao-accent-border)',
             searchFocusLine: 'var(--ao-accent)',
             searchLensLine: 'var(--ao-accent-border)',
-            // Pulsanti di conferma ed esito di In coda (colore dell'azione): pieni nel flat, velati nel vetro
+            // Colori delle azioni (pulsanti, esiti): nel vetro diventano pietre preziose
+            toneTake: 'var(--ao-accent)', // Prendi in carico, Aggiorna, Salva…
+            toneForward: 'var(--ao-forward)', // Inoltra
+            toneIgnore: '#d13438', // Ignora, Annulla
+            toneResolve: '#2e8b57', // Risolvi: giada
+            toneHold: '#d4ac0d', // On Hold: citrino
+            // Pulsanti pieni del colore dell'azione (nel vetro appena trasparenti), scritta bianca
             toneFill: '100%', // quanto colore nello sfondo
-            toneFillHover: '100%',
-            toneSolid: '100%', // quanto colore nei bordi e nella scheda a esito concluso
-            toneLine: 'transparent', // bordo quando il colore non c'è
-            toneText: '0%', // quanto colore nella scritta (0%: bianca)
+            toneSolid: '100%', // quanto colore nella scheda a esito concluso
+            toneLine: 'transparent', // bordo dei pulsanti
             toneHoverFilter: 'brightness(.92)',
+            toneGlow: '0%', // bagliore del colore dell'azione al passaggio del mouse
+            btnHighlight: '0 0 transparent', // filo di luce sul bordo alto dei pulsanti
             spinnerTrack: '45%',
             // Etichette: quanto colore nel fondo (su che base) e nella scritta (su che base), bordo
             tagFill: '14%',
@@ -126,7 +131,6 @@
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
         darkColors: {
-            accentDark: '#2b88d8',
             textAccent: '#6cb8f6',
             accentBorder: '#3a6a8f',
             accentBg: '#19344a',
@@ -146,18 +150,17 @@
             warningBg: '#3d3214',
             danger: '#ffb3b8',
             dangerBg: '#442726',
-            hold: '#f2c661',
-            holdBg: '#3d3214',
-            forwardText: '#c3b2ff',
+            hold: '#f0d257',
+            holdBg: '#3d3410',
             // Tema scuro: viola e rosso accesi quanto il blu (prima risultavano spenti)
             choiceForwardBg: 'color-mix(in srgb, #7c5bbf 26%, #2d2c2b)',
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
             choiceDangerText: '#ff8f94',
-            choiceResolveBg: 'color-mix(in srgb, #038387 26%, #2d2c2b)',
-            choiceResolveText: '#5fd3d6',
-            choiceHoldBg: 'color-mix(in srgb, #c19c00 24%, #2d2c2b)',
-            choiceHoldText: '#f2c661',
+            choiceResolveBg: 'color-mix(in srgb, #2e8b57 26%, #2d2c2b)',
+            choiceResolveText: '#7fd1a3',
+            choiceHoldBg: 'color-mix(in srgb, #d4ac0d 24%, #2d2c2b)',
+            choiceHoldText: '#f0d257',
             backdrop: '#201f1e',
             tagFill: '30%',
             tagBase: '#2d2c2b',
@@ -188,6 +191,7 @@
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .06)',
             selectionTone: '0%',
             selectionMotion: '.44s cubic-bezier(.32, 1.12, .5, 1)', // scivola con un leggero rimbalzo finale, come iOS
+            menuBg: '#fbfcfe',
             callBorder: '1px solid var(--ao-line)',
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
@@ -198,12 +202,15 @@
             searchLine: 'transparent',
             searchFocusLine: 'transparent',
             searchLensLine: 'transparent',
-            toneFill: '16%',
-            toneFillHover: '22%',
+            toneTake: '#0f5fbf', // zaffiro
+            toneForward: '#7b3fbf', // ametista
+            toneIgnore: '#c4183c', // rubino
+            toneFill: '86%', // vetro colorato
             toneSolid: '0%',
-            toneLine: 'rgba(255, 255, 255, .5)',
-            toneText: '100%',
-            toneHoverFilter: 'var(--ao-hover-filter)',
+            toneLine: 'rgba(255, 255, 255, .22)',
+            toneHoverFilter: 'brightness(1.08)',
+            toneGlow: '35%',
+            btnHighlight: 'inset 0 1px 0 rgba(255, 255, 255, .22)',
             spinnerTrack: '35%',
             tagFill: '16%',
             tagBase: 'transparent',
@@ -225,11 +232,17 @@
             segmentHover: 'rgba(255, 255, 255, .06)',
             filterIdle: 'rgba(255, 255, 255, .05)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
+            menuBg: '#2b2e36',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
-            toneFill: '24%',
-            toneFillHover: '30%',
-            toneLine: 'rgba(255, 255, 255, .12)',
+            // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
+            toneTake: 'color-mix(in srgb, #0f5fbf 82%, #000)',
+            toneForward: 'color-mix(in srgb, #7b3fbf 82%, #000)',
+            toneIgnore: 'color-mix(in srgb, #c4183c 82%, #000)',
+            toneResolve: 'color-mix(in srgb, #2e8b57 82%, #000)',
+            toneHold: 'color-mix(in srgb, #d4ac0d 82%, #000)',
+            toneLine: 'rgba(255, 255, 255, .14)',
+            btnHighlight: '0 0 transparent',
             tagFill: '28%',
             tagInk: '45%',
             tagInkBase: '#fff',
@@ -507,7 +520,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 19:20';
+    const BUILD = '2026-11-03 19:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1474,7 +1487,7 @@
     // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
     // Il numero compare solo sulla voce scelta.
     // key: memoria del selettore quando le stesse voci compaiono in più schede (azioni di In coda, di un ticket);
-    // tone: la voce scelta prende il colore della sua azione (ACTION_TONES); senza scelta le voci mostrano il nome.
+    // tone: la voce scelta prende il colore della sua azione (ACTION_TONES); senza scelta solo icone (il nome passandoci sopra).
     function iconBar(options, value, onchange, { key = null, tones = false, slide = true } = {}) {
         const memoryKey = key || segmentKey(options);
         const chosen = options.some(option => option.value === value);
@@ -1489,8 +1502,7 @@
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: !chosen ? option.label
-                    : [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
+                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
                 count: active ? option.count : undefined,
                 disabled: option.disabled
             };
@@ -1885,7 +1897,7 @@
         const filterButton = h('button', {
             type: 'button', class: `ao-bar-btn ao-bar-filter${filtered ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-open' : ''}`,
             'aria-pressed': String(state.ticketFilterOpen), 'aria-label': TEXTS.tickets.filters, title: TEXTS.tickets.filters,
-            onclick: () => swapBarMiddle(() => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; }, !state.ticketFilterOpen)
+            onclick: () => morphBar(() => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; })
         }, svgIcon(FILTER_ICON));
         const searchButton = h('button', {
             type: 'button', class: 'ao-bar-btn ao-bar-search', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
@@ -1949,31 +1961,33 @@
         ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar)'),
         ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
     ];
-    // Filtri (imbuto): il contenuto centrale della barra cambia scorrendo dall'imbuto. In apertura i filtri entrano da
-    // sinistra mentre il selettore svanisce; in chiusura si ritirano verso l'imbuto mentre il selettore ricompare.
-    async function swapBarMiddle(change, reveal) {
+    // Filtri (imbuto): le due voci del selettore (Da mail | Senza mail) si trasformano nei due filtri (Stato | Operatore)
+    // e viceversa. Il riquadro resta fermo: le scritte svaniscono, le due metà prendono la nuova larghezza, poi
+    // compaiono le scritte nuove (e, tornando al selettore, la pillola della voce scelta).
+    async function morphBar(change) {
         if (state.holdRender) return;
         const middleOf = () => root.querySelector('.ao-source-bar .ao-bar-row > .ao-segmented');
+        const partsOf = bar => [...(bar?.children || [])].filter(child => child.matches('.ao-segment, .ao-filter-dd'));
         const old = middleOf();
         if (!old || reducedMotion()) { change(); render(); return; }
-        const ghost = old.cloneNode(true);
-        ghost.classList.add('ao-bar-ghost');
-        Object.assign(ghost.style, { left: `${old.offsetLeft}px`, top: `${old.offsetTop}px`, width: `${old.offsetWidth}px`, height: `${old.offsetHeight}px` });
+        const widths = partsOf(old).map(part => part.offsetWidth);
+        const step = { duration: BAR_MOTION.duration * .4, easing: 'linear', fill: 'forwards' };
+        await holdingRender(() => Promise.all([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb')]
+            .map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], step).finished)).catch(() => {}));
         change();
         render();
         const fresh = middleOf();
-        if (!fresh) return;
-        fresh.parentElement.append(ghost);
-        const radius = getComputedStyle(fresh).borderRadius;
-        const closed = `inset(0 100% 0 0 round ${radius})`, opened = `inset(0 0 0 0 round ${radius})`;
+        const parts = partsOf(fresh);
+        if (parts.length !== widths.length) return;
         await holdingRender(async () => {
-            if (reveal) ghost.style.zIndex = '0', fresh.style.zIndex = '1';
-            const moves = reveal
-                ? [fresh.animate([{ clipPath: closed }, { clipPath: opened }], BAR_MOTION).finished, ghost.animate([{ opacity: 1 }, { opacity: 0 }], { ...BAR_MOTION, fill: 'forwards' }).finished]
-                : [ghost.animate([{ clipPath: opened }, { clipPath: closed }], { ...BAR_MOTION, fill: 'forwards' }).finished, fresh.animate([{ opacity: 0 }, { opacity: 1 }], BAR_MOTION).finished];
-            await Promise.all(moves).catch(() => {});
-            ghost.remove();
-            fresh.style.zIndex = '';
+            const contents = [...parts.flatMap(part => [...part.children]), ...fresh.querySelectorAll('.ao-segment-thumb')];
+            contents.forEach(element => { element.style.opacity = '0'; });
+            const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
+            await Promise.all(parts.map((part, index) => part.animate([
+                { flex: `0 0 ${widths[index]}px` }, { flex: `0 0 ${targets[index]}px` }
+            ], BAR_MOTION).finished)).catch(() => {});
+            await Promise.all(contents.map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: BAR_MOTION.duration * .5, easing: 'linear' }).finished)).catch(() => {});
+            contents.forEach(element => { element.style.opacity = ''; });
         });
     }
     async function openTicketSearch() {
@@ -3258,8 +3272,14 @@
 /* Pulsanti */
 #ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
-#ao-root .ao-primary { background: var(--ao-accent); border-color: var(--ao-accent); color: var(--ao-white); }
-#ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
+/* Pulsante principale, ovunque: pieno del colore della sua azione (--ao-btn, classi ao-fill-*), scritta bianca;
+   nel vetro è vetro colorato (pietre preziose) con un filo di luce e, al passaggio, un bagliore del suo colore */
+#ao-root .ao-button.ao-primary { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-button.ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-btn-highlight), 0 0 12px color-mix(in srgb, var(--ao-btn) var(--ao-tone-glow), transparent); }
+#ao-root .ao-button.ao-fill-forward { --ao-btn: var(--ao-tone-forward); }
+#ao-root .ao-button.ao-fill-danger { --ao-btn: var(--ao-tone-ignore); }
+#ao-root .ao-button.ao-fill-resolve { --ao-btn: var(--ao-tone-resolve); }
+#ao-root .ao-button.ao-fill-hold { --ao-btn: var(--ao-tone-hold); }
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
 /* Prendi in carico (righe di In coda): azzurro leggero al passaggio del mouse */
@@ -3291,8 +3311,7 @@
 #ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
 /* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
    (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
-#ao-root .ao-bar-row { position: relative; display: flex; align-items: stretch; gap: 6px; }
-#ao-root .ao-bar-ghost { position: absolute; margin: 0; pointer-events: none; }
+#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
 #ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
 #ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
@@ -3307,7 +3326,7 @@
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
-/* Filtri (imbuto): prendono il posto di Da mail | Senza mail (scorrendo dall'imbuto, swapBarMiddle). Due metà,
+/* Filtri (imbuto): Da mail | Senza mail si trasformano nei due filtri (morphBar). Due metà,
    ciascuna velata; il filtro attivo è pieno come la voce scelta dei selettori. */
 #ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; }
 #ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
@@ -3335,11 +3354,11 @@
 @keyframes ao-result-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-skeleton-line, #ao-root .ao-results-in > * { animation: none; } }
 #ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
-#ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
+#ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-menu-bg); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 #ao-root .ao-menu-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-menu-item:hover { background: var(--ao-hover); }
-#ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-menu-item.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); } /* scelta: solo la scritta; lo sfondo resta al passaggio del mouse */
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
 /* Selettore con icone (Impostazioni): la voce scelta è più larga e ha il nome, che compare in dissolvenza */
@@ -3537,14 +3556,6 @@
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
-/* Pulsanti di conferma (Prendi in carico, Inoltra, Ignora, Apri ticket) nel colore dell'azione: pieni nel flat, velati nel vetro */
-#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary, #ao-root .ao-update-card .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
-#ao-root .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
-#ao-root .ao-queue-item .ao-fill-danger, #ao-root .ao-update-card .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
-#ao-root .ao-update-card .ao-fill-resolve { --ao-btn: #038387; --ao-btn-text: var(--ao-choice-resolve-text); }
-#ao-root .ao-update-card .ao-fill-hold { --ao-btn: #c19c00; --ao-btn-text: var(--ao-choice-hold-text); }
-#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary, #ao-root .ao-update-card .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
-#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-new-ticket-card .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-update-card .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-svg-icon { display: inline-flex; }
@@ -3565,15 +3576,15 @@
 #ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
 #ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
 #ao-root .ao-resolving { pointer-events: none; }
-/* Colore dell'esito come quello dei pulsanti: pieno nel flat (scritta bianca), velato nel vetro (scritta colorata) */
-#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); --ao-outcome-text: var(--ao-text-accent); }
-#ao-root .ao-outcome-danger { --ao-outcome: #d13438; --ao-outcome-text: var(--ao-danger); }
-#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-forward); --ao-outcome-text: var(--ao-forward-text); }
+/* Colore dell'esito come quello dei pulsanti (vetro colorato nel vetro), scritta bianca */
+#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-tone-take); }
+#ao-root .ao-outcome-danger { --ao-outcome: var(--ao-tone-ignore); }
+#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-tone-forward); }
 /* sfondo e bordo della scheda prendono il colore solo a tendina chiusa (prima lo dà solo il banner, che affiora) */
 #ao-root .ao-queue-item.ao-outcome-full { background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-surface)); border-color: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-line)); }
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
-    background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-fill), transparent); color: color-mix(in srgb, var(--ao-outcome-text) var(--ao-tone-text), #fff);
+    background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-fill), transparent); color: #fff;
     font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
 }
 #ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
@@ -3626,7 +3637,7 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
