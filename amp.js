@@ -51,7 +51,6 @@
             textAccent: '#106ebe', // tutte le scritte blu (numeri dei ticket, link, schede attive…)
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
-            headerBackground: 'linear-gradient(135deg, #005a9e, #0078d4)',
             white: '#fff', // testo su sfondo blu (pulsanti, notifiche)
             surface: '#fff', // sfondo di card, campi, schede, barra di sistema
             text: '#242424',
@@ -73,22 +72,38 @@
             holdBg: '#f4f0fa',
             forward: '#7c5bbf', // Inoltra (In coda): pulsante ed esito
             forwardText: '#6b47b0',
-            forwardBg: '#f1ecf9',
             // Selettore della scheda aperta (Inoltra, Ignora): pillola e scritta della voce scelta
             choiceForwardBg: '#f1ecf9',
             choiceForwardText: '#6b47b0',
             choiceDangerBg: '#fde7e9',
             choiceDangerText: '#a4262c',
-            // Superfici: valori dello stile flat (lo stile vetro li ridefinisce in glassColors)
+            // Stile: valori dello stile flat. Lo stile vetro ridefinisce gli stessi nomi in glassColors e glassDarkColors;
+            // gli elementi usano solo questi nomi, così flat/vetro e chiaro/scuro cambiano tutto insieme.
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
+            navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
-            hoverGlow: 'none', // bagliore intorno alla superficie al passaggio del mouse
-            thumb: '#eff6fc', // pillola della voce scelta nei selettori
-            thumbGlow: 'none',
-            thumbFilter: 'none',
+            hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
+            segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
-            segmentTrack: 'var(--ao-surface)', // fondo dei selettori (la voce scelta ci scorre sopra)
+            choiceTrack: 'var(--ao-bg)', // fondo del selettore delle azioni (Prendi in carico / Inoltra / Ignora)
+            selection: 'var(--ao-accent-bg)', // voce scelta nei selettori a segmenti
+            selectionLine: 'transparent', // bordo della voce scelta
+            selectionShadow: '0 0 transparent', // ombra della voce scelta
+            selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
+            searchBg: 'var(--ao-surface)', // ricerca aperta: campo
+            searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
+            searchLine: 'var(--ao-accent-border)',
+            searchFocusLine: 'var(--ao-accent)',
+            searchLensLine: 'var(--ao-accent-border)',
+            // Pulsanti di conferma ed esito di In coda (colore dell'azione): pieni nel flat, velati nel vetro
+            toneFill: '100%', // quanto colore nello sfondo
+            toneFillHover: '100%',
+            toneSolid: '100%', // quanto colore nei bordi e nella scheda a esito concluso
+            toneLine: 'transparent', // bordo quando il colore non c'è
+            toneText: '0%', // quanto colore nella scritta (0%: bianca)
+            toneHoverFilter: 'brightness(.92)',
+            spinnerTrack: '45%'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -116,44 +131,50 @@
             hold: '#c3b2ff',
             holdBg: '#2f2a45',
             forwardText: '#c3b2ff',
-            forwardBg: '#2f2a45',
             // Tema scuro: viola e rosso accesi quanto il blu (prima risultavano spenti)
             choiceForwardBg: 'color-mix(in srgb, #7c5bbf 26%, #2d2c2b)',
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
             choiceDangerText: '#ff8f94',
-            backdrop: '#201f1e',
-            thumb: '#19344a'
+            backdrop: '#201f1e'
         },
         // Stile vetro (Impostazioni → Profilo → Stile): superfici semitrasparenti e sfocate sopra uno sfondo sfumato;
         // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
         // sfondo, bordo, passaggio…): cambiando stile cambiano tutti insieme, impostazioni comprese.
         glassColors: {
-            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(121, 184, 255, .32), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa)',
+            backdrop: 'transparent', // lo sfondo sfumato lo dipinge il contenitore dell'intestazione (glassBackdrop), dietro a tutto
             surface: 'rgba(255, 255, 255, .82)',
             hover: 'rgba(255, 255, 255, .9)',
-            bg: 'rgba(110, 140, 190, .1)', // zone incassate (selettore di Prendi in carico/Inoltra/Ignora, campi raggruppati)
+            bg: 'rgba(110, 140, 190, .1)', // zone incassate (campi raggruppati, dettagli)
             bgSoft: 'rgba(255, 255, 255, .55)',
             line: 'rgba(255, 255, 255, .75)',
             lineLight: 'rgba(0, 0, 0, .07)',
             lineStrong: 'rgba(0, 0, 0, .14)',
             blur: 'blur(14px) saturate(1.2)',
+            navBlur: 'blur(16px) saturate(1.3)',
             hoverFilter: 'brightness(1.06)',
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            thumb: 'rgba(255, 255, 255, .9)', // voce scelta: come una card al passaggio del mouse (accesa, con il bagliore leggero)
-            thumbGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            thumbFilter: 'brightness(1.06)',
+            segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
             segmentHover: 'rgba(255, 255, 255, .4)',
-            segmentTrack: 'rgba(214, 224, 240, .6)', // fondo dei selettori un po' più scuro: la voce scelta si stacca
-            choiceForwardBg: 'rgba(124, 91, 191, .16)',
-            choiceDangerBg: 'rgba(209, 52, 56, .13)',
-            tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
-            tintHover: '22%',
-            tintLine: 'rgba(255, 255, 255, .5)',
-            selectionShadow: '0 1px 2px rgba(0, 0, 0, .06)' // voce scelta dei selettori: come una card a riposo
+            choiceTrack: 'var(--ao-segment-track)',
+            selection: 'var(--ao-surface)', // voce scelta: come una card a riposo
+            selectionLine: 'var(--ao-line)',
+            selectionShadow: '0 1px 2px rgba(0, 0, 0, .06)',
+            selectionTone: '0%',
+            searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
+            searchLensBg: 'var(--ao-hover)',
+            searchLine: 'transparent',
+            searchFocusLine: 'transparent',
+            searchLensLine: 'transparent',
+            toneFill: '16%',
+            toneFillHover: '22%',
+            toneSolid: '0%',
+            toneLine: 'rgba(255, 255, 255, .5)',
+            toneText: '100%',
+            toneHoverFilter: 'var(--ao-hover-filter)',
+            spinnerTrack: '35%'
         },
         glassDarkColors: {
-            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(40, 100, 190, .35), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24)',
             surface: 'rgba(52, 56, 66, .62)',
             hover: 'rgba(70, 77, 92, .68)',
             bg: 'rgba(0, 0, 0, .2)',
@@ -161,21 +182,19 @@
             line: 'rgba(255, 255, 255, .09)',
             lineLight: 'rgba(255, 255, 255, .07)',
             lineStrong: 'rgba(255, 255, 255, .16)',
-            blur: 'blur(14px) saturate(1.2)',
             hoverFilter: 'brightness(1.22)',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
-            thumb: 'rgba(70, 77, 92, .68)',
-            thumbGlow: '0 0 12px rgba(90, 150, 255, .18)',
-            thumbFilter: 'brightness(1.22)',
-            segmentHover: 'rgba(255, 255, 255, .06)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
-            choiceForwardBg: 'rgba(124, 91, 191, .3)',
-            choiceDangerBg: 'rgba(209, 52, 56, .26)',
-            tint: '24%',
-            tintHover: '30%',
-            tintLine: 'rgba(255, 255, 255, .12)',
-            selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)'
+            segmentHover: 'rgba(255, 255, 255, .06)',
+            selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
+            toneFill: '24%',
+            toneFillHover: '30%',
+            toneLine: 'rgba(255, 255, 255, .12)'
         },
+        // Stile vetro fuori dall'area AMP: sfondo sfumato (dietro intestazione e pannello) e intestazione dell'add-in
+        glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
+        glassDarkBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed',
+        glassHeader: 'linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))',
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
@@ -422,7 +441,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 13:25';
+    const BUILD = '2026-11-03 13:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2770,7 +2789,7 @@
         lines.push(`--ao-font: ${THEME.font.family};`);
         const dark = Object.entries(THEME.darkColors).map(([key, value]) => `--ao-${kebab(key)}: ${value};`).join(' ') + ' color-scheme: dark;';
         const vars = colors => Object.entries(colors).map(([key, value]) => `--ao-${kebab(key)}: ${value};`).join(' ');
-        const glass = vars(THEME.glassColors), glassDark = vars(THEME.glassDarkColors);
+        const glass = vars(THEME.glassColors), glassDark = vars(THEME.glassDarkColors); // il vetro scuro ridefinisce solo i valori che cambiano
         return `#ao-root { ${lines.join(' ')} }
 #ao-root[data-theme="dark"] { ${dark} }
 @media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { ${dark} } }
@@ -2778,6 +2797,12 @@
 #ao-root[data-style="glass"][data-theme="dark"] { ${glassDark} }
 @media (prefers-color-scheme: dark) { #ao-root[data-style="glass"]:not([data-theme="light"]) { ${glassDark} } }`;
     }
+    // Regole del CSS (per tenerlo ordinato):
+    // - colori, ombre e effetti dipendono da flat/vetro e chiaro/scuro solo tramite le variabili di THEME:
+    //   niente regole "solo per il vetro" o "solo per lo scuro" sui singoli elementi;
+    // - una sola regola per elemento e proprietà; i gruppi comuni (sfocatura delle superfici, passaggio del mouse)
+    //   sono nel blocco Superfici, in fondo;
+    // - classi e variabili che non servono più si tolgono subito.
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
 #ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
@@ -2787,7 +2812,7 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; }
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: rgba(255, 255, 255, .8); }
 #ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: #fff; }
 #ao-root .ao-tabs .ao-settings-button.ao-active { background: rgba(255, 255, 255, .22); color: #fff; }
@@ -2806,14 +2831,12 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
-#ao-root .ao-tab .ao-counter { color: rgba(255, 255, 255, .72); }
 #ao-root .ao-tab.ao-active .ao-counter { color: #fff; }
 /* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
-#ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
+#ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; color: rgba(255, 255, 255, .72); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
-#ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
-#ao-root .ao-tab .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: #fff; color: #005a9e; }
+#ao-root .ao-tab .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: #fff; color: #005a9e; font-weight: var(--ao-fw-bold); }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
@@ -2822,7 +2845,7 @@
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
    A casa sta in cima all'elenco; fuori casa compare sovrapposto al contenuto, con un'ombra sotto il menu stesso. */
-#ao-root .ao-fixed { position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; will-change: transform; }
+#ao-root .ao-fixed { --ao-lift: 0; position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; will-change: transform; }
 /* Completamento del movimento quando lo scorrimento si ferma a metà */
 #ao-root .ao-fixed.ao-snap { transition: transform .18s ease-out; }
 /* Ricomparsa: discesa morbida con un lieve rimbalzo; l'ombra si accende mentre arriva */
@@ -2830,10 +2853,11 @@
 #ao-root .ao-fixed.ao-reveal > * { transition: box-shadow .35s ease-out .08s, background-color .35s ease-out .08s; }
 #ao-root .ao-fixed > * { pointer-events: auto; }
 /* Ombra (e fondo della riga "indietro") graduati da --ao-lift: 0 a casa, 1 sovrapposta al contenuto */
-#ao-root .ao-fixed { --ao-lift: 0; }
 #ao-root .ao-fixed .ao-segmented,
 #ao-root .ao-fixed .ao-bar-btn,
 #ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
+/* Ricerca aperta: il suo bagliore (vetro) insieme all'ombra di sollevamento */
+#ao-root .ao-fixed .ao-search-bar, #ao-root .ao-fixed .ao-bar-search.ao-active { box-shadow: var(--ao-hover-glow), 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); }
 #ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
@@ -2843,7 +2867,7 @@
 #ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Pulsanti */
-#ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; }
+#ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
 #ao-root .ao-primary { background: var(--ao-accent); border-color: var(--ao-accent); color: var(--ao-white); }
 #ao-root .ao-primary:hover:where(:not(:disabled)) { background: var(--ao-accent-dark); border-color: var(--ao-accent-dark); }
@@ -2864,44 +2888,40 @@
 #ao-root :focus-visible { outline: none; box-shadow: var(--ao-shadow-focus); }
 
 /* Filtri e scelte a segmenti */
-#ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
-#ao-root .ao-segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; }
-/* Niente sfondo al passaggio del mouse: l'unica pillola è quella della voce scelta, che scivola */
-#ao-root .ao-segment { position: relative; z-index: 1; transition: color .25s; }
+#ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+/* Al passaggio del mouse la voce cambia colore (e nel vetro si schiarisce appena); la pillola della voce scelta scivola */
+#ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
 #ao-root .ao-segment:hover { color: var(--ao-text); }
+#ao-root .ao-segment:not(.ao-active):hover { background: var(--ao-segment-hover); }
 #ao-root .ao-segment.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-accent-bg); opacity: 0; pointer-events: none; }
+#ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; }
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
-#ao-root .ao-source-bar { position: relative; display: grid; }
-#ao-root .ao-source-bar { gap: 6px; }
+#ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
 /* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
    (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
 #ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
 #ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
-#ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .15s, color .2s; }
+#ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
 #ao-root .ao-bar-btn:hover, #ao-root .ao-bar-btn.ao-open { background: var(--ao-hover); }
 #ao-root .ao-bar-btn.ao-active { color: var(--ao-text-accent); }
 #ao-root .ao-bar-filter.ao-active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
-#ao-root .ao-bar-search.ao-active { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
+#ao-root .ao-bar-search.ao-active { border-color: var(--ao-search-lens-line); background: var(--ao-search-lens-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Riga sotto la barra: collega filtrato a sinistra, ricerca a pillola a destra (sotto la lente) */
 #ao-root .ao-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-#ao-root .ao-filter-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; }
-#ao-root .ao-filter-chip { min-width: 0; }
+#ao-root .ao-filter-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; min-width: 0; }
 #ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
-#ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-accent-border); }
+#ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-search-line); background: var(--ao-search-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
 #ao-root .ao-search-overlay { position: absolute; left: 0; z-index: 2; pointer-events: none; }
-#ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
+#ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
-/* Vetro: ricerca aperta (campo e lente) accesa come una card al passaggio del mouse, senza contorno. */
-#ao-root[data-style="glass"] .ao-search-bar, #ao-root[data-style="glass"] .ao-search-bar:focus-within, #ao-root[data-style="glass"] .ao-bar-search.ao-active { border-color: transparent; background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
 /* Ricerca: scheletro di caricamento che pulsa, poi i risultati entrano dal basso */
@@ -2936,11 +2956,9 @@
 
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Passaggio del mouse, uguale in tutte le sezioni: sfondo grigio leggerissimo, testo invariato.
-   Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover. */
-#ao-root .ao-item, #ao-root .ao-ticket-compact { transition: background-color .15s; }
-#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+/* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
+   (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-accent); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -2967,8 +2985,6 @@
 #ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #ao-root .ao-card-title { margin: 0; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-notice { padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); }
-#ao-root .ao-notice.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-text-accent); }
@@ -2988,8 +3004,6 @@
 #ao-root .ao-input { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
 #ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
-#ao-root .ao-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-#ao-root .ao-favorites { display: grid; gap: 4px; }
 #ao-root .ao-suggestions-slot:empty { display: none; }
 /* In coda, Prendi in carico: campi in un riquadro grigio, campi e pillole bianchi con un'ombra leggera (niente bordo) */
 #ao-root .ao-take-zone { display: grid; gap: 8px; padding: 9px; border-radius: var(--ao-radius-base); background: var(--ao-bg); }
@@ -3003,8 +3017,7 @@
 #ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
 #ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { padding: 8px; border: 1px dashed var(--ao-accent); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .15s; }
-#ao-root .ao-new-ticket:hover { background: var(--ao-hover); }
+#ao-root .ao-new-ticket { padding: 8px; border: 1px dashed var(--ao-accent); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-new-ticket-card { border-color: var(--ao-accent); }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
@@ -3042,23 +3055,14 @@
 
 /* Impostazioni */
 #ao-root .ao-config-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-config-item { display: flex; align-items: center; gap: 4px; padding: 6px 4px 6px 10px; border: 1px solid var(--ao-line-light); border-radius: var(--ao-radius-base); }
-#ao-root .ao-config-item:hover { background: var(--ao-hover); }
-#ao-root .ao-config-text { flex: 1; display: grid; min-width: 0; }
 #ao-root .ao-config-name { font-weight: var(--ao-fw-medium); }
-#ao-root .ao-config-text .ao-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ao-root .ao-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--ao-accent-border); border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); }
 
 /* In coda: riga con azioni e modulo compatto */
-#ao-root .ao-queue-item { gap: 6px; }
 #ao-root .ao-open-first { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); color: var(--ao-text-muted); }
 #ao-root .ao-open-first p { margin: 0; }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
 #ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
-#ao-root .ao-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 160px; }
-/* Le etichette lunghe vanno a capo invece di essere tagliate */
-#ao-root .ao-item-right .ao-chip { white-space: normal; text-align: right; overflow-wrap: anywhere; }
-#ao-root .ao-item-actions { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
@@ -3074,13 +3078,13 @@
 #ao-root .ao-queue-item .ao-actions { flex-wrap: nowrap; }
 #ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
 #ao-root .ao-queue-item .ao-actions .ao-spacer { display: none; }
-#ao-root .ao-queue-item { position: relative; overflow: hidden; }
 /* Scheda aperta: selettore dell'azione (e del gruppo), contenuto dell'azione, freccia per richiudere */
-#ao-root .ao-choice { position: relative; display: flex; padding: 3px; border-radius: var(--ao-radius-base); background: var(--ao-bg); }
+#ao-root .ao-choice { position: relative; display: flex; padding: 3px; border-radius: var(--ao-radius-base); background: var(--ao-choice-track); }
 #ao-root .ao-choice-option { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 30px; padding: 4px 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; white-space: nowrap; line-height: 1.25; transition: color .25s; }
 #ao-root .ao-choice-sub { font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-choice-option:hover:not(.ao-active) { color: var(--ao-text); }
-#ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-choice-bg); opacity: 0; pointer-events: none; transition: background-color .25s; }
+#ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
+#ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; transition: background-color .25s; }
 #ao-root .ao-choice-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
 #ao-root .ao-choice-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1), background-color .25s; }
@@ -3091,16 +3095,18 @@
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
-#ao-root .ao-fill-forward, #ao-root .ao-fill-forward:hover:where(:not(:disabled)) { background: var(--ao-forward); border-color: var(--ao-forward); color: var(--ao-white); }
-#ao-root .ao-fill-forward:hover:where(:not(:disabled)) { filter: brightness(.92); }
-#ao-root .ao-fill-danger, #ao-root .ao-fill-danger:hover:where(:not(:disabled)) { background: #d13438; border-color: #d13438; color: var(--ao-white); }
-#ao-root .ao-fill-danger:hover:where(:not(:disabled)) { filter: brightness(.92); }
+/* Pulsanti di conferma (Prendi in carico, Inoltra, Ignora) nel colore dell'azione: pieni nel flat, velati nel vetro */
+#ao-root .ao-queue-item .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
+#ao-root .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
+#ao-root .ao-queue-item .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
+#ao-root .ao-queue-item .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
+#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-svg-icon { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
 /* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
-#ao-root .ao-queue-item { transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease, filter .32s ease; }
+#ao-root .ao-queue-item { position: relative; overflow: hidden; gap: 6px; transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease, filter .32s ease; }
 /* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
 #ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
@@ -3115,30 +3121,20 @@
 #ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
 #ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
 #ao-root .ao-resolving { pointer-events: none; }
-#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); }
-#ao-root .ao-outcome-danger { --ao-outcome: #d13438; }
-#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-forward); }
+/* Colore dell'esito come quello dei pulsanti: pieno nel flat (scritta bianca), velato nel vetro (scritta colorata) */
+#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-accent); --ao-outcome-text: var(--ao-text-accent); }
+#ao-root .ao-outcome-danger { --ao-outcome: #d13438; --ao-outcome-text: var(--ao-danger); }
+#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-forward); --ao-outcome-text: var(--ao-forward-text); }
 /* sfondo e bordo della scheda prendono il colore solo a tendina chiusa (prima lo dà solo il banner, che affiora) */
-#ao-root .ao-queue-item.ao-outcome-full { background: var(--ao-outcome); border-color: var(--ao-outcome); }
+#ao-root .ao-queue-item.ao-outcome-full { background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-surface)); border-color: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-line)); }
 #ao-root .ao-outcome {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
-    background: var(--ao-outcome); color: #fff; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
+    background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-fill), transparent); color: color-mix(in srgb, var(--ao-outcome-text) var(--ao-tone-text), #fff);
+    font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
 }
-#ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
+#ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
-/* Vetro: pulsanti di conferma (Prendi in carico, Inoltra, Ignora) ed esito velati del colore dell'azione, testo colorato. */
-#ao-root[data-style="glass"] .ao-queue-item .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
-#ao-root[data-style="glass"] .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
-#ao-root[data-style="glass"] .ao-queue-item .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
-#ao-root[data-style="glass"] .ao-queue-item .ao-primary, #ao-root[data-style="glass"] .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tint), transparent); border-color: var(--ao-tint-line); color: var(--ao-btn-text); }
-#ao-root[data-style="glass"] .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tint-hover), transparent); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-#ao-root[data-style="glass"] .ao-outcome-accent { --ao-outcome-text: var(--ao-text-accent); }
-#ao-root[data-style="glass"] .ao-outcome-forward { --ao-outcome-text: var(--ao-forward-text); }
-#ao-root[data-style="glass"] .ao-outcome-danger { --ao-outcome-text: var(--ao-danger); }
-#ao-root[data-style="glass"] .ao-queue-item.ao-outcome-full { background: var(--ao-surface); border-color: var(--ao-line); }
-#ao-root[data-style="glass"] .ao-outcome { background: color-mix(in srgb, var(--ao-outcome) var(--ao-tint), transparent); color: var(--ao-outcome-text); }
-#ao-root[data-style="glass"] .ao-outcome-spinner { border-color: color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor; }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -3157,7 +3153,7 @@
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-text-accent); }
-#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
 #ao-root .ao-toggle { margin-left: auto; color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
@@ -3177,26 +3173,19 @@
 #ao-root .ao-via { margin-bottom: -4px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-card-quiet { background: var(--ao-bg-soft); }
 #ao-root .ao-card-warning { border-color: var(--ao-warning-bg); border-left: 3px solid var(--ao-warning); }
-#ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
+#ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); transition: box-shadow .35s, filter .3s; }
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
 #ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-/* Superfici: sfocatura (solo stile vetro) e passaggio del mouse uguale per tutte, impostazioni comprese. */
+/* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
+   uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-filter-chip, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover, #ao-root .ao-bar-btn:hover, #ao-root .ao-new-ticket:hover, #ao-root .ao-config-item:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-#ao-root .ao-item:not(.ao-queue-item), #ao-root .ao-ticket-compact, #ao-root .ao-new-ticket, #ao-root .ao-config-item, #ao-root .ao-candidate, #ao-root .ao-button { transition: background-color .3s, box-shadow .35s, filter .3s; }
-#ao-root .ao-bar-btn { transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
-#ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
-#ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); filter: var(--ao-thumb-filter); }
-#ao-root .ao-segmented { background: var(--ao-segment-track); }
-/* Vetro: tutti i selettori (navigazione secondaria, impostazioni, azioni di In coda) hanno lo stesso fondo;
-   la voce scelta è come una card a riposo (vetro bianco, bordo chiaro, ombra sottile), con la scritta colorata
-   (blu, o il colore dell'azione) e senza alone. Le schede in alto restano a parte. */
-#ao-root[data-style="glass"] .ao-choice { background: var(--ao-segment-track); }
-#ao-root[data-style="glass"] .ao-choice-thumb, #ao-root[data-style="glass"] .ao-segmented .ao-segment-thumb { background: var(--ao-surface); box-shadow: inset 0 0 0 1px var(--ao-line), var(--ao-selection-shadow); filter: none; }
+#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover, #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+/* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
+#ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
@@ -3214,17 +3203,15 @@
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 `;
+    // Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa, con le schede
+    // più vicine al logo. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza giunture) passa anche dietro
+    // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
     const OUTSIDE_STYLES = `
-/* Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa,
-   con le schede più vicine al logo; con lo stile vetro lo sfondo sfumato (sul contenitore dell'intestazione) passa anche dietro l'intestazione,
-   che diventa di vetro leggero (stesso blu, appena trasparente, piatto: niente riflessi). */
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed; }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; }
-@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84)); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
-#ao-root[data-style="glass"] { background: transparent; }
-#ao-root[data-style="glass"] .ao-tabs { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
+@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: ${THEME.glassHeader}; -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; }
 `;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
