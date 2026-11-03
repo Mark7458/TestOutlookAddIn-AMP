@@ -86,7 +86,8 @@
             hoverGlow: 'none', // bagliore intorno alla superficie al passaggio del mouse
             thumb: '#eff6fc', // pillola della voce scelta nei selettori
             thumbGlow: 'none',
-            segmentHover: 'transparent' // voce non scelta di un selettore al passaggio del mouse
+            segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
+            segmentTrack: 'var(--ao-surface)', // fondo dei selettori (la voce scelta ci scorre sopra)
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -141,6 +142,7 @@
             thumb: 'rgba(255, 255, 255, .95)',
             thumbGlow: '0 1px 2px rgba(0, 0, 0, .08)', // pillola scelta: solo un'ombra sottile, niente bagliore
             segmentHover: 'rgba(255, 255, 255, .55)',
+            segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro: la voce scelta si stacca
             choiceForwardBg: 'rgba(124, 91, 191, .16)',
             choiceDangerBg: 'rgba(209, 52, 56, .13)',
             tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
@@ -162,6 +164,7 @@
             thumb: 'rgba(84, 96, 120, .8)',
             thumbGlow: '0 1px 2px rgba(0, 0, 0, .3)',
             segmentHover: 'rgba(255, 255, 255, .06)',
+            segmentTrack: 'rgba(28, 31, 38, .62)',
             choiceForwardBg: 'rgba(124, 91, 191, .3)',
             choiceDangerBg: 'rgba(209, 52, 56, .26)',
             tint: '24%',
@@ -414,7 +417,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:50';
+    const BUILD = '2026-11-03 12:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3183,6 +3186,7 @@
 #ao-root .ao-bar-btn { transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
 #ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
 #ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); }
+#ao-root .ao-segmented { background: var(--ao-segment-track); }
 #ao-root .ao-choice-thumb { box-shadow: var(--ao-thumb-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
