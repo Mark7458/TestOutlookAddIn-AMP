@@ -149,7 +149,10 @@
             choiceDangerBg: 'rgba(209, 52, 56, .13)',
             tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
             tintHover: '22%',
-            tintLine: 'rgba(255, 255, 255, .5)'
+            tintLine: 'rgba(255, 255, 255, .5)',
+            choiceGlass: 'rgba(255, 255, 255, .55)', // Prendi in carico / Inoltra / Ignora: voce scelta di vetro appena lattiginoso
+            choiceGlassLine: 'rgba(255, 255, 255, .95)',
+            choiceGlow: '35%' // alone colorato della scritta scelta
         },
         glassDarkColors: {
             backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(40, 100, 190, .35), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24)',
@@ -172,7 +175,10 @@
             choiceDangerBg: 'rgba(209, 52, 56, .26)',
             tint: '24%',
             tintHover: '30%',
-            tintLine: 'rgba(255, 255, 255, .12)'
+            tintLine: 'rgba(255, 255, 255, .12)',
+            choiceGlass: 'rgba(255, 255, 255, .1)',
+            choiceGlassLine: 'rgba(255, 255, 255, .22)',
+            choiceGlow: '50%'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -420,7 +426,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 13:05';
+    const BUILD = '2026-11-03 13:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3190,7 +3196,11 @@
 #ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
 #ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); filter: var(--ao-thumb-filter); }
 #ao-root .ao-segmented { background: var(--ao-segment-track); }
-#ao-root .ao-choice-thumb { box-shadow: var(--ao-thumb-glow); }
+/* Vetro: selettore delle azioni di In coda con il fondo dei selettori; la voce scelta è vetro appena lattiginoso
+   con il bordo chiaro, e si accende solo la scritta (colore dell'azione con un alone leggero). */
+#ao-root[data-style="glass"] .ao-choice { background: var(--ao-segment-track); }
+#ao-root[data-style="glass"] .ao-choice-thumb { background: var(--ao-choice-glass); box-shadow: inset 0 0 0 1px var(--ao-choice-glass-line); }
+#ao-root[data-style="glass"] .ao-choice-option.ao-active { text-shadow: 0 0 8px color-mix(in srgb, var(--ao-choice-text) var(--ao-choice-glow), transparent); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
