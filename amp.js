@@ -79,12 +79,14 @@
             choiceForwardText: '#6b47b0',
             choiceDangerBg: '#fde7e9',
             choiceDangerText: '#a4262c',
-            // Tema chiaro "vetro": sfondo sfumato azzurro e lilla; card, selettori e barra di sistema semitrasparenti e sfocati.
-            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(121, 184, 255, .32), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa)',
-            glass: 'rgba(255, 255, 255, .82)',
-            glassLine: 'rgba(255, 255, 255, .7)',
-            glassThumb: 'rgba(255, 255, 255, .92)',
-            glassThumbShadow: '0 1px 2px rgba(0, 0, 0, .06)'
+            // Superfici: valori dello stile flat (lo stile vetro li ridefinisce in glassColors)
+            backdrop: '#f5f5f5', // sfondo dell'intero pannello
+            blur: 'none', // sfocatura di quello che sta dietro alle superfici
+            hoverFilter: 'none', // superficie al passaggio del mouse: si accende
+            hoverGlow: 'none', // bagliore intorno alla superficie al passaggio del mouse
+            thumb: '#eff6fc', // pillola della voce scelta nei selettori
+            thumbGlow: 'none',
+            segmentHover: 'transparent' // voce non scelta di un selettore al passaggio del mouse
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -118,12 +120,47 @@
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
             choiceDangerText: '#ff8f94',
-            // Tema scuro: niente vetro, restano i colori pieni.
             backdrop: '#201f1e',
-            glass: '#2d2c2b',
-            glassLine: '#484644',
-            glassThumb: '#19344a',
-            glassThumbShadow: 'none'
+            thumb: '#19344a'
+        },
+        // Stile vetro (Impostazioni → Profilo → Stile): superfici semitrasparenti e sfocate sopra uno sfondo sfumato;
+        // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
+        // sfondo, bordo, passaggio…): cambiando stile cambiano tutti insieme, impostazioni comprese.
+        glassColors: {
+            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(121, 184, 255, .32), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa)',
+            surface: 'rgba(255, 255, 255, .82)',
+            hover: 'rgba(255, 255, 255, .9)',
+            bg: 'rgba(110, 140, 190, .1)', // zone incassate (selettore di Prendi in carico/Inoltra/Ignora, campi raggruppati)
+            bgSoft: 'rgba(255, 255, 255, .55)',
+            line: 'rgba(255, 255, 255, .75)',
+            lineLight: 'rgba(0, 0, 0, .07)',
+            lineStrong: 'rgba(0, 0, 0, .14)',
+            blur: 'blur(14px) saturate(1.2)',
+            hoverFilter: 'brightness(1.06)',
+            hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
+            thumb: 'rgba(255, 255, 255, .95)',
+            thumbGlow: '0 0 12px rgba(120, 170, 255, .28), 0 1px 2px rgba(0, 0, 0, .06)',
+            segmentHover: 'rgba(255, 255, 255, .55)',
+            choiceForwardBg: 'rgba(124, 91, 191, .16)',
+            choiceDangerBg: 'rgba(209, 52, 56, .13)'
+        },
+        glassDarkColors: {
+            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(40, 100, 190, .35), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24)',
+            surface: 'rgba(52, 56, 66, .62)',
+            hover: 'rgba(70, 77, 92, .68)',
+            bg: 'rgba(0, 0, 0, .2)',
+            bgSoft: 'rgba(40, 44, 52, .5)',
+            line: 'rgba(255, 255, 255, .09)',
+            lineLight: 'rgba(255, 255, 255, .07)',
+            lineStrong: 'rgba(255, 255, 255, .16)',
+            blur: 'blur(14px) saturate(1.2)',
+            hoverFilter: 'brightness(1.22)',
+            hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
+            thumb: 'rgba(84, 96, 120, .8)',
+            thumbGlow: '0 0 12px rgba(90, 150, 255, .22)',
+            segmentHover: 'rgba(255, 255, 255, .06)',
+            choiceForwardBg: 'rgba(124, 91, 191, .3)',
+            choiceDangerBg: 'rgba(209, 52, 56, .26)'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -296,6 +333,8 @@
             assignedTo: 'Assigned to',
             theme: 'Tema',
             themes: { auto: 'Automatico', light: 'Chiaro', dark: 'Scuro' },
+            style: 'Stile',
+            styles: { flat: 'Flat', glass: 'Vetro' },
             themeHint: 'Automatico segue il tema di Outlook. Chiaro e Scuro servono anche a verificare la leggibilità.',
             backup: 'Configurazioni',
             backupHint: 'Agenzie, Attività e risposte stanno in questo browser: esportale per averne una copia o portarle su un altro computer. Il file di Tampermonkey si importa senza modifiche.',
@@ -369,7 +408,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 11:50';
+    const BUILD = '2026-11-03 12:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -422,6 +461,8 @@
         const theme = config.preferences?.theme;
         if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
         else delete root.dataset.theme;
+        // Stile: vetro (predefinito) o flat.
+        root.dataset.style = config.preferences?.style === 'flat' ? 'flat' : 'glass';
     }
     function saveConfig(config) {
         config.version = STORAGE.version;
@@ -2552,6 +2593,15 @@
                 }),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.themeHint)),
             h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, TEXTS.settings.style),
+                filterBar(Object.entries(TEXTS.settings.styles).map(([value, label]) => ({ value, label })), config.preferences?.style === 'flat' ? 'flat' : 'glass', value => {
+                    const current = loadConfig();
+                    current.preferences = { ...(current.preferences || {}), style: value };
+                    saveConfig(current);
+                    applyTheme(current);
+                    render();
+                })),
+            h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
                 h('div', { class: 'ao-actions' },
@@ -2694,14 +2744,18 @@
         });
         lines.push(`--ao-font: ${THEME.font.family};`);
         const dark = Object.entries(THEME.darkColors).map(([key, value]) => `--ao-${kebab(key)}: ${value};`).join(' ') + ' color-scheme: dark;';
+        const vars = colors => Object.entries(colors).map(([key, value]) => `--ao-${kebab(key)}: ${value};`).join(' ');
+        const glass = vars(THEME.glassColors), glassDark = vars(THEME.glassDarkColors);
         return `#ao-root { ${lines.join(' ')} }
 #ao-root[data-theme="dark"] { ${dark} }
-@media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { ${dark} } }`;
+@media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { ${dark} } }
+#ao-root[data-style="glass"] { ${glass} }
+#ao-root[data-style="glass"][data-theme="dark"] { ${glassDark} }
+@media (prefers-color-scheme: dark) { #ao-root[data-style="glass"]:not([data-theme="light"]) { ${glassDark} } }`;
     }
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
-#ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-bg); line-height: 1.4; }
-#ao-root { background: var(--ao-backdrop); }
+#ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
@@ -3091,9 +3145,14 @@
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-/* Vetro (tema chiaro): card, selettori e barra di sistema semitrasparenti sopra lo sfondo sfumato. */
-#ao-root .ao-item, #ao-root .ao-segmented, #ao-root .ao-statusbar { background: var(--ao-glass); border-color: var(--ao-glass-line); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
-#ao-root .ao-segmented .ao-segment-thumb { background: var(--ao-glass-thumb); box-shadow: var(--ao-glass-thumb-shadow); }
+/* Superfici: sfocatura (solo stile vetro) e passaggio del mouse uguale per tutte, impostazioni comprese. */
+#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-filter-chip, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover, #ao-root .ao-bar-btn:hover, #ao-root .ao-new-ticket:hover, #ao-root .ao-config-item:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-item:not(.ao-queue-item), #ao-root .ao-ticket-compact, #ao-root .ao-new-ticket, #ao-root .ao-config-item, #ao-root .ao-candidate, #ao-root .ao-button { transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-bar-btn { transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
+#ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
+#ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); }
+#ao-root .ao-choice-thumb { box-shadow: var(--ao-thumb-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
