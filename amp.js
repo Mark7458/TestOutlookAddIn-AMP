@@ -426,7 +426,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 13:15';
+    const BUILD = '2026-11-03 13:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1281,12 +1281,6 @@
             };
         }), value, onchange);
         bar.classList.add('ao-segmented-icons');
-        return bar;
-    }
-    // Selettore interno (scelte dentro una scheda o un modulo, non navigazione): nello stile vetro
-    // la voce scelta è vetro lattiginoso e si accende solo la scritta, come Prendi in carico / Inoltra / Ignora.
-    function innerBar(bar) {
-        bar.classList.add('ao-segmented-inner');
         return bar;
     }
     // Selettore di scelta (scheda di In coda: azione e gruppo dell'inoltro). Come il selettore a segmenti,
@@ -2431,7 +2425,7 @@
             ticket.pendingAction ? h('div', { class: 'ao-pending' },
                 h('span', {}, TEXTS.mail.pending(pendingLabel(ticket.pendingAction))),
                 h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(ticket, null) }, TEXTS.mail.clearPending)) : null,
-            innerBar(filterBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label })), draft.type, value => { draft.type = value; rerender(); })),
+            filterBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label })), draft.type, value => { draft.type = value; rerender(); }),
             draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
             draft.type === 'hold' ? [
                 selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
@@ -2621,20 +2615,20 @@
             // Tema e stile nella stessa sezione, con i selettori a icone.
             h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.theme),
-                innerBar(iconBar(Object.entries(TEXTS.settings.themes).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.theme || 'auto', value => {
+                iconBar(Object.entries(TEXTS.settings.themes).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.theme || 'auto', value => {
                     const current = loadConfig();
                     current.preferences = { ...(current.preferences || {}), theme: value };
                     saveConfig(current);
                     applyTheme(current);
                     render();
-                })),
-                innerBar(iconBar(Object.entries(TEXTS.settings.styles).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.style === 'flat' ? 'flat' : 'glass', value => {
+                }),
+                iconBar(Object.entries(TEXTS.settings.styles).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.style === 'flat' ? 'flat' : 'glass', value => {
                     const current = loadConfig();
                     current.preferences = { ...(current.preferences || {}), style: value };
                     saveConfig(current);
                     applyTheme(current);
                     render();
-                })),
+                }),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.themeHint)),
             h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
@@ -3202,13 +3196,14 @@
 #ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
 #ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); filter: var(--ao-thumb-filter); }
 #ao-root .ao-segmented { background: var(--ao-segment-track); }
-/* Vetro: selettore delle azioni di In coda con il fondo dei selettori; la voce scelta è vetro appena lattiginoso
-   con il bordo chiaro, e si accende solo la scritta (colore dell'azione con un alone leggero). */
+/* Vetro: tutti i selettori (anche Attive/Ignorate, Da mail/Senza mail, sezioni delle Impostazioni e azioni di In coda)
+   hanno lo stesso fondo; la voce scelta è vetro appena lattiginoso con il bordo chiaro, e si accende solo la scritta
+   (blu, o il colore dell'azione, con un alone leggero). Le schede in alto restano a parte. */
 #ao-root[data-style="glass"] .ao-choice { background: var(--ao-segment-track); }
 #ao-root[data-style="glass"] .ao-choice-thumb { background: var(--ao-choice-glass); box-shadow: inset 0 0 0 1px var(--ao-choice-glass-line); }
 #ao-root[data-style="glass"] .ao-choice-option.ao-active { text-shadow: 0 0 8px color-mix(in srgb, var(--ao-choice-text) var(--ao-choice-glow), transparent); }
-#ao-root[data-style="glass"] .ao-segmented-inner .ao-segment-thumb { background: var(--ao-choice-glass); box-shadow: inset 0 0 0 1px var(--ao-choice-glass-line); filter: none; }
-#ao-root[data-style="glass"] .ao-segmented-inner .ao-segment.ao-active { text-shadow: 0 0 8px color-mix(in srgb, var(--ao-text-accent) var(--ao-choice-glow), transparent); }
+#ao-root[data-style="glass"] .ao-segmented .ao-segment-thumb { background: var(--ao-choice-glass); box-shadow: inset 0 0 0 1px var(--ao-choice-glass-line); filter: none; }
+#ao-root[data-style="glass"] .ao-segmented .ao-segment.ao-active { text-shadow: 0 0 8px color-mix(in srgb, var(--ao-text-accent) var(--ao-choice-glow), transparent); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
