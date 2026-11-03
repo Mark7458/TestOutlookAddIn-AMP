@@ -2677,7 +2677,7 @@
 #ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
 #ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-hover); }
-#ao-root .ao-tab.ao-active { color: var(--ao-text); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); }
 #ao-root .ao-tab-icon { display: inline-flex; margin-right: 5px; opacity: .8; transition: color .25s, opacity .25s; }
 #ao-root .ao-tab.ao-active .ao-tab-icon { color: var(--ao-accent); opacity: 1; }
 #ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
