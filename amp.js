@@ -102,6 +102,7 @@
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
             callGlowHover: '0 0 transparent',
+            filterIdle: 'transparent', // metà dei filtri senza un valore scelto
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -191,6 +192,7 @@
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             callGlowHover: '0 0 21px rgba(80, 150, 255, .58), 0 0 5px rgba(80, 150, 255, .3)',
+            filterIdle: 'rgba(255, 255, 255, .45)',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -221,6 +223,7 @@
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
+            filterIdle: 'rgba(255, 255, 255, .05)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
@@ -316,6 +319,12 @@
             fromMail: 'Da mail',
             withoutMail: 'Senza mail',
             allOperators: 'Tutti',
+            status: 'Stato',
+            operator: 'Operatore',
+            statuses: { all: 'Tutti', open: 'Aperti', hold: 'In attesa' },
+            defaultFilter: 'predefinito',
+            clearFilter: 'Togli il filtro',
+            filters: 'Filtri',
             search: 'Cerca',
             searchPlaceholder: 'INC o oggetto',
             noResults: 'Nessun risultato.',
@@ -493,7 +502,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 18:00';
+    const BUILD = '2026-11-03 18:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -817,7 +826,9 @@
         serviceError: '',
         ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
         ticketOperator: 'mine', // Ticket: mine (vista iniziale) | nome del collega | all
-        operatorMenu: false, // menu degli operatori aperto
+        ticketStatus: 'all', // Ticket: all (vista iniziale) | open (In Progress) | hold (On Hold)
+        ticketFilterOpen: false, // imbuto: la barra mostra i filtri al posto di Da mail | Senza mail
+        filterMenu: null, // elenco aperto dei filtri: status | operator
         ticketSearchOpen: false, // ricerca (lente) aperta
         ticketQuery: '', // testo cercato: numero INC o oggetto
         ticketSearchShown: '', // testo dei risultati mostrati
@@ -1072,7 +1083,7 @@
         state.view = view;
         state.backTo = backTo;
         state.editing = null;
-        state.operatorMenu = false;
+        state.filterMenu = null;
         render();
         scrollToTop();
         if (from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
@@ -1134,8 +1145,8 @@
         }, true);
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
         root.addEventListener('click', event => {
-            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-bar-filter')) return;
-            state.operatorMenu = false;
+            if (!state.filterMenu || event.target.closest('.ao-menu, .ao-filter-dd')) return;
+            state.filterMenu = null;
             render();
         }, true);
         // Anteprima aperta in In coda: un clic fuori dalla scheda prima la richiude (con l'animazione)
@@ -1768,7 +1779,8 @@
         const searching = state.ticketSearchOpen;
         const query = searching ? state.ticketSearchShown : '';
         const matches = ticket => `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
-        const visible = open.filter(byOperator);
+        const byStatus = ticket => state.ticketStatus === 'all' || (state.ticketStatus === 'hold' ? ticket.state === '3' : ticket.state !== '3');
+        const visible = open.filter(ticket => byOperator(ticket) && byStatus(ticket));
         const items = searching ? (query && !state.ticketSearchPending ? open.filter(matches) : [])
             : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
         const groups = [];
@@ -1804,9 +1816,9 @@
                 : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
                     : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)));
     }
-    // Barra di Ticket, simmetrica: imbuto (filtro operatore) | Da mail | Senza mail | lente (ricerca).
-    // Sotto, solo fuori dai miei ticket: l'etichetta del collega filtrato (×: torna ai miei). Il filtro vale per entrambi gli elenchi.
-    // Menu dell'imbuto: Miei, poi i colleghi in ordine alfabetico, Tutti in fondo.
+    // Barra di Ticket, simmetrica: imbuto (filtri) | Da mail | Senza mail | lente (ricerca).
+    // L'imbuto trasforma il selettore nei filtri Stato (Tutti, Aperti, In attesa) e Operatore (Miei, i colleghi, Tutti);
+    // valgono per entrambi gli elenchi. Ricliccandolo torna il selettore, con un puntino se un filtro è attivo.
     // La lente trasforma la barra nel campo di ricerca (stessa misura) e resta al suo posto, a destra:
     // apre e chiude la ricerca (come un interruttore). Si cerca su tutti i ticket, mentre si scrive.
     function ticketSourceBar(open, user, counts) {
@@ -1822,40 +1834,52 @@
         }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
-        const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator);
-        const bar = iconBar([
-            { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail },
-            { value: 'none', icon: SEGMENT_ICONS.none, label: TEXTS.tickets.withoutMail, count: counts.none }
-        ], state.ticketSource, value => {
-            if (value === state.ticketSource) return;
-            state.ticketSource = value;
-            state.operatorMenu = false;
-            render();
-        });
+        const filtered = operator !== 'mine' || state.ticketStatus !== 'all';
+        // Imbuto: apre e chiude i filtri al posto di Da mail | Senza mail (il puntino dice che un filtro è attivo).
         const filterButton = h('button', {
-            type: 'button', class: `ao-bar-btn ao-bar-filter${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
-            'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName, title: filterName,
-            onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
+            type: 'button', class: `ao-bar-btn ao-bar-filter${filtered ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-open' : ''}`,
+            'aria-pressed': String(state.ticketFilterOpen), 'aria-label': TEXTS.tickets.filters, title: TEXTS.tickets.filters,
+            onclick: () => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; render(); }
         }, svgIcon(FILTER_ICON));
         const searchButton = h('button', {
             type: 'button', class: 'ao-bar-btn ao-bar-search', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
             onclick: openTicketSearch
         }, svgIcon(SEARCH_ICON));
-        const row = operator !== 'mine' ? h('div', { class: 'ao-filter-row' },
-            h('span', { class: 'ao-filter-chip' },
-                h('span', { class: 'ao-filter-chip-name' }, filterName),
-                h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.common.close, onclick: () => { state.ticketOperator = 'mine'; render(); } }, '×'))) : null;
-        const pick = value => { state.ticketOperator = value; state.operatorMenu = false; render(); };
-        const item = (value, text) => h('button', {
-            type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
-        }, text);
-        return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton, bar, searchButton), row,
-            state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
-                item('mine', TEXTS.tickets.mine),
-                colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
-                colleagues.map(name => item(name, name)),
-                h('hr', { class: 'ao-menu-sep' }),
-                item('all', TEXTS.tickets.allOperators)) : null);
+        const middle = state.ticketFilterOpen ? h('div', { class: 'ao-segmented ao-filter-bar' },
+            filterField('status', TEXTS.tickets.status, state.ticketStatus, 'all',
+                Object.entries(TEXTS.tickets.statuses).map(([value, label]) => ({ value, label })), value => { state.ticketStatus = value; }),
+            filterField('operator', TEXTS.tickets.operator, operator, 'mine',
+                [{ value: 'mine', label: TEXTS.tickets.mine }, ...colleagues.map(name => ({ value: name, label: name })), { value: 'all', label: TEXTS.tickets.allOperators, separated: true }],
+                value => { state.ticketOperator = value; }))
+            : iconBar([
+                { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail },
+                { value: 'none', icon: SEGMENT_ICONS.none, label: TEXTS.tickets.withoutMail, count: counts.none }
+            ], state.ticketSource, value => {
+                if (value === state.ticketSource) return;
+                state.ticketSource = value;
+                render();
+            });
+        return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton, middle, searchButton));
+    }
+    // Un filtro nella barra: vuoto mostra il suo nome (vale la voce predefinita, segnata nell'elenco);
+    // scelto mostra il valore con la × per toglierlo. La scelta si applica subito.
+    function filterField(key, name, value, fallback, options, apply) {
+        const set = value !== fallback;
+        const pick = next => { apply(next); state.filterMenu = null; render(); };
+        return h('div', {
+            class: `ao-filter-dd${set ? ' ao-set' : ''}`, role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-expanded': String(state.filterMenu === key),
+            onclick: () => { state.filterMenu = state.filterMenu === key ? null : key; render(); },
+            onkeydown: event => { if (event.key === 'Enter') { state.filterMenu = state.filterMenu === key ? null : key; render(); } }
+        },
+            h('span', { class: 'ao-filter-value' }, set ? options.find(option => option.value === value)?.label || value : name),
+            set ? h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.tickets.clearFilter, title: TEXTS.tickets.clearFilter, onclick: event => { event.stopPropagation(); pick(fallback); } }, '×')
+                : h('span', { class: 'ao-filter-caret', 'aria-hidden': 'true' }, '▾'),
+            state.filterMenu === key ? h('div', { class: `ao-menu ao-filter-menu ao-filter-menu-${key}`, role: 'listbox', onclick: event => event.stopPropagation() },
+                options.map(option => [
+                    option.separated ? h('hr', { class: 'ao-menu-sep' }) : null,
+                    h('button', { type: 'button', role: 'option', 'aria-selected': String(option.value === value), class: `ao-menu-item${option.value === value ? ' ao-active' : ''}`, onclick: () => pick(option.value) },
+                        h('span', {}, option.label), option.value === fallback ? h('span', { class: 'ao-menu-default' }, TEXTS.tickets.defaultFilter) : null)
+                ])) : null);
     }
     // Apertura e chiusura della ricerca, sincronizzate: la barra di ricerca si allarga dalla lente verso sinistra
     // sopra il selettore mentre selettore ed elenco svaniscono; in chiusura si ritira verso la lente mentre ricompaiono.
@@ -1875,12 +1899,12 @@
     }
     // Quello che svanisce o ricompare insieme alla barra: imbuto, selettore, etichetta del filtro ed elenco (la lente resta).
     const searchCompanions = () => [
-        ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar), .ao-source-bar .ao-filter-row'),
+        ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar)'),
         ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
     ];
     async function openTicketSearch() {
         if (state.holdRender) return;
-        state.operatorMenu = false;
+        state.filterMenu = null;
         const sourceBar = root.querySelector('.ao-source-bar');
         if (sourceBar && !reducedMotion()) {
             await holdingRender(async () => {
@@ -3075,7 +3099,7 @@
 #ao-root .ao-fixed .ao-bar-btn,
 #ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
 /* Ricerca aperta: il suo bagliore (vetro) insieme all'ombra di sollevamento */
-#ao-root .ao-fixed .ao-search-bar, #ao-root .ao-fixed .ao-bar-search.ao-active { box-shadow: var(--ao-hover-glow), 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); }
+#ao-root .ao-fixed .ao-search-bar, #ao-root .ao-fixed .ao-bar-search.ao-active, #ao-root .ao-fixed .ao-bar-filter.ao-open { box-shadow: var(--ao-hover-glow), 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); }
 #ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
@@ -3126,12 +3150,8 @@
 #ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
 #ao-root .ao-bar-btn:hover, #ao-root .ao-bar-btn.ao-open { background: var(--ao-hover); }
 #ao-root .ao-bar-btn.ao-active { color: var(--ao-text-accent); }
-#ao-root .ao-bar-filter.ao-active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
-#ao-root .ao-bar-search.ao-active { border-color: var(--ao-search-lens-line); background: var(--ao-search-lens-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-/* Riga sotto la barra: collega filtrato a sinistra, ricerca a pillola a destra (sotto la lente) */
-#ao-root .ao-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-#ao-root .ao-filter-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; min-width: 0; }
-#ao-root .ao-filter-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ao-fw-medium); }
+#ao-root .ao-bar-filter.ao-active:not(.ao-open)::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
+#ao-root .ao-bar-search.ao-active, #ao-root .ao-bar-filter.ao-open { border-color: var(--ao-search-lens-line); background: var(--ao-search-lens-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
 #ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-search-line); background: var(--ao-search-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
@@ -3139,6 +3159,19 @@
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
+/* Filtri (imbuto): prendono il posto di Da mail | Senza mail. Due metà, ciascuna velata; il filtro attivo è pieno
+   come la voce scelta dei selettori. Entrano scorrendo dall'imbuto. */
+#ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; animation: ao-filter-in .3s cubic-bezier(.3, .8, .2, 1); }
+@keyframes ao-filter-in { from { clip-path: inset(0 100% 0 0 round var(--ao-radius-base)); } }
+#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
+#ao-root .ao-filter-dd:hover { color: var(--ao-text); }
+#ao-root .ao-filter-dd.ao-set { background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-filter-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-filter-caret { flex: none; font-size: var(--ao-fs-xs); }
+#ao-root .ao-filter-menu { left: 0; top: calc(100% + 6px); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-filter-menu-operator { left: auto; right: 0; }
+#ao-root .ao-menu-default { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-normal); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-filter-bar { animation: none; } }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
@@ -3156,10 +3189,9 @@
 @keyframes ao-result-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-skeleton-line, #ao-root .ao-results-in > * { animation: none; } }
 #ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
-#ao-root .ao-source-bar .ao-menu { left: 0; top: 38px; }
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
-#ao-root .ao-menu-item { padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
+#ao-root .ao-menu-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-menu-item:hover { background: var(--ao-hover); }
 #ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
@@ -3435,7 +3467,7 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-filter-chip, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
