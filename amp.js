@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 10:45';
+    const BUILD = '2026-11-03 10:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -617,6 +617,13 @@
         queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
         tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
         debug: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.5 13.8a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a3.5 3.5 0 0 0 4.6-3.3l-2 2-2-.5-.5-2z"/></svg>'
+    };
+    // Icone del selettore delle Impostazioni
+    const SETTINGS_ICONS = {
+        profile: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="7" r="3.2"/><path d="M4 16.5c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5"/></svg>',
+        companies: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 16.5V7l6.5-3.5L16.5 7v9.5z"/><path d="M8 16.5v-4h4v4M7 9h1M12 9h1"/></svg>',
+        activities: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5.5h8.5M8 10h8.5M8 14.5h8.5"/><path d="M3.5 5.5l1 1 1.8-2M3.5 10l1 1 1.8-2M3.5 14.5l1 1 1.8-2"/></svg>',
+        responses: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 4.5h13v8.5h-7l-3.5 3v-3H3.5z"/></svg>'
     };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
@@ -1119,7 +1126,7 @@
         const bar = h('div', { class: 'ao-segmented', role: 'group' },
             thumb,
             options.map(option => h('button', {
-                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value },
+                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value }, title: option.title, 'aria-label': option.title,
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
         const previous = segmentMemory.get(key);
@@ -2449,12 +2456,19 @@
         const tabs = Object.keys(TEXTS.settings.tabs);
         const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
         // Niente riga ←: dalle impostazioni si esce con le schede o con l'ingranaggio.
-        return h('div', { class: 'ao-view' },
-            filterBar(tabs.map(value => ({
+        // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
+        const bar = filterBar(tabs.map(value => {
+            const active = value === tab;
+            return {
                 value,
-                label: TEXTS.settings.tabs[value],
-                count: value === 'profile' ? undefined : Object.keys(config[collectionOf(value)]).length
-            })), tab, value => { state.settingsTab = value; state.editing = null; render(); }),
+                title: active ? undefined : TEXTS.settings.tabs[value],
+                label: [svgIcon(SETTINGS_ICONS[value]), active ? h('span', { class: 'ao-segment-name' }, TEXTS.settings.tabs[value]) : null],
+                count: active && value !== 'profile' ? Object.keys(config[collectionOf(value)]).length : undefined
+            };
+        }), tab, value => { state.settingsTab = value; state.editing = null; render(); });
+        bar.classList.add('ao-segmented-icons');
+        return h('div', { class: 'ao-view' },
+            bar,
             tab === 'profile' ? profileSection(config) : collectionSection(tab, config));
     }
     function profileSection(config) {
@@ -2777,6 +2791,11 @@
 #ao-root .ao-menu-item.ao-active { background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
+/* Selettore con icone (Impostazioni): la voce scelta è più larga e ha il nome, che compare in dissolvenza */
+#ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; }
+#ao-root .ao-segmented-icons .ao-segment.ao-active { flex: 2.6; }
+#ao-root .ao-segment-name { animation: ao-fade-in .25s linear; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name { animation: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 
