@@ -131,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 10:45';
+    const BUILD = '2026-11-03 11:15';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -213,6 +213,11 @@
         queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
         tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
         debug: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.5 13.8a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a3.5 3.5 0 0 0 4.6-3.3l-2 2-2-.5-.5-2z"/></svg>'
+    };
+    // Icone dei selettori a segmenti
+    const SEGMENT_ICONS = {
+        active: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2"/></svg>',
+        ignored: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4"/></svg>'
     };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
@@ -519,6 +524,22 @@
         });
         return bar;
     }
+
+    // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
+    // Il numero compare solo sulla voce scelta.
+    function iconBar(options, value, onchange) {
+        const bar = filterBar(options.map(option => {
+            const active = option.value === value;
+            return {
+                value: option.value,
+                title: active ? undefined : option.label,
+                label: [svgIcon(option.icon), active ? h('span', { class: 'ao-segment-name' }, option.label) : null],
+                count: active ? option.count : undefined
+            };
+        }), value, onchange);
+        bar.classList.add('ao-segmented-icons');
+        return bar;
+    }
     // Selettore di scelta (scheda di In coda: azione e gruppo dell'inoltro). Come il selettore a segmenti,
     // ma all'inizio nessuna voce è scelta e la voce scelta si illumina del colore della sua azione
     // (sfondo pastello, senza bordo). Cambiando scelta la pillola scivola sulla voce nuova.
@@ -572,9 +593,9 @@
             // Selettore stretto come nella versione di sviluppo (dove Ticket ha i pulsanti ai lati): spazio vuoto ai lati.
             h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' },
                 h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }),
-                filterBar([
-                    { value: 'active', label: TEXTS.queue.active, count: active.length },
-                    { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
+                iconBar([
+                    { value: 'active', icon: SEGMENT_ICONS.active, label: TEXTS.queue.active, count: active.length },
+                    { value: 'ignored', icon: SEGMENT_ICONS.ignored, label: TEXTS.queue.ignoredTab, count: state.ignored.length }
                 ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
                 h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }))),
             showIgnored
@@ -1013,6 +1034,10 @@
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
+#ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; }
+#ao-root .ao-segmented-icons .ao-segment.ao-active { flex: 2.6; }
+#ao-root .ao-segment-name { animation: ao-fade-in .25s linear; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name { animation: none; } }
 #ao-root .ao-source-bar { position: relative; display: grid; }
 #ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }

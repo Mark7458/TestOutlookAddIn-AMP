@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 10:55';
+    const BUILD = '2026-11-03 11:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -621,9 +621,16 @@
     // Icone del selettore delle Impostazioni
     const SETTINGS_ICONS = {
         profile: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="7" r="3.2"/><path d="M4 16.5c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5"/></svg>',
-        companies: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 16.5V7l6.5-3.5L16.5 7v9.5z"/><path d="M8 16.5v-4h4v4M7 9h1M12 9h1"/></svg>',
+        companies: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="15" height="10" rx="1.5"/><path d="M7 6V4h6v2M2.5 10.5h15"/></svg>',
         activities: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5.5h8.5M8 10h8.5M8 14.5h8.5"/><path d="M3.5 5.5l1 1 1.8-2M3.5 10l1 1 1.8-2M3.5 14.5l1 1 1.8-2"/></svg>',
-        responses: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 4.5h13v8.5h-7l-3.5 3v-3H3.5z"/></svg>'
+        responses: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8a4 4 0 0 1 0 8H9"/><path d="M7 4L4 7l3 3"/></svg>'
+    };
+    // Icone dei selettori a segmenti
+    const SEGMENT_ICONS = {
+        active: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2"/></svg>',
+        ignored: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4"/></svg>',
+        mail: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 5.5l7 5 7-5"/></svg>',
+        none: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M10 7.5v5M7.5 10h5"/></svg>'
     };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
@@ -1155,6 +1162,21 @@
         });
         return bar;
     }
+    // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
+    // Il numero compare solo sulla voce scelta.
+    function iconBar(options, value, onchange) {
+        const bar = filterBar(options.map(option => {
+            const active = option.value === value;
+            return {
+                value: option.value,
+                title: active ? undefined : option.label,
+                label: [svgIcon(option.icon), active ? h('span', { class: 'ao-segment-name' }, option.label) : null],
+                count: active ? option.count : undefined
+            };
+        }), value, onchange);
+        bar.classList.add('ao-segmented-icons');
+        return bar;
+    }
     // Selettore di scelta (scheda di In coda: azione e gruppo dell'inoltro). Come il selettore a segmenti,
     // ma all'inizio nessuna voce è scelta e la voce scelta si illumina del colore della sua azione
     // (sfondo pastello, senza bordo). Cambiando scelta la pillola scivola sulla voce nuova.
@@ -1220,9 +1242,9 @@
             // Stessa riga di Ticket: selettore della stessa larghezza, senza pulsanti ai lati.
             h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' },
                 h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }),
-                filterBar([
-                    { value: 'active', label: TEXTS.queue.active, count: active.length },
-                    { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
+                iconBar([
+                    { value: 'active', icon: SEGMENT_ICONS.active, label: TEXTS.queue.active, count: active.length },
+                    { value: 'ignored', icon: SEGMENT_ICONS.ignored, label: TEXTS.queue.ignoredTab, count: state.ignored.length }
                 ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
                 h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }))),
             showIgnored
@@ -1486,9 +1508,9 @@
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
         const filterName = operator === 'all' ? TEXTS.tickets.allOperators : (operator === 'mine' ? TEXTS.tickets.mine : operator);
-        const bar = filterBar([
-            { value: 'mail', label: TEXTS.tickets.fromMail, count: counts.mail },
-            { value: 'none', label: TEXTS.tickets.withoutMail, count: counts.none }
+        const bar = iconBar([
+            { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail },
+            { value: 'none', icon: SEGMENT_ICONS.none, label: TEXTS.tickets.withoutMail, count: counts.none }
         ], state.ticketSource, value => {
             if (value === state.ticketSource) return;
             state.ticketSource = value;
@@ -2456,17 +2478,10 @@
         const tabs = Object.keys(TEXTS.settings.tabs);
         const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
         // Niente riga ←: dalle impostazioni si esce con le schede o con l'ingranaggio.
-        // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
-        const bar = filterBar(tabs.map(value => {
-            const active = value === tab;
-            return {
-                value,
-                title: active ? undefined : TEXTS.settings.tabs[value],
-                label: [svgIcon(SETTINGS_ICONS[value]), active ? h('span', { class: 'ao-segment-name' }, TEXTS.settings.tabs[value]) : null],
-                count: active && value !== 'profile' ? Object.keys(config[collectionOf(value)]).length : undefined
-            };
-        }), tab, value => { state.settingsTab = value; state.editing = null; render(); });
-        bar.classList.add('ao-segmented-icons');
+        const bar = iconBar(tabs.map(value => ({
+            value, icon: SETTINGS_ICONS[value], label: TEXTS.settings.tabs[value],
+            count: value !== 'profile' ? Object.keys(config[collectionOf(value)]).length : undefined
+        })), tab, value => { state.settingsTab = value; state.editing = null; render(); });
         return h('div', { class: 'ao-view' },
             bar,
             tab === 'profile' ? profileSection(config) : collectionSection(tab, config));
