@@ -92,6 +92,11 @@
             selectionShadow: '0 0 transparent', // ombra della voce scelta
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
             selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
+            // + Nuovo ticket: nel flat bordo tratteggiato; nel vetro sempre acceso col bagliore, come una card al passaggio del mouse
+            callBorder: '1px dashed var(--ao-accent)',
+            callBg: 'var(--ao-surface)',
+            callFilter: 'none',
+            callGlow: '0 0 transparent',
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -163,6 +168,10 @@
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .06)',
             selectionTone: '0%',
             selectionMotion: '.44s cubic-bezier(.32, 1.12, .5, 1)', // scivola con un leggero rimbalzo finale, come iOS
+            callBorder: '1px solid var(--ao-line)',
+            callBg: 'var(--ao-hover)',
+            callFilter: 'var(--ao-hover-filter)',
+            callGlow: 'var(--ao-hover-glow)',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -443,7 +452,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 14:55';
+    const BUILD = '2026-11-03 15:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3067,7 +3076,7 @@
 #ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
 #ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { padding: 8px; border: 1px dashed var(--ao-accent); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-new-ticket { padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-call-bg); filter: var(--ao-call-filter); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-new-ticket-card { border-color: var(--ao-accent); }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
