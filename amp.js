@@ -101,7 +101,6 @@
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
             callGlowHover: '0 0 transparent',
-            filterIdle: 'transparent', // metà dei filtri senza un valore scelto
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -118,7 +117,6 @@
             toneSolid: '100%', // quanto colore nella scheda a esito concluso
             toneLine: 'transparent', // bordo dei pulsanti
             toneHoverFilter: 'brightness(.92)',
-            toneGlow: '0%', // bagliore del colore dell'azione al passaggio del mouse
             btnHighlight: '0 0 transparent', // filo di luce sul bordo alto dei pulsanti
             spinnerTrack: '45%',
             // Etichette: quanto colore nel fondo (su che base) e nella scritta (su che base), bordo
@@ -196,7 +194,6 @@
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             callGlowHover: '0 0 21px rgba(80, 150, 255, .58), 0 0 5px rgba(80, 150, 255, .3)',
-            filterIdle: 'rgba(255, 255, 255, .45)',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -209,7 +206,6 @@
             toneSolid: '0%',
             toneLine: 'rgba(255, 255, 255, .22)',
             toneHoverFilter: 'brightness(1.08)',
-            toneGlow: '35%',
             btnHighlight: 'inset 0 1px 0 rgba(255, 255, 255, .22)',
             spinnerTrack: '35%',
             tagFill: '16%',
@@ -230,7 +226,6 @@
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
-            filterIdle: 'rgba(255, 255, 255, .05)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
             menuBg: '#2b2e36',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
@@ -319,7 +314,7 @@
             ignore: 'Ignora'
         },
         tickets: {
-            newTicket: '+ Nuovo ticket',
+            newTicket: 'Nuovo ticket',
             shortDescription: 'Short description',
             description: 'Description',
             receivedDate: 'Ricevuta il',
@@ -407,13 +402,11 @@
             closed: state => `Ticket ${state}: nessuna azione disponibile.`,
             noLinkedMail: 'Nessuna mail collegata: la risposta non è disponibile da qui.',
             // Azione all'invio
-            onSend: 'Quando invii la risposta',
-            update: 'Aggiornamento',
+            reply: 'Risposta',
             updateText: 'Testo',
             updateButtons: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'Metti in On Hold', cancel: 'Annulla il ticket' },
             updated: number => `${number} aggiornato`,
             closedTicket: number => `${number} chiuso`,
-            onSendHint: 'Il testo della mail diventa il commento su ServiceNow; il ticket si aggiorna come scegli qui.',
             actions: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'On Hold', cancel: 'Annulla' },
             resolutionCode: 'Resolution code',
             holdReason: 'On hold reason',
@@ -520,7 +513,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 19:45';
+    const BUILD = '2026-11-03 21:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -792,6 +785,8 @@
         hold: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v11M13 4.5v11"/></svg>',
         cancel: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/></svg>'
     };
+    // Colore del pulsante per ogni azione sul ticket
+    const ACTION_FILLS = { comment: '', resolve: ' ao-fill-resolve', hold: ' ao-fill-hold', cancel: ' ao-fill-danger' };
     const ACTION_TONES = { take: 'accent', forward: 'forward', ignore: 'danger', comment: 'accent', resolve: 'resolve', hold: 'hold', cancel: 'danger' };
     const SWAP_ICON = '<svg viewBox="0 0 20 20" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12M12 6l4 4-4 4"/></svg>';
     const TAG_ADD_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/><path d="M15.5 2.5v4M13.5 4.5h4"/></svg>';
@@ -1123,7 +1118,7 @@
     }
     // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
     // Solo questo clic segna come lette le risposte nuove (aprire la mail in Outlook non basta).
-    function openTicketItem(ticket) {
+    function openTicketItem(ticket, { slide = true } = {}) {
         if (ticket.newMessages && ticket.conversationId) Services.markThreadSeen(ticket.conversationId, currentUser()).catch(() => {});
         state.backTo = 'tickets';
         state.target = { kind: 'ticket', number: ticket.number };
@@ -1131,19 +1126,26 @@
         state.view = 'mail';
         render();
         scrollToTop();
-        if (entering) slideInView(1);
+        if (entering && slide) slideInView(1);
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
-    // Ticket senza mail: la scheda si solleva come in In coda (le altre si sfocano), poi si apre la sua pagina.
-    async function liftAndOpen(card, ticket) {
-        if (state.holdRender || !card) return openTicketItem(ticket);
-        if (!reducedMotion()) {
-            await holdingRender(async () => {
-                card.classList.add('ao-opening');
-                await new Promise(resolve => setTimeout(resolve, 280));
-            });
-        }
-        openTicketItem(ticket);
+    // Apertura di un ticket dall'elenco: la scheda si solleva come quella di In coda, poi si allarga fino a diventare
+    // la pagina del ticket (la pagina compare dal riquadro della scheda e si estende a tutta l'area).
+    async function openFromCard(card, ticket) {
+        if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
+        const body = root.querySelector('.ao-body');
+        await holdingRender(async () => {
+            card.classList.add('ao-opening');
+            await wait(MOTION.hold);
+        });
+        const area = body.getBoundingClientRect();
+        const from = card.getBoundingClientRect();
+        const radius = getComputedStyle(card).borderRadius;
+        openTicketItem(ticket, { slide: false });
+        await holdingRender(() => body.animate([
+            { clipPath: `inset(${from.top - area.top}px ${area.right - from.right}px ${area.bottom - from.bottom}px ${from.left - area.left}px round ${radius})`, opacity: .6 },
+            { clipPath: `inset(0px 0px 0px 0px round 0px)`, opacity: 1 }
+        ], { duration: MOTION.unfold, easing: 'cubic-bezier(.3, .8, .2, 1)' }).finished.catch(() => {}));
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null) {
@@ -1971,6 +1973,9 @@
         const old = middleOf();
         if (!old || reducedMotion()) { change(); render(); return; }
         const widths = partsOf(old).map(part => part.offsetWidth);
+        // Al ritorno il filtro impostato diventa la pillola della voce scelta (l'inverso dell'andata)
+        const lit = old.querySelector('.ao-filter-dd.ao-set');
+        const litFrom = lit && { width: `${lit.offsetWidth}px`, transform: `translateX(${lit.offsetLeft - 2}px)` }; // 2px = bordo interno
         const step = { duration: BAR_MOTION.duration * .4, easing: 'linear', fill: 'forwards' };
         await holdingRender(() => Promise.all([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb')]
             .map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], step).finished)).catch(() => {}));
@@ -1980,12 +1985,23 @@
         const parts = partsOf(fresh);
         if (parts.length !== widths.length) return;
         await holdingRender(async () => {
-            const contents = [...parts.flatMap(part => [...part.children]), ...fresh.querySelectorAll('.ao-segment-thumb')];
+            const thumb = fresh.querySelector('.ao-segment-thumb');
+            const active = fresh.querySelector('.ao-segment.ao-active');
+            const pill = litFrom && thumb && active ? thumb : null;
+            const contents = [...parts.flatMap(part => [...part.children]), ...fresh.querySelectorAll('.ao-segment-thumb')].filter(element => element !== pill);
             contents.forEach(element => { element.style.opacity = '0'; });
             const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
-            await Promise.all(parts.map((part, index) => part.animate([
+            const pillTo = pill && { width: `${active.offsetWidth}px`, transform: `translateX(${active.offsetLeft - 2}px)` };
+            const moves = parts.map((part, index) => part.animate([
                 { flex: `0 0 ${widths[index]}px` }, { flex: `0 0 ${targets[index]}px` }
-            ], BAR_MOTION).finished)).catch(() => {});
+            ], BAR_MOTION).finished);
+            if (pill) {
+                Object.assign(pill.style, pillTo);
+                pill.classList.remove('ao-moving');
+                pill.classList.add('ao-ready');
+                moves.push(pill.animate([litFrom, pillTo], BAR_MOTION).finished);
+            }
+            await Promise.all(moves).catch(() => {});
             await Promise.all(contents.map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: BAR_MOTION.duration * .5, easing: 'linear' }).finished)).catch(() => {});
             contents.forEach(element => { element.style.opacity = ''; });
         });
@@ -2076,7 +2092,7 @@
     }
     function newTicketSection(config) {
         if (!state.newTicketOpen) {
-            return h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewTicket() }, TEXTS.tickets.newTicket);
+            return h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewTicket() }, svgIcon(SEGMENT_ICONS.none), TEXTS.tickets.newTicket);
         }
         const mail = manualMail();
         const draft = ticketDraft(mail, config);
@@ -2137,7 +2153,7 @@
         const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
-        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, event => (ticket.messageId ? openTicketItem(ticket) : liftAndOpen(event.currentTarget, ticket)),
+        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, event => openFromCard(event.currentTarget, ticket),
             // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
@@ -2363,7 +2379,7 @@
                 draft.activityId, value => { draft.activityId = value; rerender(); });
             activityField.insertBefore(h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
                 activityField.querySelector('.ao-select'));
-            return h('div', { class: 'ao-take-zone' }, companyField, activityField);
+            return h('div', { class: 'ao-form-fields' }, companyField, activityField);
         }
         return [
             selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
@@ -2779,21 +2795,15 @@
     function updateCard(ticket, config) {
         const draft = actionDraft(ticket, config);
         draft.text ??= '';
-        const tones = { comment: '', resolve: ' ao-fill-resolve', hold: ' ao-fill-hold', cancel: ' ao-fill-danger' };
         const refresh = () => { const button = root.querySelector('.ao-update-card .ao-primary'); if (button) button.disabled = !draft.text.trim(); };
         return h('section', { class: 'ao-card ao-update-card' },
-            h('h3', { class: 'ao-card-title' }, TEXTS.mail.update),
+            // Prima la risposta (il testo), poi cosa fare del ticket.
+            h('h3', { class: 'ao-card-title' }, TEXTS.mail.reply),
+            textField(TEXTS.mail.updateText, draft.text, value => { draft.text = value; refresh(); }, { multiline: true, rows: '4' }),
             ticketActionBar(ticket, draft),
-            choiceZone(`ticket:${ticket.number}`, h('div', { class: 'ao-take-zone' },
-                draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
-                draft.type === 'hold' ? [
-                    selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
-                    textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
-                ] : null,
-                textField(TEXTS.mail.updateText, draft.text, value => { draft.text = value; refresh(); }, { multiline: true, rows: '4' }),
-                draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null)),
+            choiceZone(`ticket:${ticket.number}`, actionFields(draft)),
             h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: `ao-button ao-primary${tones[draft.type] || ''}`, disabled: !draft.text.trim(), onclick: () => updateTicket(ticket) }, TEXTS.mail.updateButtons[draft.type])));
+                h('button', { type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`, disabled: !draft.text.trim(), onclick: () => updateTicket(ticket) }, TEXTS.mail.updateButtons[draft.type])));
     }
     async function updateTicket(ticket) {
         const config = loadConfig();
@@ -2822,24 +2832,29 @@
             ...(config.combinationResponses[key]?.response ? [{ value: 'combination', label: TEXTS.mail.replyCombination }] : []),
             ...Object.entries(config.usefulResponses).sort(byName).map(([id, item]) => ({ value: `useful:${id}`, label: item.title }))
         ];
+        // Prima la risposta (testo di partenza e riferimento), poi cosa fare del ticket all'invio.
         return h('section', { class: 'ao-card' },
-            h('h3', { class: 'ao-card-title' }, TEXTS.mail.onSend),
-            h('p', { class: 'ao-hint' }, TEXTS.mail.onSendHint),
+            h('h3', { class: 'ao-card-title' }, TEXTS.mail.reply),
             ticket.pendingAction ? h('div', { class: 'ao-pending' },
                 h('span', {}, TEXTS.mail.pending(pendingLabel(ticket.pendingAction))),
                 h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(ticket, null) }, TEXTS.mail.clearPending)) : null,
-            ticketActionBar(ticket, draft),
-            choiceZone(`ticket:${ticket.number}`, draft.type === 'comment' ? null : [
-                draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
-                draft.type === 'hold' ? [
-                    selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
-                    textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
-                ] : null,
-                textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' })]),
             selectField(TEXTS.mail.replyText, templates, draft.template, value => { draft.template = value; }),
             checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
+            ticketActionBar(ticket, draft),
+            choiceZone(`ticket:${ticket.number}`, actionFields(draft)),
             h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => prepareReply(ticket, isCurrentMail) }, TEXTS.mail.prepareReply)));
+                h('button', { type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`, onclick: () => prepareReply(ticket, isCurrentMail) }, TEXTS.mail.prepareReply)));
+    }
+    // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
+    function actionFields(draft) {
+        if (draft.type === 'comment') return null;
+        return h('div', { class: 'ao-form-fields' },
+            draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
+            draft.type === 'hold' ? [
+                selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
+                textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
+            ] : null,
+            textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }));
     }
     function buildPendingAction(draft, by) {
         if (draft.type === 'comment') return null;
@@ -3273,9 +3288,9 @@
 #ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
 /* Pulsante principale, ovunque: pieno del colore della sua azione (--ao-btn, classi ao-fill-*), scritta bianca;
-   nel vetro è vetro colorato (pietre preziose) con un filo di luce e, al passaggio, un bagliore del suo colore */
+   nel vetro è vetro colorato (pietre preziose) con un filo di luce; al passaggio si accende appena */
 #ao-root .ao-button.ao-primary { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
-#ao-root .ao-button.ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-btn-highlight), 0 0 12px color-mix(in srgb, var(--ao-btn) var(--ao-tone-glow), transparent); }
+#ao-root .ao-button.ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-btn-highlight); }
 #ao-root .ao-button.ao-fill-forward { --ao-btn: var(--ao-tone-forward); }
 #ao-root .ao-button.ao-fill-danger { --ao-btn: var(--ao-tone-ignore); }
 #ao-root .ao-button.ao-fill-resolve { --ao-btn: var(--ao-tone-resolve); }
@@ -3326,10 +3341,10 @@
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
-/* Filtri (imbuto): Da mail | Senza mail si trasformano nei due filtri (morphBar). Due metà,
-   ciascuna velata; il filtro attivo è pieno come la voce scelta dei selettori. */
+/* Filtri (imbuto): Da mail | Senza mail si trasformano nei due filtri (morphBar). Due metà sul fondo del
+   selettore; il filtro attivo è pieno come la voce scelta dei selettori. */
 #ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; }
-#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
+#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
 #ao-root .ao-filter-dd:hover { color: var(--ao-text); }
 #ao-root .ao-filter-dd.ao-set { background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-filter-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3357,7 +3372,7 @@
 #ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-menu-bg); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
 @keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 #ao-root .ao-menu-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
-#ao-root .ao-menu-item:hover { background: var(--ao-hover); }
+#ao-root .ao-menu-item:hover { background: var(--ao-accent-bg); }
 #ao-root .ao-menu-item.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); } /* scelta: solo la scritta; lo sfondo resta al passaggio del mouse */
 #ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
@@ -3380,9 +3395,8 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
-/* Ticket senza mail che si apre: si solleva come la scheda aperta di In coda, le altre si sfocano */
+/* Ticket che si apre: si solleva come la scheda aperta di In coda, poi diventa la sua pagina (openFromCard) */
 #ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); }
-#ao-root .ao-list:has(.ao-opening) .ao-item:not(.ao-opening) { filter: blur(5px); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
@@ -3457,19 +3471,18 @@
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
 #ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
 #ao-root .ao-suggestions-slot:empty { display: none; }
-/* In coda, Prendi in carico: campi in un riquadro grigio, campi e pillole bianchi con un'ombra leggera (niente bordo) */
-#ao-root .ao-take-zone { display: grid; gap: 8px; padding: 9px; border-radius: var(--ao-radius-base); background: var(--ao-bg); }
-#ao-root .ao-take-zone .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+/* Campi dei moduli (Prendi in carico, Nuovo ticket, Risposta): campi semplici sulla scheda, come in tutto il pannello;
+   l'agenzia suggerita sta accanto all'etichetta, le pillole delle attività sotto "Attività" */
+#ao-root .ao-form-fields { display: grid; gap: 8px; }
+#ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#ao-root .ao-take-zone .ao-input { min-height: 30px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
-#ao-root .ao-take-zone .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); }
-#ao-root .ao-take-zone .ao-suggestions-slot { margin-bottom: 3px; }
-#ao-root .ao-take-zone .ao-fav { padding: 4px 10px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
-#ao-root .ao-take-zone .ao-fav:hover { border-color: transparent; background: var(--ao-hover); }
-#ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
-#ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
-#ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-form-fields .ao-suggestions-slot { margin-bottom: 3px; }
+#ao-root .ao-form-fields .ao-fav { padding: 4px 10px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
+#ao-root .ao-form-fields .ao-fav:hover { border-color: transparent; background: var(--ao-hover); }
+#ao-root .ao-form-fields .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-form-fields .ao-fav-company { color: var(--ao-text-subtle); }
+#ao-root .ao-form-fields .ao-fav.ao-active .ao-fav-company { color: inherit; }
+#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
@@ -3640,8 +3653,8 @@
 #ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
-/* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
-#ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+/* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
+#ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
 #ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
 #ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
