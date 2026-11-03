@@ -61,13 +61,7 @@
             choiceForwardBg: '#f1ecf9',
             choiceForwardText: '#6b47b0',
             choiceDangerBg: '#fde7e9',
-            choiceDangerText: '#a4262c',
-            // Tema chiaro "vetro": sfondo sfumato azzurro e lilla; card, selettori e barra di sistema semitrasparenti e sfocati.
-            backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(121, 184, 255, .32), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa)',
-            glass: 'rgba(255, 255, 255, .82)',
-            glassLine: 'rgba(255, 255, 255, .7)',
-            glassThumb: 'rgba(255, 255, 255, .92)',
-            glassThumbShadow: '0 1px 2px rgba(0, 0, 0, .06)'
+            choiceDangerText: '#a4262c'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -98,13 +92,7 @@
             choiceForwardBg: 'color-mix(in srgb, #7c5bbf 26%, #2d2c2b)',
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
-            choiceDangerText: '#ff8f94',
-            // Tema scuro: niente vetro, restano i colori pieni.
-            backdrop: '#201f1e',
-            glass: '#2d2c2b',
-            glassLine: '#484644',
-            glassThumb: '#19344a',
-            glassThumbShadow: 'none'
+            choiceDangerText: '#ff8f94'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -143,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 11:50';
+    const BUILD = '2026-11-03 11:55';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -990,7 +978,6 @@
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
 #ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-bg); line-height: 1.4; }
-#ao-root { background: var(--ao-backdrop); }
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
@@ -1085,9 +1072,6 @@
 /* Elenco di In coda */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; }
-/* Vetro (tema chiaro): card, selettori e barra di sistema semitrasparenti sopra lo sfondo sfumato. */
-#ao-root .ao-item, #ao-root .ao-segmented, #ao-root .ao-statusbar { background: var(--ao-glass); border-color: var(--ao-glass-line); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
-#ao-root .ao-segmented .ao-segment-thumb { background: var(--ao-glass-thumb); box-shadow: var(--ao-glass-thumb-shadow); }
 /* Passaggio del mouse, uguale in tutte le sezioni: sfondo grigio leggerissimo, testo invariato.
    Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover. */
 #ao-root .ao-item { transition: background-color .15s; }
