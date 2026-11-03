@@ -408,7 +408,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:10';
+    const BUILD = '2026-11-03 12:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -684,6 +684,14 @@
         ignored: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4"/></svg>',
         mail: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 5.5l7 5 7-5"/></svg>',
         none: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M10 7.5v5M7.5 10h5"/></svg>'
+    };
+    // Icone dei selettori di tema e stile (Impostazioni → Profilo)
+    const APPEARANCE_ICONS = {
+        auto: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>',
+        light: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7L6 6M14 14l1.3 1.3M4.7 15.3L6 14M14 6l1.3-1.3"/></svg>',
+        dark: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/></svg>',
+        flat: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="12" height="12" rx="2"/></svg>',
+        glass: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="2"/><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" fill-opacity=".18"/></svg>'
     };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
@@ -2582,25 +2590,24 @@
                             showStatus(TEXTS.settings.saved);
                         }
                     }, TEXTS.common.save))),
+            // Tema e stile nella stessa sezione, con i selettori a icone.
             h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.theme),
-                filterBar(Object.entries(TEXTS.settings.themes).map(([value, label]) => ({ value, label })), config.preferences?.theme || 'auto', value => {
+                iconBar(Object.entries(TEXTS.settings.themes).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.theme || 'auto', value => {
                     const current = loadConfig();
                     current.preferences = { ...(current.preferences || {}), theme: value };
                     saveConfig(current);
                     applyTheme(current);
                     render();
                 }),
-                h('p', { class: 'ao-hint' }, TEXTS.settings.themeHint)),
-            h('section', { class: 'ao-card' },
-                h('h3', { class: 'ao-card-title' }, TEXTS.settings.style),
-                filterBar(Object.entries(TEXTS.settings.styles).map(([value, label]) => ({ value, label })), config.preferences?.style === 'flat' ? 'flat' : 'glass', value => {
+                iconBar(Object.entries(TEXTS.settings.styles).map(([value, label]) => ({ value, label, icon: APPEARANCE_ICONS[value] })), config.preferences?.style === 'flat' ? 'flat' : 'glass', value => {
                     const current = loadConfig();
                     current.preferences = { ...(current.preferences || {}), style: value };
                     saveConfig(current);
                     applyTheme(current);
                     render();
-                })),
+                }),
+                h('p', { class: 'ao-hint' }, TEXTS.settings.themeHint)),
             h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
