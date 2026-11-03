@@ -414,7 +414,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:45';
+    const BUILD = '2026-11-03 12:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3204,12 +3204,12 @@
     const OUTSIDE_STYLES = `
 /* Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa,
    con le schede più vicine al logo; con lo stile vetro lo sfondo sfumato (sul contenitore dell'intestazione) passa anche dietro l'intestazione,
-   che diventa di vetro leggero (stesso blu, appena trasparente, con un riflesso chiaro in alto). */
+   che diventa di vetro leggero (stesso blu, appena trasparente, piatto: niente riflessi). */
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 55%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84)); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84)); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
 #ao-root[data-style="glass"] { background: transparent; }
 #ao-root[data-style="glass"] .ao-tabs { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
 `;
