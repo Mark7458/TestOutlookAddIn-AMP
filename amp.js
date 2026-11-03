@@ -507,7 +507,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 19:00';
+    const BUILD = '2026-11-03 19:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1406,7 +1406,9 @@
     const segmentKey = options => options.map(option => option.value).join('|');
     // grow: la voce scelta è più larga delle altre (selettore con le icone); cambiando scelta le larghezze
     // si scambiano con lo stesso movimento della pillola, che le segue.
-    function filterBar(options, value, onchange, grow = false, memoryKey = null) {
+    // grow: voce scelta più larga (selettori a icone); key: memoria del selettore; slide: il contenuto che segue entra
+    // scorrendo (navigazione). Dentro una scheda (slide: false) il contenuto cambia con swapZone, in dissolvenza.
+    function filterBar(options, value, onchange, { grow = false, key: memoryKey = null, slide = true } = {}) {
         const key = memoryKey || segmentKey(options);
         const previous = segmentMemory.get(key);
         const growing = grow && previous !== undefined && previous !== value;
@@ -1451,13 +1453,13 @@
                 thumb.style.width = end.width;
                 thumb.style.transform = end.transform;
                 const values = options.map(option => option.value);
-                slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
+                if (slide) slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
             } else if (previous !== undefined && previous !== value && place(previous, false)) {
                 thumb.getBoundingClientRect(); // parte dalla voce di prima
                 place(value, true);
                 // Anche il contenuto che dipende dal selettore entra nella direzione dello spostamento.
                 const values = options.map(option => option.value);
-                slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
+                if (slide) slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
             } else place(value, false);
             thumb.classList.add('ao-ready');
             // Se il riquadro cambia larghezza, la pillola segue la voce (senza animazione).
@@ -1473,7 +1475,7 @@
     // Il numero compare solo sulla voce scelta.
     // key: memoria del selettore quando le stesse voci compaiono in più schede (azioni di In coda, di un ticket);
     // tone: la voce scelta prende il colore della sua azione (ACTION_TONES); senza scelta le voci mostrano il nome.
-    function iconBar(options, value, onchange, { key = null, tones = false } = {}) {
+    function iconBar(options, value, onchange, { key = null, tones = false, slide = true } = {}) {
         const memoryKey = key || segmentKey(options);
         const chosen = options.some(option => option.value === value);
         // Il nome compare in dissolvenza solo quando la scelta cambia, non a ogni ridisegno.
@@ -1492,7 +1494,7 @@
                 count: active ? option.count : undefined,
                 disabled: option.disabled
             };
-        }), value, onchange, true, memoryKey);
+        }), value, onchange, { grow: true, key: memoryKey, slide });
         bar.classList.add('ao-segmented-icons');
         if (tones && chosen) bar.classList.add('ao-toned', `ao-choice-${ACTION_TONES[value] || 'accent'}`);
         return bar;
@@ -1633,8 +1635,8 @@
             // Testo limitato a PREVIEW_MAX_CHARS; la barra di scorrimento compare solo a scheda aperta del tutto.
             h('div', { class: `ao-mail-preview${state.previewScroll === item.conversationId ? ' ao-scrollable' : ''}` },
                 clipText(body ?? item.preview ?? '', PREVIEW_MAX_CHARS), body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
-            iconBar(actions.map(action => ({ ...action, icon: ACTION_ICONS[action.value] })), choice.action, value => pickQueueAction(item, value), { key: `action:${item.conversationId}`, tones: true }),
-            h('div', { class: 'ao-choice-zone' }, choice.action ? h('div', { class: 'ao-choice-content' }, queueActionContent(item, mail, config, choice)) : null),
+            iconBar(actions.map(action => ({ ...action, icon: ACTION_ICONS[action.value] })), choice.action, value => pickQueueAction(item, value), { key: `action:${item.conversationId}`, tones: true, slide: false }),
+            choiceZone(`queue:${item.conversationId}`, choice.action ? queueActionContent(item, mail, config, choice) : null),
             h('button', {
                 type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close,
                 onclick: event => closeTakeCharge(event.currentTarget.closest('.ao-inline-form'))
@@ -1661,27 +1663,9 @@
         const id = item.conversationId;
         const choice = state.queueChoice[id] || (state.queueChoice[id] = {});
         if (choice.action === action || state.holdRender) return;
-        holdRender();
-        const zone = queueDetailsOf(id)?.querySelector('.ao-choice-zone');
-        const card = zone?.closest('.ao-queue-item');
+        const card = queueDetailsOf(id)?.closest('.ao-queue-item');
         if (card) card.dataset.choice = action; // il titolo cambia colore mentre il contenuto svanisce
-        const from = zone?.offsetHeight || 0;
-        const old = zone?.firstElementChild;
-        if (old) await playOn(old, [{ opacity: 1 }, { opacity: 0 }], MOTION.swap * .45, 'linear');
-        choice.action = action;
-        releaseRender();
-        render();
-        const next = queueDetailsOf(id)?.querySelector('.ao-choice-zone');
-        const content = next?.firstElementChild;
-        if (!next || !content) return;
-        await holdingRender(async () => {
-            content.style.opacity = '0';
-            const result = await playOn(next, [{ height: `${from}px` }, { height: `${next.scrollHeight}px` }], MOTION.swap);
-            if (result) { result.animation.cancel(); next.style.overflow = result.overflow; }
-            const shown = await playOn(content, [{ opacity: 0 }, { opacity: 1 }], MOTION.swap * .55, 'linear');
-            if (shown) { shown.animation.cancel(); content.style.overflow = shown.overflow; }
-            content.style.opacity = '';
-        });
+        await swapZone(`queue:${id}`, () => { choice.action = action; });
     }
     // Apre la scheda (una alla volta) con l'animazione e carica il testo della mail.
     async function openTakeCharge(item) {
@@ -1901,7 +1885,7 @@
         const filterButton = h('button', {
             type: 'button', class: `ao-bar-btn ao-bar-filter${filtered ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-open' : ''}`,
             'aria-pressed': String(state.ticketFilterOpen), 'aria-label': TEXTS.tickets.filters, title: TEXTS.tickets.filters,
-            onclick: () => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; render(); }
+            onclick: () => swapBarMiddle(() => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; }, !state.ticketFilterOpen)
         }, svgIcon(FILTER_ICON));
         const searchButton = h('button', {
             type: 'button', class: 'ao-bar-btn ao-bar-search', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
@@ -1945,7 +1929,8 @@
     }
     // Apertura e chiusura della ricerca, sincronizzate: la barra di ricerca si allarga dalla lente verso sinistra
     // sopra il selettore mentre selettore ed elenco svaniscono; in chiusura si ritira verso la lente mentre ricompaiono.
-    const SEARCH_MOTION = { duration: 300, easing: 'cubic-bezier(.3, .8, .2, 1)' };
+    // Movimento della barra secondaria quando cambia contenuto (ricerca, filtri): stessa durata e curva.
+    const BAR_MOTION = { duration: 300, easing: 'cubic-bezier(.3, .8, .2, 1)' };
     const SEARCH_CLIP_CLOSED = 'inset(0 0 0 100% round 6px)';
     const SEARCH_CLIP_OPEN = 'inset(0 0 0 0 round 6px)';
     function searchOverlay(sourceBar, value) {
@@ -1964,6 +1949,33 @@
         ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar)'),
         ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
     ];
+    // Filtri (imbuto): il contenuto centrale della barra cambia scorrendo dall'imbuto. In apertura i filtri entrano da
+    // sinistra mentre il selettore svanisce; in chiusura si ritirano verso l'imbuto mentre il selettore ricompare.
+    async function swapBarMiddle(change, reveal) {
+        if (state.holdRender) return;
+        const middleOf = () => root.querySelector('.ao-source-bar .ao-bar-row > .ao-segmented');
+        const old = middleOf();
+        if (!old || reducedMotion()) { change(); render(); return; }
+        const ghost = old.cloneNode(true);
+        ghost.classList.add('ao-bar-ghost');
+        Object.assign(ghost.style, { left: `${old.offsetLeft}px`, top: `${old.offsetTop}px`, width: `${old.offsetWidth}px`, height: `${old.offsetHeight}px` });
+        change();
+        render();
+        const fresh = middleOf();
+        if (!fresh) return;
+        fresh.parentElement.append(ghost);
+        const radius = getComputedStyle(fresh).borderRadius;
+        const closed = `inset(0 100% 0 0 round ${radius})`, opened = `inset(0 0 0 0 round ${radius})`;
+        await holdingRender(async () => {
+            if (reveal) ghost.style.zIndex = '0', fresh.style.zIndex = '1';
+            const moves = reveal
+                ? [fresh.animate([{ clipPath: closed }, { clipPath: opened }], BAR_MOTION).finished, ghost.animate([{ opacity: 1 }, { opacity: 0 }], { ...BAR_MOTION, fill: 'forwards' }).finished]
+                : [ghost.animate([{ clipPath: opened }, { clipPath: closed }], { ...BAR_MOTION, fill: 'forwards' }).finished, fresh.animate([{ opacity: 0 }, { opacity: 1 }], BAR_MOTION).finished];
+            await Promise.all(moves).catch(() => {});
+            ghost.remove();
+            fresh.style.zIndex = '';
+        });
+    }
     async function openTicketSearch() {
         if (state.holdRender) return;
         state.filterMenu = null;
@@ -1971,8 +1983,8 @@
         if (sourceBar && !reducedMotion()) {
             await holdingRender(async () => {
                 const overlay = searchOverlay(sourceBar, '');
-                const fades = searchCompanions().map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], { ...SEARCH_MOTION, fill: 'forwards' }).finished);
-                await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_CLOSED }, { clipPath: SEARCH_CLIP_OPEN }], { ...SEARCH_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
+                const fades = searchCompanions().map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], { ...BAR_MOTION, fill: 'forwards' }).finished);
+                await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_CLOSED }, { clipPath: SEARCH_CLIP_OPEN }], { ...BAR_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
             });
         }
         Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
@@ -1989,8 +2001,8 @@
         if (!sourceBar || reducedMotion()) return;
         await holdingRender(async () => {
             const overlay = searchOverlay(sourceBar, value);
-            const fades = searchCompanions().map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], SEARCH_MOTION).finished);
-            await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_OPEN }, { clipPath: SEARCH_CLIP_CLOSED }], { ...SEARCH_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
+            const fades = searchCompanions().map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], BAR_MOTION).finished);
+            await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_OPEN }, { clipPath: SEARCH_CLIP_CLOSED }], { ...BAR_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
             overlay.remove();
         });
     }
@@ -2714,7 +2726,40 @@
     // Azioni sul ticket (Aggiorna, Risolvi, On Hold, Annulla) con le icone e il colore dell'azione scelta.
     function ticketActionBar(ticket, draft) {
         return iconBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
-            value => { draft.type = value; render(); }, { key: `ticket:${ticket.number}`, tones: true });
+            value => { if (value !== draft.type) swapZone(`ticket:${ticket.number}`, () => { draft.type = value; }); },
+            { key: `ticket:${ticket.number}`, tones: true, slide: false });
+    }
+    // Contenuto che dipende dal selettore dentro una scheda (azioni di In coda e dei ticket): quello vecchio svanisce,
+    // lo spazio si adatta, il nuovo compare. Sempre la stessa sequenza, ovunque.
+    const choiceZone = (id, content) => h('div', { class: 'ao-choice-zone', dataset: { zone: id } }, content ? h('div', { class: 'ao-choice-content' }, content) : null);
+    async function swapZone(id, change) {
+        if (state.holdRender) return;
+        const find = () => root.querySelector(`.ao-choice-zone[data-zone="${CSS.escape(id)}"]`);
+        holdRender();
+        const zone = find();
+        const from = zone?.offsetHeight || 0;
+        const old = zone?.firstElementChild;
+        if (old) await playOn(old, [{ opacity: 1 }, { opacity: 0 }], MOTION.swap * .45, 'linear');
+        change();
+        releaseRender();
+        render();
+        const next = find();
+        if (!next) return;
+        const content = next.firstElementChild;
+        await holdingRender(async () => {
+            if (content) content.style.opacity = '0';
+            const to = content ? next.scrollHeight : 0;
+            if (to !== from) {
+                if (!content) next.style.display = 'block';
+                const result = await playOn(next, [{ height: `${from}px` }, { height: `${to}px` }], MOTION.swap);
+                if (result) { result.animation.cancel(); next.style.overflow = result.overflow; }
+                next.style.display = '';
+            }
+            if (!content) return;
+            const shown = await playOn(content, [{ opacity: 0 }, { opacity: 1 }], MOTION.swap * .55, 'linear');
+            if (shown) { shown.animation.cancel(); content.style.overflow = shown.overflow; }
+            content.style.opacity = '';
+        });
     }
     // Ticket senza mail: lo stesso strumento, ma il testo si scrive qui e va direttamente su ServiceNow.
     function updateCard(ticket, config) {
@@ -2725,14 +2770,14 @@
         return h('section', { class: 'ao-card ao-update-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.mail.update),
             ticketActionBar(ticket, draft),
-            h('div', { class: 'ao-take-zone' },
+            choiceZone(`ticket:${ticket.number}`, h('div', { class: 'ao-take-zone' },
                 draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
                 draft.type === 'hold' ? [
                     selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
                     textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
                 ] : null,
                 textField(TEXTS.mail.updateText, draft.text, value => { draft.text = value; refresh(); }, { multiline: true, rows: '4' }),
-                draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null),
+                draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null)),
             h('div', { class: 'ao-actions' },
                 h('button', { type: 'button', class: `ao-button ao-primary${tones[draft.type] || ''}`, disabled: !draft.text.trim(), onclick: () => updateTicket(ticket) }, TEXTS.mail.updateButtons[draft.type])));
     }
@@ -2770,12 +2815,13 @@
                 h('span', {}, TEXTS.mail.pending(pendingLabel(ticket.pendingAction))),
                 h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(ticket, null) }, TEXTS.mail.clearPending)) : null,
             ticketActionBar(ticket, draft),
-            draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
-            draft.type === 'hold' ? [
-                selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
-                textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
-            ] : null,
-            draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null,
+            choiceZone(`ticket:${ticket.number}`, draft.type === 'comment' ? null : [
+                draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
+                draft.type === 'hold' ? [
+                    selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
+                    textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
+                ] : null,
+                textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' })]),
             selectField(TEXTS.mail.replyText, templates, draft.template, value => { draft.template = value; }),
             checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
             h('div', { class: 'ao-actions' },
@@ -3245,7 +3291,8 @@
 #ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
 /* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
    (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
-#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
+#ao-root .ao-bar-row { position: relative; display: flex; align-items: stretch; gap: 6px; }
+#ao-root .ao-bar-ghost { position: absolute; margin: 0; pointer-events: none; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
 #ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
 #ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
@@ -3260,10 +3307,9 @@
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
-/* Filtri (imbuto): prendono il posto di Da mail | Senza mail. Due metà, ciascuna velata; il filtro attivo è pieno
-   come la voce scelta dei selettori. Entrano scorrendo dall'imbuto. */
-#ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; animation: ao-filter-in .3s cubic-bezier(.3, .8, .2, 1); }
-@keyframes ao-filter-in { from { clip-path: inset(0 100% 0 0 round var(--ao-radius-base)); } }
+/* Filtri (imbuto): prendono il posto di Da mail | Senza mail (scorrendo dall'imbuto, swapBarMiddle). Due metà,
+   ciascuna velata; il filtro attivo è pieno come la voce scelta dei selettori. */
+#ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; }
 #ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
 #ao-root .ao-filter-dd:hover { color: var(--ao-text); }
 #ao-root .ao-filter-dd.ao-set { background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
@@ -3272,7 +3318,6 @@
 #ao-root .ao-filter-menu { left: 0; top: calc(100% + 6px); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-filter-menu-operator { left: auto; right: 0; }
 #ao-root .ao-menu-default { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-normal); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-filter-bar { animation: none; } }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
