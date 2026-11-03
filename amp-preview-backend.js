@@ -496,7 +496,8 @@
                     receivedAt: lastIncoming?.receivedAt || '',
                     preview: lastIncoming ? lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160) : '',
                     discardedBy: thread.discardedBy,
-                    discardedAt: thread.discardedAt
+                    discardedAt: thread.discardedAt,
+                    label: db.sp.labels[thread.conversationId] || null
                 };
             }).sort((a, b) => String(b.discardedAt).localeCompare(String(a.discardedAt))));
         },
@@ -604,6 +605,7 @@
             const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
             Object.assign(thread, { status: 'discarded', discardedBy: by?.displayValue || '', discardedAt: now(), updatedAt: now() });
             db.sp.threads[conversationId] = thread;
+            delete db.sp.labels[conversationId]; // l'etichetta serve finché la mail è In coda
             record('ignorata', '', by?.displayValue, '', conversationId);
             persist();
             return respond({ by: thread.discardedBy, at: thread.discardedAt });
@@ -614,6 +616,7 @@
             const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
             Object.assign(thread, { status: 'forwarded', forwardedTo: group, forwardedBy: by?.displayValue || '', forwardedAt: now(), updatedAt: now() });
             db.sp.threads[conversationId] = thread;
+            delete db.sp.labels[conversationId];
             record('inoltrata', '', by?.displayValue, group, conversationId);
             persist();
             return respond(true);

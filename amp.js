@@ -488,7 +488,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 16:15';
+    const BUILD = '2026-11-03 16:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -588,7 +588,8 @@
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
     //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
-    //   (listQueue: ogni mail ha label = { name, color } | null; i ticket senza mail hanno label di chi li ha aperti)
+    //   (listQueue e listIgnored: ogni mail ha label = { name, color } | null, che si toglie quando la mail viene
+    //    ignorata o inoltrata; i ticket senza mail hanno label di chi li ha aperti)
     //
     // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
@@ -1478,7 +1479,7 @@
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
         // Chi l'ha ignorata si legge solo aprendo la scheda, sopra il testo della mail.
-        return queueCard(item, config, mailboxChip(item), { allowIgnore: false,
+        return queueCard(item, config, labelSlot(item, config), { allowIgnore: false,
             info: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
     }
     function queueCard(item, config, chipNode, { allowIgnore = true, info = null } = {}) {
