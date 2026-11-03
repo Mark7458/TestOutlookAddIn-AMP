@@ -507,7 +507,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 18:40';
+    const BUILD = '2026-11-03 19:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -905,15 +905,53 @@
         const info = TICKET_STATES[ticket.state] || { label: ticket.state, tone: 'neutral' };
         return chip(info.label, info.tone);
     };
+    // Elenco a discesa del pannello (niente <select> di sistema): campo con il valore e la freccetta, elenco come
+    // quello dei filtri. L'elenco si apre sopra a tutto (dentro #ao-root, non tagliato dalle schede) e si chiude
+    // scegliendo, cliccando fuori, con Esc o scorrendo. Un valore vuoto ('') è il "Seleziona…", in grigio.
     function selectField(label, options, value, onchange, extra = {}) {
-        return h('label', { class: 'ao-field' },
-            h('span', { class: 'ao-label' }, label),
-            h('select', { class: 'ao-input', onchange: event => onchange(event.target.value), ...extra },
-                options.map(option => {
-                    const element = h('option', { value: option.value }, option.label);
-                    element.selected = String(option.value) === String(value ?? '');
-                    return element;
-                })));
+        let current = String(value ?? '');
+        const text = h('span', { class: 'ao-select-value' });
+        const show = () => {
+            const option = options.find(item => String(item.value) === current) || options[0];
+            text.textContent = option ? option.label : '';
+            text.classList.toggle('ao-select-placeholder', !current && options[0]?.value === '');
+        };
+        show();
+        const field = h('div', {
+            class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label, ...extra,
+            onclick: () => toggleSelect(field, options, () => current, next => { current = String(next); show(); onchange(next); }),
+            onkeydown: event => {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); field.click(); }
+                if (event.key === 'Escape') closeSelects();
+            }
+        }, text, h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾'));
+        return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label), field);
+    }
+    function closeSelects() {
+        root?.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
+        root?.querySelectorAll('.ao-select.ao-open').forEach(field => field.classList.remove('ao-open'));
+    }
+    function toggleSelect(field, options, getValue, pick) {
+        const wasOpen = field.classList.contains('ao-open');
+        closeSelects();
+        if (wasOpen) return;
+        const box = root.getBoundingClientRect();
+        const rect = field.getBoundingClientRect();
+        const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
+            options.map(option => h('button', {
+                type: 'button', role: 'option', 'aria-selected': String(String(option.value) === getValue()),
+                class: `ao-menu-item${String(option.value) === getValue() ? ' ao-active' : ''}${option.value === '' ? ' ao-select-placeholder' : ''}`,
+                onclick: event => { event.stopPropagation(); closeSelects(); pick(option.value); field.focus(); }
+            }, option.label)));
+        // Sotto il campo se c'è spazio, altrimenti sopra; largo come il campo.
+        menu.style.left = `${rect.left - box.left}px`;
+        menu.style.width = `${rect.width}px`;
+        root.append(menu);
+        const below = box.bottom - rect.bottom - 8;
+        if (menu.offsetHeight > below && rect.top - box.top > below) menu.style.top = `${rect.top - box.top - menu.offsetHeight - 4}px`;
+        else menu.style.top = `${rect.bottom - box.top + 4}px`;
+        field.classList.add('ao-open');
+        menu.querySelector('.ao-active')?.scrollIntoView({ block: 'nearest' });
     }
     function textField(label, value, oninput, extra = {}) {
         const { multiline, hint, ...attrs } = extra;
@@ -1155,6 +1193,11 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+        // Elenchi a discesa: un clic fuori o lo scorrimento li chiude.
+        root.addEventListener('click', event => {
+            if (!event.target.closest('.ao-select, .ao-select-menu')) closeSelects();
+        }, true);
+        root.addEventListener('scroll', event => { if (!event.target.closest?.('.ao-select-menu')) closeSelects(); }, true);
         // Etichetta di un collega pronta al passaggio: un clic altrove annulla.
         root.addEventListener('click', event => {
             if (!state.labelArmed || event.target.closest('.ao-tag-swap')) return;
@@ -1172,7 +1215,7 @@
         root.addEventListener('click', event => {
             if (!state.queueExpanded || state.holdRender) return;
             const target = event.target;
-            if (target.closest('.ao-queue-item.ao-expanded, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar')) return;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar')) return;
             const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
             if (!form) return;
             event.preventDefault();
@@ -1237,6 +1280,7 @@
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
+        closeSelects();
         const config = loadConfig();
         const user = currentUser(config);
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
@@ -2292,7 +2336,7 @@
             const activityField = selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
                 draft.activityId, value => { draft.activityId = value; rerender(); });
             activityField.insertBefore(h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
-                activityField.querySelector('select'));
+                activityField.querySelector('.ao-select'));
             return h('div', { class: 'ao-take-zone' }, companyField, activityField);
         }
         return [
@@ -3339,6 +3383,14 @@
 #ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-input { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
+/* Elenco a discesa: campo come gli altri, con la freccetta; l'elenco è quello dei filtri */
+#ao-root .ao-select { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+#ao-root .ao-select-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-select-placeholder { color: var(--ao-text-subtle); }
+#ao-root .ao-select-caret { flex: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); transition: transform .2s; }
+#ao-root .ao-select.ao-open { border-color: var(--ao-accent); }
+#ao-root .ao-select.ao-open .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
 #ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
 #ao-root .ao-suggestions-slot:empty { display: none; }
 /* In coda, Prendi in carico: campi in un riquadro grigio, campi e pillole bianchi con un'ombra leggera (niente bordo) */
