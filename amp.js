@@ -86,6 +86,7 @@
             hoverGlow: 'none', // bagliore intorno alla superficie al passaggio del mouse
             thumb: '#eff6fc', // pillola della voce scelta nei selettori
             thumbGlow: 'none',
+            thumbFilter: 'none',
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori (la voce scelta ci scorre sopra)
         },
@@ -139,10 +140,10 @@
             blur: 'blur(14px) saturate(1.2)',
             hoverFilter: 'brightness(1.06)',
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            thumb: 'rgba(255, 255, 255, .95)',
-            thumbGlow: '0 1px 2px rgba(0, 0, 0, .08)', // pillola scelta: solo un'ombra sottile, niente bagliore
+            thumb: 'rgba(255, 255, 255, .9)', // voce scelta: come una card al passaggio del mouse (accesa, senza bagliore)
+            thumbGlow: 'none',
+            thumbFilter: 'brightness(1.06)',
             segmentHover: 'rgba(255, 255, 255, .55)',
-            segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro: la voce scelta si stacca
             choiceForwardBg: 'rgba(124, 91, 191, .16)',
             choiceDangerBg: 'rgba(209, 52, 56, .13)',
             tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
@@ -161,10 +162,10 @@
             blur: 'blur(14px) saturate(1.2)',
             hoverFilter: 'brightness(1.22)',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
-            thumb: 'rgba(84, 96, 120, .8)',
-            thumbGlow: '0 1px 2px rgba(0, 0, 0, .3)',
+            thumb: 'rgba(70, 77, 92, .68)',
+            thumbGlow: 'none',
+            thumbFilter: 'brightness(1.22)',
             segmentHover: 'rgba(255, 255, 255, .06)',
-            segmentTrack: 'rgba(28, 31, 38, .62)',
             choiceForwardBg: 'rgba(124, 91, 191, .3)',
             choiceDangerBg: 'rgba(209, 52, 56, .26)',
             tint: '24%',
@@ -417,7 +418,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:55';
+    const BUILD = '2026-11-03 13:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3185,7 +3186,7 @@
 #ao-root .ao-item:not(.ao-queue-item), #ao-root .ao-ticket-compact, #ao-root .ao-new-ticket, #ao-root .ao-config-item, #ao-root .ao-candidate, #ao-root .ao-button { transition: background-color .3s, box-shadow .35s, filter .3s; }
 #ao-root .ao-bar-btn { transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
 #ao-root .ao-segment:not(.ao-active):hover, #ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
-#ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); }
+#ao-root .ao-segment-thumb { background: var(--ao-thumb); box-shadow: var(--ao-thumb-glow); filter: var(--ao-thumb-filter); }
 #ao-root .ao-segmented { background: var(--ao-segment-track); }
 #ao-root .ao-choice-thumb { box-shadow: var(--ao-thumb-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
