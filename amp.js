@@ -1063,7 +1063,7 @@
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
-#ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 0; color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-mail-preview.ao-scrollable { overflow: auto; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
