@@ -171,7 +171,7 @@
             callBorder: '1px solid var(--ao-line)',
             callBg: 'var(--ao-hover)',
             callFilter: 'var(--ao-hover-filter)',
-            callGlow: 'var(--ao-hover-glow)',
+            callGlow: '0 0 16px rgba(120, 170, 255, .4)', // più deciso del passaggio del mouse: ti chiama
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -198,6 +198,7 @@
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
+            callGlow: '0 0 16px rgba(90, 150, 255, .34)',
             toneFill: '24%',
             toneFillHover: '30%',
             toneLine: 'rgba(255, 255, 255, .12)'
@@ -452,7 +453,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 15:00';
+    const BUILD = '2026-11-03 15:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3242,7 +3243,8 @@
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-filter-chip, #ao-root .ao-menu, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover, #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-new-ticket:hover { background: var(--ao-hover); } /* il bagliore è già il suo, più forte */
 /* pulsanti: lo sfondo al passaggio è nelle loro regole (che ne hanno di più specifiche, es. il pulsante blu) */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover, #ao-root .ao-button:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
