@@ -105,6 +105,8 @@
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
             searchFocusLine: 'var(--ao-accent)',
+            fieldFocusLine: 'var(--ao-accent)', // campo che si sta compilando
+            fieldFocusGlow: 'var(--ao-shadow-focus)',
             searchLensLine: 'var(--ao-accent-border)',
             // Colori delle azioni (pulsanti, esiti): nel vetro diventano pietre preziose
             toneTake: 'var(--ao-accent)', // Prendi in carico, Aggiorna, Salva…
@@ -198,6 +200,8 @@
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
             searchFocusLine: 'transparent',
+            fieldFocusLine: 'rgba(120, 170, 255, .45)', // vetro: un bagliore soffuso al posto dell'anello
+            fieldFocusGlow: '0 0 12px rgba(120, 170, 255, .35)',
             searchLensLine: 'transparent',
             toneTake: '#0f5fbf', // zaffiro
             toneForward: '#7b3fbf', // ametista
@@ -228,6 +232,8 @@
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
             menuBg: '#2b2e36',
+            fieldFocusLine: 'rgba(90, 150, 255, .4)',
+            fieldFocusGlow: '0 0 12px rgba(90, 150, 255, .3)',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
             // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
@@ -513,7 +519,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 21:05';
+    const BUILD = '2026-11-03 22:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -860,6 +866,7 @@
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
+        openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
@@ -1121,6 +1128,7 @@
     function openTicketItem(ticket, { slide = true } = {}) {
         if (ticket.newMessages && ticket.conversationId) Services.markThreadSeen(ticket.conversationId, currentUser()).catch(() => {});
         state.backTo = 'tickets';
+        state.openedTicket = ticket.number;
         state.target = { kind: 'ticket', number: ticket.number };
         const entering = state.view !== 'mail';
         state.view = 'mail';
@@ -1129,26 +1137,67 @@
         if (entering && slide) slideInView(1);
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
-    // Apertura di un ticket dall'elenco: la scheda si solleva come quella di In coda, poi si allarga fino a diventare
-    // la pagina del ticket (la pagina compare dal riquadro della scheda e si estende a tutta l'area).
+    // Dall'elenco alla pagina del ticket e ritorno, con la scheda in primo piano:
+    // apertura: la scheda si solleva, sale in cima mentre il resto svanisce, e lì compare la pagina;
+    // chiusura (←): la pagina svanisce, la scheda sollevata scende dalla cima al suo posto, si posa e ricompare il resto.
+    const LIFT_EASING = 'cubic-bezier(.3, .8, .2, 1)';
+    const LIFTED = 'translateY(-2px) scale(1.015)'; // come .ao-item.ao-opening
+    // Tutto quello che sta intorno alla scheda (fratelli suoi e dei contenitori, fino all'area che scorre).
+    function aroundCard(card) {
+        const scroll = root.querySelector('.ao-scroll');
+        const around = [];
+        for (let node = card; node && node.parentElement && node !== scroll; node = node.parentElement) {
+            around.push(...[...node.parentElement.children].filter(sibling => sibling !== node));
+        }
+        return around;
+    }
+    // Di quanto deve salire la scheda per arrivare in cima all'area (dove comincia la pagina).
+    function riseOf(card) {
+        const top = root.querySelector('.ao-scroll').getBoundingClientRect().top + 8;
+        return top - card.getBoundingClientRect().top;
+    }
     async function openFromCard(card, ticket) {
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
-        const body = root.querySelector('.ao-body');
         await holdingRender(async () => {
             card.classList.add('ao-opening');
             await wait(MOTION.hold);
+            const rise = riseOf(card);
+            await Promise.all([
+                card.animate([{ transform: LIFTED }, { transform: `translateY(${rise - 2}px) scale(1.015)` }], { duration: MOTION.unfold, easing: LIFT_EASING, fill: 'forwards' }).finished,
+                fadeAll(aroundCard(card), 1, 0, { duration: MOTION.unfold * .6, easing: 'linear', fill: 'forwards' })
+            ]).catch(() => {});
         });
-        const area = body.getBoundingClientRect();
-        const from = card.getBoundingClientRect();
-        const radius = getComputedStyle(card).borderRadius;
         openTicketItem(ticket, { slide: false });
-        await holdingRender(() => body.animate([
-            { clipPath: `inset(${from.top - area.top}px ${area.right - from.right}px ${area.bottom - from.bottom}px ${from.left - area.left}px round ${radius})`, opacity: .6 },
-            { clipPath: `inset(0px 0px 0px 0px round 0px)`, opacity: 1 }
-        ], { duration: MOTION.unfold, easing: 'cubic-bezier(.3, .8, .2, 1)' }).finished.catch(() => {}));
+        const body = root.querySelector('.ao-body');
+        await holdingRender(() => fadeAll([body], 0, 1, { duration: MOTION.swap, easing: 'linear' }));
+    }
+    async function closeToList(target) {
+        const number = state.openedTicket;
+        state.openedTicket = null;
+        if (state.holdRender || !number || target !== 'tickets' || reducedMotion()) return setView(target);
+        const body = root.querySelector('.ao-body');
+        const out = body.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.swap, easing: 'linear', fill: 'forwards' });
+        await holdingRender(() => out.finished.catch(() => {}));
+        setView(target, null, { slide: false });
+        const card = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
+        if (!card) { out.cancel(); return slideInView(-1); }
+        const around = aroundCard(card);
+        around.forEach(element => { element.style.opacity = '0'; });
+        card.scrollIntoView({ block: 'nearest' });
+        card.style.transition = 'none';
+        card.classList.add('ao-opening');
+        const rise = riseOf(card);
+        out.cancel();
+        await holdingRender(async () => {
+            await card.animate([{ transform: `translateY(${rise - 2}px) scale(1.015)` }, { transform: LIFTED }], { duration: MOTION.unfold, easing: LIFT_EASING }).finished.catch(() => {});
+            card.style.transition = '';
+            card.classList.remove('ao-opening'); // si posa (transizione della scheda)
+            await fadeAll(around, 0, 1, { duration: MOTION.swap, easing: 'linear' });
+            around.forEach(element => { element.style.opacity = ''; });
+        });
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
-    function setView(view, backTo = null) {
+    function setView(view, backTo = null, { slide = true } = {}) {
         const from = state.view;
         state.barOffset = 0;
         state.view = view;
@@ -1157,7 +1206,7 @@
         state.filterMenu = null;
         render();
         scrollToTop();
-        if (from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
+        if (slide && from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
     }
     // Cambio di scheda: il contenuto nuovo entra nella direzione dello spostamento
     // (da destra andando verso destra, da sinistra tornando indietro), così la navigazione si nota.
@@ -1419,6 +1468,13 @@
     const segmentMemory = new Map();
     const segmentPlace = new Map();
     const segmentKey = options => options.map(option => option.value).join('|');
+    // Mentre la barra cambia forma (filtri, ricerca) la pillola si mette al suo posto solo alla fine del movimento.
+    let barSettled = Promise.resolve();
+    function settleBar() {
+        let done;
+        barSettled = new Promise(resolve => { done = resolve; });
+        return done;
+    }
     // grow: la voce scelta è più larga delle altre (selettore con le icone); cambiando scelta le larghezze
     // si scambiano con lo stesso movimento della pillola, che le segue.
     // grow: voce scelta più larga (selettori a icone); key: memoria del selettore; slide: il contenuto che segue entra
@@ -1426,7 +1482,9 @@
     function filterBar(options, value, onchange, { grow = false, key: memoryKey = null, slide = true } = {}) {
         const key = memoryKey || segmentKey(options);
         const previous = segmentMemory.get(key);
-        const growing = grow && previous !== undefined && previous !== value;
+        const chosen = options.some(option => option.value === value);
+        // anche la prima scelta (prima nessuna voce) si allarga con il movimento del selettore
+        const growing = grow && segmentMemory.has(key) && chosen && previous !== value;
         const wide = growing ? previous : value; // all'inizio è larga la voce di prima
         const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
         const kept = segmentMemory.get(key) === value && segmentPlace.get(key);
@@ -1442,7 +1500,7 @@
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
         segmentMemory.set(key, value);
-        requestAnimationFrame(() => {
+        requestAnimationFrame(() => barSettled.then(() => {
             if (!bar.isConnected) return;
             const place = (target, animate) => {
                 const button = bar.querySelector(`.ao-segment[data-value="${CSS.escape(String(target))}"]`);
@@ -1469,6 +1527,18 @@
                 thumb.style.transform = end.transform;
                 const values = options.map(option => option.value);
                 if (slide) slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
+            } else if (growing && place(value, false)) {
+                // Prima scelta: la pillola compare sulla voce premuta e si allarga con lei, con lo stesso movimento
+                const to = button(value);
+                to.classList.add('ao-grow');
+                const end = { width: `${to.offsetWidth}px`, transform: `translateX(${to.offsetLeft - 2}px)` };
+                to.classList.remove('ao-grow');
+                bar.getBoundingClientRect();
+                bar.classList.add('ao-growing');
+                to.classList.add('ao-grow');
+                thumb.classList.add('ao-moving');
+                Object.assign(thumb.style, end);
+                thumb.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
             } else if (previous !== undefined && previous !== value && place(previous, false)) {
                 thumb.getBoundingClientRect(); // parte dalla voce di prima
                 place(value, true);
@@ -1483,7 +1553,7 @@
                 thumb.classList.remove('ao-moving');
                 segmentPlace.set(key, { width: thumb.style.width, transform: thumb.style.transform });
             });
-        });
+        }));
         return bar;
     }
     // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
@@ -1495,7 +1565,7 @@
         const chosen = options.some(option => option.value === value);
         // Il nome compare in dissolvenza solo quando la scelta cambia, non a ogni ridisegno.
         const previous = segmentMemory.get(memoryKey);
-        const entering = previous !== undefined && previous !== value;
+        const entering = segmentMemory.has(memoryKey) && chosen && previous !== value;
         // il nome della voce di prima svanisce mentre si stringe, poi si toglie
         const leaving = (option, active) => entering && !active && option.value === previous
             ? h('span', { class: 'ao-segment-name ao-segment-name-out', onanimationend: event => event.currentTarget.remove() }, h('span', null, option.label)) : null;
@@ -1557,7 +1627,7 @@
     function backRow() {
         const target = state.backTo || 'tickets';
         return h('div', { class: 'ao-back-row' },
-            h('button', { type: 'button', class: 'ao-link ao-back-link', onclick: () => setView(target) }, TEXTS.common.back(TEXTS.tabs[target])));
+            h('button', { type: 'button', class: 'ao-link ao-back-link', onclick: () => closeToList(target) }, TEXTS.common.back(TEXTS.tabs[target])));
     }
     function clickable(className, onopen, ...children) {
         return h('li', { class: className, tabindex: '0', role: 'button', onclick: onopen, onkeydown: event => { if (event.key === 'Enter') onopen(); } }, ...children);
@@ -1941,60 +2011,55 @@
                         h('span', {}, option.label), option.value === fallback ? h('span', { class: 'ao-menu-default' }, TEXTS.tickets.defaultFilter) : null)
                 ])) : null);
     }
-    // Apertura e chiusura della ricerca, sincronizzate: la barra di ricerca si allarga dalla lente verso sinistra
-    // sopra il selettore mentre selettore ed elenco svaniscono; in chiusura si ritira verso la lente mentre ricompaiono.
-    // Movimento della barra secondaria quando cambia contenuto (ricerca, filtri): stessa durata e curva.
+    // Movimento della barra secondaria quando cambia contenuto (filtri, ricerca), sempre in tre tempi:
+    // le scritte svaniscono, il riquadro prende la nuova forma, poi compaiono le scritte nuove.
     const BAR_MOTION = { duration: 300, easing: 'cubic-bezier(.3, .8, .2, 1)' };
-    const SEARCH_CLIP_CLOSED = 'inset(0 0 0 100% round 6px)';
-    const SEARCH_CLIP_OPEN = 'inset(0 0 0 0 round 6px)';
-    function searchOverlay(sourceBar, value) {
-        const row = sourceBar.querySelector('.ao-bar-row');
-        const lens = row.querySelector('.ao-bar-search');
-        const overlay = h('div', { class: 'ao-segmented ao-search-bar ao-search-overlay', 'aria-hidden': 'true' },
-            h('input', { class: 'ao-search-input', type: 'text', value, placeholder: TEXTS.tickets.searchPlaceholder, tabindex: '-1', readonly: true }));
-        overlay.style.top = `${row.offsetTop}px`;
-        overlay.style.height = `${row.offsetHeight}px`;
-        overlay.style.width = `${lens.offsetLeft - row.offsetLeft - 6}px`; // fino alla lente, che resta fuori e ferma
-        sourceBar.append(overlay);
-        return overlay;
+    const BAR_FADE_OUT = { duration: BAR_MOTION.duration * .4, easing: 'linear', fill: 'forwards' };
+    const BAR_FADE_IN = { duration: BAR_MOTION.duration * .5, easing: 'linear' };
+    const fadeAll = (elements, from, to, timing) => Promise.all(elements.filter(Boolean)
+        .map(element => element.animate([{ opacity: from }, { opacity: to }], timing).finished)).catch(() => {});
+    // Le scritte nuove restano nascoste mentre il riquadro si muove, poi compaiono.
+    async function fadeInAfter(elements, move) {
+        const contents = elements.filter(Boolean);
+        contents.forEach(element => { element.style.opacity = '0'; });
+        await move();
+        await fadeAll(contents, 0, 1, BAR_FADE_IN);
+        contents.forEach(element => { element.style.opacity = ''; });
     }
-    // Quello che svanisce o ricompare insieme alla barra: imbuto, selettore, etichetta del filtro ed elenco (la lente resta).
-    const searchCompanions = () => [
-        ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar)'),
-        ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
-    ];
+    const barRow = () => root.querySelector('.ao-source-bar .ao-bar-row');
+    const barMiddle = () => root.querySelector('.ao-source-bar .ao-bar-row > .ao-segmented');
+    // L'elenco sotto la barra svanisce e ricompare con lei (la barra resta).
+    const listBelow = () => [...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'));
     // Filtri (imbuto): le due voci del selettore (Da mail | Senza mail) si trasformano nei due filtri (Stato | Operatore)
     // e viceversa. Il riquadro resta fermo: le scritte svaniscono, le due metà prendono la nuova larghezza, poi
     // compaiono le scritte nuove (e, tornando al selettore, la pillola della voce scelta).
     async function morphBar(change) {
         if (state.holdRender) return;
-        const middleOf = () => root.querySelector('.ao-source-bar .ao-bar-row > .ao-segmented');
         const partsOf = bar => [...(bar?.children || [])].filter(child => child.matches('.ao-segment, .ao-filter-dd'));
-        const old = middleOf();
+        const old = barMiddle();
         if (!old || reducedMotion()) { change(); render(); return; }
         const widths = partsOf(old).map(part => part.offsetWidth);
         // Al ritorno il filtro impostato diventa la pillola della voce scelta (l'inverso dell'andata)
         const lit = old.querySelector('.ao-filter-dd.ao-set');
         const litFrom = lit && { width: `${lit.offsetWidth}px`, transform: `translateX(${lit.offsetLeft - 2}px)` }; // 2px = bordo interno
-        const step = { duration: BAR_MOTION.duration * .4, easing: 'linear', fill: 'forwards' };
-        await holdingRender(() => Promise.all([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb')]
-            .map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], step).finished)).catch(() => {}));
+        await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb')], 1, 0, BAR_FADE_OUT));
+        const settle = settleBar();
         change();
         render();
-        const fresh = middleOf();
+        const fresh = barMiddle();
         const parts = partsOf(fresh);
-        if (parts.length !== widths.length) return;
-        await holdingRender(async () => {
-            const thumb = fresh.querySelector('.ao-segment-thumb');
-            const active = fresh.querySelector('.ao-segment.ao-active');
-            const pill = litFrom && thumb && active ? thumb : null;
-            const contents = [...parts.flatMap(part => [...part.children]), ...fresh.querySelectorAll('.ao-segment-thumb')].filter(element => element !== pill);
-            contents.forEach(element => { element.style.opacity = '0'; });
+        if (parts.length !== widths.length) return settle();
+        const thumb = fresh.querySelector('.ao-segment-thumb');
+        const active = fresh.querySelector('.ao-segment.ao-active');
+        const pill = litFrom && thumb && active ? thumb : null;
+        const contents = [...parts.flatMap(part => [...part.children]), thumb].filter(element => element && element !== pill);
+        await holdingRender(() => fadeInAfter(contents, async () => {
             const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
             const pillTo = pill && { width: `${active.offsetWidth}px`, transform: `translateX(${active.offsetLeft - 2}px)` };
-            const moves = parts.map((part, index) => part.animate([
-                { flex: `0 0 ${widths[index]}px` }, { flex: `0 0 ${targets[index]}px` }
-            ], BAR_MOTION).finished);
+            // Si muovono le prime metà; l'ultima riempie lo spazio che resta, così il bordo destro non si sposta.
+            const moves = parts.map((part, index) => part.animate(index < parts.length - 1
+                ? [{ flex: `0 0 ${widths[index]}px` }, { flex: `0 0 ${targets[index]}px` }]
+                : [{ flex: '1 1 0px', minWidth: '0px' }, { flex: '1 1 0px', minWidth: '0px' }], BAR_MOTION).finished);
             if (pill) {
                 Object.assign(pill.style, pillTo);
                 pill.classList.remove('ao-moving');
@@ -2002,39 +2067,42 @@
                 moves.push(pill.animate([litFrom, pillTo], BAR_MOTION).finished);
             }
             await Promise.all(moves).catch(() => {});
-            await Promise.all(contents.map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: BAR_MOTION.duration * .5, easing: 'linear' }).finished)).catch(() => {});
-            contents.forEach(element => { element.style.opacity = ''; });
-        });
+            settle();
+        }));
     }
+    // Ricerca (lente): come i filtri. Le scritte e l'elenco svaniscono, il riquadro si allarga fino all'imbuto
+    // (che svanisce) e diventa il campo di ricerca; chiudendo si ritira al suo posto e ricompare tutto.
     async function openTicketSearch() {
         if (state.holdRender) return;
         state.filterMenu = null;
-        const sourceBar = root.querySelector('.ao-source-bar');
-        if (sourceBar && !reducedMotion()) {
-            await holdingRender(async () => {
-                const overlay = searchOverlay(sourceBar, '');
-                const fades = searchCompanions().map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], { ...BAR_MOTION, fill: 'forwards' }).finished);
-                await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_CLOSED }, { clipPath: SEARCH_CLIP_OPEN }], { ...BAR_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
-            });
-        }
-        Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const open = () => Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const row = barRow(), box = barMiddle();
+        if (!box || reducedMotion()) { open(); render(); focusTicketSearch(); return; }
+        const left = box.getBoundingClientRect().left - row.getBoundingClientRect().left;
+        await holdingRender(() => fadeAll([...box.children, row.querySelector('.ao-bar-filter'), ...listBelow()], 1, 0, BAR_FADE_OUT));
+        open();
         render();
         focusTicketSearch();
+        const bar = barMiddle();
+        await holdingRender(() => fadeInAfter([...bar.children], () =>
+            bar.animate([{ marginLeft: `${left}px` }, { marginLeft: '0px' }], BAR_MOTION).finished.catch(() => {})));
     }
     async function closeTicketSearch() {
         if (state.holdRender) return;
         clearTimeout(searchTimer);
-        const value = state.ticketQuery;
-        Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const close = () => Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const bar = barMiddle();
+        if (!bar || reducedMotion()) { close(); render(); return; }
+        await holdingRender(() => fadeAll([...bar.children, ...listBelow()], 1, 0, BAR_FADE_OUT));
+        const settle = settleBar();
+        close();
         render();
-        const sourceBar = root.querySelector('.ao-source-bar');
-        if (!sourceBar || reducedMotion()) return;
-        await holdingRender(async () => {
-            const overlay = searchOverlay(sourceBar, value);
-            const fades = searchCompanions().map(element => element.animate([{ opacity: 0 }, { opacity: 1 }], BAR_MOTION).finished);
-            await Promise.all([overlay.animate([{ clipPath: SEARCH_CLIP_OPEN }, { clipPath: SEARCH_CLIP_CLOSED }], { ...BAR_MOTION, fill: 'forwards' }).finished, ...fades]).catch(() => {});
-            overlay.remove();
-        });
+        const row = barRow(), box = barMiddle();
+        const left = box.getBoundingClientRect().left - row.getBoundingClientRect().left;
+        await holdingRender(() => fadeInAfter([...box.children, row.querySelector('.ao-bar-filter'), ...listBelow()], async () => {
+            await box.animate([{ marginLeft: `${-left}px` }, { marginLeft: '0px' }], BAR_MOTION).finished.catch(() => {});
+            settle();
+        }));
     }
     // Ricerca mentre si scrive: subito lo scheletro di caricamento, i risultati quando ci si ferma un attimo.
     let searchTimer = null;
@@ -3326,7 +3394,7 @@
 #ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
 /* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
    (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
-#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
+#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
 #ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
 #ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
@@ -3337,7 +3405,6 @@
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
 #ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-search-line); background: var(--ao-search-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
-#ao-root .ao-search-overlay { position: absolute; left: 0; z-index: 2; pointer-events: none; }
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
@@ -3395,7 +3462,7 @@
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
-/* Ticket che si apre: si solleva come la scheda aperta di In coda, poi diventa la sua pagina (openFromCard) */
+/* Ticket che si apre o si richiude: sollevato come la scheda aperta di In coda (openFromCard, closeToList) */
 #ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
@@ -3466,10 +3533,10 @@
 #ao-root .ao-select-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ao-root .ao-select-placeholder { color: var(--ao-text-subtle); }
 #ao-root .ao-select-caret { flex: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); transition: transform .2s; }
-#ao-root .ao-select.ao-open { border-color: var(--ao-accent); }
+#ao-root .ao-select.ao-open { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); }
 #ao-root .ao-select.ao-open .ao-select-caret { transform: rotate(180deg); }
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
-#ao-root .ao-input:focus { border-color: var(--ao-accent); box-shadow: var(--ao-shadow-focus); outline: none; }
+#ao-root .ao-input:focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
 #ao-root .ao-suggestions-slot:empty { display: none; }
 /* Campi dei moduli (Prendi in carico, Nuovo ticket, Risposta): campi semplici sulla scheda, come in tutto il pannello;
    l'agenzia suggerita sta accanto all'etichetta, le pillole delle attività sotto "Attività" */
