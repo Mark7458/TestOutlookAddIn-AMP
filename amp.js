@@ -395,6 +395,11 @@
             noLinkedMail: 'Nessuna mail collegata: la risposta non è disponibile da qui.',
             // Azione all'invio
             onSend: 'Quando invii la risposta',
+            update: 'Aggiornamento',
+            updateText: 'Testo',
+            updateButtons: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'Metti in On Hold', cancel: 'Annulla il ticket' },
+            updated: number => `${number} aggiornato`,
+            closedTicket: number => `${number} chiuso`,
             onSendHint: 'Il testo della mail diventa il commento su ServiceNow; il ticket si aggiorna come scegli qui.',
             actions: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'On Hold', cancel: 'Annulla' },
             resolutionCode: 'Resolution code',
@@ -502,7 +507,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 18:20';
+    const BUILD = '2026-11-03 18:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -601,6 +606,8 @@
     //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
+    //   updateTicket(numero, azione, testo, utente) → Ticket: ticket senza mail, aggiornato direttamente su ServiceNow
+    //                                          (azione come setPendingAction, o null = solo commento; testo = commento / Resolution notes)
     //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
     //   (listQueue e listIgnored: ogni mail ha label = { name, color } | null, che si toglie quando la mail viene
     //    ignorata o inoltrata; i ticket senza mail hanno label di chi li ha aperti)
@@ -627,7 +634,7 @@
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
-    ['forwardMail', 'labelMail', 'unlabelMail'].forEach(name => {
+    ['forwardMail', 'labelMail', 'unlabelMail', 'updateTicket'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
             return window.AmpBackend[name](...args);
@@ -1075,6 +1082,17 @@
         scrollToTop();
         if (entering) slideInView(1);
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
+    }
+    // Ticket senza mail: la scheda si solleva come in In coda (le altre si sfocano), poi si apre la sua pagina.
+    async function liftAndOpen(card, ticket) {
+        if (state.holdRender || !card) return openTicketItem(ticket);
+        if (!reducedMotion()) {
+            await holdingRender(async () => {
+                card.classList.add('ao-opening');
+                await new Promise(resolve => setTimeout(resolve, 280));
+            });
+        }
+        openTicketItem(ticket);
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null) {
@@ -2049,7 +2067,7 @@
         const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
-        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, () => openTicketItem(ticket),
+        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, event => (ticket.messageId ? openTicketItem(ticket) : liftAndOpen(event.currentTarget, ticket)),
             // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
@@ -2557,7 +2575,8 @@
         return [
             ticketCard(ticket, showOpen, inDetails, user),
             open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
-            open && (!ticket.messageId || ticket.mailUnconfirmed) ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
+            open && !ticket.messageId ? updateCard(ticket, config) : null,
+            open && ticket.messageId && ticket.mailUnconfirmed ? h('p', { class: 'ao-hint' }, TEXTS.mail.noLinkedMail) : null,
             historyCard(ticket)
         ];
     }
@@ -2652,6 +2671,44 @@
     function ticketActionBar(ticket, draft) {
         return iconBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
             value => { draft.type = value; render(); }, { key: `ticket:${ticket.number}`, tones: true });
+    }
+    // Ticket senza mail: lo stesso strumento, ma il testo si scrive qui e va direttamente su ServiceNow.
+    function updateCard(ticket, config) {
+        const draft = actionDraft(ticket, config);
+        draft.text ??= '';
+        const tones = { comment: '', resolve: ' ao-fill-resolve', hold: ' ao-fill-hold', cancel: ' ao-fill-danger' };
+        const refresh = () => { const button = root.querySelector('.ao-update-card .ao-primary'); if (button) button.disabled = !draft.text.trim(); };
+        return h('section', { class: 'ao-card ao-update-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.mail.update),
+            ticketActionBar(ticket, draft),
+            h('div', { class: 'ao-take-zone' },
+                draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
+                draft.type === 'hold' ? [
+                    selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
+                    textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
+                ] : null,
+                textField(TEXTS.mail.updateText, draft.text, value => { draft.text = value; refresh(); }, { multiline: true, rows: '4' }),
+                draft.type !== 'comment' ? textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }) : null),
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: `ao-button ao-primary${tones[draft.type] || ''}`, disabled: !draft.text.trim(), onclick: () => updateTicket(ticket) }, TEXTS.mail.updateButtons[draft.type])));
+    }
+    async function updateTicket(ticket) {
+        const config = loadConfig();
+        const draft = actionDraft(ticket, config);
+        if (draft.type === 'hold' && !parseDate(draft.holdExpiration)) return showStatus(TEXTS.mail.holdExpiration, 'danger');
+        const user = currentUser(config);
+        const updated = await run(() => Services.updateTicket(ticket.number, buildPendingAction(draft, user.displayValue), draft.text.trim(), user));
+        if (!updated) return;
+        rememberTicket(updated);
+        delete state.actionDrafts[ticket.number];
+        if (OPEN_STATES.includes(updated.state)) {
+            render();
+            showStatus(TEXTS.mail.updated(updated.number));
+        } else {
+            // Chiuso (risolto o annullato): si torna all'elenco, dove non c'è più.
+            setView('tickets');
+            showStatus(TEXTS.mail.closedTicket(updated.number));
+        }
     }
     function onSendCard(ticket, config, isCurrentMail) {
         const draft = actionDraft(ticket, config);
@@ -3163,7 +3220,7 @@
    come la voce scelta dei selettori. Entrano scorrendo dall'imbuto. */
 #ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; animation: ao-filter-in .3s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-filter-in { from { clip-path: inset(0 100% 0 0 round var(--ao-radius-base)); } }
-#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
+#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-filter-idle); color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
 #ao-root .ao-filter-dd:hover { color: var(--ao-text); }
 #ao-root .ao-filter-dd.ao-set { background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-filter-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3214,7 +3271,10 @@
 
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
+/* Ticket senza mail che si apre: si solleva come la scheda aperta di In coda, le altre si sfocano */
+#ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); }
+#ao-root .ao-list:has(.ao-opening) .ao-item:not(.ao-opening) { filter: blur(5px); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
@@ -3293,7 +3353,7 @@
 #ao-root .ao-take-zone .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-take-zone .ao-fav-company { color: var(--ao-text-subtle); }
 #ao-root .ao-take-zone .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-new-ticket { margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
@@ -3381,11 +3441,13 @@
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
 /* Pulsanti di conferma (Prendi in carico, Inoltra, Ignora, Apri ticket) nel colore dell'azione: pieni nel flat, velati nel vetro */
-#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
+#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary, #ao-root .ao-update-card .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
 #ao-root .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
-#ao-root .ao-queue-item .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
-#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
-#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-new-ticket-card .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-queue-item .ao-fill-danger, #ao-root .ao-update-card .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
+#ao-root .ao-update-card .ao-fill-resolve { --ao-btn: #038387; --ao-btn-text: var(--ao-choice-resolve-text); }
+#ao-root .ao-update-card .ao-fill-hold { --ao-btn: #c19c00; --ao-btn-text: var(--ao-choice-hold-text); }
+#ao-root .ao-queue-item .ao-primary, #ao-root .ao-new-ticket-card .ao-primary, #ao-root .ao-update-card .ao-primary { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); color: color-mix(in srgb, var(--ao-btn-text) var(--ao-tone-text), var(--ao-white)); }
+#ao-root .ao-queue-item .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-new-ticket-card .ao-primary:hover:where(:not(:disabled)), #ao-root .ao-update-card .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill-hover), transparent); border-color: color-mix(in srgb, var(--ao-btn) var(--ao-tone-solid), var(--ao-tone-line)); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
 #ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
 #ao-root .ao-svg-icon { display: inline-flex; }

@@ -600,6 +600,14 @@
             persist();
             return respond(decoratedTicket(number));
         },
+        // Ticket senza mail aggiornato dal pannello: stessa logica della risposta, ma il testo arriva dal pannello.
+        updateTicket(number, action, text, by) {
+            if (!db.sp.tickets[number]) return fail(`Ticket ${number} non trovato.`);
+            db.sp.tickets[number].pendingAction = action || { type: 'comment' };
+            applyReply(number, text, by?.displayValue || '');
+            persist();
+            return respond(decoratedTicket(number));
+        },
         // Thread che non richiede un ticket (SharePoint). Torna In coda con un messaggio nuovo.
         discardMail(conversationId, by) {
             const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
