@@ -140,10 +140,11 @@
             blur: 'blur(14px) saturate(1.2)',
             hoverFilter: 'brightness(1.06)',
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            thumb: 'rgba(255, 255, 255, .9)', // voce scelta: come una card al passaggio del mouse (accesa, senza bagliore)
-            thumbGlow: 'none',
+            thumb: 'rgba(255, 255, 255, .9)', // voce scelta: come una card al passaggio del mouse (accesa, con il bagliore leggero)
+            thumbGlow: '0 0 12px rgba(120, 170, 255, .2)',
             thumbFilter: 'brightness(1.06)',
-            segmentHover: 'rgba(255, 255, 255, .55)',
+            segmentHover: 'rgba(255, 255, 255, .4)',
+            segmentTrack: 'rgba(214, 224, 240, .6)', // fondo dei selettori un po' più scuro: la voce scelta si stacca
             choiceForwardBg: 'rgba(124, 91, 191, .16)',
             choiceDangerBg: 'rgba(209, 52, 56, .13)',
             tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
@@ -163,9 +164,10 @@
             hoverFilter: 'brightness(1.22)',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             thumb: 'rgba(70, 77, 92, .68)',
-            thumbGlow: 'none',
+            thumbGlow: '0 0 12px rgba(90, 150, 255, .18)',
             thumbFilter: 'brightness(1.22)',
             segmentHover: 'rgba(255, 255, 255, .06)',
+            segmentTrack: 'rgba(28, 31, 38, .62)',
             choiceForwardBg: 'rgba(124, 91, 191, .3)',
             choiceDangerBg: 'rgba(209, 52, 56, .26)',
             tint: '24%',
@@ -418,7 +420,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 13:00';
+    const BUILD = '2026-11-03 13:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
