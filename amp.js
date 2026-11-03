@@ -116,9 +116,7 @@
             tagBase: '#fff',
             tagInk: '80%',
             tagInkBase: '#000',
-            tagLine: 'transparent',
-            tagSolid: '#fff', // base piena delle etichette mentre una ricopre l'altra
-            tagSpark: 'rgba(255, 255, 255, .95)' // lama di luce sul bordo che avanza
+            tagLine: 'transparent'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -155,9 +153,7 @@
             tagFill: '30%',
             tagBase: '#2d2c2b',
             tagInk: '45%',
-            tagInkBase: '#fff',
-            tagSolid: '#2d2c2b',
-            tagSpark: 'rgba(200, 225, 255, .95)'
+            tagInkBase: '#fff'
         },
         // Stile vetro (Impostazioni → Profilo → Stile): superfici semitrasparenti e sfocate sopra uno sfondo sfumato;
         // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
@@ -226,8 +222,7 @@
             tagFill: '28%',
             tagInk: '45%',
             tagInkBase: '#fff',
-            tagLine: 'rgba(255, 255, 255, .12)',
-            tagSolid: '#343842'
+            tagLine: 'rgba(255, 255, 255, .12)'
         },
         // Etichette degli operatori (segnaposto su In coda, ticket senza mail): un colore a testa, scelto in Profilo.
         // Ogni colore si adatta allo stile: fondo e scritta si ricavano dal colore con i valori label* qui sotto.
@@ -281,6 +276,8 @@
         queue: {
             labelAdd: 'Metti la tua etichetta',
             labelRemove: 'Togli la tua etichetta',
+            labelTake: name => `${name}: clic per prenderla tu`,
+            labelTakeConfirm: 'Clic di nuovo per conferma',
             labeledBy: name => `Già segnata da ${name}`,
             ignoredDone: 'Ignorata',
             forward: 'Inoltra',
@@ -488,7 +485,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 16:40';
+    const BUILD = '2026-11-03 16:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -748,6 +745,7 @@
     const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
+    const SWAP_ICON = '<svg viewBox="0 0 20 20" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12M12 6l4 4-4 4"/></svg>';
     const TAG_ADD_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/><path d="M15.5 2.5v4M13.5 4.5h4"/></svg>';
     function svgIcon(markup) {
         const icon = h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' });
@@ -1109,6 +1107,12 @@
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
+        // Etichetta di un collega pronta al passaggio: un clic altrove annulla.
+        root.addEventListener('click', event => {
+            if (!state.labelArmed || event.target.closest('.ao-tag-swap')) return;
+            state.labelArmed = null;
+            render();
+        }, true);
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
         root.addEventListener('click', event => {
             if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-bar-filter')) return;
@@ -1655,39 +1659,29 @@
     }
     const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
     const isMyLabel = label => Boolean(label) && label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase();
-    function labelChip(label, { onclick, title, entering, taken } = {}) {
+    function labelChip(label, { onclick, title, entering } = {}) {
         const color = THEME.labels[label.color] || THEME.labels.grafite;
         return h(onclick ? 'button' : 'span', {
-            type: onclick ? 'button' : undefined, class: `ao-user-tag${entering ? ' ao-user-tag-in' : ''}${taken ? ' ao-taken' : ''}`, style: `--ao-tag-color: ${color}`,
+            type: onclick ? 'button' : undefined, class: `ao-user-tag${entering ? ' ao-user-tag-in' : ''}`, style: `--ao-tag-color: ${color}`,
             title: title || label.name, onclick
         }, surname(label.name));
     }
-    // Mail di un collega, a scheda aperta: tenendo premuta la sua etichetta si ingrandisce e la propria la ricopre
-    // (bordo sfumato con una lama di luce); a copertura completa diventa propria. Lasciando prima, torna com'era.
-    const TAKEOVER_MS = 1000;
+    // Mail di un collega, a scheda aperta: un clic sulla sua etichetta la prepara al passaggio (il suo cognome barrato,
+    // poi il proprio); un secondo clic la rende propria. Un clic altrove annulla.
     function takeoverTag(item, config) {
+        const armed = state.labelArmed === item.conversationId;
         const myColor = THEME.labels[config.profile.label] || THEME.labels.azzurro;
-        let timer = null;
-        const release = event => {
-            const wrap = event.currentTarget;
-            if (!wrap.classList.contains('ao-holding')) return;
-            clearTimeout(timer);
-            wrap.classList.remove('ao-holding');
-        };
-        return h('span', {
-            class: 'ao-tag-swap', style: `--ao-tag-new: ${myColor}`, title: item.label.name,
-            onclick: event => event.stopPropagation(),
-            onpointerdown: event => {
+        const color = THEME.labels[item.label.color] || THEME.labels.grafite;
+        return h('button', {
+            type: 'button', class: `ao-user-tag ao-tag-swap${armed ? ' ao-armed-tag' : ''}`, style: `--ao-tag-color: ${color}; --ao-tag-new: ${myColor}`,
+            title: armed ? TEXTS.queue.labelTakeConfirm : TEXTS.queue.labelTake(item.label.name),
+            onclick: event => {
                 event.stopPropagation();
-                event.preventDefault();
-                event.currentTarget.classList.add('ao-holding');
-                timer = setTimeout(() => setLabel(item, true, { force: true }), TAKEOVER_MS + 120);
-            },
-            onpointerup: release, onpointerleave: release, onpointercancel: release
-        },
-            labelChip(item.label),
-            h('span', { class: 'ao-user-tag ao-tag-cover', style: `--ao-tag-color: ${myColor}`, 'aria-hidden': 'true' }, surname(currentUser(config).displayValue)),
-            h('span', { class: 'ao-tag-edge', 'aria-hidden': 'true' }));
+                if (!armed) { state.labelArmed = item.conversationId; render(); return; }
+                state.labelArmed = null;
+                setLabel(item, true, { force: true });
+            }
+        }, armed ? [h('s', {}, surname(item.label.name)), svgIcon(SWAP_ICON), h('span', { class: 'ao-tag-next' }, surname(currentUser(config).displayValue))] : surname(item.label.name));
     }
     function labelSlot(item, config) {
         const stop = handler => event => { event.stopPropagation(); handler(); };
@@ -1696,7 +1690,6 @@
             const mine = isMyLabel(item.label);
             return labelChip(mine ? { ...item.label, color: config.profile.label } : item.label, {
                 entering: state.labelEntering === item.conversationId,
-                taken: state.labelEntering === item.conversationId && state.labelTaken,
                 title: mine ? TEXTS.queue.labelRemove : item.label.name,
                 onclick: mine ? stop(() => setLabel(item, false)) : undefined
             });
@@ -1712,10 +1705,8 @@
         const before = item.label;
         item.label = on ? { name: user.displayValue, color: config.profile.label } : null;
         state.labelEntering = on ? item.conversationId : null;
-        state.labelTaken = force;
         render();
         state.labelEntering = null;
-        state.labelTaken = false;
         try {
             if (on) {
                 const result = await Services.labelMail(item.conversationId, user, config.profile.label, { force });
@@ -3192,20 +3183,12 @@
 #ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 #ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
 #ao-root .ao-tag-swatch.ao-active { outline: 2px solid color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); outline-offset: 2px; }
-/* Sostituire l'etichetta di un collega (tenendola premuta): si ingrandisce, la propria la ricopre da sinistra
-   con un bordo sfumato e una lama di luce; a copertura completa torna piccola con un ultimo lampo */
-@property --ao-tag-progress { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
-#ao-root .ao-tag-swap { --ao-tag-progress: 0%; position: relative; z-index: 2; display: inline-grid; flex: none; border-radius: var(--ao-radius-pill); cursor: pointer; user-select: none; touch-action: none; transform-origin: right center; transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .35s ease-out, --ao-tag-progress .35s ease-out; }
-#ao-root .ao-tag-swap > * { grid-area: 1 / 1; }
-#ao-root .ao-tag-swap .ao-user-tag { justify-content: center; background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-solid)); }
-#ao-root .ao-tag-cover { -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); }
-#ao-root .ao-tag-edge { position: relative; overflow: hidden; border-radius: var(--ao-radius-pill); pointer-events: none; opacity: 0; transition: opacity .2s; }
-#ao-root .ao-tag-edge::before { content: ""; position: absolute; top: -4px; bottom: -4px; left: calc(var(--ao-tag-progress) - 14%); width: 14%; background: linear-gradient(90deg, transparent, var(--ao-tag-spark) 70%, transparent); filter: blur(2px); }
-#ao-root .ao-tag-swap.ao-holding { --ao-tag-progress: 122%; transform: scale(1.2); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ao-tag-new) 50%, transparent)); transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .35s ease-out, --ao-tag-progress 1s ease-in-out; }
-#ao-root .ao-tag-swap.ao-holding .ao-tag-edge { opacity: 1; }
-#ao-root .ao-user-tag-in.ao-taken { transform-origin: right center; animation: ao-tag-taken .45s cubic-bezier(.2, .8, .2, 1); }
-@keyframes ao-tag-taken { from { transform: scale(1.2); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ao-tag-color) 50%, transparent)); } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in { animation: none; } #ao-root .ao-tag-swap, #ao-root .ao-tag-swap.ao-holding { transition: none; } }
+/* Etichetta di un collega a scheda aperta: cliccabile; pronta al passaggio mostra il suo cognome barrato e il proprio */
+#ao-root .ao-tag-swap { gap: 4px; }
+#ao-root .ao-tag-swap s { opacity: .7; }
+#ao-root .ao-tag-swap .ao-tag-next { color: color-mix(in srgb, var(--ao-tag-new) var(--ao-tag-ink), var(--ao-tag-ink-base)); }
+#ao-root .ao-armed-tag { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ao-tag-new) 55%, transparent); animation: ao-fade-in .2s linear; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in, #ao-root .ao-armed-tag { animation: none; } }
 
 /* Riquadri */
 #ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
