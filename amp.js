@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:55';
+    const BUILD = '2026-11-03 10:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -946,7 +946,7 @@
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
         root.addEventListener('click', event => {
-            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-bar-icon-start')) return;
+            if (!state.operatorMenu || event.target.closest('.ao-menu, .ao-bar-filter')) return;
             state.operatorMenu = false;
             render();
         }, true);
@@ -1210,10 +1210,14 @@
         const showIgnored = state.queueTab === 'ignored';
         return h('div', { class: 'ao-view' },
             notice,
-            filterBar([
-                { value: 'active', label: TEXTS.queue.active, count: active.length },
-                { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
-            ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
+            // Stessa riga di Ticket: selettore della stessa larghezza, senza pulsanti ai lati.
+            h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' },
+                h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }),
+                filterBar([
+                    { value: 'active', label: TEXTS.queue.active, count: active.length },
+                    { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
+                ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
+                h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }))),
             showIgnored
                 ? [
                     state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(item => ignoredItem(item, config)))
@@ -1464,13 +1468,13 @@
     function ticketSourceBar(open, user, counts) {
         const operator = state.ticketOperator;
         if (state.ticketSearchOpen) {
-            return h('div', { class: 'ao-source-bar' },
+            return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' },
                 h('div', { class: 'ao-segmented ao-search-bar', role: 'search' },
                     h('input', {
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
                         oninput: event => runTicketSearch(event.target.value)
-                    }),
-                    h('button', { type: 'button', class: 'ao-bar-icon ao-bar-icon-end ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: closeTicketSearch }, svgIcon(SEARCH_ICON))));
+                    })),
+                h('button', { type: 'button', class: 'ao-bar-btn ao-bar-search ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: closeTicketSearch }, svgIcon(SEARCH_ICON))));
         }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
@@ -1484,15 +1488,15 @@
             state.operatorMenu = false;
             render();
         });
-        bar.prepend(h('button', {
-            type: 'button', class: `ao-bar-icon ao-bar-icon-start${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
+        const filterButton = h('button', {
+            type: 'button', class: `ao-bar-btn ao-bar-filter${operator !== 'mine' ? ' ao-active' : ''}${state.operatorMenu ? ' ao-open' : ''}`,
             'aria-haspopup': 'menu', 'aria-expanded': String(state.operatorMenu), 'aria-label': filterName, title: filterName,
             onclick: () => { state.operatorMenu = !state.operatorMenu; render(); }
-        }, svgIcon(FILTER_ICON)));
-        bar.append(h('button', {
-            type: 'button', class: 'ao-bar-icon ao-bar-icon-end', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
+        }, svgIcon(FILTER_ICON));
+        const searchButton = h('button', {
+            type: 'button', class: 'ao-bar-btn ao-bar-search', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
             onclick: openTicketSearch
-        }, svgIcon(SEARCH_ICON)));
+        }, svgIcon(SEARCH_ICON));
         const row = operator !== 'mine' ? h('div', { class: 'ao-filter-row' },
             h('span', { class: 'ao-filter-chip' },
                 h('span', { class: 'ao-filter-chip-name' }, filterName),
@@ -1501,7 +1505,7 @@
         const item = (value, text) => h('button', {
             type: 'button', role: 'menuitem', class: `ao-menu-item${operator === value ? ' ao-active' : ''}`, onclick: () => pick(value)
         }, text);
-        return h('div', { class: 'ao-source-bar' }, bar, row,
+        return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton, bar, searchButton), row,
             state.operatorMenu ? h('div', { class: 'ao-menu', role: 'menu' },
                 item('mine', TEXTS.tickets.mine),
                 colleagues.length ? h('hr', { class: 'ao-menu-sep' }) : null,
@@ -1512,21 +1516,22 @@
     // Apertura e chiusura della ricerca, sincronizzate: la barra di ricerca si allarga dalla lente verso sinistra
     // sopra il selettore mentre selettore ed elenco svaniscono; in chiusura si ritira verso la lente mentre ricompaiono.
     const SEARCH_MOTION = { duration: 300, easing: 'cubic-bezier(.3, .8, .2, 1)' };
-    const SEARCH_CLIP_CLOSED = 'inset(0 0 0 calc(100% - 36px) round 6px)';
+    const SEARCH_CLIP_CLOSED = 'inset(0 0 0 100% round 6px)';
     const SEARCH_CLIP_OPEN = 'inset(0 0 0 0 round 6px)';
     function searchOverlay(sourceBar, value) {
-        const bar = sourceBar.querySelector('.ao-segmented');
+        const row = sourceBar.querySelector('.ao-bar-row');
+        const lens = row.querySelector('.ao-bar-search');
         const overlay = h('div', { class: 'ao-segmented ao-search-bar ao-search-overlay', 'aria-hidden': 'true' },
-            h('input', { class: 'ao-search-input', type: 'text', value, placeholder: TEXTS.tickets.searchPlaceholder, tabindex: '-1', readonly: true }),
-            h('span', { class: 'ao-bar-icon ao-bar-icon-end ao-active' }, svgIcon(SEARCH_ICON)));
-        overlay.style.top = `${bar.offsetTop}px`;
-        overlay.style.height = `${bar.offsetHeight}px`;
+            h('input', { class: 'ao-search-input', type: 'text', value, placeholder: TEXTS.tickets.searchPlaceholder, tabindex: '-1', readonly: true }));
+        overlay.style.top = `${row.offsetTop}px`;
+        overlay.style.height = `${row.offsetHeight}px`;
+        overlay.style.width = `${lens.offsetLeft - row.offsetLeft - 6}px`; // fino alla lente, che resta fuori e ferma
         sourceBar.append(overlay);
         return overlay;
     }
-    // Quello che svanisce o ricompare insieme alla barra: il selettore (tranne la lente, che resta ferma) e l'elenco.
+    // Quello che svanisce o ricompare insieme alla barra: imbuto, selettore, etichetta del filtro ed elenco (la lente resta).
     const searchCompanions = () => [
-        ...root.querySelectorAll('.ao-source-bar .ao-segmented:not(.ao-search-overlay) > :not(.ao-bar-icon-end), .ao-source-bar .ao-filter-row'),
+        ...root.querySelectorAll('.ao-source-bar .ao-bar-filter, .ao-source-bar .ao-bar-row > .ao-segmented:not(.ao-search-bar), .ao-source-bar .ao-filter-row'),
         ...[...(root.querySelector('.ao-scroll')?.children || [])].filter(child => !child.classList.contains('ao-fixed'))
     ];
     async function openTicketSearch() {
@@ -2680,6 +2685,7 @@
 /* Ombra (e fondo della riga "indietro") graduati da --ao-lift: 0 a casa, 1 sovrapposta al contenuto */
 #ao-root .ao-fixed { --ao-lift: 0; }
 #ao-root .ao-fixed .ao-segmented,
+#ao-root .ao-fixed .ao-bar-btn,
 #ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
 #ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
@@ -2724,13 +2730,16 @@
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
 #ao-root .ao-source-bar { position: relative; display: grid; }
 #ao-root .ao-source-bar { gap: 6px; }
-/* Icone ai lati della barra: stessa larghezza, così Da mail e Senza mail restano al centro */
-#ao-root .ao-bar-icon { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; padding: 0; border: 0; background: none; color: var(--ao-text-muted); cursor: pointer; }
-#ao-root .ao-bar-icon-start { margin-right: 2px; border-right: 1px solid var(--ao-line-light); border-radius: calc(var(--ao-radius-base) - 2px) 0 0 calc(var(--ao-radius-base) - 2px); }
-#ao-root .ao-bar-icon-end { margin-left: 2px; border-left: 1px solid var(--ao-line-light); border-radius: 0 calc(var(--ao-radius-base) - 2px) calc(var(--ao-radius-base) - 2px) 0; }
-#ao-root .ao-bar-icon:hover, #ao-root .ao-bar-icon.ao-open { background: var(--ao-hover); }
-#ao-root .ao-bar-icon.ao-active { color: var(--ao-text-accent); }
-#ao-root .ao-bar-icon.ao-active::after { content: ""; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
+/* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
+   (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
+#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
+#ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
+#ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
+#ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .15s, color .2s; }
+#ao-root .ao-bar-btn:hover, #ao-root .ao-bar-btn.ao-open { background: var(--ao-hover); }
+#ao-root .ao-bar-btn.ao-active { color: var(--ao-text-accent); }
+#ao-root .ao-bar-filter.ao-active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
+#ao-root .ao-bar-search.ao-active { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
 /* Riga sotto la barra: collega filtrato a sinistra, ricerca a pillola a destra (sotto la lente) */
 #ao-root .ao-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-filter-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-md); animation: ao-menu-in .18s ease-out; }
@@ -2739,9 +2748,8 @@
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
 #ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-accent-border); }
 /* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
-#ao-root .ao-search-overlay { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; }
+#ao-root .ao-search-overlay { position: absolute; left: 0; z-index: 2; pointer-events: none; }
 #ao-root .ao-search-bar:focus-within { border-color: var(--ao-accent); }
-#ao-root .ao-search-bar .ao-bar-icon.ao-active::after { display: none; }
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
