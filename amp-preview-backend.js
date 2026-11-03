@@ -620,13 +620,14 @@
         },
         // Etichetta su una mail in coda: chi la sta gestendo. Una sola per thread: se c'è già quella di un altro
         // non si sovrascrive (in produzione: colonna univoca su SharePoint) e torna l'etichetta esistente.
-        labelMail(conversationId, by, color) {
+        // force: sostituisce quella del collega (l'ha deciso l'operatore tenendola premuta).
+        labelMail(conversationId, by, color, { force = false } = {}) {
             const name = by?.displayValue || '';
             const existing = db.sp.labels[conversationId];
-            if (existing && existing.name !== name) return respond({ ok: false, label: existing });
+            if (existing && existing.name !== name && !force) return respond({ ok: false, label: existing });
             const label = { name, color, at: now() };
             db.sp.labels[conversationId] = label;
-            record('etichetta', '', name, color, conversationId);
+            record(existing && existing.name !== name ? 'etichetta sostituita' : 'etichetta', '', name, existing && existing.name !== name ? `${color} (era di ${existing.name})` : color, conversationId);
             persist();
             return respond({ ok: true, label });
         },

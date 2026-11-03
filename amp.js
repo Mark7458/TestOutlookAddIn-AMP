@@ -116,7 +116,9 @@
             tagBase: '#fff',
             tagInk: '80%',
             tagInkBase: '#000',
-            tagLine: 'transparent'
+            tagLine: 'transparent',
+            tagSolid: '#fff', // base piena delle etichette mentre una ricopre l'altra
+            tagSpark: 'rgba(255, 255, 255, .95)' // lama di luce sul bordo che avanza
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -153,7 +155,9 @@
             tagFill: '30%',
             tagBase: '#2d2c2b',
             tagInk: '45%',
-            tagInkBase: '#fff'
+            tagInkBase: '#fff',
+            tagSolid: '#2d2c2b',
+            tagSpark: 'rgba(200, 225, 255, .95)'
         },
         // Stile vetro (Impostazioni → Profilo → Stile): superfici semitrasparenti e sfocate sopra uno sfondo sfumato;
         // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
@@ -222,7 +226,8 @@
             tagFill: '28%',
             tagInk: '45%',
             tagInkBase: '#fff',
-            tagLine: 'rgba(255, 255, 255, .12)'
+            tagLine: 'rgba(255, 255, 255, .12)',
+            tagSolid: '#343842'
         },
         // Etichette degli operatori (segnaposto su In coda, ticket senza mail): un colore a testa, scelto in Profilo.
         // Ogni colore si adatta allo stile: fondo e scritta si ricavano dal colore con i valori label* qui sotto.
@@ -483,7 +488,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 15:40';
+    const BUILD = '2026-11-03 16:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -582,6 +587,7 @@
     //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
+    //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
     //   (listQueue: ogni mail ha label = { name, color } | null; i ticket senza mail hanno label di chi li ha aperti)
     //
     // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
@@ -1511,8 +1517,8 @@
         const mail = mailFromQueueItem(item);
         const body = state.mailBodies[item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
-        // Con l'etichetta di un collega la mail si legge ma non si gestisce.
-        const locked = labelledByOther(item);
+        // Si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
+        const locked = !isMyLabel(item.label);
         const actions = [
             { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
             { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
@@ -1648,20 +1654,48 @@
     }
     const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
     const isMyLabel = label => Boolean(label) && label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase();
-    const labelledByOther = item => Boolean(item.label) && !isMyLabel(item.label);
-    function labelChip(label, { onclick, title, entering } = {}) {
+    function labelChip(label, { onclick, title, entering, taken } = {}) {
         const color = THEME.labels[label.color] || THEME.labels.grafite;
         return h(onclick ? 'button' : 'span', {
-            type: onclick ? 'button' : undefined, class: `ao-user-tag${entering ? ' ao-user-tag-in' : ''}`, style: `--ao-tag-color: ${color}`,
+            type: onclick ? 'button' : undefined, class: `ao-user-tag${entering ? ' ao-user-tag-in' : ''}${taken ? ' ao-taken' : ''}`, style: `--ao-tag-color: ${color}`,
             title: title || label.name, onclick
         }, surname(label.name));
     }
+    // Mail di un collega, a scheda aperta: tenendo premuta la sua etichetta si ingrandisce e la propria la ricopre
+    // (bordo sfumato con una lama di luce); a copertura completa diventa propria. Lasciando prima, torna com'era.
+    const TAKEOVER_MS = 1000;
+    function takeoverTag(item, config) {
+        const myColor = THEME.labels[config.profile.label] || THEME.labels.azzurro;
+        let timer = null;
+        const release = event => {
+            const wrap = event.currentTarget;
+            if (!wrap.classList.contains('ao-holding')) return;
+            clearTimeout(timer);
+            wrap.classList.remove('ao-holding');
+        };
+        return h('span', {
+            class: 'ao-tag-swap', style: `--ao-tag-new: ${myColor}`, title: item.label.name,
+            onclick: event => event.stopPropagation(),
+            onpointerdown: event => {
+                event.stopPropagation();
+                event.preventDefault();
+                event.currentTarget.classList.add('ao-holding');
+                timer = setTimeout(() => setLabel(item, true, { force: true }), TAKEOVER_MS + 120);
+            },
+            onpointerup: release, onpointerleave: release, onpointercancel: release
+        },
+            labelChip(item.label),
+            h('span', { class: 'ao-user-tag ao-tag-cover', style: `--ao-tag-color: ${myColor}`, 'aria-hidden': 'true' }, surname(currentUser(config).displayValue)),
+            h('span', { class: 'ao-tag-edge', 'aria-hidden': 'true' }));
+    }
     function labelSlot(item, config) {
         const stop = handler => event => { event.stopPropagation(); handler(); };
+        if (item.label && !isMyLabel(item.label) && state.queueExpanded === item.conversationId && currentUser(config).displayValue) return takeoverTag(item, config);
         if (item.label) {
             const mine = isMyLabel(item.label);
             return labelChip(mine ? { ...item.label, color: config.profile.label } : item.label, {
                 entering: state.labelEntering === item.conversationId,
+                taken: state.labelEntering === item.conversationId && state.labelTaken,
                 title: mine ? TEXTS.queue.labelRemove : item.label.name,
                 onclick: mine ? stop(() => setLabel(item, false)) : undefined
             });
@@ -1671,17 +1705,19 @@
     }
     // Subito a schermo (l'etichetta compare con un piccolo rimbalzo), poi sul registro condiviso:
     // se nel frattempo l'ha presa un collega, torna la sua e lo si dice.
-    async function setLabel(item, on) {
+    async function setLabel(item, on, { force = false } = {}) {
         const config = loadConfig();
         const user = currentUser(config);
         const before = item.label;
         item.label = on ? { name: user.displayValue, color: config.profile.label } : null;
         state.labelEntering = on ? item.conversationId : null;
+        state.labelTaken = force;
         render();
         state.labelEntering = null;
+        state.labelTaken = false;
         try {
             if (on) {
-                const result = await Services.labelMail(item.conversationId, user, config.profile.label);
+                const result = await Services.labelMail(item.conversationId, user, config.profile.label, { force });
                 if (!result?.ok) {
                     item.label = result?.label || before;
                     render();
@@ -3155,7 +3191,20 @@
 #ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 #ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
 #ao-root .ao-tag-swatch.ao-active { outline: 2px solid color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in { animation: none; } }
+/* Sostituire l'etichetta di un collega (tenendola premuta): si ingrandisce, la propria la ricopre da sinistra
+   con un bordo sfumato e una lama di luce; a copertura completa torna piccola con un ultimo lampo */
+@property --ao-tag-progress { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+#ao-root .ao-tag-swap { --ao-tag-progress: 0%; position: relative; z-index: 2; display: inline-grid; flex: none; border-radius: var(--ao-radius-pill); cursor: pointer; user-select: none; touch-action: none; transform-origin: right center; transition: transform .25s ease-out, filter .25s, --ao-tag-progress .3s ease-out; }
+#ao-root .ao-tag-swap > * { grid-area: 1 / 1; }
+#ao-root .ao-tag-swap .ao-user-tag { justify-content: center; background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-solid)); }
+#ao-root .ao-tag-cover { -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); }
+#ao-root .ao-tag-edge { position: relative; overflow: hidden; border-radius: var(--ao-radius-pill); pointer-events: none; opacity: 0; transition: opacity .2s; }
+#ao-root .ao-tag-edge::before { content: ""; position: absolute; top: -4px; bottom: -4px; left: calc(var(--ao-tag-progress) - 14%); width: 14%; background: linear-gradient(90deg, transparent, var(--ao-tag-spark) 70%, transparent); filter: blur(2px); }
+#ao-root .ao-tag-swap.ao-holding { --ao-tag-progress: 122%; transform: scale(1.5); filter: drop-shadow(0 4px 10px rgba(0,0,0,.18)) drop-shadow(0 0 8px color-mix(in srgb, var(--ao-tag-new) 40%, transparent)); transition: transform .25s ease-out, filter .25s, --ao-tag-progress 1s cubic-bezier(.4, .1, .6, 1); }
+#ao-root .ao-tag-swap.ao-holding .ao-tag-edge { opacity: 1; }
+#ao-root .ao-user-tag-in.ao-taken { transform-origin: right center; animation: ao-tag-taken .36s cubic-bezier(.32, 1.28, .5, 1); }
+@keyframes ao-tag-taken { from { transform: scale(1.5); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--ao-tag-color) 60%, transparent)); } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in { animation: none; } #ao-root .ao-tag-swap, #ao-root .ao-tag-swap.ao-holding { transition: none; } }
 
 /* Riquadri */
 #ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
