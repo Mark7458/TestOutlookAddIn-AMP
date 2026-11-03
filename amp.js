@@ -68,8 +68,8 @@
             warningBg: '#fff4ce',
             danger: '#a4262c',
             dangerBg: '#fde7e9',
-            hold: '#8764b8', // On Hold
-            holdBg: '#f4f0fa',
+            hold: '#8a5a00', // On Hold: giallo d'attesa
+            holdBg: '#fbf1d0',
             forward: '#7c5bbf', // Inoltra (In coda): pulsante ed esito
             forwardText: '#6b47b0',
             // Selettore della scheda aperta (Inoltra, Ignora): pillola e scritta della voce scelta
@@ -77,6 +77,10 @@
             choiceForwardText: '#6b47b0',
             choiceDangerBg: '#fde7e9',
             choiceDangerText: '#a4262c',
+            choiceResolveBg: '#dff2f2', // Risolvi: acqua
+            choiceResolveText: '#026c6f',
+            choiceHoldBg: '#fbf1d0', // On Hold: giallo d'attesa
+            choiceHoldText: '#8a5a00',
             // Stile: valori dello stile flat. Lo stile vetro ridefinisce gli stessi nomi in glassColors e glassDarkColors;
             // gli elementi usano solo questi nomi, così flat/vetro e chiaro/scuro cambiano tutto insieme.
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
@@ -141,14 +145,18 @@
             warningBg: '#3d3214',
             danger: '#ffb3b8',
             dangerBg: '#442726',
-            hold: '#c3b2ff',
-            holdBg: '#2f2a45',
+            hold: '#f2c661',
+            holdBg: '#3d3214',
             forwardText: '#c3b2ff',
             // Tema scuro: viola e rosso accesi quanto il blu (prima risultavano spenti)
             choiceForwardBg: 'color-mix(in srgb, #7c5bbf 26%, #2d2c2b)',
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
             choiceDangerText: '#ff8f94',
+            choiceResolveBg: 'color-mix(in srgb, #038387 26%, #2d2c2b)',
+            choiceResolveText: '#5fd3d6',
+            choiceHoldBg: 'color-mix(in srgb, #c19c00 24%, #2d2c2b)',
+            choiceHoldText: '#f2c661',
             backdrop: '#201f1e',
             tagFill: '30%',
             tagBase: '#2d2c2b',
@@ -379,7 +387,7 @@
             // Azione all'invio
             onSend: 'Quando invii la risposta',
             onSendHint: 'Il testo della mail diventa il commento su ServiceNow; il ticket si aggiorna come scegli qui.',
-            actions: { comment: 'Solo risposta', resolve: 'Risolvi', hold: 'On Hold', cancel: 'Annulla ticket' },
+            actions: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'On Hold', cancel: 'Annulla' },
             resolutionCode: 'Resolution code',
             holdReason: 'On hold reason',
             holdExpiration: 'Scadenza',
@@ -485,7 +493,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 17:00';
+    const BUILD = '2026-11-03 18:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -745,6 +753,17 @@
     const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
+    // Icone delle azioni (selettori di In coda e dei ticket)
+    const ACTION_ICONS = {
+        take: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M10 7.5v5M7.5 10h5"/></svg>',
+        forward: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 4.5l5 5-5 5"/><path d="M16.5 9.5H8a4.5 4.5 0 0 0-4.5 4.5v1.5"/></svg>',
+        ignore: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4"/></svg>',
+        comment: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h13v8.5h-7l-3.5 3v-3H3.5z"/><path d="M7 8h6M7 10.5h4"/></svg>',
+        resolve: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>',
+        hold: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v11M13 4.5v11"/></svg>',
+        cancel: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/></svg>'
+    };
+    const ACTION_TONES = { take: 'accent', forward: 'forward', ignore: 'danger', comment: 'accent', resolve: 'resolve', hold: 'hold', cancel: 'danger' };
     const SWAP_ICON = '<svg viewBox="0 0 20 20" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12M12 6l4 4-4 4"/></svg>';
     const TAG_ADD_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/><path d="M15.5 2.5v4M13.5 4.5h4"/></svg>';
     function svgIcon(markup) {
@@ -1314,8 +1333,8 @@
     const segmentKey = options => options.map(option => option.value).join('|');
     // grow: la voce scelta è più larga delle altre (selettore con le icone); cambiando scelta le larghezze
     // si scambiano con lo stesso movimento della pillola, che le segue.
-    function filterBar(options, value, onchange, grow = false) {
-        const key = segmentKey(options);
+    function filterBar(options, value, onchange, grow = false, memoryKey = null) {
+        const key = memoryKey || segmentKey(options);
         const previous = segmentMemory.get(key);
         const growing = grow && previous !== undefined && previous !== value;
         const wide = growing ? previous : value; // all'inizio è larga la voce di prima
@@ -1329,7 +1348,7 @@
         const bar = h('div', { class: 'ao-segmented', role: 'group' },
             thumb,
             options.map(option => h('button', {
-                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}${grow && option.value === wide ? ' ao-grow' : ''}`, dataset: { value: option.value }, title: option.title, 'aria-label': option.title,
+                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}${grow && option.value === wide ? ' ao-grow' : ''}`, dataset: { value: option.value }, title: option.title, 'aria-label': option.title, disabled: option.disabled,
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
         segmentMemory.set(key, value);
@@ -1379,9 +1398,13 @@
     }
     // Selettore con le icone: la voce scelta si allarga e mostra icona e nome; le altre solo l'icona (il nome passandoci sopra).
     // Il numero compare solo sulla voce scelta.
-    function iconBar(options, value, onchange) {
+    // key: memoria del selettore quando le stesse voci compaiono in più schede (azioni di In coda, di un ticket);
+    // tone: la voce scelta prende il colore della sua azione (ACTION_TONES); senza scelta le voci mostrano il nome.
+    function iconBar(options, value, onchange, { key = null, tones = false } = {}) {
+        const memoryKey = key || segmentKey(options);
+        const chosen = options.some(option => option.value === value);
         // Il nome compare in dissolvenza solo quando la scelta cambia, non a ogni ridisegno.
-        const previous = segmentMemory.get(segmentKey(options));
+        const previous = segmentMemory.get(memoryKey);
         const entering = previous !== undefined && previous !== value;
         // il nome della voce di prima svanisce mentre si stringe, poi si toglie
         const leaving = (option, active) => entering && !active && option.value === previous
@@ -1391,11 +1414,14 @@
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
-                count: active ? option.count : undefined
+                label: !chosen ? option.label
+                    : [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
+                count: active ? option.count : undefined,
+                disabled: option.disabled
             };
-        }), value, onchange, true);
+        }), value, onchange, true, memoryKey);
         bar.classList.add('ao-segmented-icons');
+        if (tones && chosen) bar.classList.add('ao-toned', `ao-choice-${ACTION_TONES[value] || 'accent'}`);
         return bar;
     }
     // Selettore di scelta (scheda di In coda: azione e gruppo dell'inoltro). Come il selettore a segmenti,
@@ -1534,7 +1560,7 @@
             // Testo limitato a PREVIEW_MAX_CHARS; la barra di scorrimento compare solo a scheda aperta del tutto.
             h('div', { class: `ao-mail-preview${state.previewScroll === item.conversationId ? ' ao-scrollable' : ''}` },
                 clipText(body ?? item.preview ?? '', PREVIEW_MAX_CHARS), body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
-            choiceBar(`action:${item.conversationId}`, actions, choice.action, value => pickQueueAction(item, value)),
+            iconBar(actions.map(action => ({ ...action, icon: ACTION_ICONS[action.value] })), choice.action, value => pickQueueAction(item, value), { key: `action:${item.conversationId}`, tones: true }),
             h('div', { class: 'ao-choice-zone' }, choice.action ? h('div', { class: 'ao-choice-content' }, queueActionContent(item, mail, config, choice)) : null),
             h('button', {
                 type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close,
@@ -2598,6 +2624,11 @@
         }
         return state.actionDrafts[ticket.number];
     }
+    // Azioni sul ticket (Aggiorna, Risolvi, On Hold, Annulla) con le icone e il colore dell'azione scelta.
+    function ticketActionBar(ticket, draft) {
+        return iconBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
+            value => { draft.type = value; render(); }, { key: `ticket:${ticket.number}`, tones: true });
+    }
     function onSendCard(ticket, config, isCurrentMail) {
         const draft = actionDraft(ticket, config);
         const rerender = () => render();
@@ -2613,7 +2644,7 @@
             ticket.pendingAction ? h('div', { class: 'ao-pending' },
                 h('span', {}, TEXTS.mail.pending(pendingLabel(ticket.pendingAction))),
                 h('button', { type: 'button', class: 'ao-link', onclick: () => savePendingAction(ticket, null) }, TEXTS.mail.clearPending)) : null,
-            filterBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label })), draft.type, value => { draft.type = value; rerender(); }),
+            ticketActionBar(ticket, draft),
             draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
             draft.type === 'hold' ? [
                 selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
@@ -3309,6 +3340,11 @@
 #ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
 #ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-text: var(--ao-choice-forward-text); }
 #ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-choice-danger-bg); --ao-choice-text: var(--ao-choice-danger-text); }
+#ao-root .ao-choice-resolve { --ao-choice-bg: var(--ao-choice-resolve-bg); --ao-choice-text: var(--ao-choice-resolve-text); }
+#ao-root .ao-choice-hold { --ao-choice-bg: var(--ao-choice-hold-bg); --ao-choice-text: var(--ao-choice-hold-text); }
+/* Selettori delle azioni (In coda, ticket): la voce scelta prende il colore della sua azione */
+#ao-root .ao-segmented.ao-toned .ao-segment-thumb { background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); }
+#ao-root .ao-segmented.ao-toned .ao-segment.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
 #ao-root .ao-choice-zone:empty { display: none; }
 #ao-root .ao-choice-content { display: grid; gap: 8px; }
