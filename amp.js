@@ -139,7 +139,7 @@
             hoverFilter: 'brightness(1.06)',
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
             thumb: 'rgba(255, 255, 255, .95)',
-            thumbGlow: '0 0 12px rgba(120, 170, 255, .28), 0 1px 2px rgba(0, 0, 0, .06)',
+            thumbGlow: '0 1px 2px rgba(0, 0, 0, .08)', // pillola scelta: solo un'ombra sottile, niente bagliore
             segmentHover: 'rgba(255, 255, 255, .55)',
             choiceForwardBg: 'rgba(124, 91, 191, .16)',
             choiceDangerBg: 'rgba(209, 52, 56, .13)'
@@ -157,7 +157,7 @@
             hoverFilter: 'brightness(1.22)',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             thumb: 'rgba(84, 96, 120, .8)',
-            thumbGlow: '0 0 12px rgba(90, 150, 255, .22)',
+            thumbGlow: '0 1px 2px rgba(0, 0, 0, .3)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             choiceForwardBg: 'rgba(124, 91, 191, .3)',
             choiceDangerBg: 'rgba(209, 52, 56, .26)'
@@ -408,7 +408,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:15';
+    const BUILD = '2026-11-03 12:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
