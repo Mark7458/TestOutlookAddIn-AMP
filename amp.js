@@ -131,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-02 19:05';
+    const BUILD = '2026-11-03 10:45';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -569,10 +569,14 @@
         const active = state.queue.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
         const showIgnored = state.queueTab === 'ignored';
         return h('div', { class: 'ao-view' },
-            filterBar([
-                { value: 'active', label: TEXTS.queue.active, count: active.length },
-                { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
-            ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
+            // Selettore stretto come nella versione di sviluppo (dove Ticket ha i pulsanti ai lati): spazio vuoto ai lati.
+            h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' },
+                h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }),
+                filterBar([
+                    { value: 'active', label: TEXTS.queue.active, count: active.length },
+                    { value: 'ignored', label: TEXTS.queue.ignoredTab, count: state.ignored.length }
+                ], showIgnored ? 'ignored' : 'active', value => { state.queueTab = value; state.queueExpanded = null; render(); }),
+                h('span', { class: 'ao-bar-spacer', 'aria-hidden': 'true' }))),
             showIgnored
                 ? [
                     state.ignored.length ? h('ul', { class: 'ao-list' }, state.ignored.map(ignoredItem))
@@ -1009,6 +1013,10 @@
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
+#ao-root .ao-source-bar { position: relative; display: grid; }
+#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
+#ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
+#ao-root .ao-bar-spacer { flex: none; width: 34px; }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 /* Elenco di In coda */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
