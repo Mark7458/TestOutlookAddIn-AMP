@@ -142,7 +142,10 @@
             thumbGlow: '0 1px 2px rgba(0, 0, 0, .08)', // pillola scelta: solo un'ombra sottile, niente bagliore
             segmentHover: 'rgba(255, 255, 255, .55)',
             choiceForwardBg: 'rgba(124, 91, 191, .16)',
-            choiceDangerBg: 'rgba(209, 52, 56, .13)'
+            choiceDangerBg: 'rgba(209, 52, 56, .13)',
+            tint: '16%', // pulsanti ed esito colorati di In coda: quanto colore nel vetro
+            tintHover: '22%',
+            tintLine: 'rgba(255, 255, 255, .5)'
         },
         glassDarkColors: {
             backdrop: 'radial-gradient(ellipse 260px 200px at 10% 18%, rgba(40, 100, 190, .35), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 55%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24)',
@@ -160,7 +163,10 @@
             thumbGlow: '0 1px 2px rgba(0, 0, 0, .3)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             choiceForwardBg: 'rgba(124, 91, 191, .3)',
-            choiceDangerBg: 'rgba(209, 52, 56, .26)'
+            choiceDangerBg: 'rgba(209, 52, 56, .26)',
+            tint: '24%',
+            tintHover: '30%',
+            tintLine: 'rgba(255, 255, 255, .12)'
         },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
@@ -408,7 +414,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:35';
+    const BUILD = '2026-11-03 12:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3113,6 +3119,18 @@
 #ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
+/* Vetro: pulsanti di conferma (Prendi in carico, Inoltra, Ignora) ed esito velati del colore dell'azione, testo colorato. */
+#ao-root[data-style="glass"] .ao-queue-item .ao-primary { --ao-btn: var(--ao-accent); --ao-btn-text: var(--ao-text-accent); }
+#ao-root[data-style="glass"] .ao-queue-item .ao-fill-forward { --ao-btn: var(--ao-forward); --ao-btn-text: var(--ao-forward-text); }
+#ao-root[data-style="glass"] .ao-queue-item .ao-fill-danger { --ao-btn: #d13438; --ao-btn-text: var(--ao-danger); }
+#ao-root[data-style="glass"] .ao-queue-item .ao-primary, #ao-root[data-style="glass"] .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tint), transparent); border-color: var(--ao-tint-line); color: var(--ao-btn-text); }
+#ao-root[data-style="glass"] .ao-queue-item .ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tint-hover), transparent); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root[data-style="glass"] .ao-outcome-accent { --ao-outcome-text: var(--ao-text-accent); }
+#ao-root[data-style="glass"] .ao-outcome-forward { --ao-outcome-text: var(--ao-forward-text); }
+#ao-root[data-style="glass"] .ao-outcome-danger { --ao-outcome-text: var(--ao-danger); }
+#ao-root[data-style="glass"] .ao-queue-item.ao-outcome-full { background: var(--ao-surface); border-color: var(--ao-line); }
+#ao-root[data-style="glass"] .ao-outcome { background: color-mix(in srgb, var(--ao-outcome) var(--ao-tint), transparent); color: var(--ao-outcome-text); }
+#ao-root[data-style="glass"] .ao-outcome-spinner { border-color: color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor; }
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
