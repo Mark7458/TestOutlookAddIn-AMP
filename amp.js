@@ -408,7 +408,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:25';
+    const BUILD = '2026-11-03 12:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -463,6 +463,7 @@
         else delete root.dataset.theme;
         // Stile: vetro (predefinito) o flat.
         root.dataset.style = config.preferences?.style === 'flat' ? 'flat' : 'glass';
+        blendTabsWithHeader(); // con il vetro cambia anche l'intestazione
     }
     function saveConfig(config) {
         config.version = STORAGE.version;
@@ -1061,15 +1062,18 @@
         const nav = root?.querySelector('.ao-tabs');
         const header = document.querySelector('.app-header');
         if (!nav || !header || !nav.offsetWidth) return;
+        // Colori della sfumatura (con la trasparenza, per lo stile vetro); il riflesso bianco del vetro non conta.
         const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
-            .map(color => color.match(/[\d.]+/g).slice(0, 3).map(Number));
+            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; })
+            .filter(([r, g, b]) => !(r > 245 && g > 245 && b > 245));
         if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
         const [from, to] = [colors[0], colors[colors.length - 1]];
         const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
         const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
-        const mix = from.map((value, i) => Math.round(value + (to[i] - value) * start));
+        const mix = from.map((value, i) => value + (to[i] - value) * start);
+        const css = ([r, g, b, a]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
         const end = Math.min(100, (W / (w + n)) * 100);
-        nav.style.background = `linear-gradient(135deg, rgb(${mix.join(',')}) 0%, rgb(${to.join(',')}) ${end.toFixed(1)}%)`;
+        nav.style.background = `linear-gradient(135deg, ${css(mix)} 0%, ${css(to)} ${end.toFixed(1)}%)`;
     }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
@@ -3179,9 +3183,21 @@
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 `;
+    const OUTSIDE_STYLES = `
+/* Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa,
+   con le schede più vicine al logo; con lo stile vetro lo sfondo sfumato (sul contenitore dell'intestazione) passa anche dietro l'intestazione,
+   che diventa di vetro leggero (stesso blu, appena trasparente, con un riflesso chiaro in alto). */
+:has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; }
+@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 55%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84)); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+#ao-root[data-style="glass"] { background: transparent; }
+#ao-root[data-style="glass"] .ao-tabs { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+`;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
-        document.head.append(h('style', { id: 'ao-styles' }, themeCssVariables() + STYLES));
+        document.head.append(h('style', { id: 'ao-styles' }, themeCssVariables() + STYLES + OUTSIDE_STYLES));
     }
 
     // ======================================================================
