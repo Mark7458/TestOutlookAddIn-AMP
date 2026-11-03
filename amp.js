@@ -443,7 +443,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 14:50';
+    const BUILD = '2026-11-03 14:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1327,13 +1327,13 @@
         const entering = previous !== undefined && previous !== value;
         // il nome della voce di prima svanisce mentre si stringe, poi si toglie
         const leaving = (option, active) => entering && !active && option.value === previous
-            ? h('span', { class: 'ao-segment-name-out', onanimationend: event => event.currentTarget.remove() }, option.label) : null;
+            ? h('span', { class: 'ao-segment-name ao-segment-name-out', onanimationend: event => event.currentTarget.remove() }, h('span', null, option.label)) : null;
         const bar = filterBar(options.map(option => {
             const active = option.value === value;
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name-in' : null }, option.label) : leaving(option, active)],
+                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
                 count: active ? option.count : undefined
             };
         }), value, onchange, true);
@@ -2992,9 +2992,14 @@
 #ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; overflow: hidden; }
 #ao-root .ao-segmented-icons .ao-segment.ao-grow { flex: 2.6; }
 #ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: color .25s, flex-grow var(--ao-selection-motion); }
-#ao-root .ao-segment-name-out { animation: ao-fade-out .2s linear forwards; }
-@keyframes ao-fade-out { to { opacity: 0; } }
-#ao-root .ao-segment-name-in { animation: ao-fade-in .25s linear; }
+/* Nome della voce: compare e svanisce allargandosi e stringendosi con la voce, così l'icona si ricentra senza scatti
+   (la colonna passa da 0 alla larghezza del nome; il margine negativo annulla lo spazio tra icona e nome) */
+#ao-root .ao-segment-name { display: inline-grid; grid-template-columns: 1fr; }
+#ao-root .ao-segment-name > span { min-width: 0; overflow: hidden; white-space: nowrap; }
+#ao-root .ao-segment-name-in { animation: ao-name-in var(--ao-selection-motion) backwards; }
+#ao-root .ao-segment-name-out { animation: ao-name-out var(--ao-selection-motion) forwards; }
+@keyframes ao-name-in { from { grid-template-columns: 0fr; margin-left: -5px; opacity: 0; } }
+@keyframes ao-name-out { to { grid-template-columns: 0fr; margin-left: -5px; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name-in { animation: none; } #ao-root .ao-segment-name-out { display: none; } #ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: none; } }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
