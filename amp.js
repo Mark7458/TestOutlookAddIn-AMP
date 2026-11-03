@@ -116,7 +116,7 @@
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
-        radius: { base: '10px', pill: '999px', badge: '5px' }, // badge: notifiche, quadrato con gli angoli smussati
+        radius: { base: '8px', pill: '999px', badge: '5px' }, // badge: notifiche, quadrato con gli angoli smussati
         shadow: {
             card: '0 1px 2px rgba(0,0,0,.06)',
             focus: '0 0 0 2px rgba(0,120,212,.25)'
