@@ -488,7 +488,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 16:10';
+    const BUILD = '2026-11-03 16:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3194,16 +3194,16 @@
 /* Sostituire l'etichetta di un collega (tenendola premuta): si ingrandisce, la propria la ricopre da sinistra
    con un bordo sfumato e una lama di luce; a copertura completa torna piccola con un ultimo lampo */
 @property --ao-tag-progress { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
-#ao-root .ao-tag-swap { --ao-tag-progress: 0%; position: relative; z-index: 2; display: inline-grid; flex: none; border-radius: var(--ao-radius-pill); cursor: pointer; user-select: none; touch-action: none; transform-origin: right center; transition: transform .25s ease-out, filter .25s, --ao-tag-progress .3s ease-out; }
+#ao-root .ao-tag-swap { --ao-tag-progress: 0%; position: relative; z-index: 2; display: inline-grid; flex: none; border-radius: var(--ao-radius-pill); cursor: pointer; user-select: none; touch-action: none; transform-origin: right center; transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .35s ease-out, --ao-tag-progress .35s ease-out; }
 #ao-root .ao-tag-swap > * { grid-area: 1 / 1; }
 #ao-root .ao-tag-swap .ao-user-tag { justify-content: center; background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-solid)); }
 #ao-root .ao-tag-cover { -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); mask-image: linear-gradient(90deg, #000 calc(var(--ao-tag-progress) - 22%), transparent var(--ao-tag-progress)); }
 #ao-root .ao-tag-edge { position: relative; overflow: hidden; border-radius: var(--ao-radius-pill); pointer-events: none; opacity: 0; transition: opacity .2s; }
 #ao-root .ao-tag-edge::before { content: ""; position: absolute; top: -4px; bottom: -4px; left: calc(var(--ao-tag-progress) - 14%); width: 14%; background: linear-gradient(90deg, transparent, var(--ao-tag-spark) 70%, transparent); filter: blur(2px); }
-#ao-root .ao-tag-swap.ao-holding { --ao-tag-progress: 122%; transform: scale(1.5); filter: drop-shadow(0 4px 10px rgba(0,0,0,.18)) drop-shadow(0 0 8px color-mix(in srgb, var(--ao-tag-new) 40%, transparent)); transition: transform .25s ease-out, filter .25s, --ao-tag-progress 1s cubic-bezier(.4, .1, .6, 1); }
+#ao-root .ao-tag-swap.ao-holding { --ao-tag-progress: 122%; transform: scale(1.2); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ao-tag-new) 50%, transparent)); transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .35s ease-out, --ao-tag-progress 1s ease-in-out; }
 #ao-root .ao-tag-swap.ao-holding .ao-tag-edge { opacity: 1; }
-#ao-root .ao-user-tag-in.ao-taken { transform-origin: right center; animation: ao-tag-taken .36s cubic-bezier(.32, 1.28, .5, 1); }
-@keyframes ao-tag-taken { from { transform: scale(1.5); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--ao-tag-color) 60%, transparent)); } }
+#ao-root .ao-user-tag-in.ao-taken { transform-origin: right center; animation: ao-tag-taken .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes ao-tag-taken { from { transform: scale(1.2); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ao-tag-color) 50%, transparent)); } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in { animation: none; } #ao-root .ao-tag-swap, #ao-root .ao-tag-swap.ao-holding { transition: none; } }
 
 /* Riquadri */
