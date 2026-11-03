@@ -91,6 +91,7 @@
             selectionLine: 'transparent', // bordo della voce scelta
             selectionShadow: '0 0 transparent', // ombra della voce scelta
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
+            selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -161,6 +162,7 @@
             selectionLine: 'var(--ao-line)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .06)',
             selectionTone: '0%',
+            selectionMotion: '.44s cubic-bezier(.32, 1.12, .5, 1)', // scivola con un leggero rimbalzo finale, come iOS
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -441,7 +443,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 14:35';
+    const BUILD = '2026-11-03 14:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2913,7 +2915,7 @@
 #ao-root .ao-segment.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; }
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
-#ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-segment-thumb.ao-moving { transition: transform var(--ao-selection-motion), width var(--ao-selection-motion); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
 /* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
 #ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
@@ -3104,7 +3106,7 @@
 #ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; transition: background-color .25s; }
 #ao-root .ao-choice-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
-#ao-root .ao-choice-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1), background-color .25s; }
+#ao-root .ao-choice-thumb.ao-moving { transition: transform var(--ao-selection-motion), width var(--ao-selection-motion), background-color .25s; }
 @keyframes ao-fade-in { from { opacity: 0; } }
 #ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
 #ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-text: var(--ao-choice-forward-text); }
