@@ -110,7 +110,13 @@
             toneLine: 'transparent', // bordo quando il colore non c'è
             toneText: '0%', // quanto colore nella scritta (0%: bianca)
             toneHoverFilter: 'brightness(.92)',
-            spinnerTrack: '45%'
+            spinnerTrack: '45%',
+            // Etichette: quanto colore nel fondo (su che base) e nella scritta (su che base), bordo
+            tagFill: '14%',
+            tagBase: '#fff',
+            tagInk: '80%',
+            tagInkBase: '#000',
+            tagLine: 'transparent'
         },
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
@@ -143,7 +149,11 @@
             choiceForwardText: '#b79bff',
             choiceDangerBg: 'color-mix(in srgb, #d13438 24%, #2d2c2b)',
             choiceDangerText: '#ff8f94',
-            backdrop: '#201f1e'
+            backdrop: '#201f1e',
+            tagFill: '30%',
+            tagBase: '#2d2c2b',
+            tagInk: '45%',
+            tagInkBase: '#fff'
         },
         // Stile vetro (Impostazioni → Profilo → Stile): superfici semitrasparenti e sfocate sopra uno sfondo sfumato;
         // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
@@ -184,7 +194,12 @@
             toneLine: 'rgba(255, 255, 255, .5)',
             toneText: '100%',
             toneHoverFilter: 'var(--ao-hover-filter)',
-            spinnerTrack: '35%'
+            spinnerTrack: '35%',
+            tagFill: '16%',
+            tagBase: 'transparent',
+            tagInk: '80%',
+            tagInkBase: '#000',
+            tagLine: 'rgba(255, 255, 255, .55)'
         },
         glassDarkColors: {
             surface: 'rgba(52, 56, 66, .62)',
@@ -203,7 +218,17 @@
             callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
             toneFill: '24%',
             toneFillHover: '30%',
-            toneLine: 'rgba(255, 255, 255, .12)'
+            toneLine: 'rgba(255, 255, 255, .12)',
+            tagFill: '28%',
+            tagInk: '45%',
+            tagInkBase: '#fff',
+            tagLine: 'rgba(255, 255, 255, .12)'
+        },
+        // Etichette degli operatori (segnaposto su In coda, ticket senza mail): un colore a testa, scelto in Profilo.
+        // Ogni colore si adatta allo stile: fondo e scritta si ricavano dal colore con i valori label* qui sotto.
+        labels: {
+            rosso: '#d13438', arancio: '#ca5010', ambra: '#c19c00', verde: '#107c10', acqua: '#038387',
+            azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
         },
         // Stile vetro fuori dall'area AMP: sfondo sfumato (dietro intestazione e pannello) e intestazione dell'add-in
         glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
@@ -249,7 +274,9 @@
             serviceError: message => `Servizio non disponibile: ${message}`
         },
         queue: {
-            mailboxTitle: 'Casella condivisa da cui arriva la richiesta',
+            labelAdd: 'Metti la tua etichetta',
+            labelRemove: 'Togli la tua etichetta',
+            labeledBy: name => `Già segnata da ${name}`,
             ignoredDone: 'Ignorata',
             forward: 'Inoltra',
             forwardWorking: 'Inoltro…',
@@ -382,6 +409,7 @@
             themes: { auto: 'Automatico', light: 'Chiaro', dark: 'Scuro' },
             style: 'Stile',
             styles: { flat: 'Flat', glass: 'Vetro' },
+            label: 'Etichetta',
             themeHint: 'Automatico segue il tema di Outlook. Chiaro e Scuro servono anche a verificare la leggibilità.',
             backup: 'Configurazioni',
             backupHint: 'Agenzie, Attività e risposte stanno in questo browser: esportale per averne una copia o portarle su un altro computer. Il file di Tampermonkey si importa senza modifiche.',
@@ -455,13 +483,13 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 15:15';
+    const BUILD = '2026-11-03 15:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
         return {
             version: STORAGE.version, created: now, updated: now,
-            profile: { assignedTo: { value: '', displayValue: '' }, tag: '' },
+            profile: { assignedTo: { value: '', displayValue: '' }, label: 'azzurro' },
             companies: {}, activities: {}, favorites: [], recent: [],
             combinationResponses: {}, usefulResponses: {},
             preferences: { favoritesGroupBy: 'none', theme: 'auto' }
@@ -486,7 +514,7 @@
             ...defaults,
             ...data,
             version: Number(data.version) || STORAGE.version,
-            profile: { assignedTo: normalizeReference(data.profile?.assignedTo), tag: String(data.profile?.tag || '') },
+            profile: { assignedTo: normalizeReference(data.profile?.assignedTo), label: THEME.labels[data.profile?.label] ? data.profile.label : 'azzurro' },
             companies,
             activities: isObject(data.activities) ? data.activities : {},
             favorites: Array.isArray(data.favorites) ? data.favorites : [],
@@ -551,6 +579,10 @@
     //                                          (facoltativo: senza, il pannello mostra le prime righe di listQueue)
     //   forwardMail(conversationId, gruppo, utente) → inoltro della richiesta a un gruppo (ES, PEL, PO); il thread lascia In coda
     //                                          (facoltativo: senza, Inoltra avvisa che i servizi non sono collegati)
+    //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
+    //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
+    //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
+    //   (listQueue: ogni mail ha label = { name, color } | null; i ticket senza mail hanno label di chi li ha aperti)
     //
     // mail   = { conversationId, itemId, subject, sender: { name, email }, receivedAt, body, incNumbers }
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
@@ -574,10 +606,12 @@
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
-    Services.forwardMail = async (...args) => {
-        if (typeof window.AmpBackend?.forwardMail !== 'function') throw new ServicesMissingError('forwardMail');
-        return window.AmpBackend.forwardMail(...args);
-    };
+    ['forwardMail', 'labelMail', 'unlabelMail'].forEach(name => {
+        Services[name] = async (...args) => {
+            if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
+            return window.AmpBackend[name](...args);
+        };
+    });
 
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
@@ -707,6 +741,7 @@
     const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
+    const TAG_ADD_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/><path d="M15.5 2.5v4M13.5 4.5h4"/></svg>';
     function svgIcon(markup) {
         const icon = h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' });
         icon.innerHTML = markup;
@@ -1362,7 +1397,7 @@
         const bar = h('div', { class: `ao-choice${tone ? ` ao-choice-${tone}` : ''}`, role: 'group' },
             thumb,
             options.map(option => h('button', {
-                type: 'button', class: `ao-choice-option${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value },
+                type: 'button', class: `ao-choice-option${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value }, disabled: option.disabled,
                 'aria-pressed': String(option.value === value), onclick: () => onpick(option.value)
             }, h('span', { class: 'ao-choice-label' }, option.label), option.sub ? h('span', { class: 'ao-choice-sub' }, option.sub) : null)));
         const previous = choiceMemory.get(key);
@@ -1476,10 +1511,12 @@
         const mail = mailFromQueueItem(item);
         const body = state.mailBodies[item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
+        // Con l'etichetta di un collega la mail si legge ma non si gestisce.
+        const locked = labelledByOther(item);
         const actions = [
-            { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent' },
-            { value: 'forward', label: TEXTS.queue.forward, tone: 'forward' },
-            allowIgnore ? { value: 'ignore', label: TEXTS.mail.discard, tone: 'danger' } : null
+            { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
+            { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
+            allowIgnore ? { value: 'ignore', label: TEXTS.mail.discard, tone: 'danger', disabled: locked } : null
         ].filter(Boolean);
         return h('div', { class: 'ao-inline-form' },
             info ? h('p', { class: 'ao-hint ao-queue-info' }, info) : null,
@@ -1604,11 +1641,60 @@
             receivedAt: item.receivedAt, body: state.mailBodies[item.messageId] || item.preview, incNumbers: []
         };
     }
-    // Etichetta della scheda: la casella condivisa da cui arriva la richiesta (l'agenzia si sceglie nel modulo).
+    // Etichetta della scheda: chi sta gestendo la mail. Vuota c'è il pulsantino per mettere la propria;
+    // la propria si toglie con un clic; quella di un collega si vede soltanto (e la mail non si può gestire).
     function queueItem(item, config) {
-        return queueCard(item, config, mailboxChip(item));
+        return queueCard(item, config, labelSlot(item, config));
     }
-    const mailboxChip = item => (item.mailbox ? chip(item.mailbox, 'accent', TEXTS.queue.mailboxTitle) : null);
+    const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
+    const isMyLabel = label => Boolean(label) && label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase();
+    const labelledByOther = item => Boolean(item.label) && !isMyLabel(item.label);
+    function labelChip(label, { onclick, title, entering } = {}) {
+        const color = THEME.labels[label.color] || THEME.labels.grafite;
+        return h(onclick ? 'button' : 'span', {
+            type: onclick ? 'button' : undefined, class: `ao-user-tag${entering ? ' ao-user-tag-in' : ''}`, style: `--ao-tag-color: ${color}`,
+            title: title || label.name, onclick
+        }, surname(label.name));
+    }
+    function labelSlot(item, config) {
+        const stop = handler => event => { event.stopPropagation(); handler(); };
+        if (item.label) {
+            const mine = isMyLabel(item.label);
+            return labelChip(mine ? { ...item.label, color: config.profile.label } : item.label, {
+                entering: state.labelEntering === item.conversationId,
+                title: mine ? TEXTS.queue.labelRemove : item.label.name,
+                onclick: mine ? stop(() => setLabel(item, false)) : undefined
+            });
+        }
+        if (!currentUser(config).displayValue) return null;
+        return h('button', { type: 'button', class: 'ao-user-tag-add', title: TEXTS.queue.labelAdd, 'aria-label': TEXTS.queue.labelAdd, onclick: stop(() => setLabel(item, true)) }, svgIcon(TAG_ADD_ICON));
+    }
+    // Subito a schermo (l'etichetta compare con un piccolo rimbalzo), poi sul registro condiviso:
+    // se nel frattempo l'ha presa un collega, torna la sua e lo si dice.
+    async function setLabel(item, on) {
+        const config = loadConfig();
+        const user = currentUser(config);
+        const before = item.label;
+        item.label = on ? { name: user.displayValue, color: config.profile.label } : null;
+        state.labelEntering = on ? item.conversationId : null;
+        render();
+        state.labelEntering = null;
+        try {
+            if (on) {
+                const result = await Services.labelMail(item.conversationId, user, config.profile.label);
+                if (!result?.ok) {
+                    item.label = result?.label || before;
+                    render();
+                    showStatus(TEXTS.queue.labeledBy(result?.label?.name || ''), 'warning');
+                }
+            } else await Services.unlabelMail(item.conversationId, user);
+        } catch (error) {
+            console.error('[AMP]', error);
+            item.label = before;
+            render();
+            showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
+        }
+    }
 
     // ---------------------------- Ticket ----------------------------------
     // I ticket dello stesso thread stanno insieme; in cima i thread con messaggi nuovi.
@@ -1891,7 +1977,8 @@
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')),
             inGroup ? null : newMessagesPreview(ticket),
             h('div', { class: 'ao-item-meta' },
-                mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'),
+                ticket.messageId ? (mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'))
+                    : labelChip(mine ? { name: currentUser().displayValue, color: loadConfig().profile.label } : (ticket.label || { name: ticket.assignedTo?.name || '', color: 'grafite' })),
                 h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
                 ticket.messageId ? (ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null) : chip(TEXTS.tickets.noMail, 'neutral'),
@@ -2670,6 +2757,20 @@
                 textField(TEXTS.settings.assignedTo, draft.name, value => { draft.name = value; }, { placeholder: outlookName, hint: TEXTS.settings.profileHint }),
                 config.profile.assignedTo.displayValue && !config.profile.assignedTo.value
                     ? h('div', {}, chip(TEXTS.settings.toVerify, 'warning'), ' ', h('span', { class: 'ao-hint' }, TEXTS.settings.toVerifyHint)) : null,
+                // Colore dell'etichetta: si salva subito; la voce scelta mostra il cognome
+                h('div', { class: 'ao-field' },
+                    h('span', { class: 'ao-label' }, TEXTS.settings.label),
+                    h('div', { class: 'ao-tag-palette', role: 'group', 'aria-label': TEXTS.settings.label },
+                        Object.entries(THEME.labels).map(([key, color]) => h('button', {
+                            type: 'button', class: `ao-user-tag ao-tag-swatch${key === config.profile.label ? ' ao-active' : ''}`, style: `--ao-tag-color: ${color}`,
+                            title: key, 'aria-label': key, 'aria-pressed': String(key === config.profile.label),
+                            onclick: () => {
+                                const current = loadConfig();
+                                current.profile = { ...current.profile, label: key };
+                                saveConfig(current);
+                                render();
+                            }
+                        }, key === config.profile.label ? surname(currentUser(config).displayValue) : '')))),
                 h('div', { class: 'ao-actions' },
                     h('button', {
                         type: 'button', class: 'ao-button ao-primary',
@@ -3042,6 +3143,19 @@
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-chip.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 #ao-root .ao-chip.ao-tone-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
+/* Etichetta dell'operatore: un colore a testa (--ao-tag-color), fondo e scritta ricavati secondo lo stile */
+#ao-root .ao-user-tag { display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 9px; border: 0; border-radius: var(--ao-radius-pill); background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-base)); color: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); box-shadow: inset 0 0 0 1px var(--ao-tag-line); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); line-height: 1; white-space: nowrap; }
+#ao-root button.ao-user-tag { cursor: pointer; }
+#ao-root .ao-user-tag-in { animation: ao-tag-in .28s cubic-bezier(.32, 1.28, .5, 1); }
+@keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
+/* Posto vuoto per la propria etichetta: più stretto di qualunque etichetta, con il fondo dei selettori */
+#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .2s, background-color .2s; }
+#ao-root .ao-user-tag-add:hover { color: var(--ao-text); background: linear-gradient(var(--ao-segment-hover), var(--ao-segment-hover)), var(--ao-segment-track); }
+/* Profilo: scelta del colore */
+#ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+#ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
+#ao-root .ao-tag-swatch.ao-active { outline: 2px solid color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in { animation: none; } }
 
 /* Riquadri */
 #ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }

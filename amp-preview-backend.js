@@ -59,6 +59,8 @@
         giulia: { name: 'Giulia Verdi', sysId: 'sys_user_2' },
         luca: { name: 'Luca Neri', sysId: 'sys_user_3' }
     };
+    // Colore dell'etichetta di ciascun operatore (in produzione: dal suo profilo, salvato su SharePoint)
+    const OPERATOR_LABELS = { 'Marco Rossi': 'azzurro', 'Giulia Verdi': 'verde', 'Luca Neri': 'viola' };
 
     // ------------------------------------------------------------------
     // Dati di partenza (tutti inventati)
@@ -215,7 +217,7 @@
     function load() {
         try {
             const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-            if (stored?.sp) return stored;
+            if (stored?.sp) { stored.sp.labels ||= {}; return stored; }
         } catch (error) { /* si riparte dai dati di esempio */ }
         return createDatabase();
     }
@@ -223,8 +225,10 @@
         const base = seed();
         const data = {
             messages: base.messages, incidents: base.incidents, history: base.history, ticketCounter: base.ticketCounter,
-            sp: { threads: {}, tickets: {}, movements: [], syncedAt: '' }
+            sp: { threads: {}, tickets: {}, movements: [], syncedAt: '' },
         };
+        // Etichette sulle mail in coda (chi le sta gestendo): una per thread. Di partenza, una di Giulia.
+        data.sp.labels = { 'conv-3': { name: 'Giulia Verdi', color: 'verde', at: iso(HOUR) } };
         db = data;
         // Situazione di partenza su SharePoint: copia di tutti i ticket e thread già collegati.
         Object.keys(data.incidents).forEach(number => mirror(number));
@@ -400,6 +404,8 @@
             messageId: messages.length ? messages[messages.length - 1].id : null,
             mailUnconfirmed: Boolean(similar),
             owner: conversation ? db.sp.threads[conversation]?.owner || '' : '',
+            // Ticket senza mail: l'etichetta è quella di chi l'ha aperto
+            label: conversation ? null : { name: ticket.assignedTo?.name || '', color: OPERATOR_LABELS[ticket.assignedTo?.name] || 'grafite' },
             newMessages: conversation ? newMessagesOf(conversation) : 0,
             lastNewMessage: conversation && newMessagesOf(conversation) ? lastIncomingPreview(conversation) : null,
             syncedAt: db.sp.syncedAt
@@ -448,7 +454,8 @@
             sender: lastIncoming.from,
             receivedAt: lastIncoming.receivedAt,
             preview: lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160),
-            previous: result.previous ? { number: result.previous.number, state: result.previous.state } : null
+            previous: result.previous ? { number: result.previous.number, state: result.previous.state } : null,
+            label: db.sp.labels[conversationId] || null
         };
     }
     const decoratedTicket = number => decorate(db.sp.tickets[number]);
@@ -609,6 +616,27 @@
             db.sp.threads[conversationId] = thread;
             record('inoltrata', '', by?.displayValue, group, conversationId);
             persist();
+            return respond(true);
+        },
+        // Etichetta su una mail in coda: chi la sta gestendo. Una sola per thread: se c'è già quella di un altro
+        // non si sovrascrive (in produzione: colonna univoca su SharePoint) e torna l'etichetta esistente.
+        labelMail(conversationId, by, color) {
+            const name = by?.displayValue || '';
+            const existing = db.sp.labels[conversationId];
+            if (existing && existing.name !== name) return respond({ ok: false, label: existing });
+            const label = { name, color, at: now() };
+            db.sp.labels[conversationId] = label;
+            record('etichetta', '', name, color, conversationId);
+            persist();
+            return respond({ ok: true, label });
+        },
+        unlabelMail(conversationId, by) {
+            const existing = db.sp.labels[conversationId];
+            if (existing && existing.name === (by?.displayValue || '')) {
+                delete db.sp.labels[conversationId];
+                record('etichetta tolta', '', existing.name, '', conversationId);
+                persist();
+            }
             return respond(true);
         },
         restoreMail(conversationId) {
