@@ -408,7 +408,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 12:20';
+    const BUILD = '2026-11-03 12:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2882,6 +2882,8 @@
 #ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
 #ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
+/* Vetro: ricerca aperta (campo e lente) accesa come una card al passaggio del mouse, senza contorno. */
+#ao-root[data-style="glass"] .ao-search-bar, #ao-root[data-style="glass"] .ao-search-bar:focus-within, #ao-root[data-style="glass"] .ao-bar-search.ao-active { border-color: transparent; background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
 #ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
 /* Ricerca: scheletro di caricamento che pulsa, poi i risultati entrano dal basso */
