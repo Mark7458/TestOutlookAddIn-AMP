@@ -131,7 +131,7 @@
     };
 
     // Versione del pannello (attributo data-build dell'area): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 14:35';
+    const BUILD = '2026-11-03 14:50';
 
     // Configurazione operativa scaricata dal core dell'add-in (agenzie, operatori, gruppi).
     // Serve per etichette, menu e visibilità; l'autorizzazione resta al backend.
@@ -515,8 +515,13 @@
     const segmentMemory = new Map();
     const segmentPlace = new Map();
     const segmentKey = options => options.map(option => option.value).join('|');
-    function filterBar(options, value, onchange) {
+    // grow: la voce scelta è più larga delle altre (selettore con le icone); cambiando scelta le larghezze
+    // si scambiano con lo stesso movimento della pillola, che le segue.
+    function filterBar(options, value, onchange, grow = false) {
         const key = segmentKey(options);
+        const previous = segmentMemory.get(key);
+        const growing = grow && previous !== undefined && previous !== value;
+        const wide = growing ? previous : value; // all'inizio è larga la voce di prima
         const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
         const kept = segmentMemory.get(key) === value && segmentPlace.get(key);
         if (kept) {
@@ -527,10 +532,9 @@
         const bar = h('div', { class: 'ao-segmented', role: 'group' },
             thumb,
             options.map(option => h('button', {
-                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}`, dataset: { value: option.value },
+                type: 'button', class: `ao-segment${option.value === value ? ' ao-active' : ''}${grow && option.value === wide ? ' ao-grow' : ''}`, dataset: { value: option.value },
                 'aria-pressed': String(option.value === value), onclick: () => onchange(option.value)
             }, option.label, option.count !== undefined ? h('span', { class: 'ao-count' }, option.count) : null)));
-        const previous = segmentMemory.get(key);
         segmentMemory.set(key, value);
         requestAnimationFrame(() => {
             if (!bar.isConnected) return;
@@ -543,7 +547,23 @@
                 if (!animate) segmentPlace.set(key, { width: thumb.style.width, transform: thumb.style.transform });
                 return true;
             };
-            if (previous !== undefined && previous !== value && place(previous, false)) {
+            const button = target => bar.querySelector(`.ao-segment[data-value="${CSS.escape(String(target))}"]`);
+            if (growing && place(previous, false)) {
+                // Dove arriverà la voce nuova, già larga: si misura e si torna subito com'era (senza disegnare)
+                const from = button(previous), to = button(value);
+                from.classList.remove('ao-grow'); to.classList.add('ao-grow');
+                const end = { width: `${to.offsetWidth}px`, transform: thumb.style.transform.replace(/-?[\d.]+px/, `${to.offsetLeft - 2}px`) };
+                to.classList.remove('ao-grow'); from.classList.add('ao-grow');
+                bar.getBoundingClientRect();
+                // Larghezze e pillola si muovono insieme, con la stessa durata e la stessa curva
+                bar.classList.add('ao-growing');
+                from.classList.remove('ao-grow'); to.classList.add('ao-grow');
+                thumb.classList.add('ao-moving');
+                thumb.style.width = end.width;
+                thumb.style.transform = end.transform;
+                const values = options.map(option => option.value);
+                slideInContent(bar, values.indexOf(value) > values.indexOf(previous) ? 1 : -1);
+            } else if (previous !== undefined && previous !== value && place(previous, false)) {
                 thumb.getBoundingClientRect(); // parte dalla voce di prima
                 place(value, true);
                 // Anche il contenuto che dipende dal selettore entra nella direzione dello spostamento.
@@ -567,15 +587,18 @@
         // Il nome compare in dissolvenza solo quando la scelta cambia, non a ogni ridisegno.
         const previous = segmentMemory.get(segmentKey(options));
         const entering = previous !== undefined && previous !== value;
+        // il nome della voce di prima svanisce mentre si stringe, poi si toglie
+        const leaving = (option, active) => entering && !active && option.value === previous
+            ? h('span', { class: 'ao-segment-name-out', onanimationend: event => event.currentTarget.remove() }, option.label) : null;
         const bar = filterBar(options.map(option => {
             const active = option.value === value;
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name-in' : null }, option.label) : null],
+                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name-in' : null }, option.label) : leaving(option, active)],
                 count: active ? option.count : undefined
             };
-        }), value, onchange);
+        }), value, onchange, true);
         bar.classList.add('ao-segmented-icons');
         return bar;
     }
@@ -1077,10 +1100,13 @@
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-segment-thumb.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
-#ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; }
-#ao-root .ao-segmented-icons .ao-segment.ao-active { flex: 2.6; }
+#ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; overflow: hidden; }
+#ao-root .ao-segmented-icons .ao-segment.ao-grow { flex: 2.6; }
+#ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: color .25s, flex-grow .32s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-segment-name-out { animation: ao-fade-out .2s linear forwards; }
+@keyframes ao-fade-out { to { opacity: 0; } }
 #ao-root .ao-segment-name-in { animation: ao-fade-in .25s linear; }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name-in { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name-in { animation: none; } #ao-root .ao-segment-name-out { display: none; } #ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: none; } }
 #ao-root .ao-source-bar { position: relative; display: grid; }
 #ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; }
 #ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
