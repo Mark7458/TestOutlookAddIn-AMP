@@ -357,7 +357,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 11:15';
+    const BUILD = '2026-11-03 11:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -978,15 +978,38 @@
         }, true);
         container.replaceChildren(root);
         // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
-        if (window.ResizeObserver) new ResizeObserver(() => {
-            const indicator = root.querySelector('.ao-tab-indicator');
-            if (indicator && !indicator.classList.contains('ao-moving')) placeTabIndicator();
-        }).observe(root.querySelector('.ao-tabs'));
+        if (window.ResizeObserver) {
+            const observer = new ResizeObserver(() => {
+                blendTabsWithHeader();
+                const indicator = root.querySelector('.ao-tab-indicator');
+                if (indicator && !indicator.classList.contains('ao-moving')) placeTabIndicator();
+            });
+            observer.observe(root.querySelector('.ao-tabs'));
+            const header = document.querySelector('.app-header');
+            if (header) observer.observe(header);
+        }
+        blendTabsWithHeader();
         root.querySelector('.ao-tab-indicator').addEventListener('transitionend', event => event.currentTarget.classList.remove('ao-moving'));
     }
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
+    // Barra delle schede come continuazione dell'intestazione blu dell'add-in: riprende la stessa sfumatura
+    // (letta dall'intestazione) e la prolunga, così le due fasce sembrano una sola.
+    function blendTabsWithHeader() {
+        const nav = root?.querySelector('.ao-tabs');
+        const header = document.querySelector('.app-header');
+        if (!nav || !header || !nav.offsetWidth) return;
+        const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
+            .map(color => color.match(/[\d.]+/g).slice(0, 3).map(Number));
+        if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
+        const [from, to] = [colors[0], colors[colors.length - 1]];
+        const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
+        const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
+        const mix = from.map((value, i) => Math.round(value + (to[i] - value) * start));
+        const end = Math.min(100, (W / (w + n)) * 100);
+        nav.style.background = `linear-gradient(135deg, rgb(${mix.join(',')}) 0%, rgb(${to.join(',')}) ${end.toFixed(1)}%)`;
+    }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
         if (!indicator) return;
@@ -2672,15 +2695,16 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-surface); border-bottom: 1px solid var(--ao-line); }
-#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); }
-#ao-root .ao-settings-button.ao-active { color: var(--ao-text-accent); background: var(--ao-accent-bg); }
-#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
-#ao-root .ao-tab:hover { color: var(--ao-text); background: var(--ao-hover); }
-#ao-root .ao-tab.ao-active { color: var(--ao-text-accent); }
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; }
+#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: rgba(255, 255, 255, .8); }
+#ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: #fff; }
+#ao-root .ao-tabs .ao-settings-button.ao-active { background: rgba(255, 255, 255, .22); color: #fff; }
+#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: rgba(255, 255, 255, .72); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+#ao-root .ao-tab.ao-active { color: #fff; }
 #ao-root .ao-tab-icon { display: inline-flex; margin-right: 5px; opacity: .8; transition: color .25s, opacity .25s; }
-#ao-root .ao-tab.ao-active .ao-tab-icon { color: var(--ao-accent); opacity: 1; }
-#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--ao-accent); pointer-events: none; opacity: 0; }
+#ao-root .ao-tab.ao-active .ao-tab-icon { color: #fff; opacity: 1; }
+#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: #fff; pointer-events: none; opacity: 0; }
 #ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
 #ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-indicator.ao-moving { transition: none; } }
@@ -2690,12 +2714,14 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
-#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-text-accent); }
+#ao-root .ao-tab .ao-counter { color: rgba(255, 255, 255, .72); }
+#ao-root .ao-tab.ao-active .ao-counter { color: #fff; }
 /* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
 #ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 #ao-root .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: var(--ao-accent); color: var(--ao-white); font-weight: var(--ao-fw-bold); }
+#ao-root .ao-tab .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: #fff; color: #005a9e; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
