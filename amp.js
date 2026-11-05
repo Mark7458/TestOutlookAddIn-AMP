@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 00:50';
+    const BUILD = '2026-11-06 01:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1225,15 +1225,15 @@
         if (slide && from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
     }
     // Cambio di pagina dalle schede o dall'ingranaggio: ricerca e filtri si chiudono e ogni pagina riparte dalla sua
-    // voce predefinita (In coda → Attive, Ticket → Da mail). Il ritorno con ← invece ritrova l'elenco com'era.
+    // voce predefinita (In coda → Attive, Ticket → Da mail, Impostazioni → Profilo). Il ritorno con ← invece ritrova l'elenco com'era.
     function openPage(view, backTo = null) {
         if (view !== state.view) {
             clearTimeout(searchTimer);
             Object.assign(state, {
-                queueTab: 'active', ticketSource: 'mail', ticketFilterOpen: false,
+                queueTab: 'active', ticketSource: 'mail', settingsTab: 'profile', ticketFilterOpen: false,
                 ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false
             });
-            ['active|ignored', 'mail|none'].forEach(key => { segmentMemory.delete(key); segmentPlace.delete(key); }); // la pillola compare ferma sulla voce predefinita
+            ['active|ignored', 'mail|none', Object.keys(TEXTS.settings.tabs).join('|')].forEach(key => { segmentMemory.delete(key); segmentPlace.delete(key); }); // la pillola compare ferma sulla voce predefinita
         }
         setView(view, backTo);
     }
