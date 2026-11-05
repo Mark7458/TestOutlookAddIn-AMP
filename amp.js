@@ -536,7 +536,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-03 22:10';
+    const BUILD = '2026-11-06 00:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
