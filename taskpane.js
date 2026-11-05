@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-2
+// Test-Plugin file version: 0.2-taskpane.js-devtools-3
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-2',
-    'taskpane.js': '0.2-taskpane.js-devtools-2',
-    'taskpane.css': '0.2-taskpane.css-devtools-2',
+    'taskpane.html': '0.2-taskpane.html-devtools-3',
+    'taskpane.js': '0.2-taskpane.js-devtools-3',
+    'taskpane.css': '0.2-taskpane.css-devtools-3',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -40,6 +40,7 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
   let currentHeaderText = "";
   let currentMessageContext = null;
   let currentSharePointData = null;
+  let developerToolsAllowed = false;
   const messageContextListeners = new Set();
   const sharePointDataListeners = new Set();
   const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
@@ -523,6 +524,7 @@ function registerHealthButton() {
   function showMainView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
+    const developerToolsView = byId("developer-tools-view");
 
     if (mainView) {
       mainView.hidden = false;
@@ -531,80 +533,16 @@ function registerHealthButton() {
     if (headerView) {
       headerView.hidden = true;
     }
+
+    if (developerToolsView) {
+      developerToolsView.hidden = true;
+    }
   }
 
-  function readOperationalConfigPayload() { return readOperationalConfigCache()?.payload || null; }
-  function findCurrentOperator(config = readOperationalConfigPayload()) {
-    const email = String(Office.context?.mailbox?.userProfile?.emailAddress || "").trim().toLowerCase();
-    return Object.entries(config?.operators || {}).find(([, operator]) => operator?.enabled && String(operator.email || "").trim().toLowerCase() === email) || null;
-  }
-  function getRolePriority(config, roleName) {
-    const match = Object.values(config?.roles || {}).find((role) => role?.role === roleName);
-    return Number.isFinite(Number(match?.priority)) ? Number(match.priority) : null;
-  }
-  function refreshDeveloperToolsAccess(config = readOperationalConfigPayload()) {
-    const entry = byId("developer-tools-entry");
-    const statusElement = byId("developer-tools-access-status");
-    const current = findCurrentOperator(config);
-    const priority = current ? getRolePriority(config, current[1].role) : null;
-    const allowed = priority !== null && priority <= 1;
-    if (entry) entry.hidden = !allowed;
-    if (statusElement) statusElement.textContent = allowed ? `${current[1].displayName} · ${current[1].role}` : "";
-    return allowed;
-  }
-  function syncDeveloperConversationId() {
-    const input = byId("developer-conversation-id");
-    if (input) input.value = currentMessageContext?.normalizedConversationId || "";
-  }
-  function showDeveloperToolsView() {
-    if (!refreshDeveloperToolsAccess()) return;
-    byId("main-view").hidden = true;
-    const headerView = byId("header-view");
-    if (headerView) headerView.hidden = true;
-    byId("developer-tools-view").hidden = false;
-    syncDeveloperConversationId();
-  }
-  function setDeveloperLoading(loading) {
-    const button = byId("developer-get-ticket");
-    if (button) { button.disabled = loading; button.textContent = loading ? "Esecuzione..." : "GetTicketByConversationId"; }
-  }
-  function showDeveloperResult(result) {
-    const panel = byId("developer-result"); const statusElement = byId("developer-status"); const auth = byId("developer-auth-mode"); const response = byId("developer-response");
-    if (!panel || !statusElement || !auth || !response) return;
-    panel.hidden = false;
-    statusElement.textContent = `${result.status} ${result.statusText || ""}`.trim();
-    statusElement.className = result.ok ? "status-success" : "status-error";
-    auth.textContent = result.authenticationMode || "Non disponibile";
-    try { response.textContent = JSON.stringify(JSON.parse(result.body || "{}"), null, 2); } catch { response.textContent = result.body || "(Risposta vuota)"; }
-  }
-  async function runDeveloperGetTicket() {
-    const conversationId = String(byId("developer-conversation-id")?.value || "").trim();
-    if (!conversationId) { showDeveloperResult({ ok: false, status: "Errore", body: "Conversation ID mancante" }); return; }
-    setDeveloperLoading(true);
-    try {
-      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
-      const config = await ensureOperationalConfig(authentication.accessToken);
-      if (!refreshDeveloperToolsAccess(config)) throw new Error("Accesso Developer Tools non autorizzato.");
-      const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
-      const fetchResponse = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
-      const body = await fetchResponse.text();
-      const result = { ok: fetchResponse.ok, status: fetchResponse.status, statusText: fetchResponse.statusText, authenticationMode: authentication.acquisitionMode, body };
-      showDeveloperResult(result);
-      let parsedData = null; try { parsedData = JSON.parse(body || "{}"); } catch {}
-      currentSharePointData = { conversationId, ok: result.ok, status: result.status, statusText: result.statusText, authenticationMode: result.authenticationMode, retrievedAt: new Date().toISOString(), data: parsedData, rawBody: parsedData ? null : body };
-      publishSharePointData();
-    } catch (error) {
-      showDeveloperResult({ ok: false, status: "Errore", authenticationMode: "Non disponibile", body: error?.message || String(error) });
-    } finally { setDeveloperLoading(false); }
-  }
-  function registerDeveloperToolsControls() {
-    byId("open-developer-tools")?.addEventListener("click", showDeveloperToolsView);
-    byId("developer-tools-back")?.addEventListener("click", showMainView);
-    byId("developer-get-ticket")?.addEventListener("click", runDeveloperGetTicket);
-  }
   function showHeaderView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
+    const developerToolsView = byId("developer-tools-view");
 
     if (mainView) {
       mainView.hidden = true;
@@ -613,6 +551,41 @@ function registerHealthButton() {
     if (headerView) {
       headerView.hidden = false;
     }
+
+    if (developerToolsView) {
+      developerToolsView.hidden = true;
+    }
+  }
+
+  function syncDeveloperConversationId() {
+    const input = byId("developer-conversation-id");
+    if (input) {
+      input.value = currentMessageContext?.normalizedConversationId || "";
+    }
+  }
+
+  function showDeveloperToolsView() {
+    if (!developerToolsAllowed) {
+      return;
+    }
+
+    const mainView = byId("main-view");
+    const headerView = byId("header-view");
+    const developerToolsView = byId("developer-tools-view");
+
+    if (mainView) {
+      mainView.hidden = true;
+    }
+
+    if (headerView) {
+      headerView.hidden = true;
+    }
+
+    if (developerToolsView) {
+      developerToolsView.hidden = false;
+    }
+
+    syncDeveloperConversationId();
   }
 
   async function openAttachmentHeader(attachment) {
@@ -1048,7 +1021,6 @@ function registerHealthButton() {
     if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
       window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
       refreshOperationalConfigDiagnostics(cached, "cache valida");
-      refreshDeveloperToolsAccess(cached.payload);
       return cached.payload;
     }
     window.WorkflowHealth?.recordDiagnostic?.("config_version_mismatch", { requiredSchemaVersion: required.schemaVersion, requiredDataVersion: required.requiredDataVersion, cachedSchemaVersion: cached?.schemaVersion ?? null, cachedDataVersion: cached?.dataVersion ?? null });
@@ -1065,7 +1037,6 @@ function registerHealthButton() {
       localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
       window.WorkflowHealth?.recordDiagnostic?.("config_cache_saved", { schemaVersion: stored.schemaVersion, dataVersion: stored.dataVersion, agencies: Object.keys(payload.agencies || {}).length, operators: Object.keys(payload.operators || {}).length, groups: Object.keys(payload.groups || {}).length });
       refreshOperationalConfigDiagnostics(stored, "scaricata");
-      refreshDeveloperToolsAccess(payload);
       return payload;
     } catch (error) {
       window.WorkflowHealth?.recordDiagnostic?.("config_download_error", { message: error?.message || String(error) });
@@ -1073,33 +1044,125 @@ function registerHealthButton() {
       throw error;
     }
   }
+
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function evaluateDeveloperToolsAccess(config) {
+    const outlookEmail = normalizeEmail(Office.context?.mailbox?.userProfile?.emailAddress);
+    const operators = Object.values(config?.operators || {});
+    const roles = Object.values(config?.roles || {});
+    const operator = operators.find((candidate) =>
+      candidate?.enabled !== false && normalizeEmail(candidate?.email) === outlookEmail
+    );
+    const role = roles.find((candidate) =>
+      String(candidate?.role || "").trim().toLowerCase() === String(operator?.role || "").trim().toLowerCase()
+    );
+    const priority = Number(role?.priority);
+
+    return {
+      allowed: Boolean(operator && Number.isFinite(priority) && priority <= 1),
+      operator,
+      role,
+      outlookEmail
+    };
+  }
+
+  function refreshDeveloperToolsAccess(config) {
+    const access = evaluateDeveloperToolsAccess(config);
+    developerToolsAllowed = access.allowed;
+    const entry = byId("developer-tools-entry");
+    if (entry) {
+      entry.hidden = !developerToolsAllowed;
+    }
+    if (!developerToolsAllowed && !byId("developer-tools-view")?.hidden) {
+      showMainView();
+    }
+    window.WorkflowHealth?.recordDiagnostic?.("developer_tools_access_evaluated", {
+      allowed: developerToolsAllowed,
+      operatorId: access.operator?.id || null,
+      role: access.operator?.role || null,
+      priority: Number.isFinite(Number(access.role?.priority)) ? Number(access.role.priority) : null,
+      emailMatched: Boolean(access.operator)
+    });
+    return developerToolsAllowed;
+  }
+
+  async function initializeOperationalConfig() {
+    const required = TEST_PLUGIN_BUILD.database;
+    const cached = readOperationalConfigCache();
+    const cacheIsValid = Boolean(
+      cached?.schemaVersion === required.schemaVersion &&
+      cached?.dataVersion === required.requiredDataVersion &&
+      cached?.payload
+    );
+
+    if (cacheIsValid) {
+      refreshOperationalConfigDiagnostics(cached, "cache valida");
+      refreshDeveloperToolsAccess(cached.payload);
+      return cached.payload;
+    }
+
+    refreshDeveloperToolsAccess(null);
+    if (!window.WorkflowHealth?.getAccessTokenSilently) {
+      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_skipped", { reason: "silent_auth_api_unavailable" });
+      return null;
+    }
+
+    try {
+      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_start");
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      if (!authentication?.accessToken) {
+        throw new Error("Token di accesso non disponibile per inizializzare PluginConfig.");
+      }
+      const config = await ensureOperationalConfig(authentication.accessToken);
+      refreshDeveloperToolsAccess(config);
+      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_complete", {
+        authenticationMode: authentication.acquisitionMode || null
+      });
+      return config;
+    } catch (error) {
+      refreshDeveloperToolsAccess(null);
+      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_error", {
+        name: error?.name || "Error",
+        errorCode: error?.errorCode || null,
+        message: error?.message || String(error)
+      });
+      console.error("Inizializzazione PluginConfig non riuscita:", error);
+      return null;
+    } finally {
+      refreshAuthDiagnostics();
+    }
+  }
+
   const GET_TICKET_BY_CONVERSATION_ID_URL =
     "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId";
 
   function resetTicketResult() {
-    const panel = byId("ticket-result");
+    const panel = byId("developer-ticket-result");
     if (panel) {
       panel.hidden = true;
     }
-    setText("ticket-status", "", "");
-    setText("ticket-auth-mode", "", "");
-    setText("ticket-response", "", "");
+    setText("developer-ticket-status", "", "");
+    setText("developer-ticket-auth-mode", "", "");
+    setText("developer-ticket-response", "", "");
   }
 
   function setTicketButtonLoading(isLoading) {
-    const button = byId("test-ticket-button");
+    const button = byId("developer-get-ticket-button");
     if (!button) {
       return;
     }
     button.disabled = isLoading;
-    button.textContent = isLoading ? "Aggiornamento..." : "Aggiorna dati SharePoint";
+    button.textContent = isLoading ? "Esecuzione..." : "GetTicketByConversationId";
   }
 
   function showTicketResult(result) {
-    const panel = byId("ticket-result");
-    const status = byId("ticket-status");
-    const authMode = byId("ticket-auth-mode");
-    const response = byId("ticket-response");
+    const panel = byId("developer-ticket-result");
+    const status = byId("developer-ticket-status");
+    const authMode = byId("developer-ticket-auth-mode");
+    const response = byId("developer-ticket-response");
     if (!panel || !status || !authMode || !response) {
       return;
     }
@@ -1117,10 +1180,10 @@ function registerHealthButton() {
   }
 
   function showTicketError(error) {
-    const panel = byId("ticket-result");
-    const status = byId("ticket-status");
-    const authMode = byId("ticket-auth-mode");
-    const response = byId("ticket-response");
+    const panel = byId("developer-ticket-result");
+    const status = byId("developer-ticket-status");
+    const authMode = byId("developer-ticket-auth-mode");
+    const response = byId("developer-ticket-response");
     if (!panel || !status || !authMode || !response) {
       return;
     }
@@ -1132,20 +1195,17 @@ function registerHealthButton() {
     response.textContent = error?.message || String(error);
   }
 
-  async function lookupTicket(options = {}) {
-    const { sequence = null, manual = false } = options;
+  async function lookupTicketByConversationId(conversationId) {
     const lookupStartedAt = Date.now();
-    const lookupTrigger = manual ? "manual" : "automatic";
-    const logLookup = (event, details = null) => window.WorkflowHealth?.recordDiagnostic?.(`lookup_${event}`, { trigger: lookupTrigger, ...(details || {}) });
-    logLookup("start", { sequence });
+    const logLookup = (event, details = null) => window.WorkflowHealth?.recordDiagnostic?.(`lookup_${event}`, { trigger: "manual", ...(details || {}) });
+    logLookup("start");
     resetTicketResult();
     setTicketButtonLoading(true);
 
     try {
-      const conversationId = currentMessageContext?.normalizedConversationId;
       if (!conversationId) {
         logLookup("conversation_id_missing");
-        throw new Error("Conversation ID non disponibile per il messaggio selezionato.");
+        throw new Error("Inserisci un Conversation ID nei Developer Tools.");
       }
       if (!window.WorkflowHealth?.getAccessTokenSilently) {
         throw new Error("API autenticazione silent non disponibile.");
@@ -1160,7 +1220,7 @@ function registerHealthButton() {
         logLookup("token_error", { name: silentError?.name || "Error", errorCode: silentError?.errorCode || null, message: silentError?.message || String(silentError) });
         logLookup("auth_cycle_exhausted", { errorCode: silentError?.errorCode || null, message: silentError?.message || String(silentError) });
         logLookup("health_fallback_skipped", { reason: "singleAuthCycleOnly" });
-        console.info("GetTicketByConversationId: primo ciclo autenticazione concluso senza token; nessun secondo ciclo automatico.", silentError);
+        console.info("GetTicketByConversationId: ciclo di autenticazione manuale concluso senza token.", silentError);
         throw silentError;
       }
 
@@ -1184,11 +1244,6 @@ function registerHealthButton() {
       logLookup("fetch_response_received", { status: fetchResponse.status, ok: fetchResponse.ok, elapsedMs: Date.now() - startedAt });
       const body = await fetchResponse.text();
 
-      if (sequence !== null && sequence !== loadSequence) {
-        logLookup("stale_result_ignored", { sequence, currentSequence: loadSequence });
-        return null;
-      }
-
       const result = {
         ok: fetchResponse.ok,
         status: fetchResponse.status,
@@ -1197,7 +1252,7 @@ function registerHealthButton() {
         body
       };
       console.info("GetTicketByConversationId:", {
-        trigger: manual ? "manual" : "automatic",
+        trigger: "manual",
         status: result.status,
         ok: result.ok,
         authenticationMode: result.authenticationMode,
@@ -1213,25 +1268,24 @@ function registerHealthButton() {
       return result;
     } catch (error) {
       logLookup("error", { name: error?.name || "Error", errorCode: error?.errorCode || null, message: error?.message || String(error), elapsedMs: Date.now() - lookupStartedAt });
-      if (sequence === null || sequence === loadSequence) {
-        console.error("GetTicketByConversationId non riuscito:", error);
-        showTicketError(error);
-      }
+      console.error("GetTicketByConversationId non riuscito:", error);
+      showTicketError(error);
       return null;
     } finally {
-      if (sequence === null || sequence === loadSequence) {
-        setTicketButtonLoading(false);
-      }
+      setTicketButtonLoading(false);
     }
   }
 
   async function testTicketLookup() {
-    return lookupTicket({ manual: true });
+    const conversationId = String(byId("developer-conversation-id")?.value || "").trim();
+    return lookupTicketByConversationId(conversationId);
   }
 
-  function registerTicketTestControls() {
-    byId("test-ticket-button")?.addEventListener("click", testTicketLookup);
-    byId("close-ticket-result")?.addEventListener("click", resetTicketResult);
+  function registerDeveloperToolsControls() {
+    byId("open-developer-tools")?.addEventListener("click", showDeveloperToolsView);
+    byId("developer-tools-back-button")?.addEventListener("click", showMainView);
+    byId("developer-get-ticket-button")?.addEventListener("click", testTicketLookup);
+    byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
   }
 
   async function loadSelectedMessage() {
@@ -1331,6 +1385,7 @@ function registerHealthButton() {
 
       currentMessageContext = null;
       publishMessageContext();
+      syncDeveloperConversationId();
       const message = error instanceof Error ? error.message : String(error);
       showError(message);
     }
@@ -1355,27 +1410,11 @@ function registerHealthButton() {
     onMessageChanged,
     getCurrentSharePointData,
     onSharePointDataChanged,
-    showMainView
+    refreshCurrentMessage: loadSelectedMessage,
+    showMainView,
+    showDeveloperTools: showDeveloperToolsView
   });
 
-  async function initializeOperationalConfig() {
-    const cached = readOperationalConfigCache();
-    const required = TEST_PLUGIN_BUILD.database;
-    if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
-      refreshOperationalConfigDiagnostics(cached, "cache valida");
-      refreshDeveloperToolsAccess(cached.payload);
-      return cached.payload;
-    }
-    try {
-      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
-      return await ensureOperationalConfig(authentication.accessToken);
-    } catch (error) {
-      window.WorkflowHealth?.recordDiagnostic?.("config_bootstrap_error", { message: error?.message || String(error) });
-      refreshOperationalConfigDiagnostics(cached, `errore: ${error?.message || String(error)}`);
-      refreshDeveloperToolsAccess(cached?.payload || null);
-      return null;
-    }
-  }
   Office.onReady((info) => {
     if (info.host !== Office.HostType.Outlook) {
       showError("Questa pagina deve essere aperta come task pane di Outlook.");
@@ -1385,17 +1424,17 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerSectionToggles();
     registerHealthButton();
-    registerAuthDiagnosticsControls();
     registerDeveloperToolsControls();
+    registerAuthDiagnosticsControls();
     loadBuildVersions();
     refreshOperationalConfigDiagnostics();
-    refreshDeveloperToolsAccess();
     loadDiagnostics();
-    void initializeOperationalConfig();
     registerPluginSettingsControls();
     registerHeaderViewControls();
-    // UI subito disponibile; autenticazione solo alla prima chiamata che ne ha bisogno.
-    loadSelectedMessage();
+    // La lettura Outlook e la configurazione operativa sono pipeline indipendenti.
+    // Nessuna delle due esegue automaticamente GetTicketByConversationId.
+    void loadSelectedMessage();
+    void initializeOperationalConfig();
     refreshAuthDiagnostics();
   });
 })();

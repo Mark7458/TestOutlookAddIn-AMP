@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.2-taskpane.html-devtools-2 -->
+<!-- Test-Plugin file version: 0.2-taskpane.html-devtools-3 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -32,8 +32,9 @@
 <div class="toggle-panel" hidden="" id="settings-panel"><label class="setting-row" title="Se è attiva, mantiene la visualizzazione corrente al cambio messaggio."><input id="persist-view-setting" type="checkbox"/><span>Mantieni sezioni aperte</span></label><label class="setting-row" title="Abilita la raccolta e la visualizzazione dei log diagnostici del plugin."><input id="diagnostics-enabled-setting" type="checkbox"/><span>Abilita diagnostica avanzata</span></label><p class="settings-status" id="settings-status" role="status"></p></div>
 </section><section class="toggle-card"><button aria-controls="diagnostics-panel" aria-expanded="false" class="section-toggle" id="diagnostics-toggle" type="button">Diagnostica</button>
 <div class="toggle-panel" hidden="" id="diagnostics-panel">
+<div class="developer-tools-entry" hidden="" id="developer-tools-entry"><button class="primary-button" id="open-developer-tools" type="button">Developer Tools</button></div>
 <div class="diagnostic-health"><button class="secondary-button compact-button" id="test-function-button" type="button" title="Verifica autenticazione e raggiungibilità della Function App"><span aria-hidden="true" class="connection-dot connection-dot-unknown" id="connection-status-dot"></span><span id="connection-status-label">Test Connessione</span></button></div>
-<div class="diagnostic-auth-tools"><button class="secondary-button compact-button diagnostic-danger-button" id="auth-full-reset" type="button">Reset completo auth</button><span class="auth-diagnostics-status diagnostic-inline-status" id="auth-reset-status" role="status"></span></div><div class="developer-tools-entry" hidden="" id="developer-tools-entry"><button class="secondary-button compact-button" id="open-developer-tools" type="button">Developer Tools</button><span class="auth-diagnostics-status diagnostic-inline-status" id="developer-tools-access-status" role="status"></span></div>
+<div class="diagnostic-auth-tools"><button class="secondary-button compact-button diagnostic-danger-button" id="auth-full-reset" type="button">Reset completo auth</button><span class="auth-diagnostics-status diagnostic-inline-status" id="auth-reset-status" role="status"></span></div>
 <h3 class="diagnostic-subheading" data-diagnostics-log-ui>Log</h3><div class="auth-diagnostics-actions" data-diagnostics-log-ui><button class="secondary-button compact-button" id="auth-diagnostics-refresh" type="button">Aggiorna</button><button class="secondary-button compact-button" id="auth-diagnostics-copy" type="button">Copia</button><button class="secondary-button compact-button" id="auth-diagnostics-clear" type="button">Pulisci log</button></div>
 <pre class="auth-diagnostics-output" data-diagnostics-log-ui id="auth-diagnostics-output">Nessun evento registrato.</pre><div class="auth-diagnostics-status" data-diagnostics-log-ui id="auth-diagnostics-status" role="status"></div>
 <dl class="message-fields">
@@ -43,17 +44,11 @@
 
 </div>
 </section></div>
-
-
-
-
-
-
 <section aria-label="Developer Tools" class="developer-tools-view" hidden="" id="developer-tools-view">
-<div class="developer-tools-toolbar"><button class="secondary-button" id="developer-tools-back" type="button">← Indietro</button></div>
-<section class="card developer-tools-card"><h2>Developer Tools</h2><p class="health-description">Console tecnica per testare direttamente gli endpoint backend.</p>
-<label class="developer-field" for="developer-conversation-id"><span>Conversation ID</span><textarea class="developer-input monospace" id="developer-conversation-id" rows="4"></textarea></label>
-<button class="primary-button" id="developer-get-ticket" type="button">GetTicketByConversationId</button>
-<div class="function-result" hidden="" id="developer-result"><div class="function-result-row"><span>Stato HTTP</span><strong id="developer-status"></strong></div><div class="function-result-row"><span>Autenticazione</span><strong id="developer-auth-mode"></strong></div><pre id="developer-response"></pre></div>
-</section></section><section aria-label="Header del messaggio allegato" class="header-view" hidden="" id="header-view"><div class="header-view-toolbar"><button class="secondary-button" id="header-back-button" type="button">← Indietro</button><button class="primary-button header-copy-button" id="copy-header-button" type="button">Copia header</button></div><div class="field header-content-field"><dt>Header messaggio allegato</dt><dd><div class="header-attachment-name" id="header-attachment-name"></div><div aria-live="polite" class="header-status" id="header-status" role="status"></div><pre class="attachment-header-content selectable" id="attachment-header-content"></pre></dd></div></section>
+<div class="developer-tools-toolbar"><button class="secondary-button" id="developer-tools-back-button" type="button">← Indietro</button></div>
+<section class="developer-tools-card"><h2>Developer Tools</h2><p class="developer-tools-description">Azioni tecniche eseguite solo su richiesta esplicita.</p>
+<div class="developer-action"><h3>GetTicketByConversationId</h3><label for="developer-conversation-id">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-conversation-id" spellcheck="false" type="text"/><button class="primary-button" id="developer-get-ticket-button" type="button">GetTicketByConversationId</button>
+<div class="function-result" hidden="" id="developer-ticket-result"><button aria-label="Chiudi risultato GetTicketByConversationId" class="result-close-button" id="close-developer-ticket-result" type="button">×</button><div class="function-result-row"><span>Stato HTTP</span><strong id="developer-ticket-status"></strong></div><div class="function-result-row"><span>Autenticazione</span><strong id="developer-ticket-auth-mode"></strong></div><pre id="developer-ticket-response"></pre></div></div>
+</section></section>
+<section aria-label="Header del messaggio allegato" class="header-view" hidden="" id="header-view"><div class="header-view-toolbar"><button class="secondary-button" id="header-back-button" type="button">← Indietro</button><button class="primary-button header-copy-button" id="copy-header-button" type="button">Copia header</button></div><div class="field header-content-field"><dt>Header messaggio allegato</dt><dd><div class="header-attachment-name" id="header-attachment-name"></div><div aria-live="polite" class="header-status" id="header-status" role="status"></div><pre class="attachment-header-content selectable" id="attachment-header-content"></pre></dd></div></section>
 </main><footer>Test-Plugin</footer></body></html>

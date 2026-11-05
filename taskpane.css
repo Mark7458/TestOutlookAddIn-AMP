@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-2 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-3 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -455,11 +455,24 @@ footer {
 .connection-dot-unknown { background: #a19f9d; }
 @media (max-width:360px) { .app-header { gap: 9px; } .connection-test-button { padding: 7px; } #connection-status-label { max-width: 72px; white-space: normal; text-align: left; } }
 
-/* Test manuale GetTicketByConversationId. */
-.ticket-test-card { margin-top: 16px; }
-.ticket-test-card h2 { margin: 0 0 8px; }
-#ticket-response { max-height: 280px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
-@media (prefers-color-scheme: dark) { #ticket-response { color: #f3f2f1; background: #201f1e; } }
+/* Developer Tools: console tecnica, separata dalla UI operativa. */
+.developer-tools-entry { margin-bottom: 12px; }
+.developer-tools-view { display: grid; gap: 12px; }
+.developer-tools-toolbar { display: grid; grid-template-columns: minmax(0, 180px); }
+.developer-tools-card { padding: 14px; border: 1px solid #e1dfdd; border-radius: 8px; background: #fff; }
+.developer-tools-card h2 { margin: 0 0 6px; }
+.developer-tools-description { margin: 0 0 16px; color: #605e5c; line-height: 1.4; }
+.developer-action { display: grid; gap: 8px; }
+.developer-action h3 { margin: 0; font-size: 14px; }
+.developer-action label { color: #605e5c; font-size: 12px; font-weight: 600; }
+.developer-input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #8a8886; border-radius: 6px; background: #fff; color: #323130; }
+#developer-ticket-response { max-height: 320px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
+@media (prefers-color-scheme: dark) {
+  .developer-tools-card { border-color: #484644; background: #2d2c2b; }
+  .developer-tools-description,.developer-action label { color: #c8c6c4; }
+  .developer-input { border-color: #8a8886; background: #201f1e; color: #f3f2f1; }
+  #developer-ticket-response { color: #f3f2f1; background: #201f1e; }
+}
 
 /* Health tecnico spostato nella sezione Diagnostica. */
 .diagnostic-health { margin-bottom: 10px; }
@@ -478,17 +491,4 @@ footer {
 /* Inventario versioni componenti. */
 .component-versions { white-space: pre-wrap; }
 
-.diagnostic-sharepoint-tools { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-.diagnostic-sharepoint-tools h3 { margin: 0 0 8px; font-size: 13px; }
-
 .diagnostic-subheading { margin: 14px 0 8px; font-size: 13px; }
-
-.developer-tools-entry { margin: 0 0 10px; }
-.developer-tools-view { display: grid; gap: 12px; }
-.developer-tools-toolbar { display: grid; }
-.developer-tools-card { margin-top: 0; }
-.developer-tools-card h2 { margin: 0 0 8px; }
-.developer-field { display: grid; gap: 6px; margin: 12px 0; color: #605e5c; font-size: 12px; font-weight: 600; }
-.developer-input { width: 100%; resize: vertical; padding: 9px 10px; border: 1px solid #8a8886; border-radius: 6px; background: #fff; color: #323130; }
-#developer-response { max-height: 360px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
-@media (prefers-color-scheme: dark) { .developer-field { color: #c8c6c4; } .developer-input { border-color: #8a8886; background: #201f1e; color: #f3f2f1; } #developer-response { background: #201f1e; color: #f3f2f1; } }
