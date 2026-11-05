@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools
+// Test-Plugin file version: 0.2-taskpane.js-devtools-2
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools',
-    'taskpane.js': '0.2-taskpane.js-devtools',
-    'taskpane.css': '0.2-taskpane.css-devtools',
+    'taskpane.html': '0.2-taskpane.html-devtools-2',
+    'taskpane.js': '0.2-taskpane.js-devtools-2',
+    'taskpane.css': '0.2-taskpane.css-devtools-2',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1358,6 +1358,24 @@ function registerHealthButton() {
     showMainView
   });
 
+  async function initializeOperationalConfig() {
+    const cached = readOperationalConfigCache();
+    const required = TEST_PLUGIN_BUILD.database;
+    if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
+      refreshOperationalConfigDiagnostics(cached, "cache valida");
+      refreshDeveloperToolsAccess(cached.payload);
+      return cached.payload;
+    }
+    try {
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      return await ensureOperationalConfig(authentication.accessToken);
+    } catch (error) {
+      window.WorkflowHealth?.recordDiagnostic?.("config_bootstrap_error", { message: error?.message || String(error) });
+      refreshOperationalConfigDiagnostics(cached, `errore: ${error?.message || String(error)}`);
+      refreshDeveloperToolsAccess(cached?.payload || null);
+      return null;
+    }
+  }
   Office.onReady((info) => {
     if (info.host !== Office.HostType.Outlook) {
       showError("Questa pagina deve essere aperta come task pane di Outlook.");
@@ -1373,6 +1391,7 @@ function registerHealthButton() {
     refreshOperationalConfigDiagnostics();
     refreshDeveloperToolsAccess();
     loadDiagnostics();
+    void initializeOperationalConfig();
     registerPluginSettingsControls();
     registerHeaderViewControls();
     // UI subito disponibile; autenticazione solo alla prima chiamata che ne ha bisogno.
