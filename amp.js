@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 00:30';
+    const BUILD = '2026-11-06 00:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1339,13 +1339,22 @@
         const nav = root?.querySelector('.ao-tabs');
         const header = document.querySelector('.app-header');
         if (!nav || !header || !nav.offsetWidth) return;
-        // Colori della sfumatura (con la trasparenza, per lo stile vetro); il riflesso bianco del vetro non conta.
+        const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
+        // Vetro: intestazione e schede sono un'unica lastra. Sfumatura e riflesso si dipingono sull'altezza di tutte e due
+        // e la barra delle schede ne mostra la parte bassa, così l'effetto continua senza giunture.
+        if (root.dataset.style === 'glass') {
+            const whole = { backgroundSize: `${W}px ${H + n}px`, backgroundRepeat: 'no-repeat' };
+            Object.assign(header.style, whole);
+            nav.style.background = '';
+            Object.assign(nav.style, whole, { backgroundImage: getComputedStyle(header).backgroundImage, backgroundColor: 'transparent', backgroundPosition: `0 ${-H}px` });
+            return;
+        }
+        Object.assign(header.style, { backgroundSize: '', backgroundRepeat: '' });
+        // Flat: la barra riprende la sfumatura dell'intestazione dal punto in cui finisce e la prolunga.
         const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
-            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; })
-            .filter(([r, g, b, a]) => a > 0 && !(r > 245 && g > 245 && b > 245));
+            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; });
         if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
         const [from, to] = [colors[0], colors[colors.length - 1]];
-        const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
         const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
         const mix = from.map((value, i) => value + (to[i] - value) * start);
         const css = ([r, g, b, a]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
