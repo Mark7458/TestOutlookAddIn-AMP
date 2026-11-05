@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 01:30';
+    const BUILD = '2026-11-06 01:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2053,25 +2053,21 @@
                         h('span', {}, option.label), option.value === fallback ? h('span', { class: 'ao-menu-default' }, TEXTS.tickets.defaultFilter) : null)
                 ])) : null);
     }
-    // Cambio della barra secondaria (filtri, ricerca): dura sempre BAR_TIME, dall'uscita delle scritte all'entrata delle nuove.
-    // Filtri, in tre tempi: le scritte svaniscono, le due metà prendono la nuova larghezza, compaiono le scritte nuove.
-    // Ricerca, in due tempi (il riquadro non cambia forma): le scritte svaniscono, compare il campo.
-    // Il pulsante che si spegne o si riaccende lo fa nel tempo che resta dopo l'uscita, così finisce con il resto.
+    // Cambio della barra secondaria (filtri, ricerca): dura BAR_TIME, in due metà uguali. Le scritte svaniscono, poi
+    // compaiono quelle nuove; nella seconda metà le due parti dei filtri prendono la loro larghezza e il pulsante
+    // che si spegne (o si riaccende) cambia, così tutto finisce insieme.
     const BAR_TIME = 500;
     const BAR_EASE = 'cubic-bezier(.3, .8, .2, 1)';
-    const BAR_FADE_OUT = { duration: BAR_TIME * .21, easing: 'linear', fill: 'forwards' };
-    const BAR_MOTION = { duration: BAR_TIME * .52, easing: BAR_EASE };
-    const BAR_FADE_IN = { duration: BAR_TIME - BAR_FADE_OUT.duration - BAR_MOTION.duration, easing: 'linear' };
-    const SEARCH_FADE_OUT = { duration: BAR_TIME * .45, easing: 'linear', fill: 'forwards' };
-    const SEARCH_FADE_IN = { duration: BAR_TIME - SEARCH_FADE_OUT.duration, easing: 'linear' };
+    const BAR_FADE_OUT = { duration: BAR_TIME / 2, easing: 'linear', fill: 'forwards' };
+    const BAR_FADE_IN = { duration: BAR_TIME / 2, easing: 'linear' };
+    const BAR_MOTION = { duration: BAR_TIME / 2, easing: BAR_EASE };
     const fadeAll = (elements, from, to, timing) => Promise.all(elements.filter(Boolean)
         .map(element => element.animate([{ opacity: from }, { opacity: to }], timing).finished)).catch(() => {});
-    // Le scritte nuove restano nascoste mentre il riquadro si muove, poi compaiono.
-    async function fadeInAfter(elements, move, timing = BAR_FADE_IN) {
+    // Le scritte nuove compaiono mentre il riquadro prende la sua forma.
+    async function fadeInWith(elements, move = async () => {}) {
         const contents = elements.filter(Boolean);
         contents.forEach(element => { element.style.opacity = '0'; });
-        await move();
-        await fadeAll(contents, 0, 1, timing);
+        await Promise.all([move(), fadeAll(contents, 0, 1, BAR_FADE_IN)]);
         contents.forEach(element => { element.style.opacity = ''; });
     }
     const barRow = () => root.querySelector('.ao-source-bar .ao-bar-row');
@@ -2097,7 +2093,7 @@
         const settle = settleBar();
         change();
         render();
-        easeDisabled('.ao-bar-search', lensWasOff, BAR_TIME - BAR_FADE_OUT.duration);
+        easeDisabled('.ao-bar-search', lensWasOff);
         const fresh = barMiddle();
         const parts = partsOf(fresh);
         if (parts.length !== widths.length) return settle();
@@ -2105,7 +2101,7 @@
         const active = fresh.querySelector('.ao-segment.ao-active');
         const pill = litFrom && thumb && active ? thumb : null;
         const contents = [...parts.flatMap(part => [...part.children]), thumb, funnelIcon()].filter(element => element && element !== pill);
-        await holdingRender(() => fadeInAfter(contents, async () => {
+        await holdingRender(() => fadeInWith(contents, async () => {
             const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
             const pillTo = pill && { width: `${active.offsetWidth}px`, transform: `translateX(${active.offsetLeft - 2}px)` };
             // Si muovono le prime metà; l'ultima riempie lo spazio che resta, così il bordo destro non si sposta.
@@ -2127,11 +2123,11 @@
     // La lente diventa una × mentre la ricerca è aperta: l'icona cambia in dissolvenza con il resto.
     const lensIcon = () => barRow()?.querySelector('.ao-bar-search > *');
     // Il pulsante che si spegne (o si riaccende) non sparisce: passa da acceso a spento con il movimento della barra.
-    function easeDisabled(selector, wasOff, duration) {
+    function easeDisabled(selector, wasOff) {
         const button = barRow()?.querySelector(selector);
         if (!button || button.disabled === Boolean(wasOff)) return;
         const on = { opacity: 1 }, off = { opacity: THEME.state.disabledOpacity };
-        button.animate(wasOff ? [off, on] : [on, off], { duration, easing: BAR_EASE });
+        button.animate(wasOff ? [off, on] : [on, off], BAR_MOTION);
     }
     async function openTicketSearch() {
         if (state.holdRender) return;
@@ -2139,12 +2135,12 @@
         const open = () => Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
         const box = barMiddle();
         if (!box || reducedMotion()) { open(); render(); focusTicketSearch(); return; }
-        await holdingRender(() => fadeAll([...box.children, lensIcon(), ...listBelow()], 1, 0, SEARCH_FADE_OUT));
+        await holdingRender(() => fadeAll([...box.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
         open();
         render();
-        easeDisabled('.ao-bar-filter', false, SEARCH_FADE_IN.duration);
+        easeDisabled('.ao-bar-filter', false);
         focusTicketSearch();
-        await holdingRender(() => fadeInAfter([...barMiddle().children, lensIcon()], () => Promise.resolve(), SEARCH_FADE_IN));
+        await holdingRender(() => fadeInWith([...barMiddle().children, lensIcon()]));
     }
     async function closeTicketSearch() {
         if (state.holdRender) return;
@@ -2152,12 +2148,12 @@
         const close = () => Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
         const bar = barMiddle();
         if (!bar || reducedMotion()) { close(); render(); return; }
-        await holdingRender(() => fadeAll([...bar.children, lensIcon(), ...listBelow()], 1, 0, SEARCH_FADE_OUT));
+        await holdingRender(() => fadeAll([...bar.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
         const settle = settleBar();
         close();
         render();
-        easeDisabled('.ao-bar-filter', true, SEARCH_FADE_IN.duration);
-        await holdingRender(() => fadeInAfter([...barMiddle().children, lensIcon(), ...listBelow()], async () => { settle(); }, SEARCH_FADE_IN));
+        easeDisabled('.ao-bar-filter', true);
+        await holdingRender(() => fadeInWith([...barMiddle().children, lensIcon(), ...listBelow()], async () => settle()));
     }
     // Ricerca mentre si scrive: subito lo scheletro di caricamento, i risultati quando ci si ferma un attimo.
     let searchTimer = null;
