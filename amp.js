@@ -260,10 +260,15 @@
         glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7' },
         glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
         glassDarkBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed',
-        // Intestazione dell'add-in nel vetro, per modo: nello scuro è una lastra dello stesso vetro del pannello, tinta di blu
-        // (riflesso diagonale, bordo azzurro, alone, filo di luce in alto), staccata dai bordi come una scheda.
+        // Intestazione dell'add-in nel vetro, per modo: una lastra dello stesso vetro del pannello, tinta di blu
+        // (riflesso diagonale, bordo, ombra, filo di luce in alto), staccata dai bordi come una scheda.
         glassHeader: {
-            light: { background: 'linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))', border: '0 solid transparent', shadow: 'none', margin: '0', radius: '0' },
+            light: {
+                background: 'linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), rgba(0, 105, 200, .72)',
+                border: '1px solid rgba(255, 255, 255, .6)',
+                shadow: '0 8px 22px rgba(30, 60, 120, .18), inset 0 1px 0 rgba(255, 255, 255, .45)',
+                margin: '8px 8px 0', radius: '10px'
+            },
             dark: {
                 background: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), rgba(20, 70, 150, .55)',
                 border: '1px solid rgba(140, 180, 255, .22)',
