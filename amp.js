@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 01:20';
+    const BUILD = '2026-11-06 01:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2057,12 +2057,12 @@
     // Filtri, in tre tempi: le scritte svaniscono, le due metà prendono la nuova larghezza, compaiono le scritte nuove.
     // Ricerca, in due tempi (il riquadro non cambia forma): le scritte svaniscono, compare il campo.
     // Il pulsante che si spegne o si riaccende lo fa nel tempo che resta dopo l'uscita, così finisce con il resto.
-    const BAR_TIME = 420;
+    const BAR_TIME = 500;
     const BAR_EASE = 'cubic-bezier(.3, .8, .2, 1)';
-    const BAR_FADE_OUT = { duration: 90, easing: 'linear', fill: 'forwards' };
-    const BAR_MOTION = { duration: 220, easing: BAR_EASE };
+    const BAR_FADE_OUT = { duration: BAR_TIME * .21, easing: 'linear', fill: 'forwards' };
+    const BAR_MOTION = { duration: BAR_TIME * .52, easing: BAR_EASE };
     const BAR_FADE_IN = { duration: BAR_TIME - BAR_FADE_OUT.duration - BAR_MOTION.duration, easing: 'linear' };
-    const SEARCH_FADE_OUT = { duration: 190, easing: 'linear', fill: 'forwards' };
+    const SEARCH_FADE_OUT = { duration: BAR_TIME * .45, easing: 'linear', fill: 'forwards' };
     const SEARCH_FADE_IN = { duration: BAR_TIME - SEARCH_FADE_OUT.duration, easing: 'linear' };
     const fadeAll = (elements, from, to, timing) => Promise.all(elements.filter(Boolean)
         .map(element => element.animate([{ opacity: from }, { opacity: to }], timing).finished)).catch(() => {});
