@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 00:40';
+    const BUILD = '2026-11-06 00:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2000,17 +2000,15 @@
             'aria-pressed': String(state.ticketFilterOpen), 'aria-label': TEXTS.tickets.filters, title: TEXTS.tickets.filters,
             onclick: () => morphBar(() => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; })
         }, svgIcon(state.ticketFilterOpen ? FILTER_OFF_ICON : FILTER_ICON));
-        // Con i filtri aperti la lente non c'è: la barra ha una funzione alla volta.
-        // Il riquadro resta sempre della misura di Da mail | Senza mail: il pulsante che non serve si nasconde e lascia il suo posto.
+        // Con i filtri aperti la lente è disattivata (e con la ricerca aperta l'imbuto): la barra ha una funzione alla volta.
+        // Il riquadro resta sempre della misura di Da mail | Senza mail: il pulsante che non serve resta al suo posto, disattivato.
         const searchButton = h('button', {
-            type: 'button', class: `ao-bar-btn ao-bar-search${state.ticketSearchOpen ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-away' : ''}`,
-            'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, 'aria-hidden': state.ticketFilterOpen ? 'true' : null, tabindex: state.ticketFilterOpen ? '-1' : null,
+            type: 'button', class: `ao-bar-btn ao-bar-search${state.ticketSearchOpen ? ' ao-active' : ''}`,
+            'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, disabled: state.ticketFilterOpen,
             onclick: state.ticketSearchOpen ? closeTicketSearch : openTicketSearch
         }, svgIcon(state.ticketSearchOpen ? CLOSE_ICON : SEARCH_ICON));
         if (state.ticketSearchOpen) {
-            filterButton.classList.add('ao-away');
-            filterButton.setAttribute('aria-hidden', 'true');
-            filterButton.tabIndex = -1;
+            filterButton.disabled = true;
             return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton,
                 h('div', { class: 'ao-segmented ao-search-bar', role: 'search' },
                     h('input', {
@@ -2086,7 +2084,7 @@
         // Al ritorno il filtro impostato diventa la pillola della voce scelta (l'inverso dell'andata)
         const lit = old.querySelector('.ao-filter-dd.ao-set');
         const litFrom = lit && { width: `${lit.offsetWidth}px`, transform: `translateX(${lit.offsetLeft - 2}px)` }; // 2px = bordo interno
-        // Anche l'icona dell'imbuto cambia, e la lente svanisce (aprendo) o ricompare (chiudendo), lasciando il suo posto.
+        // Anche l'icona dell'imbuto cambia, e la lente si disattiva (aprendo) o si riattiva (chiudendo).
         const buttonsOf = () => [barRow()?.querySelector('.ao-bar-filter > *'), barRow()?.querySelector('.ao-bar-search')];
         await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb'), ...buttonsOf()], 1, 0, BAR_FADE_OUT));
         const settle = settleBar();
@@ -3441,7 +3439,6 @@
 #ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
 #ao-root .ao-bar-btn:hover, #ao-root .ao-bar-btn.ao-open { background: var(--ao-hover); }
 #ao-root .ao-bar-btn.ao-active { color: var(--ao-text-accent); }
-#ao-root .ao-bar-btn.ao-away { visibility: hidden; }
 #ao-root .ao-bar-filter.ao-active:not(.ao-open)::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
 #ao-root .ao-bar-search.ao-active, #ao-root .ao-bar-filter.ao-open { border-color: var(--ao-search-lens-line); background: var(--ao-search-lens-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 /* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
