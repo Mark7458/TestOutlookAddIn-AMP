@@ -256,26 +256,22 @@
             azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
         },
         // Stile vetro fuori dall'area AMP: sfondo sfumato (dietro intestazione e pannello) e intestazione dell'add-in
-        // Logo dell'add-in nel vetro, chiaro e scuro: inciso nel vetro (chiaro, in negativo, con un leggero rilievo).
-        glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7' },
         glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
         glassDarkBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed',
-        // Intestazione dell'add-in nel vetro, per modo: una lastra dello stesso vetro del pannello, tinta di blu
-        // (riflesso diagonale, bordo, ombra, filo di luce in alto), staccata dai bordi come una scheda.
+        // Intestazione dell'add-in nel vetro, per modo: occupa tutta la larghezza, come prima, ed è dello stesso vetro
+        // del pannello, tinto di blu (riflesso diagonale, filo di luce in alto). La barra delle schede la prolunga.
         glassHeader: {
             light: {
-                background: 'linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), rgba(0, 105, 200, .72)',
-                border: '1px solid rgba(255, 255, 255, .6)',
-                shadow: '0 8px 22px rgba(30, 60, 120, .18), inset 0 1px 0 rgba(255, 255, 255, .45)',
-                margin: '8px 8px 0', radius: '10px'
+                background: 'linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))',
+                light: 'inset 0 1px 0 rgba(255, 255, 255, .45)'
             },
             dark: {
-                background: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), rgba(20, 70, 150, .55)',
-                border: '1px solid rgba(140, 180, 255, .22)',
-                shadow: '0 12px 30px rgba(0, 0, 0, .6), 0 0 18px rgba(80, 140, 255, .12), inset 0 1px 0 rgba(255, 255, 255, .22)',
-                margin: '8px 8px 0', radius: '10px'
+                background: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), linear-gradient(135deg, rgba(15, 60, 130, .62), rgba(25, 85, 170, .52))',
+                light: 'inset 0 1px 0 rgba(255, 255, 255, .22)'
             }
         },
+        // Logo dell'add-in nel vetro, chiaro e scuro: inciso nel vetro (chiaro, in negativo, con un leggero rilievo).
+        glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7' },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
@@ -536,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 00:10';
+    const BUILD = '2026-11-06 00:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1346,7 +1342,7 @@
         // Colori della sfumatura (con la trasparenza, per lo stile vetro); il riflesso bianco del vetro non conta.
         const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
             .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; })
-            .filter(([r, g, b]) => !(r > 245 && g > 245 && b > 245));
+            .filter(([r, g, b, a]) => a > 0 && !(r > 245 && g > 245 && b > 245));
         if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
         const [from, to] = [colors[0], colors[colors.length - 1]];
         const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
@@ -3784,7 +3780,7 @@
     // Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa, con le schede
     // più vicine al logo. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza giunture) passa anche dietro
     // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
-    const glassHeaderRule = look => `background: ${look.background}; border: ${look.border}; box-shadow: ${look.shadow}; margin: ${look.margin}; border-radius: ${look.radius};`;
+    const glassHeaderRule = look => `background: ${look.background}; box-shadow: ${look.light};`;
     const OUTSIDE_STYLES = `
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
