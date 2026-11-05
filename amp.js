@@ -532,7 +532,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 01:00';
+    const BUILD = '2026-11-06 01:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2084,19 +2084,21 @@
         // Al ritorno il filtro impostato diventa la pillola della voce scelta (l'inverso dell'andata)
         const lit = old.querySelector('.ao-filter-dd.ao-set');
         const litFrom = lit && { width: `${lit.offsetWidth}px`, transform: `translateX(${lit.offsetLeft - 2}px)` }; // 2px = bordo interno
-        // Anche l'icona dell'imbuto cambia, e la lente si disattiva (aprendo) o si riattiva (chiudendo).
-        const buttonsOf = () => [barRow()?.querySelector('.ao-bar-filter > *'), barRow()?.querySelector('.ao-bar-search')];
-        await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb'), ...buttonsOf()], 1, 0, BAR_FADE_OUT));
+        // Anche l'icona dell'imbuto cambia (in dissolvenza); la lente si spegne (aprendo) o si riaccende (chiudendo).
+        const funnelIcon = () => barRow()?.querySelector('.ao-bar-filter > *');
+        const lensWasOff = barRow()?.querySelector('.ao-bar-search')?.disabled;
+        await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb'), funnelIcon()], 1, 0, BAR_FADE_OUT));
         const settle = settleBar();
         change();
         render();
+        easeDisabled('.ao-bar-search', lensWasOff);
         const fresh = barMiddle();
         const parts = partsOf(fresh);
         if (parts.length !== widths.length) return settle();
         const thumb = fresh.querySelector('.ao-segment-thumb');
         const active = fresh.querySelector('.ao-segment.ao-active');
         const pill = litFrom && thumb && active ? thumb : null;
-        const contents = [...parts.flatMap(part => [...part.children]), thumb, ...buttonsOf()].filter(element => element && element !== pill);
+        const contents = [...parts.flatMap(part => [...part.children]), thumb, funnelIcon()].filter(element => element && element !== pill);
         await holdingRender(() => fadeInAfter(contents, async () => {
             const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
             const pillTo = pill && { width: `${active.offsetWidth}px`, transform: `translateX(${active.offsetLeft - 2}px)` };
@@ -2114,19 +2116,27 @@
             settle();
         }));
     }
-    // Ricerca (lente): come i filtri. Le scritte, l'imbuto e l'elenco svaniscono e, nello stesso riquadro (che non cambia
-    // misura), compare il campo di ricerca; chiudendo ricompare tutto.
+    // Ricerca (lente): come i filtri. Le scritte e l'elenco svaniscono e, nello stesso riquadro (che non cambia misura),
+    // compare il campo di ricerca; l'imbuto si spegne. Chiudendo ricompare tutto.
     // La lente diventa una × mentre la ricerca è aperta: l'icona cambia in dissolvenza con il resto.
     const lensIcon = () => barRow()?.querySelector('.ao-bar-search > *');
+    // Il pulsante che si spegne (o si riaccende) non sparisce: passa da acceso a spento con il movimento della barra.
+    function easeDisabled(selector, wasOff) {
+        const button = barRow()?.querySelector(selector);
+        if (!button || button.disabled === Boolean(wasOff)) return;
+        const on = { opacity: 1 }, off = { opacity: THEME.state.disabledOpacity };
+        button.animate(wasOff ? [off, on] : [on, off], BAR_MOTION);
+    }
     async function openTicketSearch() {
         if (state.holdRender) return;
         state.filterMenu = null;
         const open = () => Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
-        const row = barRow(), box = barMiddle();
+        const box = barMiddle();
         if (!box || reducedMotion()) { open(); render(); focusTicketSearch(); return; }
-        await holdingRender(() => fadeAll([...box.children, row.querySelector('.ao-bar-filter'), lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
+        await holdingRender(() => fadeAll([...box.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
         open();
         render();
+        easeDisabled('.ao-bar-filter', false);
         focusTicketSearch();
         await holdingRender(() => fadeInAfter([...barMiddle().children, lensIcon()], () => Promise.resolve()));
     }
@@ -2140,8 +2150,8 @@
         const settle = settleBar();
         close();
         render();
-        const row = barRow(), box = barMiddle();
-        await holdingRender(() => fadeInAfter([...box.children, row.querySelector('.ao-bar-filter'), lensIcon(), ...listBelow()], async () => { settle(); }));
+        easeDisabled('.ao-bar-filter', true);
+        await holdingRender(() => fadeInAfter([...barMiddle().children, lensIcon(), ...listBelow()], async () => { settle(); }));
     }
     // Ricerca mentre si scrive: subito lo scheletro di caricamento, i risultati quando ci si ferma un attimo.
     let searchTimer = null;
