@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.2-taskpane.js-4
+// Test-Plugin file version: 0.2-taskpane.js-devtools
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
-  release: '0.2-initial',
+  release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-3',
-    'taskpane.js': '0.2-taskpane.js-4',
-    'taskpane.css': '0.2-taskpane.css-3',
+    'taskpane.html': '0.2-taskpane.html-devtools',
+    'taskpane.js': '0.2-taskpane.js-devtools',
+    'taskpane.css': '0.2-taskpane.css-devtools',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 1, requiredDataVersion: 2 }),
+  database: Object.freeze({ schemaVersion: 2, requiredDataVersion: 3 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -533,6 +533,75 @@ function registerHealthButton() {
     }
   }
 
+  function readOperationalConfigPayload() { return readOperationalConfigCache()?.payload || null; }
+  function findCurrentOperator(config = readOperationalConfigPayload()) {
+    const email = String(Office.context?.mailbox?.userProfile?.emailAddress || "").trim().toLowerCase();
+    return Object.entries(config?.operators || {}).find(([, operator]) => operator?.enabled && String(operator.email || "").trim().toLowerCase() === email) || null;
+  }
+  function getRolePriority(config, roleName) {
+    const match = Object.values(config?.roles || {}).find((role) => role?.role === roleName);
+    return Number.isFinite(Number(match?.priority)) ? Number(match.priority) : null;
+  }
+  function refreshDeveloperToolsAccess(config = readOperationalConfigPayload()) {
+    const entry = byId("developer-tools-entry");
+    const statusElement = byId("developer-tools-access-status");
+    const current = findCurrentOperator(config);
+    const priority = current ? getRolePriority(config, current[1].role) : null;
+    const allowed = priority !== null && priority <= 1;
+    if (entry) entry.hidden = !allowed;
+    if (statusElement) statusElement.textContent = allowed ? `${current[1].displayName} · ${current[1].role}` : "";
+    return allowed;
+  }
+  function syncDeveloperConversationId() {
+    const input = byId("developer-conversation-id");
+    if (input) input.value = currentMessageContext?.normalizedConversationId || "";
+  }
+  function showDeveloperToolsView() {
+    if (!refreshDeveloperToolsAccess()) return;
+    byId("main-view").hidden = true;
+    const headerView = byId("header-view");
+    if (headerView) headerView.hidden = true;
+    byId("developer-tools-view").hidden = false;
+    syncDeveloperConversationId();
+  }
+  function setDeveloperLoading(loading) {
+    const button = byId("developer-get-ticket");
+    if (button) { button.disabled = loading; button.textContent = loading ? "Esecuzione..." : "GetTicketByConversationId"; }
+  }
+  function showDeveloperResult(result) {
+    const panel = byId("developer-result"); const statusElement = byId("developer-status"); const auth = byId("developer-auth-mode"); const response = byId("developer-response");
+    if (!panel || !statusElement || !auth || !response) return;
+    panel.hidden = false;
+    statusElement.textContent = `${result.status} ${result.statusText || ""}`.trim();
+    statusElement.className = result.ok ? "status-success" : "status-error";
+    auth.textContent = result.authenticationMode || "Non disponibile";
+    try { response.textContent = JSON.stringify(JSON.parse(result.body || "{}"), null, 2); } catch { response.textContent = result.body || "(Risposta vuota)"; }
+  }
+  async function runDeveloperGetTicket() {
+    const conversationId = String(byId("developer-conversation-id")?.value || "").trim();
+    if (!conversationId) { showDeveloperResult({ ok: false, status: "Errore", body: "Conversation ID mancante" }); return; }
+    setDeveloperLoading(true);
+    try {
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      const config = await ensureOperationalConfig(authentication.accessToken);
+      if (!refreshDeveloperToolsAccess(config)) throw new Error("Accesso Developer Tools non autorizzato.");
+      const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
+      const fetchResponse = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
+      const body = await fetchResponse.text();
+      const result = { ok: fetchResponse.ok, status: fetchResponse.status, statusText: fetchResponse.statusText, authenticationMode: authentication.acquisitionMode, body };
+      showDeveloperResult(result);
+      let parsedData = null; try { parsedData = JSON.parse(body || "{}"); } catch {}
+      currentSharePointData = { conversationId, ok: result.ok, status: result.status, statusText: result.statusText, authenticationMode: result.authenticationMode, retrievedAt: new Date().toISOString(), data: parsedData, rawBody: parsedData ? null : body };
+      publishSharePointData();
+    } catch (error) {
+      showDeveloperResult({ ok: false, status: "Errore", authenticationMode: "Non disponibile", body: error?.message || String(error) });
+    } finally { setDeveloperLoading(false); }
+  }
+  function registerDeveloperToolsControls() {
+    byId("open-developer-tools")?.addEventListener("click", showDeveloperToolsView);
+    byId("developer-tools-back")?.addEventListener("click", showMainView);
+    byId("developer-get-ticket")?.addEventListener("click", runDeveloperGetTicket);
+  }
   function showHeaderView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
@@ -979,6 +1048,7 @@ function registerHealthButton() {
     if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
       window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
       refreshOperationalConfigDiagnostics(cached, "cache valida");
+      refreshDeveloperToolsAccess(cached.payload);
       return cached.payload;
     }
     window.WorkflowHealth?.recordDiagnostic?.("config_version_mismatch", { requiredSchemaVersion: required.schemaVersion, requiredDataVersion: required.requiredDataVersion, cachedSchemaVersion: cached?.schemaVersion ?? null, cachedDataVersion: cached?.dataVersion ?? null });
@@ -995,6 +1065,7 @@ function registerHealthButton() {
       localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
       window.WorkflowHealth?.recordDiagnostic?.("config_cache_saved", { schemaVersion: stored.schemaVersion, dataVersion: stored.dataVersion, agencies: Object.keys(payload.agencies || {}).length, operators: Object.keys(payload.operators || {}).length, groups: Object.keys(payload.groups || {}).length });
       refreshOperationalConfigDiagnostics(stored, "scaricata");
+      refreshDeveloperToolsAccess(payload);
       return payload;
     } catch (error) {
       window.WorkflowHealth?.recordDiagnostic?.("config_download_error", { message: error?.message || String(error) });
@@ -1252,7 +1323,7 @@ function registerHealthButton() {
       renderAttachments(attachments);
       showData();
       publishMessageContext();
-      void lookupTicket({ sequence, manual: false });
+      syncDeveloperConversationId();
     } catch (error) {
       if (sequence !== loadSequence) {
         return;
@@ -1296,10 +1367,11 @@ function registerHealthButton() {
     registerItemChangedHandler();
     registerSectionToggles();
     registerHealthButton();
-    registerTicketTestControls();
     registerAuthDiagnosticsControls();
+    registerDeveloperToolsControls();
     loadBuildVersions();
     refreshOperationalConfigDiagnostics();
+    refreshDeveloperToolsAccess();
     loadDiagnostics();
     registerPluginSettingsControls();
     registerHeaderViewControls();

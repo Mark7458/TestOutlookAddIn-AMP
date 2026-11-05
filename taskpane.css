@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-3 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -482,3 +482,13 @@ footer {
 .diagnostic-sharepoint-tools h3 { margin: 0 0 8px; font-size: 13px; }
 
 .diagnostic-subheading { margin: 14px 0 8px; font-size: 13px; }
+
+.developer-tools-entry { margin: 0 0 10px; }
+.developer-tools-view { display: grid; gap: 12px; }
+.developer-tools-toolbar { display: grid; }
+.developer-tools-card { margin-top: 0; }
+.developer-tools-card h2 { margin: 0 0 8px; }
+.developer-field { display: grid; gap: 6px; margin: 12px 0; color: #605e5c; font-size: 12px; font-weight: 600; }
+.developer-input { width: 100%; resize: vertical; padding: 9px 10px; border: 1px solid #8a8886; border-radius: 6px; background: #fff; color: #323130; }
+#developer-response { max-height: 360px; margin: 12px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; background: #f3f2f1; color: #323130; font-family: Consolas, monospace; font-size: 12px; }
+@media (prefers-color-scheme: dark) { .developer-field { color: #c8c6c4; } .developer-input { border-color: #8a8886; background: #201f1e; color: #f3f2f1; } #developer-response { background: #201f1e; color: #f3f2f1; } }
