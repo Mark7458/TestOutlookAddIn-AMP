@@ -256,9 +256,21 @@
             azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
         },
         // Stile vetro fuori dall'area AMP: sfondo sfumato (dietro intestazione e pannello) e intestazione dell'add-in
+        // Logo dell'add-in nel vetro, chiaro e scuro: inciso nel vetro (chiaro, in negativo, con un leggero rilievo).
+        glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7' },
         glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
         glassDarkBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed',
-        glassHeader: 'linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))',
+        // Intestazione dell'add-in nel vetro, per modo: nello scuro è una lastra dello stesso vetro del pannello, tinta di blu
+        // (riflesso diagonale, bordo azzurro, alone, filo di luce in alto), staccata dai bordi come una scheda.
+        glassHeader: {
+            light: { background: 'linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))', border: '0 solid transparent', shadow: 'none', margin: '0', radius: '0' },
+            dark: {
+                background: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), rgba(20, 70, 150, .55)',
+                border: '1px solid rgba(140, 180, 255, .22)',
+                shadow: '0 12px 30px rgba(0, 0, 0, .6), 0 0 18px rgba(80, 140, 255, .12), inset 0 1px 0 rgba(255, 255, 255, .22)',
+                margin: '8px 8px 0', radius: '10px'
+            }
+        },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
@@ -780,6 +792,9 @@
     ];
     const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
+    // Con i filtri o la ricerca aperti il loro pulsante cambia icona: ricliccandolo si richiudono.
+    const FILTER_OFF_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/><path d="M2.5 2.5l15 15"/></svg>';
+    const CLOSE_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     // Icone delle azioni (selettori di In coda e dei ticket)
     const ACTION_ICONS = {
@@ -1208,6 +1223,19 @@
         scrollToTop();
         if (slide && from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
     }
+    // Cambio di pagina dalle schede o dall'ingranaggio: ricerca e filtri si chiudono e ogni pagina riparte dalla sua
+    // voce predefinita (In coda → Attive, Ticket → Da mail). Il ritorno con ← invece ritrova l'elenco com'era.
+    function openPage(view, backTo = null) {
+        if (view !== state.view) {
+            clearTimeout(searchTimer);
+            Object.assign(state, {
+                queueTab: 'active', ticketSource: 'mail', ticketFilterOpen: false,
+                ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false
+            });
+            ['active|ignored', 'mail|none'].forEach(key => { segmentMemory.delete(key); segmentPlace.delete(key); }); // la pillola compare ferma sulla voce predefinita
+        }
+        setView(view, backTo);
+    }
     // Cambio di scheda: il contenuto nuovo entra nella direzione dello spostamento
     // (da destra andando verso destra, da sinistra tornando indietro), così la navigazione si nota.
     // Contenuto sotto un selettore: nella barra fissa è l'elenco; altrove gli elementi che lo seguono.
@@ -1246,11 +1274,11 @@
                 // La vista di lavoro del ticket non è una scheda: si apre da sola (mail o ticket) e ha il suo "←".
                 ['queue', 'tickets'].map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
-                    onclick: () => setView(view)
+                    onclick: () => openPage(view)
                 }, tabIcon(view), h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
                 h('button', {
                     type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
-                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? setView(state.backTo || 'queue') : setView('settings', state.view))
+                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? openPage(state.backTo || 'queue') : openPage('settings', state.view))
                 }, '⚙'),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
@@ -1960,7 +1988,7 @@
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
                         oninput: event => runTicketSearch(event.target.value)
                     })),
-                h('button', { type: 'button', class: 'ao-bar-btn ao-bar-search ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: closeTicketSearch }, svgIcon(SEARCH_ICON))));
+                h('button', { type: 'button', class: 'ao-bar-btn ao-bar-search ao-active', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search, onclick: closeTicketSearch }, svgIcon(CLOSE_ICON))));
         }
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
@@ -1970,8 +1998,9 @@
             type: 'button', class: `ao-bar-btn ao-bar-filter${filtered ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-open' : ''}`,
             'aria-pressed': String(state.ticketFilterOpen), 'aria-label': TEXTS.tickets.filters, title: TEXTS.tickets.filters,
             onclick: () => morphBar(() => { state.ticketFilterOpen = !state.ticketFilterOpen; state.filterMenu = null; })
-        }, svgIcon(FILTER_ICON));
-        const searchButton = h('button', {
+        }, svgIcon(state.ticketFilterOpen ? FILTER_OFF_ICON : FILTER_ICON));
+        // Con i filtri aperti la lente non c'è: la barra ha una funzione alla volta.
+        const searchButton = state.ticketFilterOpen ? null : h('button', {
             type: 'button', class: 'ao-bar-btn ao-bar-search', 'aria-label': TEXTS.tickets.search, title: TEXTS.tickets.search,
             onclick: openTicketSearch
         }, svgIcon(SEARCH_ICON));
@@ -2039,20 +2068,25 @@
         const old = barMiddle();
         if (!old || reducedMotion()) { change(); render(); return; }
         const widths = partsOf(old).map(part => part.offsetWidth);
+        const oldRight = old.getBoundingClientRect().right;
         // Al ritorno il filtro impostato diventa la pillola della voce scelta (l'inverso dell'andata)
         const lit = old.querySelector('.ao-filter-dd.ao-set');
         const litFrom = lit && { width: `${lit.offsetWidth}px`, transform: `translateX(${lit.offsetLeft - 2}px)` }; // 2px = bordo interno
-        await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb')], 1, 0, BAR_FADE_OUT));
+        // Anche l'icona dell'imbuto cambia, e la lente svanisce (aprendo) o ricompare (chiudendo).
+        const buttonsOf = () => [barRow()?.querySelector('.ao-bar-filter > *'), barRow()?.querySelector('.ao-bar-search')];
+        await holdingRender(() => fadeAll([...partsOf(old).flatMap(part => [...part.children]), ...old.querySelectorAll('.ao-segment-thumb'), ...buttonsOf()], 1, 0, BAR_FADE_OUT));
         const settle = settleBar();
         change();
         render();
         const fresh = barMiddle();
         const parts = partsOf(fresh);
         if (parts.length !== widths.length) return settle();
+        // Il bordo destro del riquadro parte da dov'era: si allunga fin dove c'era la lente, o si ritira per farle posto.
+        const reach = fresh.getBoundingClientRect().right - oldRight;
         const thumb = fresh.querySelector('.ao-segment-thumb');
         const active = fresh.querySelector('.ao-segment.ao-active');
         const pill = litFrom && thumb && active ? thumb : null;
-        const contents = [...parts.flatMap(part => [...part.children]), thumb].filter(element => element && element !== pill);
+        const contents = [...parts.flatMap(part => [...part.children]), thumb, ...buttonsOf()].filter(element => element && element !== pill);
         await holdingRender(() => fadeInAfter(contents, async () => {
             const targets = parts.map(part => part.offsetWidth); // tutte prima di muovere: ogni metà cambia le altre
             const pillTo = pill && { width: `${active.offsetWidth}px`, transform: `translateX(${active.offsetLeft - 2}px)` };
@@ -2060,6 +2094,7 @@
             const moves = parts.map((part, index) => part.animate(index < parts.length - 1
                 ? [{ flex: `0 0 ${widths[index]}px` }, { flex: `0 0 ${targets[index]}px` }]
                 : [{ flex: '1 1 0px', minWidth: '0px' }, { flex: '1 1 0px', minWidth: '0px' }], BAR_MOTION).finished);
+            if (reach) moves.push(fresh.animate([{ marginRight: `${reach}px` }, { marginRight: '0px' }], BAR_MOTION).finished);
             if (pill) {
                 Object.assign(pill.style, pillTo);
                 pill.classList.remove('ao-moving');
@@ -2072,6 +2107,8 @@
     }
     // Ricerca (lente): come i filtri. Le scritte e l'elenco svaniscono, il riquadro si allarga fino all'imbuto
     // (che svanisce) e diventa il campo di ricerca; chiudendo si ritira al suo posto e ricompare tutto.
+    // La lente diventa una × mentre la ricerca è aperta: l'icona cambia in dissolvenza con il resto.
+    const lensIcon = () => barRow()?.querySelector('.ao-bar-search > *');
     async function openTicketSearch() {
         if (state.holdRender) return;
         state.filterMenu = null;
@@ -2079,12 +2116,12 @@
         const row = barRow(), box = barMiddle();
         if (!box || reducedMotion()) { open(); render(); focusTicketSearch(); return; }
         const left = box.getBoundingClientRect().left - row.getBoundingClientRect().left;
-        await holdingRender(() => fadeAll([...box.children, row.querySelector('.ao-bar-filter'), ...listBelow()], 1, 0, BAR_FADE_OUT));
+        await holdingRender(() => fadeAll([...box.children, row.querySelector('.ao-bar-filter'), lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
         open();
         render();
         focusTicketSearch();
         const bar = barMiddle();
-        await holdingRender(() => fadeInAfter([...bar.children], () =>
+        await holdingRender(() => fadeInAfter([...bar.children, lensIcon()], () =>
             bar.animate([{ marginLeft: `${left}px` }, { marginLeft: '0px' }], BAR_MOTION).finished.catch(() => {})));
     }
     async function closeTicketSearch() {
@@ -2093,13 +2130,13 @@
         const close = () => Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
         const bar = barMiddle();
         if (!bar || reducedMotion()) { close(); render(); return; }
-        await holdingRender(() => fadeAll([...bar.children, ...listBelow()], 1, 0, BAR_FADE_OUT));
+        await holdingRender(() => fadeAll([...bar.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
         const settle = settleBar();
         close();
         render();
         const row = barRow(), box = barMiddle();
         const left = box.getBoundingClientRect().left - row.getBoundingClientRect().left;
-        await holdingRender(() => fadeInAfter([...box.children, row.querySelector('.ao-bar-filter'), ...listBelow()], async () => {
+        await holdingRender(() => fadeInAfter([...box.children, row.querySelector('.ao-bar-filter'), lensIcon(), ...listBelow()], async () => {
             await box.animate([{ marginLeft: `${-left}px` }, { marginLeft: '0px' }], BAR_MOTION).finished.catch(() => {});
             settle();
         }));
@@ -3742,12 +3779,16 @@
     // Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa, con le schede
     // più vicine al logo. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza giunture) passa anche dietro
     // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
+    const glassHeaderRule = look => `background: ${look.background}; border: ${look.border}; box-shadow: ${look.shadow}; margin: ${look.margin}; border-radius: ${look.radius};`;
     const OUTSIDE_STYLES = `
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { background: ${THEME.glassHeader}; -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; ${glassHeaderRule(THEME.glassHeader.light)} }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header img { filter: ${THEME.glassLogo.filter}; mix-blend-mode: ${THEME.glassLogo.blend}; opacity: ${THEME.glassLogo.opacity}; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} }
+@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} } }
 `;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
