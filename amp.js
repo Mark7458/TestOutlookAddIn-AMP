@@ -236,8 +236,8 @@
             lineStrong: 'rgba(255, 255, 255, .16)',
             hoverFilter: 'brightness(1.22)',
             hoverInnerFilter: 'none', // nello scuro resta com'è
-            navInk: 'rgba(236, 240, 247, .86)', // vetro scuro: bianco meno acceso
-            navInkSoft: 'rgba(236, 240, 247, .58)',
+            navInk: 'rgba(236, 240, 247, .93)', // vetro scuro: bianco meno acceso
+            navInkSoft: 'rgba(236, 240, 247, .64)',
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
@@ -543,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 13:40';
+    const BUILD = '2026-11-06 13:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
