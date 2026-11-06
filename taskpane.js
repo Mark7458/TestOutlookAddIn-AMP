@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-3
+// Test-Plugin file version: 0.2-taskpane.js-devtools-4
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-3',
-    'taskpane.js': '0.2-taskpane.js-devtools-3',
-    'taskpane.css': '0.2-taskpane.css-devtools-3',
+    'taskpane.html': '0.2-taskpane.html-devtools-4',
+    'taskpane.js': '0.2-taskpane.js-devtools-4',
+    'taskpane.css': '0.2-taskpane.css-devtools-4',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -524,7 +524,6 @@ function registerHealthButton() {
   function showMainView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
-    const developerToolsView = byId("developer-tools-view");
 
     if (mainView) {
       mainView.hidden = false;
@@ -534,15 +533,11 @@ function registerHealthButton() {
       headerView.hidden = true;
     }
 
-    if (developerToolsView) {
-      developerToolsView.hidden = true;
-    }
   }
 
   function showHeaderView() {
     const mainView = byId("main-view");
     const headerView = byId("header-view");
-    const developerToolsView = byId("developer-tools-view");
 
     if (mainView) {
       mainView.hidden = true;
@@ -552,9 +547,6 @@ function registerHealthButton() {
       headerView.hidden = false;
     }
 
-    if (developerToolsView) {
-      developerToolsView.hidden = true;
-    }
   }
 
   function syncDeveloperConversationId() {
@@ -565,26 +557,9 @@ function registerHealthButton() {
   }
 
   function showDeveloperToolsView() {
-    if (!developerToolsAllowed) {
-      return;
-    }
-
-    const mainView = byId("main-view");
-    const headerView = byId("header-view");
-    const developerToolsView = byId("developer-tools-view");
-
-    if (mainView) {
-      mainView.hidden = true;
-    }
-
-    if (headerView) {
-      headerView.hidden = true;
-    }
-
-    if (developerToolsView) {
-      developerToolsView.hidden = false;
-    }
-
+    if (!developerToolsAllowed) return;
+    showMainView();
+    setSectionOpen("email-details", true);
     syncDeveloperConversationId();
   }
 
@@ -1072,13 +1047,14 @@ function registerHealthButton() {
   function refreshDeveloperToolsAccess(config) {
     const access = evaluateDeveloperToolsAccess(config);
     developerToolsAllowed = access.allowed;
-    const entry = byId("developer-tools-entry");
-    if (entry) {
-      entry.hidden = !developerToolsAllowed;
+    const toggle = byId("email-details-toggle");
+    const panel = byId("email-details-panel");
+    if (toggle) toggle.hidden = !developerToolsAllowed;
+    if (!developerToolsAllowed && panel) {
+      panel.hidden = true;
+      toggle?.setAttribute("aria-expanded", "false");
     }
-    if (!developerToolsAllowed && !byId("developer-tools-view")?.hidden) {
-      showMainView();
-    }
+
     window.WorkflowHealth?.recordDiagnostic?.("developer_tools_access_evaluated", {
       allowed: developerToolsAllowed,
       operatorId: access.operator?.id || null,
@@ -1282,8 +1258,6 @@ function registerHealthButton() {
   }
 
   function registerDeveloperToolsControls() {
-    byId("open-developer-tools")?.addEventListener("click", showDeveloperToolsView);
-    byId("developer-tools-back-button")?.addEventListener("click", showMainView);
     byId("developer-get-ticket-button")?.addEventListener("click", testTicketLookup);
     byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
   }

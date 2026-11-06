@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-3 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-4 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -492,3 +492,5 @@ footer {
 .component-versions { white-space: pre-wrap; }
 
 .diagnostic-subheading { margin: 14px 0 8px; font-size: 13px; }
+
+.developer-inline-action{display:grid;gap:8px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e1dfdd}.developer-inline-action h3{margin:0;font-size:14px}.developer-inline-action label{color:#605e5c;font-size:12px;font-weight:600}@media(prefers-color-scheme:dark){.developer-inline-action{border-bottom-color:#484644}.developer-inline-action label{color:#c8c6c4}}
