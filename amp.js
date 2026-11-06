@@ -2442,9 +2442,8 @@
     }
     function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
-        const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
         const expired = isHoldExpired(ticket);
-        return clickable(`ao-item${expired ? ' ao-item-alert' : ''}${highlight}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
+        return clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
             // Etichetta dell'operatore solo con il filtro Operatore su Tutti
             ticketHead(ticket, user, { query, owner: state.ticketOperator === 'all' }),
             inGroup ? null : newMessagesPreview(ticket),
