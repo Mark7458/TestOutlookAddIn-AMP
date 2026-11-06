@@ -86,6 +86,7 @@
             navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
             hoverInnerFilter: 'none', // etichette e notifiche dentro la scheda: si accendono meno della scheda
+            chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -185,6 +186,7 @@
             navBlur: 'blur(16px) saturate(1.3)',
             hoverFilter: 'brightness(1.06)',
             hoverInnerFilter: 'brightness(.96)', // solo nel chiaro: etichette e notifiche non passano sul bianco
+            chipLine: 'rgba(0, 50, 110, .16)',
             notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
@@ -216,11 +218,11 @@
             toneHoverFilter: 'brightness(1.08)',
             btnHighlight: 'inset 0 1px 0 rgba(255, 255, 255, .22)',
             spinnerTrack: '35%',
-            tagFill: '16%',
+            tagFill: '22%',
             tagBase: 'transparent',
             tagInk: '80%',
             tagInkBase: '#000',
-            tagLine: 'rgba(255, 255, 255, .55)'
+            tagLine: 'rgba(0, 50, 110, .16)' // come chipLine: un bordo bianco sparirebbe sulle schede bianche
         },
         glassDarkColors: {
             surface: 'rgba(52, 56, 66, .62)',
@@ -232,6 +234,7 @@
             lineStrong: 'rgba(255, 255, 255, .16)',
             hoverFilter: 'brightness(1.22)',
             hoverInnerFilter: 'none', // nello scuro resta com'è
+            chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
@@ -298,7 +301,7 @@
             synced: when => `Allineato ${when}`,
             syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
         },
-        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Impostazioni' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings' },
         common: {
             me: 'me',
             back: view => `← ${view}`,
@@ -536,7 +539,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 12:20';
+    const BUILD = '2026-11-06 12:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3355,6 +3358,9 @@
 /* Intestazione e schede */
 #ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: rgba(255, 255, 255, .8); }
+/* Freccia per tornare all'add-in: invisibile finché non la si raggiunge con il mouse, così le schede hanno tutta la larghezza */
+#ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
+#ao-root .ao-tabs .ao-back:is(:hover, :focus-visible) { opacity: 1; }
 #ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: #fff; }
 #ao-root .ao-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: rgba(255, 255, 255, .72); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: #fff; }
@@ -3543,7 +3549,7 @@
 #ao-root .ao-footnote { font-size: var(--ao-fs-sm); }
 
 /* Etichette colorate */
-#ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
+#ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); box-shadow: inset 0 0 0 1px var(--ao-chip-line); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
 #ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
 #ao-root .ao-chip.ao-tone-person { background: var(--ao-surface); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
 #ao-root .ao-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
@@ -3558,7 +3564,7 @@
 #ao-root .ao-user-tag-in { animation: ao-tag-in .28s cubic-bezier(.32, 1.28, .5, 1); }
 @keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
 /* Posto vuoto per la propria etichetta: più stretto di qualunque etichetta, con il fondo dei selettori */
-#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .2s, background-color .2s; }
+#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .2s, background-color .2s; }
 #ao-root .ao-user-tag-add:hover { color: var(--ao-text); background: linear-gradient(var(--ao-segment-hover), var(--ao-segment-hover)), var(--ao-segment-track); }
 /* Profilo: scelta del colore */
 #ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
