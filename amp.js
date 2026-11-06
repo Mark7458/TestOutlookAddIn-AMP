@@ -85,6 +85,7 @@
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
             navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
+            hoverInnerFilter: 'none', // etichette e notifiche dentro la scheda: si accendono meno della scheda
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -105,8 +106,7 @@
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
             searchFocusLine: 'var(--ao-accent)',
-            notifyBg: 'var(--ao-accent)', // segnalino degli aggiornamenti nei selettori (sulle schede è sempre bianco)
-            notifyInk: '#fff',
+            notifyInk: 'var(--ao-surface)', // numero del segnalino degli aggiornamenti: colore dello sfondo
             fieldFocusLine: 'var(--ao-accent)', // campo che si sta compilando
             fieldFocusGlow: 'var(--ao-shadow-focus)',
             searchLensLine: 'var(--ao-accent-border)',
@@ -133,8 +133,6 @@
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
         darkColors: {
-            notifyBg: '#fff', // in scuro il segnalino è bianco ovunque
-            notifyInk: '#005a9e',
             textAccent: '#6cb8f6',
             accentBorder: '#3a6a8f',
             accentBg: '#19344a',
@@ -186,6 +184,8 @@
             blur: 'blur(14px) saturate(1.2)',
             navBlur: 'blur(16px) saturate(1.3)',
             hoverFilter: 'brightness(1.06)',
+            hoverInnerFilter: 'brightness(.96)', // solo nel chiaro: etichette e notifiche non passano sul bianco
+            notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
             segmentHover: 'rgba(255, 255, 255, .4)',
@@ -231,6 +231,8 @@
             lineLight: 'rgba(255, 255, 255, .07)',
             lineStrong: 'rgba(255, 255, 255, .16)',
             hoverFilter: 'brightness(1.22)',
+            hoverInnerFilter: 'none', // nello scuro resta com'è
+            notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
@@ -534,7 +536,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 11:55';
+    const BUILD = '2026-11-06 12:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -822,7 +824,7 @@
 
     // Icone delle schede principali
     const TAB_ICONS = {
-        settings: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>',
         queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
         tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
         debug: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.5 13.8a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a3.5 3.5 0 0 0 4.6-3.3l-2 2-2-.5-.5-2z"/></svg>'
@@ -928,7 +930,8 @@
     // così compare e sparisce con un'animazione.
     const counter = () => h('span', { class: 'ao-counter ao-counter-off' });
     // Segnalino degli aggiornamenti sull'icona (schede e selettori): compare solo se c'è qualcosa di nuovo.
-    const notifyBadge = (updates, title) => h('span', { class: `ao-notify${updates ? '' : ' ao-notify-off'}`, title: updates ? title : undefined }, updates || '');
+    // Il tondo prende il colore del testo intorno (currentColor), il numero quello dello sfondo.
+    const notifyBadge = (updates, title) => h('span', { class: `ao-notify${updates ? '' : ' ao-notify-off'}`, title: updates ? title : undefined }, h('span', { class: 'ao-notify-number' }, updates || ''));
     // Solo la notifica: numero su sfondo blu.
     const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
@@ -1402,7 +1405,7 @@
             tabCounter.classList.toggle('ao-counter-off', !count || !active);
             const updates = tab.dataset.view === 'tickets' ? newReplies : 0;
             const badge = tab.querySelector('.ao-notify');
-            badge.textContent = updates || '';
+            badge.firstElementChild.textContent = updates || '';
             badge.classList.toggle('ao-notify-off', !updates);
             if (updates) badge.title = TEXTS.tickets.newMessagesTitle(updates);
             else badge.removeAttribute('title');
@@ -3377,10 +3380,10 @@
 #ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; color: rgba(255, 255, 255, .72); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
-/* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile. Bianco sulle schede (sfondo blu)
-   e in scuro; azzurro nei selettori in chiaro (sfondo chiaro). */
-#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: var(--ao-notify-bg); color: var(--ao-notify-ink); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 15px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
-#ao-root .ao-tab .ao-notify { background: #fff; color: #005a9e; }
+/* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
+#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 15px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
+#ao-root .ao-notify-number { color: var(--ao-notify-ink); }
+#ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu dell'intestazione */
 #ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
 #ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
@@ -3407,9 +3410,11 @@
 #ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
 /* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
-#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 12px 12px; scroll-padding-top: 60px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; }
-#ao-root .ao-scroll::-webkit-scrollbar { width: 6px; }
-#ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--ao-line-strong); }
+/* Barra di scorrimento sottile (4px): lo spazio a destra è quasi uguale a quello a sinistra */
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 8px 12px 12px; scroll-padding-top: 60px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+@supports not selector(::-webkit-scrollbar) { #ao-root .ao-scroll { scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; } }
+#ao-root .ao-scroll::-webkit-scrollbar { width: 4px; }
+#ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 2px; background: var(--ao-line-strong); }
 #ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Pulsanti */
@@ -3781,6 +3786,7 @@
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-item:not(.ao-expanded):hover :is(.ao-user-tag, .ao-news, .ao-new-preview, .ao-notify) { filter: var(--ao-hover-inner-filter); }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
