@@ -191,11 +191,11 @@
         mail('conv-10', acquisti, `RE: ${s11}`, 'Potete aggiungere anche la collega Neri? Grazie', 30 * MINUTE);
         incident('INC0012091', {
             state: '2', assignedTo: OPERATORS.marco, companyId: 'beta', companyName: 'Agenzia Beta', activityId: 'posta', activityName: 'Posta elettronica',
-            shortDescription: '[FWD] Creazione DL acquisti@agenziabeta.it', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
+            shortDescription: '[FWD] Creazione DL acquisti@agenziabeta.it', description: 'Creare la lista di distribuzione acquisti@agenziabeta.it con dentro Rossi, Bianchi e Verdi. Ricezione dall\'esterno solo se richiesta dal responsabile.', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
         }, [entry(5.6 * HOUR, 'Marco Rossi', 'system', 'Ticket aperto dall\'add-in (Agenzia Beta · Posta elettronica).')]);
         incident('INC0012092', {
             state: '2', assignedTo: OPERATORS.marco, companyId: 'beta', companyName: 'Agenzia Beta', activityId: 'posta', activityName: 'Posta elettronica',
-            shortDescription: '[FWD] Aggiunta membri DL acquisti@agenziabeta.it', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
+            shortDescription: '[FWD] Aggiunta membri DL acquisti@agenziabeta.it', description: 'Aggiungere i membri richiesti alla lista acquisti@agenziabeta.it dopo la creazione.', reportedOn: snDate(at(6 * HOUR)), openedAt: iso(5.6 * HOUR), timeWorkedMinutes: 15
         }, [entry(5.6 * HOUR, 'Marco Rossi', 'system', 'Ticket aperto dall\'add-in (Agenzia Beta · Posta elettronica).')]);
 
         // 12. Mail informativa già ignorata da Giulia (resta nell'archivio finché non arriva un messaggio nuovo)
@@ -258,7 +258,7 @@
     // SharePoint: copia dei ticket, thread, movimenti
     // ------------------------------------------------------------------
     const SNOW_FIELDS = ['number', 'sysId', 'url', 'state', 'assignedTo', 'companyId', 'companyName', 'activityId', 'activityName',
-        'shortDescription', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode'];
+        'shortDescription', 'description', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode'];
     const snowView = incident => Object.fromEntries(SNOW_FIELDS.map(key => [key, incident[key] ?? '']));
     // Copia su SharePoint i valori del ticket letti da ServiceNow (l'azione all'invio resta).
     function mirror(number) {
@@ -549,7 +549,7 @@
                 assignedTo: { name: assignee.displayValue, sysId: assignee.value },
                 companyId: payload.companyId, companyName: payload.companyName,
                 activityId: payload.activityId, activityName: payload.activityName,
-                shortDescription: payload.fields.shortDescription, reportedOn: payload.fields.reportedOn,
+                shortDescription: payload.fields.shortDescription, description: payload.fields.description || '', reportedOn: payload.fields.reportedOn,
                 openedAt: now(), timeWorkedMinutes: Number(payload.fields.timeWorkedMinutes) || 0,
                 holdReason: '', holdExpiration: '', closedAt: '', resolutionCode: '', fields: payload.fields
             };

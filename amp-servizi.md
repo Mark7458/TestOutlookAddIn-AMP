@@ -84,7 +84,7 @@ Ogni servizio restituisce una Promise.
   `shortDescription` (oggetto + prefisso dell'Attività), `description` (corpo della mail, max 4000
   caratteri), `reportedOn` (arrivo della mail, `AAAA-MM-GG hh:mm:ss`).
 - Ticket restituito: `{ number, sysId, url, state, assignedTo: { name, sysId }, companyName,
-  activityName, shortDescription, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
+  activityName, shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
   holdExpiration, conversationId, messageId, pendingAction }`.
 
 ## SharePoint: le liste
@@ -92,7 +92,7 @@ Ogni servizio restituisce una Promise.
 | Lista | Una riga per | Campi |
 |---|---|---|
 | **Thread AMP** | conversazione | `conversationId`, `internetMessageId` e immutable ID dell'ultima mail, `status` (libero / in gestione / scartato), `owner` (chi l'ha in carico), `ownerSeenAt` (ultimo clic sul ticket di chi l'ha in carico), `tickets` (JSON: `number`, `linkedAt`, `linkedBy`, `confirmedBy` per ogni ticket del thread), `freedAt`, `discardedBy`, `discardedAt`, `updatedAt` |
-| **Ticket AMP** | ticket del gruppo | copia dei valori di ServiceNow: `number`, `sysId`, `state`, `assignedTo`, `company`, `activity`, `shortDescription`, `reportedOn`, `openedAt`, `closedAt`, `timeWorkedMinutes`, `holdReason`, `holdExpiration`, `resolutionCode`; più `pendingAction` (JSON dell'azione all'invio) e `updatedAt` |
+| **Ticket AMP** | ticket del gruppo | copia dei valori di ServiceNow: `number`, `sysId`, `state`, `assignedTo`, `company`, `activity`, `shortDescription`, `description`, `reportedOn`, `openedAt`, `closedAt`, `timeWorkedMinutes`, `holdReason`, `holdExpiration`, `resolutionCode`; più `pendingAction` (JSON dell'azione all'invio) e `updatedAt` |
 | **Movimenti AMP** | azione | `at`, `type` (apertura, collegamento, tempo, assegnazione, risposta, azione all'invio, ignorata, allineamento…), `ticketNumber`, `by`, `details`, `conversationId`, esito su ServiceNow |
 
 Pulizia: thread liberi, ticket chiusi e movimenti più vecchi di N mesi si cancellano in automatico.
