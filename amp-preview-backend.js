@@ -398,8 +398,11 @@
         const similar = linked ? null : similarConversationOf(ticket);
         const conversation = linked || similar;
         const messages = conversation ? conversationMessages(conversation) : [];
+        // Ticket aperto da una mail: la description è il corpo della mail che l'ha generato.
+        const firstIncoming = messages.find(item => item.direction === 'in');
         return {
             ...ticket,
+            description: ticket.description || (linked && firstIncoming ? firstIncoming.body : ''),
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
             mailUnconfirmed: Boolean(similar),

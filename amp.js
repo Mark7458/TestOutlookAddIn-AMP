@@ -536,7 +536,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 19:30';
+    const BUILD = '2026-11-06 20:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2916,7 +2916,7 @@
             h('div', { class: 'ao-ticket-details' },
                 h('section', { class: 'ao-card ao-ticket-about' },
                     h('div', { class: 'ao-item-title' }, ticket.shortDescription),
-                    ticket.description ? h('div', { class: `ao-ticket-description${expanded ? '' : ' ao-clamp'}` }, ticket.description) : null,
+                    ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // sempre intera: è il corpo della mail che l'ha generato
                     ticket.state === '3' && ticket.holdExpiration
                         ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
                             `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
@@ -3706,7 +3706,8 @@
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
-#ao-root .ao-expanded, #ao-root .ao-expanded:hover, #ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-accent); }
+#ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); border-color: var(--ao-accent); }
+#ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-call-open-border); box-shadow: var(--ao-call-glow); } /* ticket aperto nel thread: niente tratto blu, bagliore (vetro) */
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
@@ -3931,7 +3932,6 @@
 #ao-root .ao-ticket-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
 #ao-root .ao-ticket-about { display: grid; gap: 4px; }
 #ao-root .ao-ticket-description { color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
-#ao-root .ao-ticket-description.ao-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto) */
 #ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; height: 26px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); overflow: hidden; }
 #ao-root .ao-timer-step { width: 26px; height: 100%; padding: 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; }
@@ -3940,7 +3940,7 @@
 #ao-root .ao-timer-value { width: 84px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 22px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-accent-bg); color: inherit; font: inherit; text-align: center; }
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
-#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow), var(--ao-selection-shadow); }
+#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
 #ao-root .ao-locked { cursor: default; }
 /* Ticket chiusi del thread */
 #ao-root .ao-closed { display: grid; gap: 6px; }
