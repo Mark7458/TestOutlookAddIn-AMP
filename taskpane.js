@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-8
+// Test-Plugin file version: 0.2-taskpane.js-devtools-9
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-8',
-    'taskpane.js': '0.2-taskpane.js-devtools-8',
-    'taskpane.css': '0.2-taskpane.css-devtools-8',
+    'taskpane.html': '0.2-taskpane.html-devtools-9',
+    'taskpane.js': '0.2-taskpane.js-devtools-9',
+    'taskpane.css': '0.2-taskpane.css-devtools-9',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -26,7 +26,9 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
     error: "error",
     data: "message-data",
     id: "message-id",
+    idToggle: "message-id-toggle",
     conversationId: "conversationId",
+    conversationIdToggle: "conversation-id-toggle",
     categories: "message-categories",
     subject: "message-subject",
     sender: "message-sender",
@@ -39,6 +41,11 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
 
   let currentHeaderText = "";
   let currentMessageContext = null;
+  let currentMessageIdentifiers = null;
+  const identifierViewState = {
+    itemId: "normalized",
+    conversationId: "normalized"
+  };
   let currentSharePointData = null;
   let developerToolsAllowed = false;
   let developerLastItemId = "";
@@ -285,6 +292,53 @@ function registerHealthButton() {
         .replace(/\//g, "-")
         .replace(/\+/g, "_");
 }
+
+  function convertItemIdToRestV2(originalItemId) {
+    if (!originalItemId) return "";
+    if (typeof Office.context?.mailbox?.convertToRestId !== "function") {
+      throw new Error("Office.js non rende disponibile la conversione dell'ID messaggio in formato REST v2.0.");
+    }
+    return Office.context.mailbox.convertToRestId(originalItemId, Office.MailboxEnums.RestVersion.v2_0);
+  }
+
+  function updateIdentifierField(kind) {
+    const isItemId = kind === "itemId";
+    const fieldId = isItemId ? elementIds.id : elementIds.conversationId;
+    const toggleId = isItemId ? elementIds.idToggle : elementIds.conversationIdToggle;
+    const originalKey = isItemId ? "originalItemId" : "originalConversationId";
+    const normalizedKey = isItemId ? "normalizedItemId" : "normalizedConversationId";
+    const showOriginal = identifierViewState[kind] === "original";
+    const value = currentMessageIdentifiers?.[showOriginal ? originalKey : normalizedKey] || "";
+    const button = byId(toggleId);
+
+    setText(fieldId, value);
+    if (!button) return;
+
+    button.textContent = showOriginal ? "Mostra normalizzato" : "Mostra originale";
+    button.setAttribute("aria-pressed", String(showOriginal));
+    button.setAttribute(
+      "aria-label",
+      `${showOriginal ? "Mostra il valore normalizzato" : "Mostra il valore originale"} per ${isItemId ? "ID del messaggio" : "Conversation ID"}`
+    );
+    button.disabled = !currentMessageIdentifiers?.[originalKey] || !currentMessageIdentifiers?.[normalizedKey];
+  }
+
+  function renderIdentifierFields() {
+    updateIdentifierField("itemId");
+    updateIdentifierField("conversationId");
+  }
+
+  function resetIdentifierViews() {
+    identifierViewState.itemId = "normalized";
+    identifierViewState.conversationId = "normalized";
+    renderIdentifierFields();
+  }
+
+  function toggleIdentifierView(kind) {
+    if (!currentMessageIdentifiers) return;
+    identifierViewState[kind] = identifierViewState[kind] === "normalized" ? "original" : "normalized";
+    updateIdentifierField(kind);
+  }
 
   function showLoading() {
     byId(elementIds.loading).hidden = false;
@@ -1844,12 +1898,16 @@ function registerHealthButton() {
       applyDeveloperResultView();
     });
     byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
+    byId(elementIds.idToggle)?.addEventListener("click", () => toggleIdentifierView("itemId"));
+    byId(elementIds.conversationIdToggle)?.addEventListener("click", () => toggleIdentifierView("conversationId"));
     updateDeveloperActionUi();
   }
 
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
 
+    currentMessageIdentifiers = null;
+    resetIdentifierViews();
     currentHeaderText = "";
     resetSectionsIfNeeded();
     showMainView();
@@ -1880,11 +1938,17 @@ function registerHealthButton() {
         return;
       }
 
-      setText(elementIds.id, item.itemId);
-      setText(
-        elementIds.conversationId,
-        normalizeConversationId(item.conversationId)
-      );
+      const originalItemId = item.itemId || "";
+      const originalConversationId = item.conversationId || "";
+      const normalizedItemId = convertItemIdToRestV2(originalItemId);
+      const normalizedConversationId = normalizeConversationId(originalConversationId);
+      currentMessageIdentifiers = {
+        originalItemId,
+        originalConversationId,
+        normalizedItemId,
+        normalizedConversationId
+      };
+      renderIdentifierFields();
       setText(elementIds.subject, item.subject, "(Nessun oggetto)");
       setText(elementIds.sender, formatAddress(sender));
       setText(elementIds.to, formatAddressList(item.to));
@@ -1893,9 +1957,9 @@ function registerHealthButton() {
       setText(elementIds.body, bodyText, "(Corpo vuoto)");
       setText(elementIds.categories, formatCategories(categories),"Nessuna");
       currentMessageContext = {
-        itemId: item.itemId || null,
-        conversationId: item.conversationId || null,
-        normalizedConversationId: normalizeConversationId(item.conversationId),
+        itemId: normalizedItemId || null,
+        conversationId: normalizedConversationId || null,
+        normalizedConversationId: normalizedConversationId || null,
         subject: item.subject || "",
         sender: sender ? {
           displayName: sender.displayName || "",
@@ -1943,6 +2007,8 @@ function registerHealthButton() {
       }
 
       currentMessageContext = null;
+      currentMessageIdentifiers = null;
+      resetIdentifierViews();
       publishMessageContext();
       syncDeveloperConversationId();
       const message = error instanceof Error ? error.message : String(error);
