@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-8
+// Test-Plugin file version: 0.2-taskpane.js-devtools-9
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-8',
-    'taskpane.js': '0.2-taskpane.js-devtools-8',
-    'taskpane.css': '0.2-taskpane.css-devtools-8',
+    'taskpane.html': '0.2-taskpane.html-devtools-9',
+    'taskpane.js': '0.2-taskpane.js-devtools-9',
+    'taskpane.css': '0.2-taskpane.css-devtools-9',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1301,6 +1301,7 @@ function registerHealthButton() {
     const isCreate = action === "CreateTicket";
     const isCategory = action === "AddCategoriesOfficeJs" || action === "RemoveCategoriesOfficeJs";
     const isAddCategory = action === "AddCategoriesOfficeJs";
+    const isRemoveCategory = action === "RemoveCategoriesOfficeJs";
     const getForm = byId("developer-get-form");
     const createForm = byId("developer-create-form");
     const categoryForm = byId("developer-category-form");
@@ -1310,7 +1311,7 @@ function registerHealthButton() {
     const replaceRow = byId("developer-category-replace-row");
     const clearRow = byId("developer-category-clear-row");
     if (replaceRow) replaceRow.hidden = !isAddCategory;
-    if (clearRow) clearRow.hidden = isAddCategory;
+    if (clearRow) clearRow.hidden = !isRemoveCategory;
 
     if (isCreate) {
       populateCreateTicketForm();
