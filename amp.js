@@ -367,7 +367,6 @@
             searchPlaceholder: 'INC o oggetto',
             noResults: 'Nessun risultato.',
             empty: 'Nessun ticket aperto.',
-            noMail: 'senza mail',
             mailToConfirm: 'mail da confermare',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             threadGroup: n => `Stesso thread · ${n} ticket`,
@@ -543,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 13:45';
+    const BUILD = '2026-11-06 14:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2314,13 +2313,13 @@
             // Durante una ricerca i risultati arrivano da entrambi gli elenchi: si dice da quale.
             h('div', { class: 'ao-item-sub' }, [ticket.companyName, ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')),
             inGroup ? null : newMessagesPreview(ticket),
+            // In basso: a sinistra il termine (On Hold) e gli avvisi, a destra l'operatore.
             h('div', { class: 'ao-item-meta' },
-                ticket.messageId ? (mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'))
-                    : labelChip(mine ? { name: currentUser().displayValue, color: loadConfig().profile.label } : (ticket.label || { name: ticket.assignedTo?.name || '', color: 'grafite' })),
-                h('span', { class: 'ao-item-time' }, TEXTS.mail.minutes(ticket.timeWorkedMinutes || 0)),
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
-                ticket.messageId ? (ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null) : chip(TEXTS.tickets.noMail, 'neutral'),
-                ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null));
+                ticket.messageId && ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null,
+                ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null,
+                h('span', { class: 'ao-item-owner' }, ticket.messageId ? (mine ? null : chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'neutral'))
+                    : labelChip(mine ? { name: currentUser().displayValue, color: loadConfig().profile.label } : (ticket.label || { name: ticket.assignedTo?.name || '', color: 'grafite' })))));
     }
 
     // ---------------------------- Mail ------------------------------------
@@ -3782,6 +3781,8 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
+#ao-root .ao-item-owner { margin-left: auto; display: inline-flex; } /* operatore in basso a destra */
+#ao-root .ao-item-meta:has(> .ao-item-owner:only-child:empty) { display: none; } /* nessun termine, avviso o operatore */
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-item.ao-item-new:not(.ao-opening) { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
 #ao-root .ao-item.ao-item-new:not(.ao-expanded):hover { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-hover-glow); } /* ticket con messaggi nuovi: bordino azzurro */
