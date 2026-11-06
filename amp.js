@@ -85,11 +85,14 @@
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
             navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
-            hoverInnerFilter: 'none', // etichette e notifiche dentro la scheda: si accendono meno della scheda
             navInk: '#fff', // scritte e icone dell'intestazione e delle schede
             navInkSoft: 'rgba(255, 255, 255, .72)', // schede non scelte
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
+            raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata o aperta (In coda, ticket nel thread)
+            itemHover: 'var(--ao-hover)', // scheda al passaggio del mouse: solo lei, senza schiarire il contenuto
+            itemHoverEdge: 'transparent',
+            itemHoverGlow: '0 0 transparent',
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
             choiceTrack: 'var(--ao-bg)', // fondo del selettore delle azioni (Prendi in carico / Inoltra / Ignora)
@@ -188,10 +191,12 @@
             blur: 'blur(14px) saturate(1.2)',
             navBlur: 'blur(16px) saturate(1.3)',
             hoverFilter: 'brightness(1.06)',
-            hoverInnerFilter: 'brightness(.96)', // solo nel chiaro: etichette e notifiche non passano sul bianco
             chipLine: 'rgba(0, 50, 110, .16)',
             notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
+            itemHover: 'var(--ao-surface)', // vetro: la scheda non si sbianca, si accendono il bordo e un alone azzurro
+            itemHoverEdge: 'rgba(255, 255, 255, .95)',
+            itemHoverGlow: '0 0 16px rgba(110, 165, 255, .38)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
             segmentHover: 'rgba(255, 255, 255, .4)',
             choiceTrack: 'var(--ao-segment-track)',
@@ -237,12 +242,13 @@
             lineLight: 'rgba(255, 255, 255, .07)',
             lineStrong: 'rgba(255, 255, 255, .16)',
             hoverFilter: 'brightness(1.22)',
-            hoverInnerFilter: 'none', // nello scuro resta com'è
             navInk: 'rgba(236, 240, 247, .93)', // vetro scuro: bianco meno acceso
             navInkSoft: 'rgba(236, 240, 247, .64)',
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
+            itemHoverEdge: 'rgba(255, 255, 255, .2)',
+            itemHoverGlow: '0 0 16px rgba(90, 150, 255, .3)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
@@ -528,7 +534,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 21:15';
+    const BUILD = '2026-11-06 22:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1219,7 +1225,7 @@
     // durante il viaggio di andata (fold) e si riaprono in quello di ritorno.
     function listExtras(copy, fold) {
         return Promise.all([...copy.querySelectorAll('.ao-new-preview, .ao-item-meta')].map(part => {
-            const style = getComputedStyle(part);
+            const style = getComputedStyle(part); // misure a scheda aperta (prima di chiuderla)
             const open = { height: `${part.offsetHeight}px`, opacity: 1, marginTop: style.marginTop, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom };
             const shut = { height: '0px', opacity: 0, marginTop: '0px', paddingTop: '0px', paddingBottom: '0px' };
             part.style.overflow = 'hidden';
@@ -1250,27 +1256,52 @@
         { duration: JOURNEY.build, delay: delay + index * JOURNEY.stagger, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' }).finished);
         return Promise.all([...move(above.slice().reverse(), -8, 0), ...move(below, 8, 80)]).catch(() => {});
     }
+    // Viaggio e atterraggio in un solo movimento continuo (niente pause tra i due tempi).
+    function travelAndLand(copy, dy) {
+        const share = JOURNEY.travel / (JOURNEY.travel + JOURNEY.land);
+        return copy.animate([
+            { transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
+            { transform: `translateY(${dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, offset: share, easing: JOURNEY.easing },
+            { transform: `translateY(${dy}px)` }
+        ], { duration: JOURNEY.travel + JOURNEY.land, fill: 'forwards' }).finished;
+    }
+    // Copia ferma della lista, sopra la pagina che intanto si prepara: si sfoca e svanisce intorno alla scheda.
+    function listGhost(scroll, card) {
+        const box = scroll.getBoundingClientRect();
+        const ghost = scroll.cloneNode(true);
+        ghost.classList.add('ao-ghost');
+        Object.assign(ghost.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+        // la scheda che parte non c'è nella copia (stessa posizione nell'albero)
+        const path = [];
+        for (let node = card; node !== scroll; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
+        root.append(ghost);
+        ghost.scrollTop = scroll.scrollTop;
+        placeAt(ghost, box.top, box.left);
+        const twin = path.reduce((node, index) => node?.children[index], ghost);
+        if (twin) twin.style.visibility = 'hidden';
+        return ghost;
+    }
     // card: la scheda o il mazzo nella lista; ticket: quello da aprire (nel mazzo, il più recente).
+    // La pagina si prepara (dati compresi) mentre la scheda si stacca: il viaggio parte senza attese.
     async function openFromCard(card, ticket) {
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
         const body = root.querySelector('.ao-body');
         const start = frontOf(card).getBoundingClientRect().top; // nel mazzo conta la scheda davanti
         const copy = travelCopy(card, card);
-        card.style.visibility = 'hidden';
-        const around = aroundCard(card);
-        await holdingRender(() => Promise.all([lift(copy, true), deckFold(copy, true), blurTo(around, [0, 1], [5, .55], JOURNEY.lift)]).catch(() => {}));
-        await blurTo(around, [5, .55], [8, 0], JOURNEY.travel * .5).catch(() => {});
+        const ghost = listGhost(root.querySelector('.ao-scroll'), card);
         body.style.opacity = '0';
         openTicketItem(ticket, { slide: false });
-        const target = await pageCardOf(ticket.number);
-        if (!target) { copy.remove(); body.style.opacity = ''; return; }
+        // la lista si sfoca e svanisce per conto suo: il viaggio parte appena la scheda è staccata e la pagina è pronta
+        blurTo([ghost], [0, 1], [5, .55], JOURNEY.lift).then(() => blurTo([ghost], [5, .55], [8, 0], JOURNEY.travel * .5)).catch(() => {});
+        const [target] = await Promise.all([pageCardOf(ticket.number), lift(copy, true), deckFold(copy, true)]).catch(() => []);
+        if (!target) { copy.remove(); ghost.remove(); body.style.opacity = ''; return; }
         target.style.visibility = 'hidden';
+        body.style.opacity = '';
         await holdingRender(async () => {
             const dy = target.getBoundingClientRect().top - start; // dalla posizione di partenza
-            await Promise.all([travel(copy, dy), listExtras(copy, true)]).catch(() => {});
-            await lift(copy, false, dy).catch(() => {});
-            body.style.opacity = '';
+            await Promise.all([travelAndLand(copy, dy), listExtras(copy, true)]).catch(() => {});
+            ghost.remove();
             target.style.visibility = '';
             copy.remove();
             await Promise.all([buildPage(pageAround(target), true), threadExtras(target, true)]);
@@ -1280,35 +1311,34 @@
         const number = state.openedTicket;
         state.openedTicket = null;
         if (state.holdRender || !number || target !== 'tickets' || reducedMotion()) return setView(target);
-        const body = root.querySelector('.ao-body');
         const pageCard = await pageCardOf(number);
         if (!pageCard) return setView(target);
-        // Si smonta la pagina intorno alla scheda; poi la scheda si stacca e torna al suo posto nella lista.
+        // Si smonta la pagina intorno alla scheda; poi la scheda si stacca e torna al suo posto nella lista,
+        // mentre la lista ricompare (prima sfocata, poi nitida). Stessi movimenti dell'andata, al contrario.
         await holdingRender(() => Promise.all([buildPage(pageAround(pageCard), false), threadExtras(pageCard, false)]));
         const from = pageCard.getBoundingClientRect().top;
-        body.style.opacity = '0';
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
         const card = found?.closest('.ao-deck') || found;
-        if (!card) { body.style.opacity = ''; return slideInView(-1); }
+        if (!card) return slideInView(-1);
         card.scrollIntoView({ block: 'nearest' });
+        const scroll = root.querySelector('.ao-scroll');
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
         const copy = travelCopy(card, card);
         placeAt(copy, from - offset);
         card.style.visibility = 'hidden';
-        const around = aroundCard(card);
-        around.forEach(element => { element.style.opacity = '0'; });
-        body.style.opacity = '';
+        scroll.style.opacity = '0';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
-        copy.querySelectorAll('.ao-new-preview, .ao-item-meta').forEach(part => { part.style.height = '0px'; part.style.opacity = '0'; part.style.overflow = 'hidden'; }); // si riaprono in viaggio
         await holdingRender(async () => {
-            await lift(copy, true).catch(() => {});
-            around.forEach(element => { element.style.opacity = ''; });
             const dy = card.getBoundingClientRect().top + offset - from;
-            copy.querySelectorAll('.ao-new-preview, .ao-item-meta').forEach(part => { part.style.height = ''; part.style.opacity = ''; });
-            await Promise.all([travel(copy, dy), listExtras(copy, false), blurTo(around, [8, 0], [5, .55], JOURNEY.travel)]).catch(() => {});
-            await Promise.all([lift(copy, false, dy), deckFold(copy, false), blurTo(around, [5, .55], [0, 1], JOURNEY.land)]).catch(() => {});
-            around.forEach(element => element.getAnimations().forEach(animation => animation.cancel()));
+            await lift(copy, true).catch(() => {});
+            scroll.style.opacity = '';
+            await Promise.all([
+                travelAndLand(copy, dy), listExtras(copy, false),
+                blurTo([scroll], [8, 0], [5, .55], JOURNEY.travel).then(() => blurTo([scroll], [5, .55], [0, 1], JOURNEY.land)),
+                wait(JOURNEY.travel).then(() => deckFold(copy, false))
+            ]).catch(() => {});
+            scroll.getAnimations().forEach(animation => animation.cancel());
             card.style.visibility = '';
             copy.remove();
         });
@@ -2395,7 +2425,7 @@
         const open = event => openFromCard(event.currentTarget.closest('.ao-deck'), top);
         return h('li', { class: 'ao-deck', dataset: { deck: group.conversationId } },
             rest.slice().reverse().map((ticket, index) => h('div', {
-                class: 'ao-deck-strip', style: `--ao-deck-inset: ${(rest.length - index) * 3}%; --ao-deck-shade: ${(rest.length - index) * 5}%`, onclick: open
+                class: 'ao-deck-strip', style: `--ao-deck-inset: ${(rest.length - index) * 3}%; --ao-deck-shade: ${(rest.length - index) * .035}`, onclick: open
             }, markText(ticket.number, query))),
             ticketItem(top, user, { query, onpick: open }));
     }
@@ -3148,7 +3178,7 @@
                 ticketActionBar(ticket, draft),
                 choiceZone(`ticket:${ticket.number}`, actionFields(draft))),
             h('div', { class: 'ao-actions' }, confirmed
-                ? h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await savePendingAction(ticket, null)) showStatus(TEXTS.mail.pendingCleared); } }, TEXTS.common.cancel)
+                ? h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null))) showStatus(TEXTS.mail.pendingCleared); } }, TEXTS.common.cancel)
                 : h('button', { type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`, onclick: () => prepareReply(ticket, isCurrentMail) }, TEXTS.mail.prepareReply)));
     }
     // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
@@ -3172,6 +3202,26 @@
         }
         return action;
     }
+    // Conferma e annullamento dell'azione: la scelta si accende (o si spegne) e i campi si bloccano (o si sbloccano)
+    // con un passaggio morbido dallo stato di prima; il pulsante cambia in dissolvenza.
+    async function confirmMorph(number, change) {
+        const attivita = () => [...root.querySelectorAll('.ao-ticket-box')].find(box => box.querySelector('.ao-item-number')?.textContent === number)?.querySelector('.ao-form-fields')?.closest('.ao-card');
+        const before = attivita();
+        const thumb = before?.querySelector('.ao-segment-thumb');
+        const old = thumb ? { boxShadow: getComputedStyle(thumb).boxShadow, filter: getComputedStyle(thumb).filter } : null;
+        const fields = [...(before?.querySelectorAll('.ao-form-fields > :not(.ao-segmented)') || [])].map(field => getComputedStyle(field).opacity);
+        const result = await change();
+        const after = attivita();
+        if (!after || reducedMotion()) return result;
+        const timing = { duration: MOTION.swap * 1.6, easing: 'cubic-bezier(.3, .8, .2, 1)' };
+        const newThumb = after.querySelector('.ao-segment-thumb');
+        if (newThumb && old) newThumb.animate([old, { boxShadow: getComputedStyle(newThumb).boxShadow, filter: getComputedStyle(newThumb).filter }], timing);
+        [...after.querySelectorAll('.ao-form-fields > :not(.ao-segmented)')].forEach((field, index) => {
+            if (fields[index] !== undefined) field.animate([{ opacity: fields[index] }, { opacity: getComputedStyle(field).opacity }], timing);
+        });
+        after.querySelector('.ao-actions > .ao-button')?.animate([{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }], timing);
+        return result;
+    }
     async function savePendingAction(ticket, action) {
         const updated = await run(() => Services.setPendingAction(ticket.number, action));
         if (!updated) return null;
@@ -3189,7 +3239,7 @@
             : config.usefulResponses[draft.template.replace(/^useful:/, '')]?.response;
         // Il riferimento all'Incident nella risposta (in fondo) rende sicuro il collegamento mail ↔ ticket.
         const text = [template || '', draft.includeReference ? TEXTS.mail.reference(ticket.number) : ''].filter(Boolean).join('\n\n'); // il riferimento in fondo
-        const updated = await savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue));
+        const updated = await confirmMorph(ticket.number, () => savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue)));
         if (!updated) return;
         // In Outlook la risposta si apre solo sulla mail aperta: per un'altra mail
         // si apre la mail e l'azione resta salvata. L'anteprima le gestisce entrambe.
@@ -3675,7 +3725,7 @@
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
 /* Ticket che si apre o si richiude: sollevato come la scheda aperta di In coda (openFromCard, closeToList) */
-#ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); }
+#ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
@@ -3844,7 +3894,7 @@
 /* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
 #ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
-    box-shadow: 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+    box-shadow: var(--ao-raised-shadow);
 }
 #ao-root .ao-queue-item.ao-expanded.ao-unlifted, #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
 /* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
@@ -3891,9 +3941,9 @@
 #ao-root .ao-item-place { min-width: 0; }
 #ao-root .ao-item-company { color: var(--ao-text); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-item-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
-/* Contenitore del ticket nel thread: fondo incassato; aperto, con il bagliore (Flat: bordo) */
+/* Contenitore del ticket nel thread: fondo incassato; aperto, sollevato con l'ombra */
 #ao-root .ao-ticket-box { display: grid; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: calc(var(--ao-radius-base) + 2px); background: var(--ao-bg); transition: box-shadow .35s, border-color .35s; }
-#ao-root .ao-ticket-box.ao-expanded { border-color: var(--ao-call-open-border); box-shadow: var(--ao-call-glow); }
+#ao-root .ao-ticket-box.ao-expanded { box-shadow: var(--ao-raised-shadow); } /* aperto: solo l'ombra, come In coda */
 #ao-root .ao-box-head.ao-static { cursor: default; }
 #ao-root .ao-ticket-about { display: grid; gap: 4px; }
 #ao-root .ao-ticket-dates { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
@@ -3909,6 +3959,7 @@
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
 #ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line), var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
 #ao-root .ao-locked { cursor: default; }
+#ao-root .ao-locked > :not(.ao-segmented) { opacity: .6; } /* bloccati: i campi si attenuano, la scelta resta accesa */
 /* Ticket chiusi del thread */
 #ao-root .ao-closed { display: grid; gap: 6px; }
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
@@ -3919,9 +3970,10 @@
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 /* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
 #ao-root .ao-deck { display: grid; cursor: pointer; }
-#ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line-strong); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: color-mix(in srgb, var(--ao-text) var(--ao-deck-shade), var(--ao-surface)); /* un tono più scuro per ogni scheda più indietro */ color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: linear-gradient(rgba(0, 0, 0, var(--ao-deck-shade)), rgba(0, 0, 0, var(--ao-deck-shade))), var(--ao-surface); /* la scheda davanti, un tono più scura per ogni passo indietro */ color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-deck > .ao-item { position: relative; }
 #ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
+#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; } /* copia ferma della lista durante l'andata */
 #ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
@@ -3942,8 +3994,7 @@
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-#ao-root .ao-item:not(.ao-expanded, .ao-static):hover :is(.ao-user-tag, .ao-news, .ao-new-preview, .ao-notify) { filter: var(--ao-hover-inner-filter); }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: inset 0 0 0 1px var(--ao-item-hover-edge), var(--ao-item-hover-glow); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
