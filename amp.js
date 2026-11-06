@@ -105,6 +105,8 @@
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
             searchFocusLine: 'var(--ao-accent)',
+            notifyBg: 'var(--ao-accent)', // segnalino degli aggiornamenti nei selettori (sulle schede è sempre bianco)
+            notifyInk: '#fff',
             fieldFocusLine: 'var(--ao-accent)', // campo che si sta compilando
             fieldFocusGlow: 'var(--ao-shadow-focus)',
             searchLensLine: 'var(--ao-accent-border)',
@@ -131,6 +133,8 @@
         // Tema scuro: segue Outlook (prefers-color-scheme) oppure la scelta in Impostazioni → Profilo.
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
         darkColors: {
+            notifyBg: '#fff', // in scuro il segnalino è bianco ovunque
+            notifyInk: '#005a9e',
             textAccent: '#6cb8f6',
             accentBorder: '#3a6a8f',
             accentBg: '#19344a',
@@ -530,7 +534,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 10:45';
+    const BUILD = '2026-11-06 11:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -818,6 +822,7 @@
 
     // Icone delle schede principali
     const TAB_ICONS = {
+        settings: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/></svg>',
         queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
         tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
         debug: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.5 13.8a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a3.5 3.5 0 0 0 4.6-3.3l-2 2-2-.5-.5-2z"/></svg>'
@@ -846,8 +851,9 @@
     };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
-        const icon = h('span', { class: 'ao-tab-icon', 'aria-hidden': 'true' });
+        const icon = h('span', { class: 'ao-tab-icon' });
         icon.innerHTML = TAB_ICONS[view];
+        icon.append(notifyBadge(0)); // aggiornamenti: sempre visibili sull'icona
         return icon;
     }
 
@@ -918,12 +924,11 @@
         });
         return element;
     }
-    // Contatore delle schede: un solo numero, sempre il conteggio. Pulito di norma;
-    // con una notifica lo stesso numero prende lo sfondo blu (il dettaglio si legge nella sezione).
-    function counter(count, notify = false, title = '') {
-        // Nascosto con una classe (non con hidden), così compare e sparisce con un'animazione.
-        return h('span', { class: `ao-counter${notify ? ' ao-counter-notify' : ''}${!count && !notify ? ' ao-counter-off' : ''}`, title: title || undefined }, count || '');
-    }
+    // Contatore delle schede (solo sulla scheda aperta). Nascosto con una classe, non con hidden,
+    // così compare e sparisce con un'animazione.
+    const counter = () => h('span', { class: 'ao-counter ao-counter-off' });
+    // Segnalino degli aggiornamenti sull'icona (schede e selettori): compare solo se c'è qualcosa di nuovo.
+    const notifyBadge = (updates, title) => h('span', { class: `ao-notify${updates ? '' : ' ao-notify-off'}`, title: updates ? title : undefined }, updates || '');
     // Solo la notifica: numero su sfondo blu.
     const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
@@ -1266,19 +1271,16 @@
     }
 
     function buildShell(container) {
-        // Una sola barra: freccia per tornare all'add-in, schede, ingranaggio delle impostazioni.
+        // Una sola barra: freccia per tornare all'add-in e tre schede a posto fisso (In coda, Ticket, Impostazioni).
+        // La scheda scelta mostra icona, nome e contatore; le altre solo l'icona (il nome passandoci sopra).
         root = h('div', { id: 'ao-root' },
             h('nav', { class: 'ao-tabs', role: 'tablist' },
                 h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
                 // La vista di lavoro del ticket non è una scheda: si apre da sola (mail o ticket) e ha il suo "←".
-                ['queue', 'tickets'].map(view => h('button', {
-                    type: 'button', role: 'tab', class: 'ao-tab', dataset: { view },
+                ['queue', 'tickets', 'settings'].map(view => h('button', {
+                    type: 'button', role: 'tab', class: 'ao-tab', dataset: { view }, 'aria-label': TEXTS.tabs[view],
                     onclick: () => openPage(view)
                 }, tabIcon(view), h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
-                h('button', {
-                    type: 'button', class: 'ao-icon-button ao-settings-button', dataset: { view: 'settings' },
-                    title: TEXTS.tabs.settings, 'aria-label': TEXTS.tabs.settings, onclick: () => (state.view === 'settings' ? openPage(state.backTo || 'queue') : openPage('settings', state.view))
-                }, '⚙'),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
@@ -1368,7 +1370,7 @@
         const changed = indicator.dataset.view && indicator.dataset.view !== activeView && indicator.classList.contains('ao-ready');
         indicator.classList.toggle('ao-moving', Boolean(changed));
         // Linea corta e arrotondata, centrata sotto icona e nome della scheda.
-        const content = (tab.querySelector('.ao-tab-label')?.offsetWidth || 0) + (tab.querySelector('.ao-tab-icon')?.offsetWidth || 0) + 6;
+        const content = [...tab.children].reduce((sum, part) => sum + (part.classList.contains('ao-counter-off') ? 0 : part.scrollWidth), 0) + 10; // a scheda aperta
         const width = Math.min(tab.offsetWidth, Math.max(36, content + 12));
         indicator.style.width = `${width}px`;
         indicator.style.transform = `translateX(${tab.offsetLeft + (tab.offsetWidth - width) / 2}px)`;
@@ -1376,7 +1378,6 @@
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
     // Segnalino (numero) accanto al nome della scheda: solo se le schede sono più di una.
-    const counterAllowed = () => (root?.querySelectorAll('.ao-tab').length || 0) > 1;
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
@@ -1392,19 +1393,20 @@
             const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
             tab.classList.toggle('ao-active', active);
             tab.setAttribute('aria-selected', String(active));
-            // Conteggio sempre; sfondo blu se c'è una notifica (Ticket: messaggi nuovi nei thread dei miei ticket).
-            const notify = tab.dataset.view === 'tickets' && newReplies > 0;
-            // Aggiornato sul posto (non ricreato), così segue lo zoom animato insieme alla scritta.
-            const tabCounter = tab.querySelector('.ao-counter');
+            tab.title = active ? '' : TEXTS.tabs[tab.dataset.view];
+            // Contatore solo sulla scheda aperta; gli aggiornamenti (Ticket: thread dei miei ticket con messaggi nuovi)
+            // sono un segnalino sull'icona, sempre visibile.
             const count = counts[tab.dataset.view];
+            const tabCounter = tab.querySelector('.ao-counter');
             tabCounter.textContent = count || '';
-            // Regola dei segnalini: nessuno con una scheda sola, e mai sulla scheda che si sta guardando.
-            tabCounter.classList.toggle('ao-counter-off', (!count && !notify) || active || !counterAllowed());
-            tabCounter.classList.toggle('ao-counter-notify', notify);
-            if (notify) tabCounter.title = TEXTS.tickets.newMessagesTitle(newReplies);
-            else tabCounter.removeAttribute('title');
+            tabCounter.classList.toggle('ao-counter-off', !count || !active);
+            const updates = tab.dataset.view === 'tickets' ? newReplies : 0;
+            const badge = tab.querySelector('.ao-notify');
+            badge.textContent = updates || '';
+            badge.classList.toggle('ao-notify-off', !updates);
+            if (updates) badge.title = TEXTS.tickets.newMessagesTitle(updates);
+            else badge.removeAttribute('title');
         });
-        root.querySelector('.ao-settings-button').classList.toggle('ao-active', state.view === 'settings');
         renderStatusBar();
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         const body = root.querySelector('.ao-body');
@@ -1610,7 +1612,7 @@
             return {
                 value: option.value,
                 title: active ? undefined : option.label,
-                label: [svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
+                label: [option.notify ? h('span', { class: 'ao-notify-anchor' }, svgIcon(option.icon), notifyBadge(option.notify, option.notifyTitle)) : svgIcon(option.icon), active ? h('span', { class: entering ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', null, option.label)) : leaving(option, active)],
                 count: active ? option.count : undefined,
                 disabled: option.disabled
             };
@@ -1969,6 +1971,7 @@
             notice,
             ticketSourceBar(open, user, {
                 mail: visible.filter(fromMail).length,
+                mailUpdates: new Set(visible.filter(ticket => fromMail(ticket) && ticket.newMessages).map(ticket => ticket.conversationId)).size,
                 none: visible.filter(ticket => !fromMail(ticket)).length
             }),
             state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
@@ -2022,7 +2025,7 @@
                 [{ value: 'mine', label: TEXTS.tickets.mine }, ...colleagues.map(name => ({ value: name, label: name })), { value: 'all', label: TEXTS.tickets.allOperators, separated: true }],
                 value => { state.ticketOperator = value; }))
             : iconBar([
-                { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail },
+                { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail, notify: counts.mailUpdates, notifyTitle: TEXTS.tickets.newMessagesTitle(counts.mailUpdates) },
                 { value: 'none', icon: SEGMENT_ICONS.none, label: TEXTS.tickets.withoutMail, count: counts.none }
             ], state.ticketSource, value => {
                 if (value === state.ticketSource) return;
@@ -3350,12 +3353,15 @@
 #ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: rgba(255, 255, 255, .8); }
 #ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: #fff; }
-#ao-root .ao-tabs .ao-settings-button.ao-active { background: rgba(255, 255, 255, .22); color: #fff; }
-#ao-root .ao-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: rgba(255, 255, 255, .72); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: rgba(255, 255, 255, .72); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: #fff; }
 #ao-root .ao-tab.ao-active { color: #fff; }
-#ao-root .ao-tab-icon { display: inline-flex; margin-right: 5px; opacity: .8; transition: color .25s, opacity .25s; }
+#ao-root .ao-tab-icon { position: relative; display: inline-flex; opacity: .8; transition: color .25s, opacity .25s; }
 #ao-root .ao-tab.ao-active .ao-tab-icon { color: #fff; opacity: 1; }
+/* Ogni scheda ha il suo posto: chiusa solo l'icona, aperta anche nome e contatore (si allargano nel suo posto) */
+#ao-root .ao-tab-label { max-width: 0; margin-left: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width var(--ao-selection-motion), margin-left var(--ao-selection-motion), opacity .25s; }
+#ao-root .ao-tab.ao-active .ao-tab-label { max-width: 120px; margin-left: 9px; opacity: 1; } /* spazio anche per il segnalino */
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-label { transition: none; } }
 #ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: #fff; pointer-events: none; opacity: 0; }
 #ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
 #ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
@@ -3364,14 +3370,19 @@
 #ao-root .ao-tab > * { transition: transform .35s ease-in-out; }
 #ao-root .ao-tab.ao-active > * { transform: scale(1.04); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
-/* Schede: il conteggio è un numero pulito; con una notifica lo stesso numero ha lo sfondo blu. */
+/* Schede: il conteggio è un numero pulito, solo sulla scheda aperta. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
 #ao-root .ao-tab.ao-active .ao-counter { color: #fff; }
 /* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
 #ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; color: rgba(255, 255, 255, .72); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
-#ao-root .ao-tab .ao-counter-notify, #ao-root .ao-tab.ao-active .ao-counter-notify { background: #fff; color: #005a9e; font-weight: var(--ao-fw-bold); }
+/* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile. Bianco sulle schede (sfondo blu)
+   e in scuro; azzurro nei selettori in chiaro (sfondo chiaro). */
+#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: var(--ao-notify-bg); color: var(--ao-notify-ink); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 15px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
+#ao-root .ao-tab .ao-notify { background: #fff; color: #005a9e; }
+#ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
+#ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
@@ -3735,6 +3746,8 @@
 
 /* Risposte nuove e più ticket sullo stesso thread */
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
+#ao-root .ao-item.ao-item-new:not(.ao-opening) { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
+#ao-root .ao-item.ao-item-new:not(.ao-expanded):hover { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-hover-glow); } /* ticket con messaggi nuovi: bordino azzurro */
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-text-accent); }
 #ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); transition: background-color .3s, box-shadow .35s, filter .3s; }
