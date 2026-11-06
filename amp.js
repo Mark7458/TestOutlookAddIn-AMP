@@ -528,7 +528,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 21:00';
+    const BUILD = '2026-11-06 21:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3884,7 +3884,6 @@
 #ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
-#ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
 /* Contenitore del ticket nella pagina del thread */
 /* Testata del ticket (lista e thread): numero con stato ed etichetta affiancati; agenzia e attività; short description */
 #ao-root .ao-item-tags { display: flex; align-items: center; gap: 4px; flex: none; }
