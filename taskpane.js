@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-6
+// Test-Plugin file version: 0.2-taskpane.js-devtools-7
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-6',
-    'taskpane.js': '0.2-taskpane.js-devtools-6',
-    'taskpane.css': '0.2-taskpane.css-devtools-6',
+    'taskpane.html': '0.2-taskpane.html-devtools-7',
+    'taskpane.js': '0.2-taskpane.js-devtools-7',
+    'taskpane.css': '0.2-taskpane.css-devtools-7',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -997,7 +997,7 @@ function registerHealthButton() {
   }
   function validateTicketingConfig(payload) {
     const ticketing = payload?.ticketing;
-    const requiredCollections = ["ampStatuses", "sharePointStatuses", "workflows"];
+    const requiredCollections = ["ampStatuses", "workflows"];
     const missing = requiredCollections.filter((name) =>
       !Array.isArray(ticketing?.[name]) || !ticketing[name].some((value) => String(value || "").trim())
     );
@@ -1188,13 +1188,11 @@ function registerHealthButton() {
       .filter(([, group]) => group?.enabled !== false)
       .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
     const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
-    const sharePointStatuses = (config?.ticketing?.sharePointStatuses || []).map((value) => ({ value, label: value }));
 
     setSelectOptions(byId("developer-create-operator-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-create-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-create-group-name"), groups);
     setSelectOptions(byId("developer-create-amp-status"), ampStatuses);
-    setSelectOptions(byId("developer-create-sharepoint-status"), sharePointStatuses);
 
     const itemInput = byId("developer-create-item-id");
     if (itemInput && !itemInput.value && developerLastItemId) itemInput.value = developerLastItemId;
@@ -1427,7 +1425,7 @@ function registerHealthButton() {
     addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
     addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
     addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
-    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus || body.sharePointStatus);
+    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
     addDeveloperField(container, "Gruppo", parsed?.groupName || body.groupName);
     addDeveloperField(container, "Lock", createdTicket?.lock ? `${createdTicket.lock.operatorId || body.operatorId} · ${createdTicket.lock.workflow || "CreateTicket"}` : `${body.operatorId || "-"} · CreateTicket`);
     addDeveloperField(container, "Totale lavorazioni", Array.isArray(parsed?.metadata?.tickets) ? parsed.metadata.tickets.length : (parsed?.totalTickets ?? (tickets.length || null)));
@@ -1495,7 +1493,6 @@ function registerHealthButton() {
       action: "CreateTicket",
       ampRequestId: requiredFormValue("developer-create-amp-request-id", "Riferimento AMP"),
       ampStatus: requiredFormValue("developer-create-amp-status", "Stato AMP"),
-      sharePointStatus: requiredFormValue("developer-create-sharepoint-status", "Stato SharePoint"),
       operatorId: requiredFormValue("developer-create-operator-id", "Operatore"),
       requesterId: requiredFormValue("developer-create-requester-id", "Requester"),
       groupName: requiredFormValue("developer-create-group-name", "Gruppo"),
