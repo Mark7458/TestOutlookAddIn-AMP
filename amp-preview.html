@@ -83,6 +83,7 @@
   <button type="button" id="preview-reset-mail">Ripristina mail e ticket</button>
   <button type="button" id="preview-reset-config">Azzera configurazioni</button>
   <button type="button" id="preview-external" title="Un collega modifica due ticket direttamente su AMP: SharePoint non lo sa ancora">Simula modifica su AMP</button>
+  <button type="button" id="preview-incoming" title="Il cliente risponde sul thread con due ticket (INC0012091 e INC0012092)">Simula messaggio sul thread</button>
   <button type="button" id="preview-sync" title="Il job della Function App che riallinea SharePoint con ServiceNow">Allinea ora</button>
   <span class="note">Dati inventati · le configurazioni restano solo in questo browser</span>
 </div>
@@ -343,6 +344,11 @@
     const changes = mailbox.simulateExternalChange();
     toast = changes.length ? `Su AMP (fuori dal pannello): ${changes.join('; ')}. Il pannello lo vedrà al prossimo allineamento.` : 'Nessuna modifica da simulare.';
     renderReading();
+  });
+  byId('preview-incoming').addEventListener('click', () => {
+    const from = mailbox.simulateIncoming();
+    toast = from ? `Nuovo messaggio di ${from} sul thread di INC0012091 e INC0012092.` : 'Thread non trovato.';
+    renderOutlook();
   });
   byId('preview-sync').addEventListener('click', async () => {
     const result = await window.AmpBackend.sync();
