@@ -534,7 +534,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 22:00';
+    const BUILD = '2026-11-06 22:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -658,6 +658,21 @@
         if (typeof backend?.[name] !== 'function') throw new ServicesMissingError(name);
         return backend[name](...args);
     }]));
+    // Pagina del thread precaricata passando sopra una scheda: il risultato resta valido qualche secondo e la pagina,
+    // al clic, compare subito (poi si aggiorna comunque in silenzio).
+    const threadCache = new Map();
+    const THREAD_CACHE_MS = 15000;
+    Services.prefetchThread = conversationId => {
+        const cached = threadCache.get(conversationId);
+        if (!conversationId || (cached && Date.now() - cached.at < THREAD_CACHE_MS)) return;
+        const entry = { at: Date.now(), result: null };
+        threadCache.set(conversationId, entry);
+        Services.findTicketForMail({ conversationId, incNumbers: [] }).then(result => { entry.result = result; }).catch(() => threadCache.delete(conversationId));
+    };
+    Services.cachedThread = conversationId => {
+        const cached = threadCache.get(conversationId);
+        return cached?.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.result : null;
+    };
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
@@ -888,6 +903,7 @@
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
+        journey: null, // ticket la cui scheda sta viaggiando: nella pagina il suo posto resta vuoto finché non arriva
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
@@ -1093,6 +1109,8 @@
     async function refreshTarget(quiet = false) {
         if (state.target?.kind !== 'mail' || !Services.available()) return;
         const sequence = ++searchSequence;
+        const cached = Services.cachedThread(state.target.mail.conversationId);
+        if (cached && !state.result) { state.result = cached; quiet = true; } // precaricata: subito, poi si aggiorna in silenzio
         if (!quiet) {
             state.searching = true;
             render();
@@ -1173,9 +1191,10 @@
         return around;
     }
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
+    const headOf = number => [...root.querySelectorAll('.ao-scroll :is(.ao-ticket-number, .ao-item-number)')]
+        .find(element => element.textContent === number)?.closest('.ao-box-head');
     async function pageCardOf(number) {
-        const find = () => [...root.querySelectorAll('.ao-scroll :is(.ao-ticket-number, .ao-item-number)')]
-            .find(element => element.textContent === number)?.closest('.ao-box-head');
+        const find = () => headOf(number);
         for (let waited = 0; !find() && waited < 900; waited += 30) await wait(30);
         return find();
     }
@@ -1256,14 +1275,32 @@
         { duration: JOURNEY.build, delay: delay + index * JOURNEY.stagger, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' }).finished);
         return Promise.all([...move(above.slice().reverse(), -8, 0), ...move(below, 8, 80)]).catch(() => {});
     }
-    // Viaggio e atterraggio in un solo movimento continuo (niente pause tra i due tempi).
-    function travelAndLand(copy, dy) {
-        const share = JOURNEY.travel / (JOURNEY.travel + JOURNEY.land);
-        return copy.animate([
-            { transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
-            { transform: `translateY(${dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, offset: share, easing: JOURNEY.easing },
-            { transform: `translateY(${dy}px)` }
-        ], { duration: JOURNEY.travel + JOURNEY.land, fill: 'forwards' }).finished;
+    // Viaggio e atterraggio in un solo movimento continuo, che insegue il posto d'arrivo: se la pagina cambia mentre
+    // la scheda è in volo (arrivano i dati del thread), la traiettoria si aggiusta in corsa, senza scatti.
+    // goal(): spostamento verticale verso l'arrivo (null finché non c'è); restituisce l'ultimo spostamento.
+    function travelAndLand(copy, goal) {
+        const total = JOURNEY.travel + JOURNEY.land;
+        const share = JOURNEY.travel / total;
+        const ease = t => 1 - Math.pow(1 - t, 3); // come travelEasing: parte deciso, arriva piano
+        const [lifted, scale] = [-3, 1.035];
+        copy.style.boxShadow = JOURNEY.liftShadow;
+        return new Promise(resolve => {
+            let first = null, last = 0;
+            const frame = now => {
+                if (first === null) first = now;
+                const t = Math.min(1, (now - first) / total);
+                const target = goal();
+                if (target !== null) last = target;
+                const along = t < share ? ease(t / share) : 1;
+                const settle = t < share ? 0 : ease((t - share) / (1 - share));
+                copy.style.transform = `translateY(${last * along + lifted * (1 - settle)}px) scale(${scale - (scale - 1) * settle})`;
+                copy.style.boxShadow = settle ? `0 ${12 * (1 - settle)}px ${28 * (1 - settle)}px rgba(0, 0, 0, ${.18 * (1 - settle)})` : JOURNEY.liftShadow;
+                if (t < 1 || goal() === null) requestAnimationFrame(frame);
+                else resolve(last);
+            };
+            copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
+            requestAnimationFrame(frame);
+        });
     }
     // Copia ferma della lista, sopra la pagina che intanto si prepara: si sfoca e svanisce intorno alla scheda.
     function listGhost(scroll, card) {
@@ -1282,7 +1319,8 @@
         return ghost;
     }
     // card: la scheda o il mazzo nella lista; ticket: quello da aprire (nel mazzo, il più recente).
-    // La pagina si prepara (dati compresi) mentre la scheda si stacca: il viaggio parte senza attese.
+    // La pagina si prepara mentre la scheda si stacca; il viaggio parte appena è staccata, verso dove la scheda sta
+    // nella pagina in quel momento, e si aggiusta se la pagina cambia (dati del thread arrivati dopo).
     async function openFromCard(card, ticket) {
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
@@ -1291,21 +1329,20 @@
         const copy = travelCopy(card, card);
         const ghost = listGhost(root.querySelector('.ao-scroll'), card);
         body.style.opacity = '0';
+        state.journey = ticket.number;
         openTicketItem(ticket, { slide: false });
-        // la lista si sfoca e svanisce per conto suo: il viaggio parte appena la scheda è staccata e la pagina è pronta
+        // la lista si sfoca e svanisce per conto suo
         blurTo([ghost], [0, 1], [5, .55], JOURNEY.lift).then(() => blurTo([ghost], [5, .55], [8, 0], JOURNEY.travel * .5)).catch(() => {});
-        const [target] = await Promise.all([pageCardOf(ticket.number), lift(copy, true), deckFold(copy, true)]).catch(() => []);
-        if (!target) { copy.remove(); ghost.remove(); body.style.opacity = ''; return; }
-        target.style.visibility = 'hidden';
+        await Promise.all([lift(copy, true), deckFold(copy, true)]).catch(() => {});
         body.style.opacity = '';
-        await holdingRender(async () => {
-            const dy = target.getBoundingClientRect().top - start; // dalla posizione di partenza
-            await Promise.all([travelAndLand(copy, dy), listExtras(copy, true)]).catch(() => {});
-            ghost.remove();
-            target.style.visibility = '';
-            copy.remove();
-            await Promise.all([buildPage(pageAround(target), true), threadExtras(target, true)]);
-        });
+        const goal = () => { const head = headOf(ticket.number); return head ? head.getBoundingClientRect().top - start : null; };
+        await Promise.all([travelAndLand(copy, goal), listExtras(copy, true)]).catch(() => {});
+        state.journey = null;
+        render();
+        ghost.remove();
+        copy.remove();
+        const target = headOf(ticket.number);
+        if (target) await holdingRender(() => Promise.all([buildPage(pageAround(target), true), threadExtras(target, true)]));
     }
     async function closeToList(target) {
         const number = state.openedTicket;
@@ -1334,7 +1371,7 @@
             await lift(copy, true).catch(() => {});
             scroll.style.opacity = '';
             await Promise.all([
-                travelAndLand(copy, dy), listExtras(copy, false),
+                travelAndLand(copy, () => dy), listExtras(copy, false),
                 blurTo([scroll], [8, 0], [5, .55], JOURNEY.travel).then(() => blurTo([scroll], [5, .55], [0, 1], JOURNEY.land)),
                 wait(JOURNEY.travel).then(() => deckFold(copy, false))
             ]).catch(() => {});
@@ -2473,7 +2510,7 @@
     function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const expired = isHoldExpired(ticket);
-        return clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
+        const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
             // Etichetta dell'operatore solo con il filtro Operatore su Tutti
             ticketHead(ticket, user, { query, owner: state.ticketOperator === 'all' }),
             inGroup ? null : newMessagesPreview(ticket),
@@ -2481,6 +2518,11 @@
             holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
                 holdDate ? h('span', { class: `ao-item-time${expired ? ' ao-item-late' : ''}` }, (expired ? TEXTS.tickets.holdExpiredOn : TEXTS.tickets.holdUntil)(formatWhen(holdDate))) : null,
                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null);
+        // Fermandosi sopra la scheda si precarica la sua pagina (un attimo di attesa: non ciò che il mouse attraversa)
+        let hover = null;
+        item.addEventListener('pointerenter', () => { hover = setTimeout(() => Services.prefetchThread(ticket.conversationId), 120); });
+        item.addEventListener('pointerleave', () => clearTimeout(hover));
+        return item;
     }
 
     // ---------------------------- Mail ------------------------------------
@@ -2954,8 +2996,8 @@
             render();
         };
         return h('section', { class: `ao-ticket-box${expanded ? ' ao-expanded' : ''}` },
-            h('div', single ? { class: 'ao-item ao-box-head ao-static' } : {
-                class: 'ao-item ao-box-head', tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle,
+            h('div', single ? { class: `ao-item ao-box-head ao-static${state.journey === ticket.number ? ' ao-away' : ''}` } : {
+                class: `ao-item ao-box-head${state.journey === ticket.number ? ' ao-away' : ''}`, tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle,
                 onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) toggle(); }
             }, ticketHead(ticket, user, { owner: true, takeover: true, timer: timerControl(ticket, open) })),
             h('section', { class: 'ao-card ao-ticket-about' },
@@ -3945,6 +3987,7 @@
 #ao-root .ao-ticket-box { display: grid; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: calc(var(--ao-radius-base) + 2px); background: var(--ao-bg); transition: box-shadow .35s, border-color .35s; }
 #ao-root .ao-ticket-box.ao-expanded { box-shadow: var(--ao-raised-shadow); } /* aperto: solo l'ombra, come In coda */
 #ao-root .ao-box-head.ao-static { cursor: default; }
+#ao-root .ao-box-head.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
 #ao-root .ao-ticket-about { display: grid; gap: 4px; }
 #ao-root .ao-ticket-dates { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-ticket-description { color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
