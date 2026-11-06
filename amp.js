@@ -543,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 13:20';
+    const BUILD = '2026-11-06 13:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1341,6 +1341,9 @@
         }
         blendTabsWithHeader();
         root.querySelector('.ao-tab-indicator').addEventListener('transitionend', event => event.currentTarget.classList.remove('ao-moving'));
+        root.querySelector('.ao-tabs').addEventListener('transitionend', event => {
+            if (event.target.classList.contains('ao-tab-label') && event.propertyName === 'max-width') settleTabIndicator();
+        });
     }
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
@@ -1392,7 +1395,21 @@
         indicator.dataset.view = activeView;
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
-    // Segnalino (numero) accanto al nome della scheda: solo se le schede sono più di una.
+    // A scheda aperta (nome comparso) la sottolineatura si rimette esattamente sotto icona, nome e numero
+    // come appaiono davvero (carattere, zoom della scheda), centrata su di loro.
+    function settleTabIndicator() {
+        const indicator = root?.querySelector('.ao-tab-indicator');
+        const tab = root?.querySelector('.ao-tab.ao-active');
+        if (!indicator || !tab) return;
+        const parts = [...tab.children].filter(part => !part.classList.contains('ao-counter-off') && part.getBoundingClientRect().width > 0);
+        const left = Math.min(...parts.map(part => part.getBoundingClientRect().left));
+        const right = Math.max(...parts.map(part => part.getBoundingClientRect().right));
+        const nav = root.querySelector('.ao-tabs').getBoundingClientRect();
+        const width = Math.min(tab.offsetWidth, Math.max(36, right - left + 12));
+        indicator.classList.add('ao-moving');
+        indicator.style.width = `${width}px`;
+        indicator.style.transform = `translateX(${(left + right) / 2 - nav.left - width / 2}px)`;
+    }
     function render() {
         if (!root) return;
         if (state.holdRender) { renderPending = true; return; }
