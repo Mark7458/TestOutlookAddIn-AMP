@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-4
+// Test-Plugin file version: 0.2-taskpane.js-devtools-5
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-4',
-    'taskpane.js': '0.2-taskpane.js-devtools-4',
-    'taskpane.css': '0.2-taskpane.css-devtools-4',
+    'taskpane.html': '0.2-taskpane.html-devtools-5',
+    'taskpane.js': '0.2-taskpane.js-devtools-5',
+    'taskpane.css': '0.2-taskpane.css-devtools-5',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -41,6 +41,8 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
   let currentMessageContext = null;
   let currentSharePointData = null;
   let developerToolsAllowed = false;
+  let developerLastItemId = "";
+  let developerResultView = "fields";
   const messageContextListeners = new Set();
   const sharePointDataListeners = new Set();
   const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
@@ -550,12 +552,10 @@ function registerHealthButton() {
   }
 
   function syncDeveloperConversationId() {
-    const input = byId("developer-conversation-id");
-    if (input) {
-      input.value = currentMessageContext?.normalizedConversationId || "";
-    }
+    if (getDeveloperAction() !== "GetTicketByConversationId") return;
+    const input = byId("developer-action-input");
+    if (input) input.value = currentMessageContext?.normalizedConversationId || "";
   }
-
   function showDeveloperToolsView() {
     if (!developerToolsAllowed) return;
     showMainView();
@@ -1112,156 +1112,20 @@ function registerHealthButton() {
     }
   }
 
-  const GET_TICKET_BY_CONVERSATION_ID_URL =
-    "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId";
-
-  function resetTicketResult() {
-    const panel = byId("developer-ticket-result");
-    if (panel) {
-      panel.hidden = true;
-    }
-    setText("developer-ticket-status", "", "");
-    setText("developer-ticket-auth-mode", "", "");
-    setText("developer-ticket-response", "", "");
-  }
-
-  function setTicketButtonLoading(isLoading) {
-    const button = byId("developer-get-ticket-button");
-    if (!button) {
-      return;
-    }
-    button.disabled = isLoading;
-    button.textContent = isLoading ? "Esecuzione..." : "GetTicketByConversationId";
-  }
-
-  function showTicketResult(result) {
-    const panel = byId("developer-ticket-result");
-    const status = byId("developer-ticket-status");
-    const authMode = byId("developer-ticket-auth-mode");
-    const response = byId("developer-ticket-response");
-    if (!panel || !status || !authMode || !response) {
-      return;
-    }
-
-    panel.hidden = false;
-    status.textContent = `${result.status} ${result.statusText || ""}`.trim();
-    status.className = result.ok ? "status-success" : "status-error";
-    authMode.textContent = result.authenticationMode || "Non disponibile";
-
-    try {
-      response.textContent = JSON.stringify(JSON.parse(result.body || "{}"), null, 2);
-    } catch {
-      response.textContent = result.body || "(Risposta vuota)";
-    }
-  }
-
-  function showTicketError(error) {
-    const panel = byId("developer-ticket-result");
-    const status = byId("developer-ticket-status");
-    const authMode = byId("developer-ticket-auth-mode");
-    const response = byId("developer-ticket-response");
-    if (!panel || !status || !authMode || !response) {
-      return;
-    }
-
-    panel.hidden = false;
-    status.textContent = "Errore";
-    status.className = "status-error";
-    authMode.textContent = "Non disponibile";
-    response.textContent = error?.message || String(error);
-  }
-
-  async function lookupTicketByConversationId(conversationId) {
-    const lookupStartedAt = Date.now();
-    const logLookup = (event, details = null) => window.WorkflowHealth?.recordDiagnostic?.(`lookup_${event}`, { trigger: "manual", ...(details || {}) });
-    logLookup("start");
-    resetTicketResult();
-    setTicketButtonLoading(true);
-
-    try {
-      if (!conversationId) {
-        logLookup("conversation_id_missing");
-        throw new Error("Inserisci un Conversation ID nei Developer Tools.");
-      }
-      if (!window.WorkflowHealth?.getAccessTokenSilently) {
-        throw new Error("API autenticazione silent non disponibile.");
-      }
-
-      let authentication;
-      try {
-        logLookup("token_start");
-        authentication = await window.WorkflowHealth.getAccessTokenSilently();
-        logLookup("token_complete", { available: Boolean(authentication?.accessToken), authenticationMode: authentication?.acquisitionMode || null });
-      } catch (silentError) {
-        logLookup("token_error", { name: silentError?.name || "Error", errorCode: silentError?.errorCode || null, message: silentError?.message || String(silentError) });
-        logLookup("auth_cycle_exhausted", { errorCode: silentError?.errorCode || null, message: silentError?.message || String(silentError) });
-        logLookup("health_fallback_skipped", { reason: "singleAuthCycleOnly" });
-        console.info("GetTicketByConversationId: ciclo di autenticazione manuale concluso senza token.", silentError);
-        throw silentError;
-      }
-
-      if (!authentication?.accessToken) {
-        throw new Error("Token di accesso non disponibile dopo il tentativo di connessione.");
-      }
-      await ensureOperationalConfig(authentication.accessToken);
-
-      const url = `${GET_TICKET_BY_CONVERSATION_ID_URL}?conversationId=${encodeURIComponent(conversationId)}`;
-      const startedAt = Date.now();
-      logLookup("fetch_start", { authenticationMode: authentication.acquisitionMode || null });
-      const fetchPendingTimer = setTimeout(() => logLookup("fetch_pending", { elapsedMs: Date.now() - startedAt }), 10000);
-      const fetchResponse = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authentication.accessToken}`,
-          Accept: "application/json"
-        }
-      });
-      clearTimeout(fetchPendingTimer);
-      logLookup("fetch_response_received", { status: fetchResponse.status, ok: fetchResponse.ok, elapsedMs: Date.now() - startedAt });
-      const body = await fetchResponse.text();
-
-      const result = {
-        ok: fetchResponse.ok,
-        status: fetchResponse.status,
-        statusText: fetchResponse.statusText,
-        authenticationMode: authentication.acquisitionMode,
-        body
-      };
-      console.info("GetTicketByConversationId:", {
-        trigger: "manual",
-        status: result.status,
-        ok: result.ok,
-        authenticationMode: result.authenticationMode,
-        elapsedMs: Date.now() - startedAt,
-        body: result.body
-      });
-      showTicketResult(result);
-      let parsedData = null;
-      try { parsedData = JSON.parse(body || "{}"); } catch {}
-      currentSharePointData = { conversationId, ok: result.ok, status: result.status, statusText: result.statusText, authenticationMode: result.authenticationMode, retrievedAt: new Date().toISOString(), data: parsedData, rawBody: parsedData ? null : body };
-      publishSharePointData();
-      logLookup("complete", { status: result.status, ok: result.ok, authenticationMode: result.authenticationMode, elapsedMs: Date.now() - lookupStartedAt, responseBytes: body.length });
-      return result;
-    } catch (error) {
-      logLookup("error", { name: error?.name || "Error", errorCode: error?.errorCode || null, message: error?.message || String(error), elapsedMs: Date.now() - lookupStartedAt });
-      console.error("GetTicketByConversationId non riuscito:", error);
-      showTicketError(error);
-      return null;
-    } finally {
-      setTicketButtonLoading(false);
-    }
-  }
-
-  async function testTicketLookup() {
-    const conversationId = String(byId("developer-conversation-id")?.value || "").trim();
-    return lookupTicketByConversationId(conversationId);
-  }
-
-  function registerDeveloperToolsControls() {
-    byId("developer-get-ticket-button")?.addEventListener("click", testTicketLookup);
-    byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
-  }
-
+  const DEVELOPER_ENDPOINTS = Object.freeze({ GetTicketByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId", GetTicketById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketById" });
+  function resetTicketResult(){const panel=byId("developer-ticket-result");if(panel)panel.hidden=true;developerResultView="fields";["developer-result-action","developer-ticket-status","developer-ticket-auth-mode","developer-ticket-response"].forEach(id=>setText(id,"",""));byId("developer-ticket-fields")?.replaceChildren();}
+  function getDeveloperAction(){return byId("developer-action-select")?.value||"GetTicketByConversationId";}
+  function updateDeveloperActionUi(){const action=getDeveloperAction(),label=byId("developer-action-input-label"),input=byId("developer-action-input");if(!label||!input)return;if(action==="GetTicketById"){label.textContent="Item ID";input.placeholder="es. 9840";input.value=developerLastItemId||"";}else{label.textContent="Conversation ID";input.placeholder="Conversation ID del messaggio";input.value=currentMessageContext?.normalizedConversationId||"";}}
+  function setTicketButtonLoading(value){const button=byId("developer-execute-button");if(button){button.disabled=value;button.textContent=value?"Esecuzione...":"Esegui";}}
+  function parseAmpMetadata(value){if(!value)return{tickets:[],error:null};try{const parsed=typeof value==="string"?JSON.parse(value):value;return{tickets:Array.isArray(parsed?.tickets)?parsed.tickets:[],error:null};}catch(error){return{tickets:[],error:error?.message||String(error)};}}
+  function findOperatorByLookupId(id){const config=readOperationalConfigCache()?.payload;return Object.entries(config?.operators||{}).find(([,op])=>String(op?.lookupId)===String(id))||null;}
+  function addDeveloperField(container,label,value){const card=document.createElement("div");card.className="developer-field-card";const name=document.createElement("span");name.textContent=label;const content=document.createElement("strong");content.textContent=value==null||value===""?"Non disponibile":String(value);card.append(name,content);container.appendChild(card);}
+  function renderSelectedAmpTicket(container,ticket){const details=document.createElement("div");details.className="developer-fields";addDeveloperField(details,"Ticket ID",ticket?.ticketId);addDeveloperField(details,"Stato AMP",ticket?.status);addDeveloperField(details,"Lock operatore",ticket?.lock?.operatorId||"Nessun lock");addDeveloperField(details,"Lock richiesto da",ticket?.lock?.requesterId);addDeveloperField(details,"Workflow lock",ticket?.lock?.workflow);addDeveloperField(details,"Lock acquisito",ticket?.lock?.acquiredAt);addDeveloperField(details,"Creato",ticket?.createdAt);addDeveloperField(details,"Ultima attività",ticket?.lastActivityAt);container.appendChild(details);}
+  function renderTicketFields(parsed){const container=byId("developer-ticket-fields");if(!container)return;container.replaceChildren();container.className="developer-fields";const fields=parsed?.fields||{},itemId=parsed?.itemId||fields?.id||"",lookupId=fields?.AssegnataaLookupId,operator=findOperatorByLookupId(lookupId);addDeveloperField(container,"Item ID",itemId);addDeveloperField(container,"Gruppo",fields?.Gruppo);addDeveloperField(container,"Assegnatario",operator?`${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})`:(lookupId?`LookupId ${lookupId}`:null));addDeveloperField(container,"Stato SharePoint",fields?._Status);const metadata=parseAmpMetadata(fields?.AMP_x002d_AVANADE);if(metadata.error){const e=document.createElement("div");e.className="developer-ticket-empty status-error";e.textContent=`Metadata AMP non valido: ${metadata.error}`;container.appendChild(e);return;}if(!metadata.tickets.length){const empty=document.createElement("div");empty.className="developer-ticket-empty";empty.textContent="Nessun ticket AMP presente.";container.appendChild(empty);return;}const selectorBox=document.createElement("div");selectorBox.className="developer-ticket-selector";const label=document.createElement("label");label.textContent="Ticket AMP";const selector=document.createElement("select");metadata.tickets.forEach((ticket,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=ticket?.ticketId||`Ticket ${index+1}`;selector.appendChild(option);});const host=document.createElement("div");const redraw=()=>{host.replaceChildren();renderSelectedAmpTicket(host,metadata.tickets[Number(selector.value)||0]);};selector.addEventListener("change",redraw);selectorBox.append(label,selector);container.append(selectorBox,host);redraw();}
+  function applyDeveloperResultView(){const raw=byId("developer-ticket-response"),fields=byId("developer-ticket-fields"),button=byId("developer-result-view-toggle"),showJson=developerResultView==="json";if(raw)raw.hidden=!showJson;if(fields)fields.hidden=showJson;if(button)button.textContent=showJson?"Mostra campi":"Mostra JSON";}
+  function showTicketResult(result,action){const panel=byId("developer-ticket-result"),status=byId("developer-ticket-status"),auth=byId("developer-ticket-auth-mode"),response=byId("developer-ticket-response");if(!panel||!status||!auth||!response)return;panel.hidden=false;setText("developer-result-action",action,"");status.textContent=`${result.status} ${result.statusText||""}`.trim();status.className=result.ok?"status-success":"status-error";auth.textContent=result.authenticationMode||"Non disponibile";let parsed=null;try{parsed=JSON.parse(result.body||"{}");response.textContent=JSON.stringify(parsed,null,2);}catch{response.textContent=result.body||"(Risposta vuota)";}if(parsed?.itemId)developerLastItemId=String(parsed.itemId);developerResultView=parsed?.fields?"fields":"json";if(parsed?.fields)renderTicketFields(parsed);else byId("developer-ticket-fields")?.replaceChildren();applyDeveloperResultView();}
+  async function executeDeveloperAction(){const action=getDeveloperAction(),value=String(byId("developer-action-input")?.value||"").trim();resetTicketResult();setTicketButtonLoading(true);try{if(!value)throw new Error(action==="GetTicketById"?"Inserisci un Item ID.":"Inserisci un Conversation ID.");const authentication=await window.WorkflowHealth.getAccessTokenSilently();if(!authentication?.accessToken)throw new Error("Token di accesso non disponibile.");await ensureOperationalConfig(authentication.accessToken);const parameter=action==="GetTicketById"?"itemId":"conversationId";const url=`${DEVELOPER_ENDPOINTS[action]}?${parameter}=${encodeURIComponent(value)}`;const fetchResponse=await fetch(url,{method:"GET",headers:{Authorization:`Bearer ${authentication.accessToken}`,Accept:"application/json"}});const body=await fetchResponse.text();const result={ok:fetchResponse.ok,status:fetchResponse.status,statusText:fetchResponse.statusText,authenticationMode:authentication.acquisitionMode,body};showTicketResult(result,action);let parsed=null;try{parsed=JSON.parse(body||"{}");}catch{}currentSharePointData={conversationId:action==="GetTicketByConversationId"?value:parsed?.conversationId||null,ok:result.ok,status:result.status,statusText:result.statusText,authenticationMode:result.authenticationMode,retrievedAt:new Date().toISOString(),data:parsed,rawBody:parsed?null:body};publishSharePointData();}catch(error){showTicketResult({ok:false,status:"Errore",statusText:"",authenticationMode:"Non disponibile",body:error?.message||String(error)},action);}finally{setTicketButtonLoading(false);}}
+  function registerDeveloperToolsControls(){byId("developer-action-select")?.addEventListener("change",updateDeveloperActionUi);byId("developer-execute-button")?.addEventListener("click",executeDeveloperAction);byId("developer-result-view-toggle")?.addEventListener("click",()=>{developerResultView=developerResultView==="fields"?"json":"fields";applyDeveloperResultView();});byId("close-developer-ticket-result")?.addEventListener("click",resetTicketResult);updateDeveloperActionUi();}
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
 
