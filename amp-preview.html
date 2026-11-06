@@ -350,6 +350,38 @@
     toast = from ? `Nuovo messaggio di ${from} sul thread di INC0012091 e INC0012092.` : 'Thread non trovato.';
     renderOutlook();
   });
+  // Solo anteprima (mai in produzione): tasto destro su un ticket della lista per simulare cosa gli succede.
+  const simMenu = document.createElement('div');
+  simMenu.style.cssText = 'position:fixed;z-index:1000;display:none;min-width:200px;padding:4px;border-radius:8px;background:#fff;border:1px solid #d5dce8;box-shadow:0 8px 24px rgba(0,0,0,.18);font:13px "Segoe UI",system-ui,sans-serif;color:#242424';
+  document.body.append(simMenu);
+  const hideSim = () => { simMenu.style.display = 'none'; };
+  document.addEventListener('click', hideSim);
+  document.addEventListener('scroll', hideSim, true);
+  document.addEventListener('contextmenu', event => {
+    const card = event.target.closest('#ao-root .ao-item, #ao-root .ao-deck');
+    const number = card?.querySelector('.ao-item-number')?.textContent;
+    if (!number) return hideSim();
+    event.preventDefault();
+    const item = (label, run) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.style.cssText = 'display:block;width:100%;padding:6px 10px;border:0;border-radius:6px;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer';
+      button.onmouseenter = () => { button.style.background = '#eff6fc'; };
+      button.onmouseleave = () => { button.style.background = 'none'; };
+      button.onclick = () => { hideSim(); toast = run(); renderOutlook(); };
+      return button;
+    };
+    const title = document.createElement('div');
+    title.textContent = `Simula su ${number}`;
+    title.style.cssText = 'padding:4px 10px 6px;font-size:11px;font-weight:600;color:#605e5c';
+    simMenu.replaceChildren(title,
+      item('On Hold scaduto', () => (mailbox.simulateHoldExpired(number) ? `${number}: On Hold con il termine scaduto.` : 'Ticket non trovato.')),
+      item('Nuovo messaggio nel thread', () => { const from = mailbox.simulateIncoming(number); return from ? `Nuovo messaggio di ${from} sul thread di ${number}.` : `${number} non ha un thread mail.`; }));
+    simMenu.style.left = `${Math.min(event.clientX, innerWidth - 220)}px`;
+    simMenu.style.top = `${Math.min(event.clientY, innerHeight - 110)}px`;
+    simMenu.style.display = 'block';
+  });
   byId('preview-sync').addEventListener('click', async () => {
     const result = await window.AmpBackend.sync();
     toast = `Allineamento: ${result.changed} ticket aggiornati su SharePoint.`;

@@ -725,21 +725,31 @@
                 persist();
                 return { applied };
             },
-            // Il cliente risponde di nuovo sul thread con due ticket (conv-10, il mazzo): per vedere le notifiche.
-            simulateIncoming() {
-                const thread = conversationMessages('conv-10');
+            // Solo anteprima: il cliente risponde di nuovo sul thread del ticket (di default quello a mazzo, conv-10).
+            simulateIncoming(number = null) {
+                const conversationId = number ? conversationOf(number) : 'conv-10';
+                const thread = conversationId ? conversationMessages(conversationId) : [];
                 const sender = thread.find(item => item.direction === 'in');
                 if (!sender) return null;
                 const texts = ['Scusate, aggiungete anche Gialli. Grazie', 'La lista deve ricevere anche dall\'esterno, è possibile?', 'Tutto ok, grazie mille!', 'Ci sono novità?'];
                 const count = thread.filter(item => item.direction === 'in').length;
                 db.messages.push({
                     id: `msg-${db.messages.length + 1}-${Date.now().toString(36)}`,
-                    conversationId: 'conv-10', from: sender.from, to: [SHARED_MAILBOX],
+                    conversationId, from: sender.from, to: [SHARED_MAILBOX],
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
                     body: texts[count % texts.length], receivedAt: now(), categories: [], direction: 'in'
                 });
                 persist();
                 return sender.from.name;
+            },
+            // Solo anteprima: il ticket va in On Hold con il termine già scaduto (un'ora fa).
+            simulateHoldExpired(number) {
+                const incident = db.incidents[number];
+                if (!incident) return false;
+                Object.assign(incident, { state: '3', holdReason: incident.holdReason || '7', holdExpiration: snDate(new Date(Date.now() - HOUR)) });
+                mirror(number);
+                persist();
+                return true;
             },
             // Un collega lavora direttamente su AMP: ServiceNow cambia, SharePoint no (fino all'allineamento).
             simulateExternalChange() {
