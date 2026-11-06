@@ -534,7 +534,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 22:30';
+    const BUILD = '2026-11-06 23:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1181,15 +1181,6 @@
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
         lifted: 'translateY(-3px) scale(1.035)', liftShadow: '0 12px 28px rgba(0, 0, 0, .18)'
     };
-    // Tutto quello che sta intorno alla scheda (fratelli suoi e dei contenitori, fino all'area che scorre).
-    function aroundCard(card) {
-        const scroll = root.querySelector('.ao-scroll');
-        const around = [];
-        for (let node = card; node && node.parentElement && node !== scroll; node = node.parentElement) {
-            around.push(...[...node.parentElement.children].filter(sibling => sibling !== node));
-        }
-        return around;
-    }
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
     const headOf = number => [...root.querySelectorAll('.ao-scroll :is(.ao-ticket-number, .ao-item-number)')]
         .find(element => element.textContent === number)?.closest('.ao-box-head');
@@ -1197,13 +1188,6 @@
         const find = () => headOf(number);
         for (let waited = 0; !find() && waited < 900; waited += 30) await wait(30);
         return find();
-    }
-    // Pezzi della pagina intorno alla scheda: quelli sopra e quelli sotto (per costruirla e smontarla).
-    function pageAround(card) {
-        const view = root.querySelector('.ao-scroll .ao-view');
-        const parts = aroundCard(card).filter(element => view?.contains(element));
-        const above = parts.filter(element => element.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
-        return { above, below: parts.filter(element => !above.includes(element)) };
     }
     const frontOf = card => (card.classList.contains('ao-deck') ? card.querySelector(':scope > .ao-item') : card);
     // Copia della scheda che viaggia sopra a tutto, partendo dalla posizione dell'elemento dato.
@@ -1254,48 +1238,64 @@
     // Le parti che ci sono solo nel thread (tempo lavorato, etichetta dell'operatore, fondo del contenitore):
     // compaiono quando la scheda si posa (show) e spariscono prima che riparta.
     function threadExtras(head, show) {
-        const box = head.closest('.ao-ticket-box');
-        const style = box ? getComputedStyle(box) : null;
-        const parts = [...head.querySelectorAll('.ao-timer, .ao-item-tags > .ao-user-tag')].map(part => part.animate(show
+        return Promise.all([...head.querySelectorAll('.ao-timer, .ao-item-tags > .ao-user-tag')].map(part => part.animate(show
             ? [{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }]
             : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.85)' }],
-        { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished);
-        const bare = { backgroundColor: 'transparent', boxShadow: '0 0 0 transparent', borderColor: 'transparent' };
-        const dressed = style ? { backgroundColor: style.backgroundColor, boxShadow: style.boxShadow, borderColor: style.borderColor } : bare;
-        if (box) parts.push(box.animate(show ? [bare, dressed] : [dressed, bare], { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished);
-        return Promise.all(parts).catch(() => {});
+        { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished)).catch(() => {});
+    }
+    // Dopo che la scheda si è posata, la pagina si apre da lei: sopra scendono "←" e l'intestazione della mail; il suo
+    // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread scivolano fuori da sotto,
+    // uno dopo l'altro, fino al loro posto. inward = false: l'esatto inverso (si richiude tutto nella scheda).
+    function unfoldPage(head, inward) {
+        const view = root.querySelector('.ao-scroll .ao-view') || head.closest('.ao-view');
+        const box = head.closest('.ao-ticket-box');
+        const holder = [...(view?.children || [])].find(child => child.contains(head));
+        const above = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed') && child.compareDocumentPosition(holder) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const below = [...(view?.children || [])].filter(child => holder && holder.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const inner = box ? [...box.children].filter(child => child !== head) : [];
+        const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
+        const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
+        const moves = [];
+        above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
+        if (box) {
+            const boxRect = box.getBoundingClientRect(), headRect = head.getBoundingClientRect();
+            const closed = `inset(${headRect.top - boxRect.top}px ${boxRect.right - headRect.right}px ${boxRect.bottom - headRect.bottom}px ${headRect.left - boxRect.left}px round var(--ao-radius-base))`;
+            moves.push(play(box, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round calc(var(--ao-radius-base) + 2px))' }, inward ? 0 : JOURNEY.stagger));
+            inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? index : inner.length - 1 - index) * JOURNEY.stagger)));
+        }
+        // gli altri ticket scivolano fuori da sotto il contenitore (al ritorno ci rientrano)
+        const top = (holder || box || head).getBoundingClientRect().top;
+        below.forEach((element, index) => moves.push(play(element,
+            { opacity: 0, transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.97)` }, { opacity: 1, transform: 'none' },
+            (inward ? JOURNEY.build * .5 + index * JOURNEY.stagger * 2 : (below.length - 1 - index) * JOURNEY.stagger * 2))));
+        return Promise.all(moves).catch(() => {});
     }
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
-    // Pagina che si costruisce (inward) o si smonta intorno alla scheda: sopra scende, sotto sale.
-    function buildPage({ above, below }, inward) {
-        const move = (elements, dy, delay) => elements.map((element, index) => element.animate(inward
-            ? [{ opacity: 0, transform: `translateY(${dy}px)` }, { opacity: 1, transform: 'none' }]
-            : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateY(${dy}px)` }],
-        { duration: JOURNEY.build, delay: delay + index * JOURNEY.stagger, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' }).finished);
-        return Promise.all([...move(above.slice().reverse(), -8, 0), ...move(below, 8, 80)]).catch(() => {});
-    }
     // Viaggio e atterraggio in un solo movimento continuo, che insegue il posto d'arrivo: se la pagina cambia mentre
     // la scheda è in volo (arrivano i dati del thread), la traiettoria si aggiusta in corsa, senza scatti.
-    // goal(): spostamento verticale verso l'arrivo (null finché non c'è); restituisce l'ultimo spostamento.
+    // Insieme alla posizione la scheda prende anche la larghezza del posto d'arrivo.
+    // goal(): { dx, dy, width } rispetto alla partenza (null finché il posto non c'è).
     function travelAndLand(copy, goal) {
         const total = JOURNEY.travel + JOURNEY.land;
         const share = JOURNEY.travel / total;
         const ease = t => 1 - Math.pow(1 - t, 3); // come travelEasing: parte deciso, arriva piano
         const [lifted, scale] = [-3, 1.035];
+        const width = copy.getBoundingClientRect().width;
         copy.style.boxShadow = JOURNEY.liftShadow;
         return new Promise(resolve => {
-            let first = null, last = 0;
+            let first = null, last = { dx: 0, dy: 0, width };
             const frame = now => {
                 if (first === null) first = now;
                 const t = Math.min(1, (now - first) / total);
                 const target = goal();
-                if (target !== null) last = target;
+                if (target) last = target;
                 const along = t < share ? ease(t / share) : 1;
                 const settle = t < share ? 0 : ease((t - share) / (1 - share));
-                copy.style.transform = `translateY(${last * along + lifted * (1 - settle)}px) scale(${scale - (scale - 1) * settle})`;
+                copy.style.width = `${width + (last.width - width) * along}px`;
+                copy.style.transform = `translate(${last.dx * along}px, ${last.dy * along + lifted * (1 - settle)}px) scale(${scale - (scale - 1) * settle})`;
                 copy.style.boxShadow = settle ? `0 ${12 * (1 - settle)}px ${28 * (1 - settle)}px rgba(0, 0, 0, ${.18 * (1 - settle)})` : JOURNEY.liftShadow;
-                if (t < 1 || goal() === null) requestAnimationFrame(frame);
+                if (t < 1 || !goal()) requestAnimationFrame(frame);
                 else resolve(last);
             };
             copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
@@ -1325,24 +1325,32 @@
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
         const body = root.querySelector('.ao-body');
-        const start = frontOf(card).getBoundingClientRect().top; // nel mazzo conta la scheda davanti
+        const front = frontOf(card).getBoundingClientRect(); // nel mazzo conta la scheda davanti
         const copy = travelCopy(card, card);
         const ghost = listGhost(root.querySelector('.ao-scroll'), card);
-        body.style.opacity = '0';
+        body.style.opacity = '0'; // la pagina si prepara nascosta: compare solo dopo che la scheda si è posata
         state.journey = ticket.number;
         openTicketItem(ticket, { slide: false });
-        // la lista si sfoca e svanisce per conto suo
         blurTo([ghost], [0, 1], [5, .55], JOURNEY.lift).then(() => blurTo([ghost], [5, .55], [8, 0], JOURNEY.travel * .5)).catch(() => {});
         await Promise.all([lift(copy, true), deckFold(copy, true)]).catch(() => {});
-        body.style.opacity = '';
-        const goal = () => { const head = headOf(ticket.number); return head ? head.getBoundingClientRect().top - start : null; };
+        const goal = () => {
+            const head = headOf(ticket.number)?.getBoundingClientRect();
+            return head ? { dx: head.left - front.left, dy: head.top - front.top, width: head.width } : null;
+        };
         await Promise.all([travelAndLand(copy, goal), listExtras(copy, true)]).catch(() => {});
         state.journey = null;
         render();
+        const target = headOf(ticket.number);
+        if (target) target.closest('.ao-ticket-box')?.style.setProperty('clip-path', 'inset(0 0 100% 0)'); // il resto resta chiuso fino all'apertura
+        body.style.opacity = '';
         ghost.remove();
         copy.remove();
-        const target = headOf(ticket.number);
-        if (target) await holdingRender(() => Promise.all([buildPage(pageAround(target), true), threadExtras(target, true)]));
+        if (!target) return;
+        const box = target.closest('.ao-ticket-box');
+        await holdingRender(async () => {
+            box?.style.removeProperty('clip-path');
+            await Promise.all([unfoldPage(target, true), threadExtras(target, true)]);
+        });
     }
     async function closeToList(target) {
         const number = state.openedTicket;
@@ -1352,8 +1360,9 @@
         if (!pageCard) return setView(target);
         // Si smonta la pagina intorno alla scheda; poi la scheda si stacca e torna al suo posto nella lista,
         // mentre la lista ricompare (prima sfocata, poi nitida). Stessi movimenti dell'andata, al contrario.
-        await holdingRender(() => Promise.all([buildPage(pageAround(pageCard), false), threadExtras(pageCard, false)]));
-        const from = pageCard.getBoundingClientRect().top;
+        await holdingRender(() => Promise.all([unfoldPage(pageCard, false), threadExtras(pageCard, false)]));
+        const head = pageCard.getBoundingClientRect();
+        const from = head.top;
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
         const card = found?.closest('.ao-deck') || found;
@@ -1361,8 +1370,10 @@
         card.scrollIntoView({ block: 'nearest' });
         const scroll = root.querySelector('.ao-scroll');
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
+        const listed = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
-        placeAt(copy, from - offset);
+        copy.style.width = `${head.width}px`; // parte con la misura della scheda nella pagina
+        placeAt(copy, from - offset, head.left);
         card.style.visibility = 'hidden';
         scroll.style.opacity = '0';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
@@ -1371,7 +1382,7 @@
             await lift(copy, true).catch(() => {});
             scroll.style.opacity = '';
             await Promise.all([
-                travelAndLand(copy, () => dy), listExtras(copy, false),
+                travelAndLand(copy, () => ({ dx: listed.left - head.left, dy, width: listed.width })), listExtras(copy, false),
                 blurTo([scroll], [8, 0], [5, .55], JOURNEY.travel).then(() => blurTo([scroll], [5, .55], [0, 1], JOURNEY.land)),
                 wait(JOURNEY.travel).then(() => deckFold(copy, false))
             ]).catch(() => {});
