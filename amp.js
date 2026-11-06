@@ -541,7 +541,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 16:30';
+    const BUILD = '2026-11-06 17:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -902,7 +902,6 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
-        openDeck: null, // thread con più ticket aperto a mazzo (Ticket)
         queueChoice: {}, // scheda di In coda aperta: azione scelta nel selettore e gruppo dell'inoltro
         liftFrom: null, // scheda che si sta aprendo: disegnata non sollevata, poi si solleva
         previewScroll: null, // scheda aperta del tutto: il testo della mail può scorrere
@@ -1200,15 +1199,54 @@
         const body = root.querySelector('.ao-body');
         await holdingRender(() => fadeAll([body], 0, 1, { duration: MOTION.swap, easing: 'linear' }));
     }
+    // Mazzo → pagina del thread: il mazzo si solleva e sale in cima, compare la pagina e le schede dei ticket
+    // si distribuiscono una sotto l'altra, partendo impilate sulla prima.
+    async function openFromDeck(deck, ticket) {
+        if (state.holdRender || !deck || reducedMotion()) return openTicketItem(ticket);
+        await holdingRender(async () => {
+            deck.classList.add('ao-opening');
+            await wait(MOTION.hold);
+            const rise = riseOf(deck);
+            await Promise.all([
+                deck.animate([{ transform: LIFTED }, { transform: `translateY(${rise - 2}px) scale(1.015)` }], { duration: MOTION.unfold, easing: LIFT_EASING, fill: 'forwards' }).finished,
+                fadeAll(aroundCard(deck), 1, 0, { duration: MOTION.unfold * .6, easing: 'linear', fill: 'forwards' })
+            ]).catch(() => {});
+        });
+        const body = root.querySelector('.ao-body');
+        body.style.opacity = '0';
+        openTicketItem(ticket, { slide: false });
+        // I ticket del thread arrivano poco dopo (ricerca della mail): si aspetta che ci siano, senza bloccare il ridisegno.
+        const cardsOf = () => [...root.querySelectorAll('.ao-scroll .ao-ticket-compact')];
+        for (let waited = 0; cardsOf().length < 2 && waited < 900; waited += 30) await wait(30);
+        const cards = cardsOf();
+        const first = cards[0]?.getBoundingClientRect().top || 0;
+        body.style.opacity = '';
+        const deals = cards.slice(1).map((card, index) => card.animate([
+            { transform: `translateY(${first - card.getBoundingClientRect().top}px) scale(.97)`, opacity: .6 },
+            { transform: 'none', opacity: 1 }
+        ], { duration: DEAL.duration, delay: MOTION.swap * .5 + index * DEAL.step, easing: LIFT_EASING, fill: 'backwards' }).finished);
+        await holdingRender(() => Promise.all([fadeAll([body], 0, 1, { duration: MOTION.swap, easing: 'linear' }), ...deals]).catch(() => {}));
+    }
+    const DEAL = { duration: 280, step: 90 }; // distribuzione delle schede del mazzo: durata di ognuna e distacco
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
         if (state.holdRender || !number || target !== 'tickets' || reducedMotion()) return setView(target);
         const body = root.querySelector('.ao-body');
+        // Thread con più ticket: prima le schede si raccolgono sulla prima (il mazzo si richiude)
+        const cards = [...root.querySelectorAll('.ao-scroll .ao-ticket-compact')];
+        if (cards.length > 1) {
+            const first = cards[0].getBoundingClientRect().top;
+            await holdingRender(() => Promise.all(cards.slice(1).reverse().map((card, index) => card.animate([
+                { transform: 'none', opacity: 1 },
+                { transform: `translateY(${first - card.getBoundingClientRect().top}px) scale(.97)`, opacity: .6 }
+            ], { duration: DEAL.duration, delay: index * DEAL.step, easing: LIFT_EASING, fill: 'forwards' }).finished)).catch(() => {}));
+        }
         const out = body.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.swap, easing: 'linear', fill: 'forwards' });
         await holdingRender(() => out.finished.catch(() => {}));
         setView(target, null, { slide: false });
-        const card = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
+        const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
+        const card = found?.closest('.ao-deck') || found;
         if (!card) { out.cancel(); return slideInView(-1); }
         const around = aroundCard(card);
         around.forEach(element => { element.style.opacity = '0'; });
@@ -1305,12 +1343,6 @@
         root.addEventListener('click', event => {
             if (!state.labelArmed || event.target.closest('.ao-tag-swap')) return;
             state.labelArmed = null;
-            render();
-        }, true);
-        // Mazzo aperto (Ticket): un clic fuori lo richiude.
-        root.addEventListener('click', event => {
-            if (!state.openDeck || event.target.closest('.ao-deck.ao-open')) return;
-            state.openDeck = null;
             render();
         }, true);
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
@@ -2302,16 +2334,16 @@
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
     }
-    // Thread con più ticket: un mazzo. Chiuso si vede la scheda più recente (con l'anteprima del messaggio nuovo)
-    // e sotto il bordo delle altre; un clic lo apre e mostra gli altri ticket. Un clic fuori lo richiude.
+    // Thread con più ticket: un mazzo a scaletta verso il basso. Dietro, in alto, le fasce con il numero dei ticket
+    // meno recenti (più strette); davanti, completa, la scheda più recente con l'anteprima. Un clic porta al thread.
     function ticketDeck(group, user, query) {
-        const open = state.openDeck === group.conversationId;
         const [top, ...rest] = group.tickets;
-        const toggle = () => { state.openDeck = open ? null : group.conversationId; render(); };
-        return h('li', { class: `ao-deck${open ? ' ao-open' : ''}`, dataset: { deck: group.conversationId } },
-            ticketItem(top, user, { query, onpick: open ? null : toggle }),
-            open ? rest.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))
-                : h('span', { class: 'ao-deck-edge', 'aria-hidden': 'true' }));
+        const open = event => openFromDeck(event.currentTarget.closest('.ao-deck'), top);
+        return h('li', { class: 'ao-deck', dataset: { deck: group.conversationId } },
+            rest.slice().reverse().map((ticket, index) => h('div', {
+                class: 'ao-deck-strip', style: `--ao-deck-inset: ${(rest.length - index) * 3}%`, onclick: open
+            }, markText(ticket.number, query))),
+            ticketItem(top, user, { query, onpick: open }));
     }
     function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const mine = isMine(ticket, user);
@@ -3805,11 +3837,10 @@
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-text-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
-/* Mazzo: thread con più ticket. Chiuso, sotto la scheda spunta il bordo delle altre; aperto, le schede una sotto l'altra */
-#ao-root .ao-deck { position: relative; display: grid; gap: 6px; padding-bottom: 7px; }
-#ao-root .ao-deck.ao-open { padding-bottom: 0; }
-#ao-root .ao-deck > .ao-item { position: relative; z-index: 1; }
-#ao-root .ao-deck-edge { position: absolute; left: 8px; right: 8px; bottom: 0; height: 12px; border: 1px solid var(--ao-line); border-top: 0; border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+/* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
+#ao-root .ao-deck { display: grid; cursor: pointer; }
+#ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line-strong); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: color-mix(in srgb, var(--ao-surface) 82%, var(--ao-text)); color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-deck > .ao-item { position: relative; }
 #ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
