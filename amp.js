@@ -541,7 +541,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 14:50';
+    const BUILD = '2026-11-06 14:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2007,7 +2007,7 @@
             state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
             searching && state.ticketSearchPending ? searchSkeleton() : null,
             groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
-                ? h('li', { class: `ao-group${group.tickets.some(ticket => ticket.newMessages) ? ' ao-group-new' : ''}` },
+                ? h('li', { class: 'ao-group' },
                     h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
                     newMessagesPreview(group.tickets[0]),
                     h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))))
@@ -3781,8 +3781,6 @@
 
 /* Risposte nuove e più ticket sullo stesso thread */
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
-#ao-root .ao-item.ao-item-new:not(.ao-opening) { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-shadow-card); }
-#ao-root .ao-item.ao-item-new:not(.ao-expanded):hover { box-shadow: inset 3px 0 0 var(--ao-accent), var(--ao-hover-glow); } /* ticket con messaggi nuovi: bordino azzurro */
 #ao-root .ao-multi { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); font-size: var(--ao-fs-md); }
 #ao-root .ao-multi-count { font-size: var(--ao-fs-lg); color: var(--ao-text-accent); }
 #ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); transition: background-color .3s, box-shadow .35s, filter .3s; }
@@ -3793,7 +3791,6 @@
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 #ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
-#ao-root .ao-group-new { border-color: var(--ao-accent); border-style: solid; }
 #ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
