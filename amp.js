@@ -271,7 +271,10 @@
             }
         },
         // Logo dell'add-in nel vetro, chiaro e scuro: inciso nel vetro (chiaro, in negativo, con un leggero rilievo).
-        glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7' },
+        glassLogo: { filter: 'grayscale(1) invert(1) brightness(1.15) contrast(.85) drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(0, 30, 80, .3))', blend: 'screen', opacity: '.7',
+            // Più grande (100px invece di 64) senza spostare nulla: il riquadro resta da 64 e il disegno si allarga attorno al
+            // suo centro, spostato di poco a sinistra, così occupa tutta l'altezza dell'intestazione con il gatto intero.
+            enlarge: 'translateX(-6px) scale(1.5625)' },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
@@ -532,7 +535,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 01:40';
+    const BUILD = '2026-11-06 10:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3800,7 +3803,7 @@
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; ${glassHeaderRule(THEME.glassHeader.light)} }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header img { filter: ${THEME.glassLogo.filter}; mix-blend-mode: ${THEME.glassLogo.blend}; opacity: ${THEME.glassLogo.opacity}; }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header img { filter: ${THEME.glassLogo.filter}; mix-blend-mode: ${THEME.glassLogo.blend}; opacity: ${THEME.glassLogo.opacity}; transform: ${THEME.glassLogo.enlarge}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} } }
 `;
