@@ -528,7 +528,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 21:05';
+    const BUILD = '2026-11-06 21:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3527,10 +3527,11 @@
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; margin-left: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 /* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
-#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 15px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
+#ao-root .ao-notify { position: absolute; top: -5px; right: -6px; min-width: 12px; height: 12px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: 8px; font-weight: var(--ao-fw-bold); line-height: 12px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
 #ao-root .ao-notify-number { color: var(--ao-notify-ink); }
 #ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu dell'intestazione */
 #ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
+#ao-root .ao-segment:not(.ao-active) .ao-notify:not(.ao-notify-off) { opacity: .5; } /* selettore: sulla voce non scelta il segnalino è più discreto */
 #ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
