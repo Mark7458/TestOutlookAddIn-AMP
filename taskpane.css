@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-5 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-6 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -496,3 +496,26 @@ footer {
 .developer-inline-action{display:grid;gap:8px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e1dfdd}.developer-inline-action h3{margin:0;font-size:14px}.developer-inline-action label{color:#605e5c;font-size:12px;font-weight:600}@media(prefers-color-scheme:dark){.developer-inline-action{border-bottom-color:#484644}.developer-inline-action label{color:#c8c6c4}}
 
 .developer-inline-action select.developer-input{min-height:38px}.result-view-toggle{position:absolute;top:8px;right:38px;padding:4px 8px;border:1px solid #8a8886;border-radius:4px;background:#fff;color:#323130;font-size:11px;font-weight:600;cursor:pointer}.developer-fields{display:grid;gap:8px;margin-top:12px}.developer-field-card{padding:8px 10px;border:1px solid #e1dfdd;border-radius:6px;background:#fff}.developer-field-card span{display:block;margin-bottom:3px;color:#605e5c;font-size:11px;font-weight:600;text-transform:uppercase}.developer-field-card strong{display:block;overflow-wrap:anywhere;font-size:13px}.developer-ticket-selector{display:grid;gap:5px;margin-top:12px}.developer-ticket-selector label{color:#605e5c;font-size:11px;font-weight:600;text-transform:uppercase}.developer-ticket-selector select{width:100%;padding:7px 8px;border:1px solid #8a8886;border-radius:5px;background:#fff;color:#323130}.developer-ticket-empty{margin-top:12px;color:#605e5c;font-size:12px}@media(prefers-color-scheme:dark){.result-view-toggle,.developer-field-card,.developer-ticket-selector select{border-color:#8a8886;background:#201f1e;color:#f3f2f1}.developer-field-card span,.developer-ticket-selector label,.developer-ticket-empty{color:#c8c6c4}}
+
+
+/* Developer Tools CreateTicket. */
+.developer-get-form,.developer-create-form,.developer-create-field{display:grid;gap:5px}
+.developer-create-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
+.developer-create-checkbox{display:flex!important;align-items:center;gap:8px;padding:4px 0;color:#323130!important;font-size:12px!important;cursor:pointer}
+.developer-create-checkbox input{width:17px;height:17px;margin:0}
+.developer-create-help{min-height:16px;margin:0;color:#605e5c;font-size:11px;line-height:1.35}
+.developer-conflict{display:grid;gap:8px;margin-top:12px;padding:10px;border:1px solid #d83b01;border-radius:6px;background:#fff4ce;color:#323130}
+.developer-conflict h4,.developer-existing-ticket h4{margin:0;font-size:13px}
+.developer-conflict p{margin:0;font-size:12px;line-height:1.4}
+.developer-existing-tickets{display:grid;gap:8px}
+.developer-existing-ticket{padding:8px;border:1px solid #edebe9;border-radius:5px;background:#fff}
+.developer-existing-ticket dl{display:grid;grid-template-columns:minmax(90px,auto) 1fr;gap:4px 8px;margin:6px 0 0;font-size:11px}
+.developer-existing-ticket dt{color:#605e5c;font-weight:600}.developer-existing-ticket dd{margin:0;overflow-wrap:anywhere}
+.developer-force-create{margin-top:2px}
+@media(prefers-color-scheme:dark){
+  .developer-create-form{border-color:#484644;background:#252423}
+  .developer-create-checkbox{color:#f3f2f1!important}.developer-create-help{color:#c8c6c4}
+  .developer-conflict{border-color:#f7630c;background:#3b2f00;color:#f3f2f1}
+  .developer-existing-ticket{border-color:#484644;background:#201f1e}
+  .developer-existing-ticket dt{color:#c8c6c4}
+}

@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-5
+// Test-Plugin file version: 0.2-taskpane.js-devtools-6
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-5',
-    'taskpane.js': '0.2-taskpane.js-devtools-5',
-    'taskpane.css': '0.2-taskpane.css-devtools-5',
+    'taskpane.html': '0.2-taskpane.html-devtools-6',
+    'taskpane.js': '0.2-taskpane.js-devtools-6',
+    'taskpane.css': '0.2-taskpane.css-devtools-6',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 2, requiredDataVersion: 3 }),
+  database: Object.freeze({ schemaVersion: 3, requiredDataVersion: 4 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -43,6 +43,9 @@ window.TestPluginBuild = TEST_PLUGIN_BUILD;
   let developerToolsAllowed = false;
   let developerLastItemId = "";
   let developerResultView = "fields";
+  let developerConfig = null;
+  let developerCurrentOperatorId = "";
+  let developerLastCreateBody = null;
   const messageContextListeners = new Set();
   const sharePointDataListeners = new Set();
   const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
@@ -985,18 +988,40 @@ function registerHealthButton() {
       `Scaricata: ${cache?.downloadedAt || "-"}`,
       `Agenzie: ${Object.keys(payload?.agencies || {}).length}`,
       `Operatori: ${Object.keys(payload?.operators || {}).length}`,
-      `Gruppi: ${Object.keys(payload?.groups || {}).length}`
+      `Gruppi: ${Object.keys(payload?.groups || {}).length}`,
+      `Stati AMP: ${Array.isArray(payload?.ticketing?.ampStatuses) ? payload.ticketing.ampStatuses.length : 0}`,
+      `Stati SharePoint: ${Array.isArray(payload?.ticketing?.sharePointStatuses) ? payload.ticketing.sharePointStatuses.length : 0}`,
+      `Workflow: ${Array.isArray(payload?.ticketing?.workflows) ? payload.ticketing.workflows.length : 0}`
     ];
     setText("diagnostic-database", lines.join("\n"));
   }
+  function validateTicketingConfig(payload) {
+    const ticketing = payload?.ticketing;
+    const requiredCollections = ["ampStatuses", "sharePointStatuses", "workflows"];
+    const missing = requiredCollections.filter((name) =>
+      !Array.isArray(ticketing?.[name]) || !ticketing[name].some((value) => String(value || "").trim())
+    );
+    if (missing.length) {
+      throw new Error(`PluginConfig incompleta: ticketing.${missing.join(", ticketing.")} mancante o vuoto.`);
+    }
+    return payload;
+  }
+
   async function ensureOperationalConfig(accessToken) {
     const required = TEST_PLUGIN_BUILD.database;
     const cached = readOperationalConfigCache();
     window.WorkflowHealth?.recordDiagnostic?.("config_cache_read", { schemaVersion: cached?.schemaVersion ?? null, dataVersion: cached?.dataVersion ?? null });
     if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
-      window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
-      refreshOperationalConfigDiagnostics(cached, "cache valida");
-      return cached.payload;
+      try {
+        validateTicketingConfig(cached.payload);
+        window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
+        refreshOperationalConfigDiagnostics(cached, "cache valida");
+        developerConfig = cached.payload;
+        return cached.payload;
+      } catch (error) {
+        window.WorkflowHealth?.recordDiagnostic?.("config_cache_invalid", { message: error?.message || String(error) });
+        refreshOperationalConfigDiagnostics(cached, "cache incompleta: nuovo download necessario");
+      }
     }
     window.WorkflowHealth?.recordDiagnostic?.("config_version_mismatch", { requiredSchemaVersion: required.schemaVersion, requiredDataVersion: required.requiredDataVersion, cachedSchemaVersion: cached?.schemaVersion ?? null, cachedDataVersion: cached?.dataVersion ?? null });
     refreshOperationalConfigDiagnostics(cached, "aggiornamento necessario");
@@ -1008,10 +1033,12 @@ function registerHealthButton() {
       if (payload?.schemaVersion !== required.schemaVersion || payload?.dataVersion !== required.requiredDataVersion) {
         throw new Error(`PluginConfig incompatibile: schema ${payload?.schemaVersion}, dati ${payload?.dataVersion}.`);
       }
+      validateTicketingConfig(payload);
       const stored = { schemaVersion: payload.schemaVersion, dataVersion: payload.dataVersion, downloadedAt: new Date().toISOString(), payload };
       localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
       window.WorkflowHealth?.recordDiagnostic?.("config_cache_saved", { schemaVersion: stored.schemaVersion, dataVersion: stored.dataVersion, agencies: Object.keys(payload.agencies || {}).length, operators: Object.keys(payload.operators || {}).length, groups: Object.keys(payload.groups || {}).length });
       refreshOperationalConfigDiagnostics(stored, "scaricata");
+      developerConfig = payload;
       return payload;
     } catch (error) {
       window.WorkflowHealth?.recordDiagnostic?.("config_download_error", { message: error?.message || String(error) });
@@ -1046,7 +1073,9 @@ function registerHealthButton() {
 
   function refreshDeveloperToolsAccess(config) {
     const access = evaluateDeveloperToolsAccess(config);
+    developerConfig = config || null;
     developerToolsAllowed = access.allowed;
+    developerCurrentOperatorId = Object.entries(config?.operators || {}).find(([, candidate]) => candidate === access.operator)?.[0] || "";
     const toggle = byId("email-details-toggle");
     const panel = byId("email-details-panel");
     if (toggle) toggle.hidden = !developerToolsAllowed;
@@ -1054,10 +1083,11 @@ function registerHealthButton() {
       panel.hidden = true;
       toggle?.setAttribute("aria-expanded", "false");
     }
+    populateCreateTicketForm(config, developerCurrentOperatorId);
 
     window.WorkflowHealth?.recordDiagnostic?.("developer_tools_access_evaluated", {
       allowed: developerToolsAllowed,
-      operatorId: access.operator?.id || null,
+      operatorId: developerCurrentOperatorId || null,
       role: access.operator?.role || null,
       priority: Number.isFinite(Number(access.role?.priority)) ? Number(access.role.priority) : null,
       emailMatched: Boolean(access.operator)
@@ -1068,11 +1098,16 @@ function registerHealthButton() {
   async function initializeOperationalConfig() {
     const required = TEST_PLUGIN_BUILD.database;
     const cached = readOperationalConfigCache();
-    const cacheIsValid = Boolean(
+    let cacheIsValid = Boolean(
       cached?.schemaVersion === required.schemaVersion &&
       cached?.dataVersion === required.requiredDataVersion &&
       cached?.payload
     );
+
+    if (cacheIsValid) {
+      try { validateTicketingConfig(cached.payload); }
+      catch { cacheIsValid = false; }
+    }
 
     if (cacheIsValid) {
       refreshOperationalConfigDiagnostics(cached, "cache valida");
@@ -1112,20 +1147,456 @@ function registerHealthButton() {
     }
   }
 
-  const DEVELOPER_ENDPOINTS = Object.freeze({ GetTicketByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId", GetTicketById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketById" });
-  function resetTicketResult(){const panel=byId("developer-ticket-result");if(panel)panel.hidden=true;developerResultView="fields";["developer-result-action","developer-ticket-status","developer-ticket-auth-mode","developer-ticket-response"].forEach(id=>setText(id,"",""));byId("developer-ticket-fields")?.replaceChildren();}
-  function getDeveloperAction(){return byId("developer-action-select")?.value||"GetTicketByConversationId";}
-  function updateDeveloperActionUi(){const action=getDeveloperAction(),label=byId("developer-action-input-label"),input=byId("developer-action-input");if(!label||!input)return;if(action==="GetTicketById"){label.textContent="Item ID";input.placeholder="es. 9840";input.value=developerLastItemId||"";}else{label.textContent="Conversation ID";input.placeholder="Conversation ID del messaggio";input.value=currentMessageContext?.normalizedConversationId||"";}}
-  function setTicketButtonLoading(value){const button=byId("developer-execute-button");if(button){button.disabled=value;button.textContent=value?"Esecuzione...":"Esegui";}}
-  function parseAmpMetadata(value){if(!value)return{tickets:[],error:null};try{const parsed=typeof value==="string"?JSON.parse(value):value;return{tickets:Array.isArray(parsed?.tickets)?parsed.tickets:[],error:null};}catch(error){return{tickets:[],error:error?.message||String(error)};}}
-  function findOperatorByLookupId(id){const config=readOperationalConfigCache()?.payload;return Object.entries(config?.operators||{}).find(([,op])=>String(op?.lookupId)===String(id))||null;}
-  function addDeveloperField(container,label,value){const card=document.createElement("div");card.className="developer-field-card";const name=document.createElement("span");name.textContent=label;const content=document.createElement("strong");content.textContent=value==null||value===""?"Non disponibile":String(value);card.append(name,content);container.appendChild(card);}
-  function renderSelectedAmpTicket(container,ticket){const details=document.createElement("div");details.className="developer-fields";addDeveloperField(details,"Ticket ID",ticket?.ticketId);addDeveloperField(details,"Stato AMP",ticket?.status);addDeveloperField(details,"Lock operatore",ticket?.lock?.operatorId||"Nessun lock");addDeveloperField(details,"Lock richiesto da",ticket?.lock?.requesterId);addDeveloperField(details,"Workflow lock",ticket?.lock?.workflow);addDeveloperField(details,"Lock acquisito",ticket?.lock?.acquiredAt);addDeveloperField(details,"Creato",ticket?.createdAt);addDeveloperField(details,"Ultima attività",ticket?.lastActivityAt);container.appendChild(details);}
-  function renderTicketFields(parsed){const container=byId("developer-ticket-fields");if(!container)return;container.replaceChildren();container.className="developer-fields";const fields=parsed?.fields||{},itemId=parsed?.itemId||fields?.id||"",lookupId=fields?.AssegnataaLookupId,operator=findOperatorByLookupId(lookupId);addDeveloperField(container,"Item ID",itemId);addDeveloperField(container,"Gruppo",fields?.Gruppo);addDeveloperField(container,"Assegnatario",operator?`${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})`:(lookupId?`LookupId ${lookupId}`:null));addDeveloperField(container,"Stato SharePoint",fields?._Status);const metadata=parseAmpMetadata(fields?.AMP_x002d_AVANADE);if(metadata.error){const e=document.createElement("div");e.className="developer-ticket-empty status-error";e.textContent=`Metadata AMP non valido: ${metadata.error}`;container.appendChild(e);return;}if(!metadata.tickets.length){const empty=document.createElement("div");empty.className="developer-ticket-empty";empty.textContent="Nessun ticket AMP presente.";container.appendChild(empty);return;}const selectorBox=document.createElement("div");selectorBox.className="developer-ticket-selector";const label=document.createElement("label");label.textContent="Ticket AMP";const selector=document.createElement("select");metadata.tickets.forEach((ticket,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=ticket?.ticketId||`Ticket ${index+1}`;selector.appendChild(option);});const host=document.createElement("div");const redraw=()=>{host.replaceChildren();renderSelectedAmpTicket(host,metadata.tickets[Number(selector.value)||0]);};selector.addEventListener("change",redraw);selectorBox.append(label,selector);container.append(selectorBox,host);redraw();}
-  function applyDeveloperResultView(){const raw=byId("developer-ticket-response"),fields=byId("developer-ticket-fields"),button=byId("developer-result-view-toggle"),showJson=developerResultView==="json";if(raw)raw.hidden=!showJson;if(fields)fields.hidden=showJson;if(button)button.textContent=showJson?"Mostra campi":"Mostra JSON";}
-  function showTicketResult(result,action){const panel=byId("developer-ticket-result"),status=byId("developer-ticket-status"),auth=byId("developer-ticket-auth-mode"),response=byId("developer-ticket-response");if(!panel||!status||!auth||!response)return;panel.hidden=false;setText("developer-result-action",action,"");status.textContent=`${result.status} ${result.statusText||""}`.trim();status.className=result.ok?"status-success":"status-error";auth.textContent=result.authenticationMode||"Non disponibile";let parsed=null;try{parsed=JSON.parse(result.body||"{}");response.textContent=JSON.stringify(parsed,null,2);}catch{response.textContent=result.body||"(Risposta vuota)";}if(parsed?.itemId)developerLastItemId=String(parsed.itemId);developerResultView=parsed?.fields?"fields":"json";if(parsed?.fields)renderTicketFields(parsed);else byId("developer-ticket-fields")?.replaceChildren();applyDeveloperResultView();}
-  async function executeDeveloperAction(){const action=getDeveloperAction(),value=String(byId("developer-action-input")?.value||"").trim();resetTicketResult();setTicketButtonLoading(true);try{if(!value)throw new Error(action==="GetTicketById"?"Inserisci un Item ID.":"Inserisci un Conversation ID.");const authentication=await window.WorkflowHealth.getAccessTokenSilently();if(!authentication?.accessToken)throw new Error("Token di accesso non disponibile.");await ensureOperationalConfig(authentication.accessToken);const parameter=action==="GetTicketById"?"itemId":"conversationId";const url=`${DEVELOPER_ENDPOINTS[action]}?${parameter}=${encodeURIComponent(value)}`;const fetchResponse=await fetch(url,{method:"GET",headers:{Authorization:`Bearer ${authentication.accessToken}`,Accept:"application/json"}});const body=await fetchResponse.text();const result={ok:fetchResponse.ok,status:fetchResponse.status,statusText:fetchResponse.statusText,authenticationMode:authentication.acquisitionMode,body};showTicketResult(result,action);let parsed=null;try{parsed=JSON.parse(body||"{}");}catch{}currentSharePointData={conversationId:action==="GetTicketByConversationId"?value:parsed?.conversationId||null,ok:result.ok,status:result.status,statusText:result.statusText,authenticationMode:result.authenticationMode,retrievedAt:new Date().toISOString(),data:parsed,rawBody:parsed?null:body};publishSharePointData();}catch(error){showTicketResult({ok:false,status:"Errore",statusText:"",authenticationMode:"Non disponibile",body:error?.message||String(error)},action);}finally{setTicketButtonLoading(false);}}
-  function registerDeveloperToolsControls(){byId("developer-action-select")?.addEventListener("change",updateDeveloperActionUi);byId("developer-execute-button")?.addEventListener("click",executeDeveloperAction);byId("developer-result-view-toggle")?.addEventListener("click",()=>{developerResultView=developerResultView==="fields"?"json":"fields";applyDeveloperResultView();});byId("close-developer-ticket-result")?.addEventListener("click",resetTicketResult);updateDeveloperActionUi();}
+  const DEVELOPER_ENDPOINTS = Object.freeze({
+    GetTicketByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId",
+    GetTicketById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketById",
+    CreateTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata"
+  });
+
+  function resetTicketResult() {
+    const panel = byId("developer-ticket-result");
+    if (panel) panel.hidden = true;
+    developerResultView = "fields";
+    ["developer-result-action", "developer-ticket-status", "developer-ticket-auth-mode", "developer-ticket-response"].forEach((id) => setText(id, "", ""));
+    byId("developer-ticket-fields")?.replaceChildren();
+  }
+
+  function getDeveloperAction() {
+    return byId("developer-action-select")?.value || "GetTicketByConversationId";
+  }
+
+  function setSelectOptions(select, options, preferredValue = "") {
+    if (!select) return;
+    const previous = String(select.value || "");
+    select.replaceChildren();
+    options.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = String(value);
+      option.textContent = String(label);
+      select.appendChild(option);
+    });
+    const wanted = String(previous || preferredValue || "");
+    if (wanted && options.some((entry) => String(entry.value) === wanted)) select.value = wanted;
+  }
+
+  function populateCreateTicketForm(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
+    const status = byId("developer-create-config-status");
+    const operators = Object.entries(config?.operators || {})
+      .filter(([, operator]) => operator?.enabled !== false)
+      .map(([id, operator]) => ({ value: id, label: `${operator?.displayName || id} · ${id}` }));
+    const groups = Object.entries(config?.groups || {})
+      .filter(([, group]) => group?.enabled !== false)
+      .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
+    const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
+    const sharePointStatuses = (config?.ticketing?.sharePointStatuses || []).map((value) => ({ value, label: value }));
+
+    setSelectOptions(byId("developer-create-operator-id"), operators, currentOperatorId);
+    setSelectOptions(byId("developer-create-requester-id"), operators, currentOperatorId);
+    setSelectOptions(byId("developer-create-group-name"), groups);
+    setSelectOptions(byId("developer-create-amp-status"), ampStatuses);
+    setSelectOptions(byId("developer-create-sharepoint-status"), sharePointStatuses);
+
+    const itemInput = byId("developer-create-item-id");
+    if (itemInput && !itemInput.value && developerLastItemId) itemInput.value = developerLastItemId;
+    if (status) {
+      const workflowsOk = Array.isArray(config?.ticketing?.workflows) && config.ticketing.workflows.includes("CreateTicket");
+      status.textContent = config
+        ? (workflowsOk ? "Valori caricati da PluginConfig." : "PluginConfig non abilita il workflow CreateTicket.")
+        : "Configurazione operativa non disponibile.";
+      status.className = `developer-create-help${config && !workflowsOk ? " status-error" : ""}`;
+    }
+  }
+
+  function updateDeveloperActionUi() {
+    const action = getDeveloperAction();
+    const isCreate = action === "CreateTicket";
+    const getForm = byId("developer-get-form");
+    const createForm = byId("developer-create-form");
+    if (getForm) getForm.hidden = isCreate;
+    if (createForm) createForm.hidden = !isCreate;
+
+    if (isCreate) {
+      populateCreateTicketForm();
+      const itemInput = byId("developer-create-item-id");
+      if (itemInput && developerLastItemId) itemInput.value = developerLastItemId;
+      return;
+    }
+
+    const label = byId("developer-action-input-label");
+    const input = byId("developer-action-input");
+    if (!label || !input) return;
+    if (action === "GetTicketById") {
+      label.textContent = "Item ID";
+      input.placeholder = "es. 9840";
+      input.value = developerLastItemId || "";
+    } else {
+      label.textContent = "Conversation ID";
+      input.placeholder = "Conversation ID del messaggio";
+      input.value = currentMessageContext?.normalizedConversationId || "";
+    }
+  }
+
+  function setTicketButtonLoading(value) {
+    const button = byId("developer-execute-button");
+    if (button) {
+      button.disabled = value;
+      button.textContent = value ? "Esecuzione..." : "Esegui";
+    }
+  }
+
+  function parseAmpMetadata(value) {
+    if (!value) return { tickets: [], error: null };
+    try {
+      const parsed = typeof value === "string" ? JSON.parse(value) : value;
+      return { tickets: Array.isArray(parsed?.tickets) ? parsed.tickets : [], error: null };
+    } catch (error) {
+      return { tickets: [], error: error?.message || String(error) };
+    }
+  }
+
+  function findOperatorByLookupId(id) {
+    const config = developerConfig || readOperationalConfigCache()?.payload;
+    return Object.entries(config?.operators || {}).find(([, operator]) => String(operator?.lookupId) === String(id)) || null;
+  }
+
+  function addDeveloperField(container, label, value) {
+    const card = document.createElement("div");
+    card.className = "developer-field-card";
+    const name = document.createElement("span");
+    name.textContent = label;
+    const content = document.createElement("strong");
+    content.textContent = value == null || value === "" ? "Non disponibile" : String(value);
+    card.append(name, content);
+    container.appendChild(card);
+  }
+
+  function renderSelectedAmpTicket(container, ticket) {
+    const details = document.createElement("div");
+    details.className = "developer-fields";
+    addDeveloperField(details, "Ticket interno", ticket?.ticketId);
+    addDeveloperField(details, "Riferimento AMP", ticket?.ampRequestId);
+    addDeveloperField(details, "Stato AMP", ticket?.status || ticket?.ampStatus);
+    addDeveloperField(details, "Lock operatore", ticket?.lock?.operatorId || "Nessun lock");
+    addDeveloperField(details, "Lock richiesto da", ticket?.lock?.requesterId);
+    addDeveloperField(details, "Workflow lock", ticket?.lock?.workflow);
+    addDeveloperField(details, "Lock acquisito", ticket?.lock?.acquiredAt);
+    addDeveloperField(details, "Creato", ticket?.createdAt);
+    addDeveloperField(details, "Ultima attività", ticket?.lastActivityAt);
+    container.appendChild(details);
+  }
+
+  function appendTicketSelector(container, tickets, labelText = "Ticket AMP") {
+    if (!tickets.length) return;
+    const selectorBox = document.createElement("div");
+    selectorBox.className = "developer-ticket-selector";
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    const selector = document.createElement("select");
+    tickets.forEach((ticket, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = ticket?.ticketId || `Ticket ${index + 1}`;
+      selector.appendChild(option);
+    });
+    const host = document.createElement("div");
+    const redraw = () => {
+      host.replaceChildren();
+      renderSelectedAmpTicket(host, tickets[Number(selector.value) || 0]);
+    };
+    selector.addEventListener("change", redraw);
+    selectorBox.append(label, selector);
+    container.append(selectorBox, host);
+    redraw();
+  }
+
+  function renderTicketFields(parsed) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    const fields = parsed?.fields || {};
+    const itemId = parsed?.itemId || fields?.id || "";
+    const lookupId = fields?.AssegnataaLookupId;
+    const operator = findOperatorByLookupId(lookupId);
+    addDeveloperField(container, "Item ID", itemId);
+    addDeveloperField(container, "Gruppo", fields?.Gruppo);
+    addDeveloperField(container, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})` : (lookupId ? `LookupId ${lookupId}` : null));
+    addDeveloperField(container, "Stato SharePoint", fields?._Status);
+    const metadata = parseAmpMetadata(fields?.AMP_x002d_AVANADE);
+    if (metadata.error) {
+      const error = document.createElement("div");
+      error.className = "developer-ticket-empty status-error";
+      error.textContent = `Metadata AMP non valido: ${metadata.error}`;
+      container.appendChild(error);
+      return;
+    }
+    if (!metadata.tickets.length) {
+      const empty = document.createElement("div");
+      empty.className = "developer-ticket-empty";
+      empty.textContent = "Nessun ticket AMP presente.";
+      container.appendChild(empty);
+      return;
+    }
+    appendTicketSelector(container, metadata.tickets);
+  }
+
+  function ticketSummaryValue(ticket) {
+    return [
+      ticket?.ticketId,
+      ticket?.ampRequestId ? `AMP ${ticket.ampRequestId}` : null,
+      ticket?.status || ticket?.ampStatus
+    ].filter(Boolean).join(" · ");
+  }
+
+  function appendExistingTickets(container, tickets) {
+    const list = document.createElement("div");
+    list.className = "developer-existing-tickets";
+    tickets.forEach((ticket, index) => {
+      const card = document.createElement("div");
+      card.className = "developer-existing-ticket";
+      const heading = document.createElement("h4");
+      heading.textContent = ticketSummaryValue(ticket) || `Lavorazione ${index + 1}`;
+      const details = document.createElement("dl");
+      [
+        ["Ticket interno", ticket?.ticketId],
+        ["Riferimento AMP", ticket?.ampRequestId],
+        ["Stato AMP", ticket?.status || ticket?.ampStatus],
+        ["Operatore", ticket?.lock?.operatorId],
+        ["Workflow", ticket?.lock?.workflow]
+      ].forEach(([label, value]) => {
+        const term = document.createElement("dt");
+        const description = document.createElement("dd");
+        term.textContent = label;
+        description.textContent = value == null || value === "" ? "Non disponibile" : String(value);
+        details.append(term, description);
+      });
+      card.append(heading, details);
+      list.appendChild(card);
+    });
+    container.appendChild(list);
+  }
+
+  function getCreateResponseTickets(parsed) {
+    if (Array.isArray(parsed?.metadata?.tickets)) return parsed.metadata.tickets;
+    if (Array.isArray(parsed?.tickets)) return parsed.tickets;
+    if (Array.isArray(parsed?.existingTickets)) return parsed.existingTickets;
+    return [];
+  }
+
+  function renderCreateTicketFields(parsed) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    const body = developerLastCreateBody || {};
+    const tickets = getCreateResponseTickets(parsed);
+    const createdTicketId = parsed?.ticketId || parsed?.createdTicket?.ticketId;
+    const createdTicket = parsed?.createdTicket || tickets.find((ticket) => ticket?.ticketId === createdTicketId) || tickets.at(-1) || null;
+    const reason = String(parsed?.reason || parsed?.code || parsed?.status || "");
+
+    addDeveloperField(container, "Operazione", parsed?.action || "CreateTicket");
+    addDeveloperField(container, "Item ID", parsed?.itemId || body.itemId);
+
+    if (reason === "existing_tickets_found") {
+      const conflict = document.createElement("div");
+      conflict.className = "developer-conflict";
+      const heading = document.createElement("h4");
+      heading.textContent = "Creazione non eseguita";
+      const explanation = document.createElement("p");
+      explanation.textContent = "Esistono già lavorazioni associate all'elemento SharePoint.";
+      conflict.append(heading, explanation);
+      const existingTickets = Array.isArray(parsed?.existingTickets)
+        ? parsed.existingTickets
+        : (Array.isArray(parsed?.existing_tickets) ? parsed.existing_tickets : tickets);
+      if (existingTickets.length) appendExistingTickets(conflict, existingTickets);
+      addDeveloperField(conflict, "AMP prenotato", parsed?.reservedAmpRequestId || parsed?.reserved_amp_request_id || body.ampRequestId);
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "primary-button developer-force-create";
+      retry.textContent = "Crea comunque nuova lavorazione";
+      retry.addEventListener("click", () => {
+        if (!developerLastCreateBody) return;
+        void executeDeveloperAction({ ...developerLastCreateBody, createAdditionalTicket: true });
+      });
+      conflict.appendChild(retry);
+      container.appendChild(conflict);
+      return;
+    }
+
+    addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
+    addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
+    addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
+    addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
+    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus || body.sharePointStatus);
+    addDeveloperField(container, "Gruppo", parsed?.groupName || body.groupName);
+    addDeveloperField(container, "Lock", createdTicket?.lock ? `${createdTicket.lock.operatorId || body.operatorId} · ${createdTicket.lock.workflow || "CreateTicket"}` : `${body.operatorId || "-"} · CreateTicket`);
+    addDeveloperField(container, "Totale lavorazioni", Array.isArray(parsed?.metadata?.tickets) ? parsed.metadata.tickets.length : (parsed?.totalTickets ?? (tickets.length || null)));
+    if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
+    if (tickets.length) appendTicketSelector(container, tickets, "Lavorazioni aggiornate");
+  }
+
+  function applyDeveloperResultView() {
+    const raw = byId("developer-ticket-response");
+    const fields = byId("developer-ticket-fields");
+    const button = byId("developer-result-view-toggle");
+    const showJson = developerResultView === "json";
+    if (raw) raw.hidden = !showJson;
+    if (fields) fields.hidden = showJson;
+    if (button) button.textContent = showJson ? "Mostra campi" : "Mostra JSON";
+  }
+
+  function showTicketResult(result, action) {
+    const panel = byId("developer-ticket-result");
+    const status = byId("developer-ticket-status");
+    const auth = byId("developer-ticket-auth-mode");
+    const response = byId("developer-ticket-response");
+    if (!panel || !status || !auth || !response) return;
+    panel.hidden = false;
+    setText("developer-result-action", action, "");
+    status.textContent = `${result.status} ${result.statusText || ""}`.trim();
+    status.className = result.ok ? "status-success" : "status-error";
+    auth.textContent = result.authenticationMode || "Non disponibile";
+    let parsed = null;
+    try {
+      parsed = JSON.parse(result.body || "{}");
+      response.textContent = JSON.stringify(parsed, null, 2);
+    } catch {
+      response.textContent = result.body || "(Risposta vuota)";
+    }
+
+    const returnedItemId = parsed?.itemId || parsed?.fields?.id;
+    if (action !== "CreateTicket" && returnedItemId) {
+      developerLastItemId = String(returnedItemId);
+      const createItemInput = byId("developer-create-item-id");
+      if (createItemInput) createItemInput.value = developerLastItemId;
+    }
+
+    const hasFieldView = action === "CreateTicket" ? Boolean(parsed && typeof parsed === "object") : Boolean(parsed?.fields);
+    developerResultView = hasFieldView ? "fields" : "json";
+    if (action === "CreateTicket" && parsed) renderCreateTicketFields(parsed);
+    else if (parsed?.fields) renderTicketFields(parsed);
+    else byId("developer-ticket-fields")?.replaceChildren();
+    applyDeveloperResultView();
+  }
+
+  function requiredFormValue(id, label) {
+    const value = String(byId(id)?.value || "").trim();
+    if (!value) throw new Error(`${label} è obbligatorio.`);
+    return value;
+  }
+
+  function collectCreateTicketBody() {
+    validateTicketingConfig(developerConfig);
+    if (!developerConfig.ticketing.workflows.includes("CreateTicket")) {
+      throw new Error("Il workflow CreateTicket non è disponibile in PluginConfig.");
+    }
+    return {
+      itemId: requiredFormValue("developer-create-item-id", "Item ID"),
+      action: "CreateTicket",
+      ampRequestId: requiredFormValue("developer-create-amp-request-id", "Riferimento AMP"),
+      ampStatus: requiredFormValue("developer-create-amp-status", "Stato AMP"),
+      sharePointStatus: requiredFormValue("developer-create-sharepoint-status", "Stato SharePoint"),
+      operatorId: requiredFormValue("developer-create-operator-id", "Operatore"),
+      requesterId: requiredFormValue("developer-create-requester-id", "Requester"),
+      groupName: requiredFormValue("developer-create-group-name", "Gruppo"),
+      createAdditionalTicket: Boolean(byId("developer-create-additional")?.checked)
+    };
+  }
+
+  async function executeDeveloperAction(createBodyOverride = null) {
+    const action = createBodyOverride ? "CreateTicket" : getDeveloperAction();
+    const value = String(byId("developer-action-input")?.value || "").trim();
+    if (action === "CreateTicket" && !createBodyOverride) developerLastCreateBody = null;
+    resetTicketResult();
+    setTicketButtonLoading(true);
+    try {
+      if (action !== "CreateTicket" && !value) {
+        throw new Error(action === "GetTicketById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
+      }
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile.");
+      const config = await ensureOperationalConfig(authentication.accessToken);
+      refreshDeveloperToolsAccess(config);
+
+      let url;
+      let request;
+      let requestContext;
+      if (action === "CreateTicket") {
+        const body = createBodyOverride ? { ...createBodyOverride } : collectCreateTicketBody();
+        body.action = "CreateTicket";
+        body.createAdditionalTicket = Boolean(body.createAdditionalTicket);
+        developerLastCreateBody = { ...body };
+        url = DEVELOPER_ENDPOINTS.CreateTicket;
+        request = {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authentication.accessToken}`,
+            Accept: "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        };
+        requestContext = body;
+      } else {
+        const parameter = action === "GetTicketById" ? "itemId" : "conversationId";
+        url = `${DEVELOPER_ENDPOINTS[action]}?${parameter}=${encodeURIComponent(value)}`;
+        request = {
+          method: "GET",
+          headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" }
+        };
+        requestContext = { [parameter]: value };
+      }
+
+      const fetchResponse = await fetch(url, request);
+      const responseBody = await fetchResponse.text();
+      const result = {
+        ok: fetchResponse.ok,
+        status: fetchResponse.status,
+        statusText: fetchResponse.statusText,
+        authenticationMode: authentication.acquisitionMode,
+        body: responseBody
+      };
+      showTicketResult(result, action);
+      let parsed = null;
+      try { parsed = JSON.parse(responseBody || "{}"); } catch {}
+      currentSharePointData = {
+        operation: action,
+        conversationId: action === "GetTicketByConversationId" ? value : (parsed?.conversationId || null),
+        itemId: action === "CreateTicket" ? requestContext.itemId : (parsed?.itemId || parsed?.fields?.id || null),
+        ok: result.ok,
+        status: result.status,
+        statusText: result.statusText,
+        authenticationMode: result.authenticationMode,
+        retrievedAt: new Date().toISOString(),
+        request: action === "CreateTicket" ? requestContext : null,
+        data: parsed,
+        rawBody: parsed ? null : responseBody
+      };
+      publishSharePointData();
+    } catch (error) {
+      showTicketResult({
+        ok: false,
+        status: "Errore",
+        statusText: "",
+        authenticationMode: "Non disponibile",
+        body: JSON.stringify({ status: "error", message: error?.message || String(error) })
+      }, action);
+    } finally {
+      setTicketButtonLoading(false);
+    }
+  }
+
+  function registerDeveloperToolsControls() {
+    byId("developer-action-select")?.addEventListener("change", updateDeveloperActionUi);
+    byId("developer-execute-button")?.addEventListener("click", () => { void executeDeveloperAction(); });
+    byId("developer-result-view-toggle")?.addEventListener("click", () => {
+      developerResultView = developerResultView === "fields" ? "json" : "fields";
+      applyDeveloperResultView();
+    });
+    byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
+    updateDeveloperActionUi();
+  }
+
   async function loadSelectedMessage() {
     const sequence = ++loadSequence;
 
