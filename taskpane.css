@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-9 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-8 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -114,7 +114,8 @@ footer {
   line-height: 1.4;
 }
 
-[hidden] {
+[hidden],
+.developer-create-checkbox[hidden] {
   display: none !important;
 }
 
