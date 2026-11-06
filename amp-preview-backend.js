@@ -786,16 +786,18 @@
     function applyReply(number, body, operator) {
         const action = db.sp.tickets[number]?.pendingAction || { type: 'comment' };
         const incident = applyOnServiceNow(number, operator, 'risposta', action.type, item => {
+            // Come il pannello AMP su Tampermonkey: il testo va sempre negli Additional comments;
+            // Risolvi/Annulla anche nelle Resolution notes (con il nome dell'operatore), On Hold anche nelle Work notes.
             addHistory(number, operator, 'comment', body);
-            if (action.workNotes) addHistory(number, operator, 'work_note', action.workNotes);
             if (action.type === 'resolve' || action.type === 'cancel') {
                 Object.assign(item, {
                     state: action.type === 'resolve' ? '6' : '8', resolutionCode: action.resolutionCode || '',
-                    resolutionNotes: body, holdReason: '', holdExpiration: '', closedAt: now()
+                    resolutionNotes: `${body}\n${operator}`, holdReason: '', holdExpiration: '', closedAt: now()
                 });
                 addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[item.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo della mail.`);
             } else if (action.type === 'hold') {
                 Object.assign(item, { state: '3', holdReason: action.holdReason, holdExpiration: action.holdExpiration });
+                addHistory(number, operator, 'work_note', body);
                 addHistory(number, operator, 'system', `Stato: On Hold fino al ${action.holdExpiration}.`);
             } else if (item.state === '3') {
                 Object.assign(item, { state: '2', holdReason: '', holdExpiration: '' });

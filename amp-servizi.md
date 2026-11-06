@@ -103,12 +103,12 @@ Quando dalla casella parte una risposta in una conversazione con ticket aperti:
 
 0. si scelgono i ticket da aggiornare: quelli con un'azione salvata e quelli citati nel testo
    ("Rif. INC…"); se nessuno, il più recente dei ticket aperti del thread;
-1. il testo della mail va su ServiceNow come *Additional comment* di ciascuno;
-2. si applica l'azione salvata:
-   - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code*, *Resolution notes* = testo della mail;
-   - `hold` → stato On Hold, *On hold reason*, *On hold expiration*;
-   - nessuna azione su un ticket On Hold → torna In Progress;
-   - `workNotes`, se presente → *Work notes*;
+1. il testo della mail va su ServiceNow come *Additional comments* di ciascuno (come il pannello AMP su Tampermonkey);
+2. si applica l'azione salvata (confermata con "Salva e compila"):
+   - `comment` (Aggiorna) → solo *Additional comments*; su un ticket On Hold → torna In Progress;
+   - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), *Resolution notes* = testo della mail
+     seguito dal nome dell'operatore;
+   - `hold` → stato On Hold, *On hold reason*, *On hold expiration*, *Work notes* = testo della mail;
 3. solo se ServiceNow risponde OK si aggiornano la copia del ticket e il thread su SharePoint
    (ticket chiuso → thread libero), si registra il movimento e l'azione si cancella.
 

@@ -395,10 +395,8 @@
             discardedBy: (who, when) => `Scartata da ${who} · ${when}`,
             restore: 'Rimetti in coda',
             // Presa in carico = Assigned to su ServiceNow
-            assignedTo: name => `Assegnato a ${name}`,
             assignedToMe: name => `Assegnato a ${name} (me)`,
             notAssigned: 'Non assegnato',
-            takeOver: 'Prendi in carico',
             taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
             newTicket: 'Presa in carico',
@@ -434,7 +432,6 @@
             resolutionCode: 'Resolution code',
             holdReason: 'On hold reason',
             holdExpiration: 'Scadenza',
-            workNotes: 'Nota interna (facoltativa)',
             replyText: 'Rispondi con',
             replyEmpty: 'Vuoto',
             replyCombination: 'Risposta di Agenzia + Attività',
@@ -531,7 +528,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 20:10';
+    const BUILD = '2026-11-06 21:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1172,7 +1169,7 @@
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
     async function pageCardOf(number) {
         const find = () => [...root.querySelectorAll('.ao-scroll :is(.ao-ticket-number, .ao-item-number)')]
-            .find(element => element.textContent === number)?.closest('.ao-card, .ao-ticket-compact');
+            .find(element => element.textContent === number)?.closest('.ao-box-head');
         for (let waited = 0; !find() && waited < 900; waited += 30) await wait(30);
         return find();
     }
@@ -1218,6 +1215,31 @@
                 { duration: fold ? JOURNEY.lift : JOURNEY.land, easing: JOURNEY.easing, fill: 'forwards' }).finished;
         }));
     }
+    // Le parti della scheda della lista che nel thread non ci sono (anteprima del messaggio, termine): si chiudono
+    // durante il viaggio di andata (fold) e si riaprono in quello di ritorno.
+    function listExtras(copy, fold) {
+        return Promise.all([...copy.querySelectorAll('.ao-new-preview, .ao-item-meta')].map(part => {
+            const style = getComputedStyle(part);
+            const open = { height: `${part.offsetHeight}px`, opacity: 1, marginTop: style.marginTop, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom };
+            const shut = { height: '0px', opacity: 0, marginTop: '0px', paddingTop: '0px', paddingBottom: '0px' };
+            part.style.overflow = 'hidden';
+            return part.animate(fold ? [open, shut] : [shut, open], { duration: JOURNEY.travel * .7, easing: JOURNEY.easing, fill: 'forwards' }).finished;
+        }));
+    }
+    // Le parti che ci sono solo nel thread (tempo lavorato, etichetta dell'operatore, fondo del contenitore):
+    // compaiono quando la scheda si posa (show) e spariscono prima che riparta.
+    function threadExtras(head, show) {
+        const box = head.closest('.ao-ticket-box');
+        const style = box ? getComputedStyle(box) : null;
+        const parts = [...head.querySelectorAll('.ao-timer, .ao-item-tags > .ao-user-tag')].map(part => part.animate(show
+            ? [{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }]
+            : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.85)' }],
+        { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished);
+        const bare = { backgroundColor: 'transparent', boxShadow: '0 0 0 transparent', borderColor: 'transparent' };
+        const dressed = style ? { backgroundColor: style.backgroundColor, boxShadow: style.boxShadow, borderColor: style.borderColor } : bare;
+        if (box) parts.push(box.animate(show ? [bare, dressed] : [dressed, bare], { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished);
+        return Promise.all(parts).catch(() => {});
+    }
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
     // Pagina che si costruisce (inward) o si smonta intorno alla scheda: sopra scende, sotto sale.
@@ -1246,12 +1268,12 @@
         target.style.visibility = 'hidden';
         await holdingRender(async () => {
             const dy = target.getBoundingClientRect().top - start; // dalla posizione di partenza
-            await travel(copy, dy).catch(() => {});
+            await Promise.all([travel(copy, dy), listExtras(copy, true)]).catch(() => {});
             await lift(copy, false, dy).catch(() => {});
             body.style.opacity = '';
             target.style.visibility = '';
             copy.remove();
-            await buildPage(pageAround(target), true);
+            await Promise.all([buildPage(pageAround(target), true), threadExtras(target, true)]);
         });
     }
     async function closeToList(target) {
@@ -1262,7 +1284,7 @@
         const pageCard = await pageCardOf(number);
         if (!pageCard) return setView(target);
         // Si smonta la pagina intorno alla scheda; poi la scheda si stacca e torna al suo posto nella lista.
-        await holdingRender(() => buildPage(pageAround(pageCard), false));
+        await holdingRender(() => Promise.all([buildPage(pageAround(pageCard), false), threadExtras(pageCard, false)]));
         const from = pageCard.getBoundingClientRect().top;
         body.style.opacity = '0';
         setView(target, null, { slide: false });
@@ -1278,11 +1300,13 @@
         around.forEach(element => { element.style.opacity = '0'; });
         body.style.opacity = '';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
+        copy.querySelectorAll('.ao-new-preview, .ao-item-meta').forEach(part => { part.style.height = '0px'; part.style.opacity = '0'; part.style.overflow = 'hidden'; }); // si riaprono in viaggio
         await holdingRender(async () => {
             await lift(copy, true).catch(() => {});
             around.forEach(element => { element.style.opacity = ''; });
             const dy = card.getBoundingClientRect().top + offset - from;
-            await Promise.all([travel(copy, dy), blurTo(around, [8, 0], [5, .55], JOURNEY.travel)]).catch(() => {});
+            copy.querySelectorAll('.ao-new-preview, .ao-item-meta').forEach(part => { part.style.height = ''; part.style.opacity = ''; });
+            await Promise.all([travel(copy, dy), listExtras(copy, false), blurTo(around, [8, 0], [5, .55], JOURNEY.travel)]).catch(() => {});
             await Promise.all([lift(copy, false, dy), deckFold(copy, false), blurTo(around, [5, .55], [0, 1], JOURNEY.land)]).catch(() => {});
             around.forEach(element => element.getAnimations().forEach(animation => animation.cancel()));
             card.style.visibility = '';
@@ -2375,22 +2399,54 @@
             }, markText(ticket.number, query))),
             ticketItem(top, user, { query, onpick: open }));
     }
-    function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
+    // Testata del ticket, uguale nella lista e nel thread (è la stessa scheda che viaggia): numero, stato ed etichetta
+    // dell'operatore affiancati; agenzia e attività (nel thread con il tempo lavorato a destra); short description.
+    // owner: etichetta dell'operatore; takeover: un clic sull'etichetta di un collega la prepara, il secondo lo prende.
+    function ticketHead(ticket, user, { query = '', owner = false, takeover = false, timer = null } = {}) {
+        return [
+            h('div', { class: 'ao-item-top' },
+                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
+                h('div', { class: 'ao-item-tags' }, stateChip(ticket), owner ? ownerTag(ticket, user, takeover) : null)),
+            h('div', { class: 'ao-item-where' },
+                h('div', { class: 'ao-item-place' },
+                    h('div', { class: 'ao-item-company' }, ticket.companyName || ''),
+                    // Durante una ricerca i risultati arrivano da entrambi gli elenchi: si dice da quale.
+                    h('div', { class: 'ao-item-activity' }, [ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · '))),
+                timer),
+            h('div', { class: 'ao-item-title' }, markText(ticket.shortDescription, query))
+        ];
+    }
+    function ownerTag(ticket, user, takeover) {
+        const config = loadConfig();
         const mine = isMine(ticket, user);
+        const label = mine ? { name: currentUser(config).displayValue, color: config.profile.label }
+            : (ticket.label || { name: ticket.assignedTo?.name || TEXTS.common.unassigned, color: 'grafite' });
+        if (mine || !takeover || !OPEN_STATES.includes(ticket.state) || !currentUser(config).displayValue) return labelChip(label);
+        const key = `ticket:${ticket.number}`;
+        const armed = state.labelArmed === key;
+        return h('button', {
+            type: 'button', class: `ao-user-tag ao-tag-swap${armed ? ' ao-armed-tag' : ''}`,
+            style: `--ao-tag-color: ${THEME.labels[label.color] || THEME.labels.grafite}; --ao-tag-new: ${THEME.labels[config.profile.label] || THEME.labels.azzurro}`,
+            title: armed ? TEXTS.queue.labelTakeConfirm : TEXTS.queue.labelTake(label.name),
+            onclick: async event => {
+                event.stopPropagation();
+                if (!armed) { state.labelArmed = key; render(); return; }
+                state.labelArmed = null;
+                const updated = await run(() => Services.assignTicket(ticket.number, config.profile.assignedTo), TEXTS.mail.taken(ticket.number));
+                if (!updated) return render();
+                rememberTicket(updated);
+                render();
+                refreshLists();
+            }
+        }, armed ? [h('s', {}, surname(label.name)), svgIcon(SWAP_ICON), h('span', { class: 'ao-tag-next' }, surname(currentUser(config).displayValue))] : surname(label.name));
+    }
+    function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
         const expired = isHoldExpired(ticket);
         return clickable(`ao-item${expired ? ' ao-item-alert' : ''}${highlight}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
-            // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
-            h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
-                stateChip(ticket)),
-            h('div', { class: 'ao-item-title' }, markText(ticket.shortDescription, query)),
-            // Durante una ricerca i risultati arrivano da entrambi gli elenchi: si dice da quale.
-            // Agenzia e attività; a destra, solo con il filtro Operatore su Tutti, l'etichetta dell'operatore.
-            h('div', { class: 'ao-item-sub' },
-                h('span', null, [ticket.companyName, ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')),
-                state.ticketOperator === 'all' ? labelChip(mine ? { name: currentUser().displayValue, color: loadConfig().profile.label } : (ticket.label || { name: ticket.assignedTo?.name || TEXTS.common.unassigned, color: 'grafite' })) : null),
+            // Etichetta dell'operatore solo con il filtro Operatore su Tutti
+            ticketHead(ticket, user, { query, owner: state.ticketOperator === 'all' }),
             inGroup ? null : newMessagesPreview(ticket),
             // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
             holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
@@ -2857,31 +2913,10 @@
     }
 
     // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
-    // Assegnatario come etichetta (me / nome del collega) e, se è di un collega, "Prendi in carico".
-    // Assegnatario: solo se non sono io (i miei ticket non hanno l'etichetta col nome).
-    function assigneeTag(ticket, user) {
-        if (isMine(ticket, user)) return null;
-        return chip(ticket.assignedTo?.name || TEXTS.common.unassigned, 'person', TEXTS.mail.assignedTo(ticket.assignedTo?.name || TEXTS.common.unassigned));
-    }
-    // In alto a destra, uno sotto l'altro: stato, poi assegnatario.
-    function ticketTags(ticket, user) {
-        return h('div', { class: 'ao-tags' }, stateChip(ticket), assigneeTag(ticket, user));
-    }
-    function takeOverButton(ticket, user) {
-        if (isMine(ticket, user) || !OPEN_STATES.includes(ticket.state)) return null;
-        return confirmButton(TEXTS.mail.takeOver, 'ao-button ao-small ao-take', async () => {
-            const config = loadConfig();
-            if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
-            const updated = await run(() => Services.assignTicket(ticket.number, config.profile.assignedTo), TEXTS.mail.taken(ticket.number));
-            if (!updated) return;
-            rememberTicket(updated);
-            render();
-            refreshLists();
-        });
-    }
-    // Ticket nella pagina del thread: un contenitore. In testa numero e stato; agenzia e attività con il tempo
-    // lavorato a destra; sotto, nella scheda bianca, short description e description. Aperto aggiunge Attività e Storico.
-    // single: unico ticket aperto del thread (o ticket senza mail), sempre aperto.
+    // Ticket nella pagina del thread: un contenitore (fondo incassato). In testa la stessa scheda della lista, con in più
+    // il tempo lavorato e l'etichetta dell'operatore; sotto la description (con le date) e, aperto, Attività.
+    // single: unico ticket aperto del thread (o ticket senza mail), sempre aperto. Le azioni valgono anche sui
+    // ticket dei colleghi, che restano a loro; per prenderli si usa l'etichetta (due clic).
     function ticketBox(ticket, config, user, { isCurrentMail, single = false }) {
         const open = OPEN_STATES.includes(ticket.state);
         const expanded = single || state.expandedTickets.includes(ticket.number);
@@ -2889,32 +2924,20 @@
             state.expandedTickets = expanded ? state.expandedTickets.filter(number => number !== ticket.number) : [...state.expandedTickets, ticket.number];
             render();
         };
-        const takeOver = takeOverButton(ticket, user);
-        return h('section', { class: `ao-ticket-compact${expanded ? ' ao-expanded' : ''}` },
-            h('div', single ? { class: 'ao-ticket-compact-head ao-static' } : {
-                class: 'ao-ticket-compact-head', tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle,
+        return h('section', { class: `ao-ticket-box${expanded ? ' ao-expanded' : ''}` },
+            h('div', single ? { class: 'ao-item ao-box-head ao-static' } : {
+                class: 'ao-item ao-box-head', tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle,
                 onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) toggle(); }
-            },
-                h('div', { class: 'ao-ticket-head' },
-                    h('a', { class: 'ao-ticket-number', href: ticket.url || '#', target: '_blank', rel: 'noopener', title: TEXTS.mail.openInServiceNow, onclick: event => event.stopPropagation() }, ticket.number),
-                    ticketTags(ticket, user)),
-                h('div', { class: 'ao-ticket-where' },
-                    h('div', { class: 'ao-ticket-place' },
-                        h('div', { class: 'ao-ticket-company' }, ticket.companyName || ''),
-                        h('div', { class: 'ao-ticket-activity' }, ticket.activityName || '')),
-                    timerControl(ticket, open))),
-            h('div', { class: 'ao-ticket-details' },
-                h('section', { class: 'ao-card ao-ticket-about' },
-                    h('div', { class: 'ao-item-title' }, ticket.shortDescription),
-                    ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // sempre intera: è il corpo della mail che l'ha generato
-                    ticket.state === '3' && ticket.holdExpiration
-                        ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
-                            `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
-                    takeOver ? h('div', { class: 'ao-item-meta' }, takeOver) : null,
-                    open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state))),
-                expanded && open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
-                expanded && open && !ticket.messageId ? updateCard(ticket, config) : null,
-                null));
+            }, ticketHead(ticket, user, { owner: true, takeover: true, timer: timerControl(ticket, open) })),
+            h('section', { class: 'ao-card ao-ticket-about' },
+                ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // sempre intera: è il corpo della mail che l'ha generato
+                ticket.state === '3' && ticket.holdExpiration
+                    ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
+                        `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
+                open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
+                h('div', { class: 'ao-ticket-dates' }, [TEXTS.mail.openedAt(formatWhen(ticket.openedAt)), TEXTS.mail.reportedAt(formatWhen(ticket.reportedOn))].join(' · '))),
+            expanded && open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
+            expanded && open && !ticket.messageId ? updateCard(ticket, config) : null);
     }
     // Ticket chiusi del thread: una sezione chiusa in fondo, con un clic si vedono (solo da consultare).
     function closedTickets(conversationId, tickets) {
@@ -3029,7 +3052,6 @@
                 resolutionCode: saved.resolutionCode || RESOLUTION_CODES[0],
                 holdReason: saved.holdReason || HOLD_REASONS[0].value,
                 holdExpiration: saved.holdExpiration ? toDateTimeInput(parseDate(saved.holdExpiration)) : defaultHoldExpiration(),
-                workNotes: saved.workNotes || '',
                 template: config.combinationResponses[key]?.response ? 'combination' : '',
                 includeReference: true
             };
@@ -3139,10 +3161,10 @@
                 selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
                 textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
             ] : null,
-            textField(TEXTS.mail.workNotes, draft.workNotes, value => { draft.workNotes = value; }, { multiline: true, rows: '2' }));
+        );
     }
     function buildPendingAction(draft, by) {
-        const action = { type: draft.type, workNotes: draft.workNotes.trim(), by }; // anche Aggiorna si conferma
+        const action = { type: draft.type, by }; // anche Aggiorna si conferma; il testo è quello della mail
         if (draft.type === 'resolve') action.resolutionCode = draft.resolutionCode;
         if (draft.type === 'hold') {
             const date = parseDate(draft.holdExpiration.replace('T', ' '));
@@ -3658,7 +3680,6 @@
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); border-color: var(--ao-accent); }
-#ao-root .ao-ticket-compact.ao-expanded { background: var(--ao-surface); border-color: var(--ao-call-open-border); box-shadow: var(--ao-call-glow); } /* ticket aperto nel thread: niente tratto blu, bagliore (vetro) */
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
@@ -3672,7 +3693,6 @@
 #ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); box-shadow: inset 0 0 0 1px var(--ao-chip-line); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
 #ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
 #ao-root .ao-chip.ao-tone-person { background: var(--ao-surface); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
-#ao-root .ao-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 #ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-text-accent); }
 #ao-root .ao-chip.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
@@ -3744,7 +3764,7 @@
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
-#ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-item, #ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-ticket-compact { filter: blur(5px); }
+#ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-item { filter: blur(5px); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-new-ticket-card { animation: none; } }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
@@ -3865,24 +3885,28 @@
 
 /* Risposte nuove e più ticket sullo stesso thread */
 #ao-root .ao-item-new .ao-item-title { color: var(--ao-text-accent); }
-#ao-root .ao-ticket-compact { display: grid; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); transition: background-color .3s, box-shadow .35s, filter .3s; }
-#ao-root .ao-ticket-compact-head { display: grid; gap: 3px; padding: 9px 10px; cursor: pointer; border-radius: var(--ao-radius-base); }
-#ao-root .ao-ticket-details { display: grid; gap: 10px; padding: 10px; border-top: 1px solid var(--ao-line-light); background: var(--ao-bg); border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); }
 /* Contenitore del ticket nella pagina del thread */
-#ao-root .ao-ticket-compact-head.ao-static { cursor: default; }
-#ao-root .ao-ticket-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; }
-#ao-root .ao-ticket-place { min-width: 0; }
-#ao-root .ao-ticket-company { color: var(--ao-text); font-size: var(--ao-fs-base); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-ticket-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
+/* Testata del ticket (lista e thread): numero con stato ed etichetta affiancati; agenzia e attività; short description */
+#ao-root .ao-item-tags { display: flex; align-items: center; gap: 4px; flex: none; }
+#ao-root .ao-item-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#ao-root .ao-item-place { min-width: 0; }
+#ao-root .ao-item-company { color: var(--ao-text); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-item-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
+/* Contenitore del ticket nel thread: fondo incassato; aperto, con il bagliore (Flat: bordo) */
+#ao-root .ao-ticket-box { display: grid; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: calc(var(--ao-radius-base) + 2px); background: var(--ao-bg); transition: box-shadow .35s, border-color .35s; }
+#ao-root .ao-ticket-box.ao-expanded { border-color: var(--ao-call-open-border); box-shadow: var(--ao-call-glow); }
+#ao-root .ao-box-head.ao-static { cursor: default; }
 #ao-root .ao-ticket-about { display: grid; gap: 4px; }
+#ao-root .ao-ticket-dates { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-ticket-description { color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
-/* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto) */
-#ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; height: 26px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); overflow: hidden; }
-#ao-root .ao-timer-step { width: 26px; height: 100%; padding: 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; }
-#ao-root .ao-timer-step:hover:where(:not(:disabled)) { background: var(--ao-accent-bg); color: var(--ao-text-accent); }
+/* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto).
+   Il tempo sta incassato nella traccia dei selettori; − e + sono in rilievo come la voce scelta. */
+#ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+#ao-root .ao-timer-step { width: 24px; height: 100%; padding: 0; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; transition: filter .3s, box-shadow .35s; }
+#ao-root .ao-timer-step:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-hover-glow); }
 #ao-root .ao-timer-step:disabled { opacity: .4; cursor: default; }
-#ao-root .ao-timer-value { width: 84px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
-#ao-root .ao-timer-input { width: 100%; height: 22px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-accent-bg); color: inherit; font: inherit; text-align: center; }
+#ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
+#ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
 #ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line), var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
 #ao-root .ao-locked { cursor: default; }
@@ -3918,9 +3942,9 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-ticket-compact, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded):hover, #ao-root .ao-ticket-compact:not(.ao-expanded):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
-#ao-root .ao-item:not(.ao-expanded):hover :is(.ao-user-tag, .ao-news, .ao-new-preview, .ao-notify) { filter: var(--ao-hover-inner-filter); }
+#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover :is(.ao-user-tag, .ao-news, .ao-new-preview, .ao-notify) { filter: var(--ao-hover-inner-filter); }
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
