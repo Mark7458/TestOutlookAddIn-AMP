@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-7
+// Test-Plugin file version: 0.2-taskpane.js-devtools-8
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-7',
-    'taskpane.js': '0.2-taskpane.js-devtools-7',
-    'taskpane.css': '0.2-taskpane.css-devtools-7',
+    'taskpane.html': '0.2-taskpane.html-devtools-8',
+    'taskpane.js': '0.2-taskpane.js-devtools-8',
+    'taskpane.css': '0.2-taskpane.css-devtools-8',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 3, requiredDataVersion: 4 }),
+  database: Object.freeze({ schemaVersion: 4, requiredDataVersion: 5 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -390,6 +390,46 @@ function registerHealthButton() {
         .join(", ");
   }
 
+  function categoryDisplayNames(categories) {
+    return (Array.isArray(categories) ? categories : [])
+      .map((category) => String(category?.displayName || category || "").trim())
+      .filter(Boolean);
+  }
+
+  function mutateCategories(item, method, categoryNames) {
+    return new Promise((resolve, reject) => {
+      const categoriesApi = item?.categories;
+      if (!categoriesApi || typeof categoriesApi[method] !== "function") {
+        reject(new Error(`Il client Outlook non espone categories.${method}.`));
+        return;
+      }
+
+      const values = Array.isArray(categoryNames) ? categoryNames : [];
+      if (!values.length) {
+        resolve();
+        return;
+      }
+
+      categoriesApi[method](values, (result) => {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+          resolve();
+          return;
+        }
+
+        const details = result.error?.message || `Office.js non ha completato categories.${method}.`;
+        reject(new Error(details));
+      });
+    });
+  }
+
+  function addCategories(item, categoryNames) {
+    return mutateCategories(item, "addAsync", categoryNames);
+  }
+
+  function removeCategories(item, categoryNames) {
+    return mutateCategories(item, "removeAsync", categoryNames);
+  }
+
 
   function formatAttachmentSize(size) {
     const bytes = Number(size);
@@ -506,6 +546,16 @@ function registerHealthButton() {
     messageContextListeners.forEach((listener) => {
       try { listener(snapshot); } catch (error) { console.error("Listener messaggio non riuscito:", error); }
     });
+  }
+  function updateCurrentMessageCategories(categories) {
+    const normalized = (Array.isArray(categories) ? categories : []).map((category) => ({
+      displayName: category?.displayName || String(category),
+      color: category?.color || null
+    }));
+    setText(elementIds.categories, formatCategories(normalized), "Nessuna");
+    if (currentMessageContext) currentMessageContext.categories = normalized;
+    publishMessageContext();
+    return normalized;
   }
   function getCurrentMessageContext() { return cloneContext(currentMessageContext); }
   function onMessageChanged(listener) {
@@ -977,6 +1027,22 @@ function registerHealthButton() {
     try { return JSON.parse(localStorage.getItem(OPERATIONAL_CONFIG_KEY) || "null"); }
     catch (error) { window.WorkflowHealth?.recordDiagnostic?.("config_cache_invalid", { message: error?.message || String(error) }); return null; }
   }
+  function collectConfiguredCategories(payload) {
+    const candidates = [
+      ...Object.values(payload?.operators || {}).map((operator) => operator?.tag),
+      ...Object.values(payload?.groups || {}).map((group) => group?.tag),
+      ...(Array.isArray(payload?.categories?.generic)
+        ? payload.categories.generic.map((category) => category?.tag)
+        : [])
+    ];
+    const unique = new Map();
+    candidates.forEach((value) => {
+      const tag = String(value || "").trim();
+      const key = tag.toLocaleLowerCase("it-IT");
+      if (tag && !unique.has(key)) unique.set(key, tag);
+    });
+    return Array.from(unique.values());
+  }
   function refreshOperationalConfigDiagnostics(cache = readOperationalConfigCache(), status = null) {
     const payload = cache?.payload;
     const lines = [
@@ -989,6 +1055,7 @@ function registerHealthButton() {
       `Agenzie: ${Object.keys(payload?.agencies || {}).length}`,
       `Operatori: ${Object.keys(payload?.operators || {}).length}`,
       `Gruppi: ${Object.keys(payload?.groups || {}).length}`,
+      `Categorie configurate: ${collectConfiguredCategories(payload).length}`,
       `Stati AMP: ${Array.isArray(payload?.ticketing?.ampStatuses) ? payload.ticketing.ampStatuses.length : 0}`,
       `Stati SharePoint: ${Array.isArray(payload?.ticketing?.sharePointStatuses) ? payload.ticketing.sharePointStatuses.length : 0}`,
       `Workflow: ${Array.isArray(payload?.ticketing?.workflows) ? payload.ticketing.workflows.length : 0}`
@@ -1003,6 +1070,9 @@ function registerHealthButton() {
     );
     if (missing.length) {
       throw new Error(`PluginConfig incompleta: ticketing.${missing.join(", ticketing.")} mancante o vuoto.`);
+    }
+    if (!collectConfiguredCategories(payload).length) {
+      throw new Error("PluginConfig incompleta: nessun tag presente in operators[*].tag, groups[*].tag o categories.generic[*].tag.");
     }
     return payload;
   }
@@ -1084,6 +1154,7 @@ function registerHealthButton() {
       toggle?.setAttribute("aria-expanded", "false");
     }
     populateCreateTicketForm(config, developerCurrentOperatorId);
+    populateCategoryForm(config);
 
     window.WorkflowHealth?.recordDiagnostic?.("developer_tools_access_evaluated", {
       allowed: developerToolsAllowed,
@@ -1205,18 +1276,55 @@ function registerHealthButton() {
     }
   }
 
+  function populateCategoryForm(config = developerConfig) {
+    const categories = collectConfiguredCategories(config);
+    const list = byId("developer-category-options");
+    if (list) {
+      list.replaceChildren();
+      categories.forEach((category) => {
+        const option = document.createElement("option");
+        option.value = category;
+        list.appendChild(option);
+      });
+    }
+    const available = byId("developer-category-available");
+    if (available) {
+      available.textContent = categories.length
+        ? `Categorie configurate: ${categories.join(", ")}`
+        : "Categorie configurate non disponibili.";
+      available.className = `developer-create-help${categories.length ? "" : " status-error"}`;
+    }
+  }
+
   function updateDeveloperActionUi() {
     const action = getDeveloperAction();
     const isCreate = action === "CreateTicket";
+    const isCategory = action === "AddCategoriesOfficeJs" || action === "RemoveCategoriesOfficeJs";
+    const isAddCategory = action === "AddCategoriesOfficeJs";
     const getForm = byId("developer-get-form");
     const createForm = byId("developer-create-form");
-    if (getForm) getForm.hidden = isCreate;
+    const categoryForm = byId("developer-category-form");
+    if (getForm) getForm.hidden = isCreate || isCategory;
     if (createForm) createForm.hidden = !isCreate;
+    if (categoryForm) categoryForm.hidden = !isCategory;
+    const replaceRow = byId("developer-category-replace-row");
+    const clearRow = byId("developer-category-clear-row");
+    if (replaceRow) replaceRow.hidden = !isAddCategory;
+    if (clearRow) clearRow.hidden = isAddCategory;
 
     if (isCreate) {
       populateCreateTicketForm();
       const itemInput = byId("developer-create-item-id");
       if (itemInput && developerLastItemId) itemInput.value = developerLastItemId;
+      return;
+    }
+
+    if (isCategory) {
+      populateCategoryForm();
+      const label = byId("developer-category-input-label");
+      if (label) label.textContent = isAddCategory
+        ? "Categorie da aggiungere (separate da virgola)"
+        : "Categorie da rimuovere (separate da virgola)";
       return;
     }
 
@@ -1433,6 +1541,32 @@ function registerHealthButton() {
     if (tickets.length) appendTicketSelector(container, tickets, "Lavorazioni aggiornate");
   }
 
+  function isCategoryDeveloperAction(action) {
+    return action === "AddCategoriesOfficeJs" || action === "RemoveCategoriesOfficeJs";
+  }
+
+  function formatCategoryNameList(value) {
+    if (!Array.isArray(value)) return "Non disponibile";
+    return value.length ? value.join(", ") : "Nessuna";
+  }
+
+  function renderCategoryFields(parsed, action) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    const isAdd = action === "AddCategoriesOfficeJs";
+    const mode = isAdd
+      ? (parsed?.replace ? "Sostituzione completa" : "Aggiunta")
+      : (parsed?.clear ? "Rimozione completa" : "Rimozione selettiva");
+    addDeveloperField(container, "Operazione", action);
+    addDeveloperField(container, "Modalità", mode);
+    addDeveloperField(container, "Categorie richieste", formatCategoryNameList(parsed?.categories));
+    addDeveloperField(container, "Categorie before", formatCategoryNameList(parsed?.categoriesBefore));
+    addDeveloperField(container, "Categorie after", formatCategoryNameList(parsed?.categoriesAfter));
+    if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
+  }
+
   function applyDeveloperResultView() {
     const raw = byId("developer-ticket-response");
     const fields = byId("developer-ticket-fields");
@@ -1469,9 +1603,12 @@ function registerHealthButton() {
       if (createItemInput) createItemInput.value = developerLastItemId;
     }
 
-    const hasFieldView = action === "CreateTicket" ? Boolean(parsed && typeof parsed === "object") : Boolean(parsed?.fields);
+    const hasFieldView = action === "CreateTicket" || isCategoryDeveloperAction(action)
+      ? Boolean(parsed && typeof parsed === "object")
+      : Boolean(parsed?.fields);
     developerResultView = hasFieldView ? "fields" : "json";
     if (action === "CreateTicket" && parsed) renderCreateTicketFields(parsed);
+    else if (isCategoryDeveloperAction(action) && parsed) renderCategoryFields(parsed, action);
     else if (parsed?.fields) renderTicketFields(parsed);
     else byId("developer-ticket-fields")?.replaceChildren();
     applyDeveloperResultView();
@@ -1481,6 +1618,112 @@ function registerHealthButton() {
     const value = String(byId(id)?.value || "").trim();
     if (!value) throw new Error(`${label} è obbligatorio.`);
     return value;
+  }
+
+  function parseCategoryInput(value) {
+    const unique = new Map();
+    String(value || "").split(",").forEach((part) => {
+      const category = part.trim();
+      const key = category.toLocaleLowerCase("it-IT");
+      if (category && !unique.has(key)) unique.set(key, category);
+    });
+    return Array.from(unique.values());
+  }
+
+  function canonicalizeConfiguredCategories(values, config = developerConfig) {
+    const configured = collectConfiguredCategories(config);
+    const byKey = new Map(configured.map((category) => [category.toLocaleLowerCase("it-IT"), category]));
+    const unknown = values.filter((category) => !byKey.has(category.toLocaleLowerCase("it-IT")));
+    if (unknown.length) {
+      throw new Error(`Categorie non presenti in PluginConfig: ${unknown.join(", ")}.`);
+    }
+    return values.map((category) => byKey.get(category.toLocaleLowerCase("it-IT")));
+  }
+
+  function normalizeCategoryActionRequest(action, categoriesValue, option) {
+    const rawCategories = parseCategoryInput(Array.isArray(categoriesValue) ? categoriesValue.join(",") : categoriesValue);
+    if (action === "AddCategoriesOfficeJs") {
+      const categories = canonicalizeConfiguredCategories(rawCategories);
+      if (!categories.length) throw new Error("Inserisci almeno una categoria da aggiungere.");
+      return { categories, replace: Boolean(option) };
+    }
+    const clear = Boolean(option);
+    if (clear) return { categories: [], clear: true };
+    const categories = canonicalizeConfiguredCategories(rawCategories);
+    if (!categories.length) throw new Error("Inserisci almeno una categoria da rimuovere oppure attiva clear.");
+    return { categories, clear: false };
+  }
+
+  async function executeOfficeCategoryAction(action, request) {
+    const item = Office.context?.mailbox?.item;
+    if (!item || !currentMessageContext) {
+      throw new Error("Seleziona un messaggio Outlook e attendi il completamento della lettura automatica.");
+    }
+
+    validateTicketingConfig(developerConfig);
+    let categoriesBefore = null;
+    let categoriesAfter = null;
+    let operationError = null;
+
+    try {
+      const before = await getCategories(item);
+      categoriesBefore = categoryDisplayNames(before);
+      const beforeByKey = new Map(categoriesBefore.map((category) => [category.toLocaleLowerCase("it-IT"), category]));
+
+      if (action === "AddCategoriesOfficeJs") {
+        if (request.replace) {
+          await removeCategories(item, categoriesBefore);
+          await addCategories(item, request.categories);
+        } else {
+          const missing = request.categories.filter((category) => !beforeByKey.has(category.toLocaleLowerCase("it-IT")));
+          await addCategories(item, missing);
+        }
+      } else {
+        const namesToRemove = request.clear
+          ? categoriesBefore
+          : request.categories
+            .map((category) => beforeByKey.get(category.toLocaleLowerCase("it-IT")))
+            .filter(Boolean);
+        await removeCategories(item, namesToRemove);
+      }
+    } catch (error) {
+      operationError = error;
+    }
+
+    try {
+      const after = await getCategories(item);
+      categoriesAfter = categoryDisplayNames(after);
+      updateCurrentMessageCategories(after);
+    } catch (error) {
+      operationError ||= error;
+    }
+
+    const payload = {
+      status: operationError ? "error" : "ok",
+      action,
+      categories: request.categories,
+      ...(action === "AddCategoriesOfficeJs" ? { replace: request.replace } : { clear: request.clear }),
+      categoriesBefore,
+      categoriesAfter,
+      ...(operationError ? { message: operationError?.message || String(operationError) } : {})
+    };
+    return {
+      ok: !operationError,
+      status: operationError ? "Errore" : 200,
+      statusText: operationError ? "" : "OK",
+      authenticationMode: "Office.js",
+      body: JSON.stringify(payload)
+    };
+  }
+
+  async function AddCategoriesOfficeJs(categories, replace = false) {
+    const request = normalizeCategoryActionRequest("AddCategoriesOfficeJs", categories, replace);
+    return executeOfficeCategoryAction("AddCategoriesOfficeJs", request);
+  }
+
+  async function RemoveCategoriesOfficeJs(categories, clear = false) {
+    const request = normalizeCategoryActionRequest("RemoveCategoriesOfficeJs", categories, clear);
+    return executeOfficeCategoryAction("RemoveCategoriesOfficeJs", request);
   }
 
   function collectCreateTicketBody() {
@@ -1507,6 +1750,16 @@ function registerHealthButton() {
     resetTicketResult();
     setTicketButtonLoading(true);
     try {
+      if (isCategoryDeveloperAction(action)) {
+        developerConfig ||= readOperationalConfigCache()?.payload || null;
+        validateTicketingConfig(developerConfig);
+        const categories = String(byId("developer-category-input")?.value || "");
+        const categoryResult = action === "AddCategoriesOfficeJs"
+          ? await AddCategoriesOfficeJs(categories, Boolean(byId("developer-category-replace")?.checked))
+          : await RemoveCategoriesOfficeJs(categories, Boolean(byId("developer-category-clear")?.checked));
+        showTicketResult(categoryResult, action);
+        return;
+      }
       if (action !== "CreateTicket" && !value) {
         throw new Error(action === "GetTicketById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
       }

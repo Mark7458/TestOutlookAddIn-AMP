@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-7 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-8 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -511,8 +511,8 @@ footer {
 
 
 /* Developer Tools CreateTicket. */
-.developer-get-form,.developer-create-form,.developer-create-field{display:grid;gap:5px}
-.developer-create-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
+.developer-get-form,.developer-create-form,.developer-category-form,.developer-create-field{display:grid;gap:5px}
+.developer-create-form,.developer-category-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
 .developer-create-checkbox{display:flex!important;align-items:center;gap:8px;padding:4px 0;color:#323130!important;font-size:12px!important;cursor:pointer}
 .developer-create-checkbox input{width:17px;height:17px;margin:0}
 .developer-create-help{min-height:16px;margin:0;color:#605e5c;font-size:11px;line-height:1.35}
@@ -525,7 +525,7 @@ footer {
 .developer-existing-ticket dt{color:#605e5c;font-weight:600}.developer-existing-ticket dd{margin:0;overflow-wrap:anywhere}
 .developer-force-create{margin-top:2px}
 @media(prefers-color-scheme:dark){
-  .developer-create-form{border-color:#484644;background:#252423}
+  .developer-create-form,.developer-category-form{border-color:#484644;background:#252423}
   .developer-create-checkbox{color:#f3f2f1!important}.developer-create-help{color:#c8c6c4}
   .developer-conflict{border-color:#f7630c;background:#3b2f00;color:#f3f2f1}
   .developer-existing-ticket{border-color:#484644;background:#201f1e}
