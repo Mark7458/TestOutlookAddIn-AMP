@@ -86,6 +86,8 @@
             navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
             hoverInnerFilter: 'none', // etichette e notifiche dentro la scheda: si accendono meno della scheda
+            navInk: '#fff', // scritte e icone dell'intestazione e delle schede
+            navInkSoft: 'rgba(255, 255, 255, .72)', // schede non scelte
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
@@ -234,6 +236,8 @@
             lineStrong: 'rgba(255, 255, 255, .16)',
             hoverFilter: 'brightness(1.22)',
             hoverInnerFilter: 'none', // nello scuro resta com'è
+            navInk: 'rgba(236, 240, 247, .86)', // vetro scuro: bianco meno acceso
+            navInkSoft: 'rgba(236, 240, 247, .58)',
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
@@ -539,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 12:50';
+    const BUILD = '2026-11-06 13:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -854,6 +858,8 @@
         flat: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="12" height="12" rx="2"/></svg>',
         glass: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="2"/><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" fill-opacity=".18"/></svg>'
     };
+    // Spazi tra icona, nome e contatore della scheda aperta (usati dal CSS e dalla sottolineatura).
+    const TAB_GAP = { label: 9, counter: 5 };
     function tabIcon(view) {
         if (!TAB_ICONS[view]) return null;
         const icon = h('span', { class: 'ao-tab-icon' });
@@ -1376,7 +1382,10 @@
         const changed = indicator.dataset.view && indicator.dataset.view !== activeView && indicator.classList.contains('ao-ready');
         indicator.classList.toggle('ao-moving', Boolean(changed));
         // Linea corta e arrotondata, centrata sotto icona e nome della scheda.
-        const content = [...tab.children].reduce((sum, part) => sum + (part.classList.contains('ao-counter-off') ? 0 : part.scrollWidth), 0) + 10; // a scheda aperta
+        // Larghezza a scheda aperta (nome e numero stanno ancora comparendo): dall'icona all'ultima cifra.
+        const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
+        const content = tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
+            + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
         const width = Math.min(tab.offsetWidth, Math.max(36, content + 12));
         indicator.style.width = `${width}px`;
         indicator.style.transform = `translateX(${tab.offsetLeft + (tab.offsetWidth - width) / 2}px)`;
@@ -1393,7 +1402,6 @@
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
-        placeTabIndicator();
         root.querySelectorAll('.ao-tab').forEach(tab => {
             // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
             const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
@@ -1413,6 +1421,7 @@
             if (updates) badge.title = TEXTS.tickets.newMessagesTitle(updates);
             else badge.removeAttribute('title');
         });
+        placeTabIndicator(); // dopo i contatori: la sottolineatura comprende il numero della scheda aperta
         renderStatusBar();
         const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         const body = root.querySelector('.ao-body');
@@ -3356,22 +3365,22 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: #fff; -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
-#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: rgba(255, 255, 255, .8); }
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: var(--ao-nav-ink); -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
+#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: var(--ao-nav-ink-soft); }
 /* Freccia per tornare all'add-in: invisibile finché non la si raggiunge con il mouse, così le schede hanno tutta la larghezza */
 #ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
 #ao-root .ao-tabs .ao-back:is(:hover, :focus-visible) { opacity: 1; }
-#ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: #fff; }
-#ao-root .ao-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: rgba(255, 255, 255, .72); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
-#ao-root .ao-tab:hover { color: #fff; }
-#ao-root .ao-tab.ao-active { color: #fff; }
+#ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: var(--ao-nav-ink); }
+#ao-root .ao-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: var(--ao-nav-ink-soft); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab:hover { color: var(--ao-nav-ink); }
+#ao-root .ao-tab.ao-active { color: var(--ao-nav-ink); }
 #ao-root .ao-tab-icon { position: relative; display: inline-flex; opacity: .8; transition: color .25s, opacity .25s; }
-#ao-root .ao-tab.ao-active .ao-tab-icon { color: #fff; opacity: 1; }
+#ao-root .ao-tab.ao-active .ao-tab-icon { color: var(--ao-nav-ink); opacity: 1; }
 /* Ogni scheda ha il suo posto: chiusa solo l'icona, aperta anche nome e contatore (si allargano nel suo posto) */
 #ao-root .ao-tab-label { max-width: 0; margin-left: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width var(--ao-selection-motion), margin-left var(--ao-selection-motion), opacity .25s; }
-#ao-root .ao-tab.ao-active .ao-tab-label { max-width: 120px; margin-left: 9px; opacity: 1; } /* spazio anche per il segnalino */
+#ao-root .ao-tab.ao-active .ao-tab-label { max-width: 120px; margin-left: ${TAB_GAP.label}px; opacity: 1; } /* spazio anche per il segnalino */
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-label { transition: none; } }
-#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: #fff; pointer-events: none; opacity: 0; }
+#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--ao-nav-ink); pointer-events: none; opacity: 0; }
 #ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
 #ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-indicator.ao-moving { transition: none; } }
@@ -3381,10 +3390,10 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
 /* Schede: il conteggio è un numero pulito, solo sulla scheda aperta. */
 #ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
-#ao-root .ao-tab.ao-active .ao-counter { color: #fff; }
+#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-nav-ink); }
 /* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
-#ao-root .ao-tab .ao-counter { margin-left: 5px; max-width: 40px; color: rgba(255, 255, 255, .72); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, min-width .28s ease, margin-left .28s ease, padding .28s ease, transform .28s ease; }
-#ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; min-width: 0; margin-left: 0; padding: 0; transform: scale(.6); }
+#ao-root .ao-tab .ao-counter { min-width: 0; margin-left: ${TAB_GAP.counter}px; padding: 0; max-width: 40px; color: var(--ao-nav-ink-soft); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, margin-left .28s ease, transform .28s ease; } /* solo il numero: la sottolineatura si centra sulle cifre */
+#ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; margin-left: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 /* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
 #ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-bold); line-height: 15px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
@@ -3816,15 +3825,15 @@
     // Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa, con le schede
     // più vicine al logo. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza giunture) passa anche dietro
     // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
-    const glassHeaderRule = look => `background: ${look.background}; box-shadow: ${look.light};`;
+    const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
     const OUTSIDE_STYLES = `
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; ${glassHeaderRule(THEME.glassHeader.light)} }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} }
-@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark)} } }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} }
+@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} } }
 `;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
