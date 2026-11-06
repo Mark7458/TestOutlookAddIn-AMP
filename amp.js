@@ -367,7 +367,6 @@
             searchPlaceholder: 'INC o oggetto',
             noResults: 'Nessun risultato.',
             empty: 'Nessun ticket aperto.',
-            mailToConfirm: 'mail da confermare',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             threadGroup: n => `Stesso thread · ${n} ticket`,
             holdExpired: 'On Hold scaduto',
@@ -542,7 +541,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 14:45';
+    const BUILD = '2026-11-06 14:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2316,10 +2315,9 @@
                 h('span', null, [ticket.companyName, ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')),
                 state.ticketOperator === 'all' ? labelChip(mine ? { name: currentUser().displayValue, color: loadConfig().profile.label } : (ticket.label || { name: ticket.assignedTo?.name || TEXTS.common.unassigned, color: 'grafite' })) : null),
             inGroup ? null : newMessagesPreview(ticket),
-            // In basso, solo se ci sono: termine (On Hold) e avvisi.
-            holdDate || ticket.mailUnconfirmed || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
+            // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
+            holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
                 holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
-                ticket.messageId && ticket.mailUnconfirmed ? chip(TEXTS.tickets.mailToConfirm, 'warning') : null,
                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null);
     }
 
