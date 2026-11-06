@@ -104,6 +104,7 @@
             callBorder: '1px dashed var(--ao-accent)',
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
+            lockLine: 'var(--ao-accent)', // azione confermata: nel Flat un bordo (nel vetro basta il bagliore)
             callGlowHover: '0 0 transparent',
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
@@ -203,6 +204,7 @@
             callBorder: '1px solid var(--ao-line)',
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
+            lockLine: 'transparent',
             callGlowHover: '0 0 21px rgba(80, 150, 255, .58), 0 0 5px rgba(80, 150, 255, .3)',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
@@ -442,13 +444,7 @@
             pendingCleared: 'Azione annullata.',
             timeInvalid: 'Scrivi per esempio 2h, 1h30, +2h o 120',
             pendingSaved: 'Azione salvata: verrà eseguita all’invio della risposta.',
-            replyOpened: 'Risposta aperta in Outlook.',
-            // Storico
-            history: 'Storico ServiceNow',
-            loadHistory: 'Carica',
-            loadMore: n => `Mostra precedenti (${n})`,
-            historyEmpty: 'Nessuna attività.',
-            kinds: { comment: 'Commento', work_note: 'Nota interna', system: 'Sistema' }
+            replyOpened: 'Risposta aperta in Outlook.'
         },
         settings: {
             title: 'Impostazioni',
@@ -526,7 +522,6 @@
     const TIME_STEP = { base: 5, faster: 15, fastest: 30, after: [5, 12], repeat: 140, hold: 400 };
     const formatMinutes = minutes => (minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`);
     const DEFAULT_HOLD_DAYS = 2; // scadenza proposta per l'On Hold
-    const HISTORY_PAGE = 5; // voci dello storico caricate per volta
 
     // ======================================================================
     // 2. CONFIGURAZIONI (salvate nel browser, stesso formato dello script Tampermonkey)
@@ -536,7 +531,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 20:00';
+    const BUILD = '2026-11-06 20:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -886,7 +881,6 @@
         newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
-        history: {}, // per ticket: storico caricato
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
@@ -1091,10 +1085,6 @@
         state.loading = false;
         render();
         await refreshTarget(true);
-        // Lo storico aperto si ricarica per mostrare le novità (es. risposta appena inviata).
-        Object.keys(state.history).forEach(number => {
-            if (state.history[number].open) loadHistory(number, true);
-        });
     }
     // Triangolazione per la mail mostrata nella vista Mail.
     async function refreshTarget(quiet = false) {
@@ -2924,7 +2914,7 @@
                     open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state))),
                 expanded && open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
                 expanded && open && !ticket.messageId ? updateCard(ticket, config) : null,
-                expanded ? historyCard(ticket) : null));
+                null));
     }
     // Ticket chiusi del thread: una sezione chiusa in fondo, con un clic si vedono (solo da consultare).
     function closedTickets(conversationId, tickets) {
@@ -3189,45 +3179,6 @@
             if (window.AmpPreviewOutlook) opened = Outlook.openReply(text);
         }
         showStatus(opened ? TEXTS.mail.replyOpened : TEXTS.mail.pendingSaved, opened ? 'success' : 'warning');
-    }
-
-    // Storico di ServiceNow, caricato solo quando serve e a pagine.
-    function historyCard(ticket) {
-        const history = state.history[ticket.number];
-        return h('section', { class: 'ao-card' },
-            h('div', { class: 'ao-card-head' },
-                h('h3', { class: 'ao-card-title' }, TEXTS.mail.history),
-                history?.open ? null : h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => loadHistory(ticket.number) }, TEXTS.mail.loadHistory)),
-            history?.open ? [
-                history.loading && !history.entries.length ? h('p', { class: 'ao-muted' }, TEXTS.common.loading) : null,
-                !history.loading && !history.entries.length ? h('p', { class: 'ao-muted' }, TEXTS.mail.historyEmpty) : null,
-                h('ol', { class: 'ao-history' }, history.entries.map(entry => h('li', { class: `ao-entry ao-entry-${entry.kind}` },
-                    h('div', { class: 'ao-entry-head' },
-                        h('span', { class: 'ao-entry-kind' }, TEXTS.mail.kinds[entry.kind] || entry.kind),
-                        h('span', {}, entry.author),
-                        h('span', { class: 'ao-item-time' }, formatWhen(entry.at))),
-                    h('div', { class: 'ao-entry-text' }, entry.text)))),
-                history.total > history.entries.length
-                    ? h('button', { type: 'button', class: 'ao-link', onclick: () => loadHistory(ticket.number, false, true) }, TEXTS.mail.loadMore(history.total - history.entries.length)) : null
-            ] : null);
-    }
-    async function loadHistory(number, reload = false, more = false) {
-        const current = state.history[number] || { entries: [], total: 0 };
-        const limit = reload ? Math.max(HISTORY_PAGE, current.entries.length) : HISTORY_PAGE;
-        const offset = more ? current.entries.length : 0;
-        state.history[number] = { ...current, open: true, loading: true };
-        if (!reload) render();
-        try {
-            const page = await Services.getTicketActivity(number, { offset, limit });
-            state.history[number] = {
-                open: true, loading: false, total: page.total,
-                entries: more ? [...current.entries, ...page.entries] : page.entries
-            };
-        } catch (error) {
-            state.history[number] = { ...current, open: false, loading: false };
-            showStatus(error?.message || String(error), 'danger');
-        }
-        render();
     }
 
     // ---------------------------- Impostazioni ----------------------------
@@ -3812,13 +3763,6 @@
 #ao-root .ao-ticket-number:hover { text-decoration: underline; }
 
 /* Storico */
-#ao-root .ao-history { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-entry { padding: 7px 9px; border-left: 3px solid var(--ao-line-strong); border-radius: 0 var(--ao-radius-base) var(--ao-radius-base) 0; background: var(--ao-bg-soft); }
-#ao-root .ao-entry-comment { border-left-color: var(--ao-accent); }
-#ao-root .ao-entry-work_note { border-left-color: var(--ao-warning); background: var(--ao-warning-bg); }
-#ao-root .ao-entry-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--ao-fs-sm); color: var(--ao-text-muted); }
-#ao-root .ao-entry-kind { font-weight: var(--ao-fw-bold); color: var(--ao-text); }
-#ao-root .ao-entry-text { margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--ao-fs-md); }
 
 /* Torna all'elenco (vista di lavoro del ticket) */
 #ao-root .ao-back-row { display: flex; align-items: center; min-height: 22px; }
@@ -3940,7 +3884,7 @@
 #ao-root .ao-timer-value { width: 84px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 22px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-accent-bg); color: inherit; font: inherit; text-align: center; }
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
-#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
+#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line), var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
 #ao-root .ao-locked { cursor: default; }
 /* Ticket chiusi del thread */
 #ao-root .ao-closed { display: grid; gap: 6px; }
