@@ -408,6 +408,8 @@
             label: conversation ? null : { name: ticket.assignedTo?.name || '', color: OPERATOR_LABELS[ticket.assignedTo?.name] || 'grafite' },
             newMessages: conversation ? newMessagesOf(conversation) : 0,
             lastNewMessage: conversation && newMessagesOf(conversation) ? lastIncomingPreview(conversation) : null,
+            // Ultimo messaggio arrivato nel thread (anche già visto): serve a ordinare i ticket per ultima attività
+            lastMessageAt: conversation ? lastIncomingOf(conversation)?.receivedAt || '' : '',
             syncedAt: db.sp.syncedAt
         };
     }

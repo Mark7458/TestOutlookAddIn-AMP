@@ -62,7 +62,7 @@ Ogni servizio restituisce una Promise.
 | `listQueue()` | Thread delle caselle condivise (uno per conversationId) da prendere in carico, secondo la regola 5, con `mailbox` = casella da cui arriva (AMPCoE, M365 Admin Center), mostrata come etichetta | Graph + SharePoint |
 | `listIgnored()` | Archivio dei thread ignorati in attesa del prossimo messaggio | Graph + SharePoint |
 | `markThreadSeen(conversationId, utente)` | Chi ha il thread ha cliccato il ticket: i messaggi fin qui non sono più nuovi | SharePoint |
-| `listOpenTickets()` | Ticket In Progress e On Hold del gruppo, con la mail collegata, `newMessages`, `lastNewMessage` (chi, quando, prime righe) e l'ora dell'ultimo allineamento (`syncedAt`) | Graph + SharePoint |
+| `listOpenTickets()` | Ticket In Progress e On Hold del gruppo, con la mail collegata, `newMessages`, `lastNewMessage` (chi, quando, prime righe), `lastMessageAt` (ora dell'ultimo messaggio arrivato nel thread, anche già visto) e l'ora dell'ultimo allineamento (`syncedAt`) | Graph + SharePoint |
 | `findTicketForMail(mail)` | Triangolazione: `{ tickets (aperti, anche più di uno, ognuno con via), previous, candidates, discarded }` | SharePoint |
 | `getTicket(numero)` | Un ticket | SharePoint |
 | `linkTicket(conversationId, numero, utente)` | L'operatore conferma il collegamento: il thread passa in gestione | SharePoint |

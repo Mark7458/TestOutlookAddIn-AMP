@@ -368,9 +368,9 @@
             noResults: 'Nessun risultato.',
             empty: 'Nessun ticket aperto.',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
-            threadGroup: n => `Stesso thread · ${n} ticket`,
             holdExpired: 'On Hold scaduto',
-            holdUntil: date => `fino al ${date}`
+            holdUntil: date => `fino al ${date}`,
+            holdExpiredOn: date => `scaduto il ${date}`
         },
         mail: {
             outcomeWorking: 'Apro il ticket…',
@@ -541,7 +541,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 14:55';
+    const BUILD = '2026-11-06 16:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -651,7 +651,7 @@
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
     //            holdExpiration, conversationId, messageId, pendingAction, owner, newMessages,
-    //            lastNewMessage: { from, at, preview } | null, syncedAt }
+    //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt }
     // ======================================================================
 
     const SERVICE_METHODS = ['listQueue', 'listIgnored', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
@@ -902,6 +902,7 @@
         expandedTickets: [], // ticket con i dettagli aperti (thread con più ticket)
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
+        openDeck: null, // thread con più ticket aperto a mazzo (Ticket)
         queueChoice: {}, // scheda di In coda aperta: azione scelta nel selettore e gruppo dell'inoltro
         liftFrom: null, // scheda che si sta aprendo: disegnata non sollevata, poi si solleva
         previewScroll: null, // scheda aperta del tutto: il testo della mail può scorrere
@@ -940,7 +941,6 @@
     // Il tondo prende il colore del testo intorno (currentColor), il numero quello dello sfondo.
     const notifyBadge = (updates, title) => h('span', { class: `ao-notify${updates ? '' : ' ao-notify-off'}`, title: updates ? title : undefined }, h('span', { class: 'ao-notify-number' }, updates || ''));
     // Solo la notifica: numero su sfondo blu.
-    const newsBadge = (news, title = '') => h('span', { class: 'ao-news', title: title || undefined }, news);
     const chip = (text, tone = 'neutral', title) => h('span', { class: `ao-chip ao-tone-${tone}`, title }, text);
     // Stato del ticket: In Progress è la normalità e non ha etichetta; si vedono solo gli altri stati.
     const stateChip = ticket => {
@@ -1305,6 +1305,12 @@
         root.addEventListener('click', event => {
             if (!state.labelArmed || event.target.closest('.ao-tag-swap')) return;
             state.labelArmed = null;
+            render();
+        }, true);
+        // Mazzo aperto (Ticket): un clic fuori lo richiude.
+        root.addEventListener('click', event => {
+            if (!state.openDeck || event.target.closest('.ao-deck.ao-open')) return;
+            state.openDeck = null;
             render();
         }, true);
         // Menu degli operatori (Ticket): un clic fuori lo chiude.
@@ -1987,15 +1993,15 @@
             if (group) group.tickets.push(ticket);
             else groups.push({ conversationId: ticket.conversationId, tickets: [ticket] });
         });
-        const rank = group => [
-            group.tickets.some(ticket => ticket.newMessages) ? 1 : 0,
-            group.tickets.some(isHoldExpired) ? 1 : 0,
-            group.tickets.map(ticket => String(ticket.openedAt)).sort().slice(-1)[0]
-        ];
+        // Ordine: in cima gli On Hold scaduti (vanno ripresi subito), poi per ultima attività (apertura o ultimo
+        // messaggio arrivato), dalla più recente: un thread con un messaggio nuovo risale da solo.
+        const activity = ticket => [String(ticket.openedAt || ''), String(ticket.lastMessageAt || '')].sort().slice(-1)[0];
+        const rank = group => [group.tickets.some(isHoldExpired) ? 1 : 0, group.tickets.map(activity).sort().slice(-1)[0]];
+        groups.forEach(group => group.tickets.sort((a, b) => activity(b).localeCompare(activity(a))));
         groups.sort((a, b) => {
-            const [newA, holdA, dateA] = rank(a);
-            const [newB, holdB, dateB] = rank(b);
-            return newB - newA || holdB - holdA || dateB.localeCompare(dateA);
+            const [holdA, dateA] = rank(a);
+            const [holdB, dateB] = rank(b);
+            return holdB - holdA || dateB.localeCompare(dateA);
         });
         return h('div', { class: 'ao-view' },
             notice,
@@ -2007,10 +2013,7 @@
             state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
             searching && state.ticketSearchPending ? searchSkeleton() : null,
             groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
-                ? h('li', { class: 'ao-group' },
-                    h('div', { class: 'ao-group-head' }, TEXTS.tickets.threadGroup(group.tickets.length)),
-                    newMessagesPreview(group.tickets[0]),
-                    h('ul', { class: 'ao-list' }, group.tickets.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))))
+                ? ticketDeck(group, user, query)
                 : ticketItem(group.tickets[0], user, { query }))))
                 : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
                     : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)));
@@ -2294,16 +2297,28 @@
         const last = ticket.lastNewMessage;
         return h('div', { class: 'ao-new-preview', title: TEXTS.tickets.newMessagesTitle(ticket.newMessages) },
             h('div', { class: 'ao-new-head' },
-                newsBadge(ticket.newMessages),
+                h('span', { class: 'ao-news' }, ticket.newMessages),
                 last ? h('span', { class: 'ao-new-from' }, last.from) : null,
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
     }
-    function ticketItem(ticket, user, { inGroup = false, query = '' } = {}) {
+    // Thread con più ticket: un mazzo. Chiuso si vede la scheda più recente (con l'anteprima del messaggio nuovo)
+    // e sotto il bordo delle altre; un clic lo apre e mostra gli altri ticket. Un clic fuori lo richiude.
+    function ticketDeck(group, user, query) {
+        const open = state.openDeck === group.conversationId;
+        const [top, ...rest] = group.tickets;
+        const toggle = () => { state.openDeck = open ? null : group.conversationId; render(); };
+        return h('li', { class: `ao-deck${open ? ' ao-open' : ''}`, dataset: { deck: group.conversationId } },
+            ticketItem(top, user, { query, onpick: open ? null : toggle }),
+            open ? rest.map(ticket => ticketItem(ticket, user, { inGroup: true, query }))
+                : h('span', { class: 'ao-deck-edge', 'aria-hidden': 'true' }));
+    }
+    function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const mine = isMine(ticket, user);
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const highlight = ticket.newMessages && !inGroup ? ' ao-item-new' : '';
-        return clickable(`ao-item${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${highlight}`, event => openFromCard(event.currentTarget, ticket),
+        const expired = isHoldExpired(ticket);
+        return clickable(`ao-item${expired ? ' ao-item-alert' : ''}${highlight}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
             // Prima il numero INC, sotto la Short description (oggetto della mail), poi agenzia e attività.
             h('div', { class: 'ao-item-top' },
                 h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
@@ -2317,7 +2332,7 @@
             inGroup ? null : newMessagesPreview(ticket),
             // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
             holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
-                holdDate ? h('span', { class: 'ao-item-time' }, TEXTS.tickets.holdUntil(formatWhen(holdDate))) : null,
+                holdDate ? h('span', { class: `ao-item-time${expired ? ' ao-item-late' : ''}` }, (expired ? TEXTS.tickets.holdExpiredOn : TEXTS.tickets.holdUntil)(formatWhen(holdDate))) : null,
                 ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null);
     }
 
@@ -3417,7 +3432,7 @@
 #ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
 #ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
-#ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
+#ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -3790,8 +3805,12 @@
 #ao-root .ao-add-ticket { justify-self: start; color: var(--ao-text-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
-#ao-root .ao-group { display: grid; gap: 6px; padding: 8px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); }
-#ao-root .ao-group-head { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+/* Mazzo: thread con più ticket. Chiuso, sotto la scheda spunta il bordo delle altre; aperto, le schede una sotto l'altra */
+#ao-root .ao-deck { position: relative; display: grid; gap: 6px; padding-bottom: 7px; }
+#ao-root .ao-deck.ao-open { padding-bottom: 0; }
+#ao-root .ao-deck > .ao-item { position: relative; z-index: 1; }
+#ao-root .ao-deck-edge { position: absolute; left: 8px; right: 8px; bottom: 0; height: 12px; border: 1px solid var(--ao-line); border-top: 0; border-radius: 0 0 var(--ao-radius-base) var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
