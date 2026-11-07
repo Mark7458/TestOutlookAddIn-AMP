@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 20:30';
+    const BUILD = '2026-11-07 21:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1251,13 +1251,17 @@
         }));
     }
     // Dopo che la scheda si è posata, la pagina si apre da lei: sopra scendono "←" e l'intestazione della mail; il suo
-    // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread scivolano fuori da sotto,
-    // uno dopo l'altro, fino al loro posto. inward = false: l'esatto inverso (si richiude tutto nella scheda).
+    // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread escono da sotto di lei,
+    // uno dopo l'altro (dal più vicino), fino al loro posto, sopra o sotto. inward = false: l'esatto inverso.
     function unfoldPage(head, inward) {
         const view = head.closest('.ao-scroll'); // la pagina: i suoi pezzi sono i figli dell'area che scorre
-        const holder = [...(view?.children || [])].find(child => child.contains(head));
-        const above = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed') && child.compareDocumentPosition(holder) & Node.DOCUMENT_POSITION_FOLLOWING);
-        const below = [...(view?.children || [])].filter(child => holder && holder.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const parts = [...(view?.children || [])];
+        const holder = parts.find(child => child.contains(head));
+        const at = parts.indexOf(holder);
+        const isCard = element => element !== holder && element.classList.contains('ao-ticket-card');
+        const above = holder ? parts.slice(0, at).filter(child => !child.classList.contains('ao-fixed') && !isCard(child)) : [];
+        const below = holder ? parts.slice(at + 1).filter(child => !isCard(child)) : [];
+        const cards = holder ? parts.filter(isCard).sort((a, b) => Math.abs(parts.indexOf(a) - at) - Math.abs(parts.indexOf(b) - at)) : [];
         const more = head.querySelector('.ao-ticket-more');
         const inner = more ? [...more.children] : [];
         const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
@@ -1272,9 +1276,8 @@
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger))));
         }
         // Gli altri ticket del thread escono da sotto la scheda come carte da un mazzo: partono impilati dietro di lei
-        // e scivolano giù uno dopo l'altro fino al loro posto (al ritorno rientrano nel mazzo). Il resto compare piano.
+        // e scivolano uno dopo l'altro fino al loro posto (al ritorno rientrano nel mazzo). Il resto compare piano.
         const top = (holder || head).getBoundingClientRect().top;
-        const cards = below.filter(element => element.classList.contains('ao-ticket-card'));
         if (holder) Object.assign(holder.style, { position: 'relative', zIndex: '2' }); // la scheda resta davanti al mazzo
         cards.forEach((element, index) => {
             element.style.position = 'relative';
@@ -1283,7 +1286,7 @@
             moves.push(play(element, { transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.96)` }, { transform: 'none' },
                 (inward ? JOURNEY.build * .6 : 0) + order * DEAL_STEP).then(() => { element.style.position = ''; element.style.zIndex = ''; }));
         });
-        below.filter(element => !cards.includes(element)).forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build + cards.length * DEAL_STEP : 0)));
+        below.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build + cards.length * DEAL_STEP : 0)));
         return Promise.all(moves).catch(() => {}).then(() => { if (holder) Object.assign(holder.style, { position: '', zIndex: '' }); });
     }
     const DEAL_STEP = 110; // distacco tra una carta e l'altra quando il mazzo si distribuisce
@@ -2235,7 +2238,7 @@
         // messaggio arrivato), dalla più recente: un thread con un messaggio nuovo risale da solo.
         const activity = ticket => [String(ticket.openedAt || ''), String(ticket.lastMessageAt || '')].sort().slice(-1)[0];
         const rank = group => [group.tickets.some(isHoldExpired) ? 1 : 0, group.tickets.map(activity).sort().slice(-1)[0]];
-        groups.forEach(group => group.tickets.sort((a, b) => activity(b).localeCompare(activity(a))));
+        groups.forEach(group => { group.tickets = threadOrder(group.tickets).reverse(); }); // davanti il principale
         groups.sort((a, b) => {
             const [holdA, dateA] = rank(a);
             const [holdB, dateB] = rank(b);
@@ -2542,6 +2545,14 @@
     }
     // Thread con più ticket: un mazzo a scaletta verso il basso. Dietro, in alto, le fasce con il numero dei ticket
     // meno recenti (più strette); davanti, completa, la scheda più recente con l'anteprima. Un clic porta al thread.
+    // Ticket aperti dello stesso thread, nell'ordine in cui si lavorano: in cima i collegati, dal più recente;
+    // per ultimo il principale, che si chiude per ultimo (con la risposta alla mail).
+    function threadOrder(tickets) {
+        const byOpening = (a, b) => String(a.openedAt || '').localeCompare(String(b.openedAt || ''));
+        const primary = tickets.find(ticket => ticket.primary) || [...tickets].sort(byOpening)[0];
+        return [...tickets.filter(ticket => ticket !== primary).sort((a, b) => byOpening(b, a)), primary].filter(Boolean);
+    }
+    // Mazzo: davanti il principale, dietro i collegati nell'ordine in cui escono nel thread (dal più vicino a lui).
     function ticketDeck(group, user, query) {
         const [top, ...rest] = group.tickets;
         const open = event => openFromCard(event.currentTarget.closest('.ao-deck'), top);
@@ -2628,8 +2639,8 @@
             const all = result.tickets.map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }));
             const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
             const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
-            const primary = opened.find(ticket => ticket.primary) || opened[0]; // il primo collegato al thread
-            opened.forEach(ticket => content.push(ticketBox(ticket, config, user, { isCurrentMail, single: opened.length === 1, primary: ticket === primary, others: opened.length - 1 })));
+            const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
+            ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { isCurrentMail, single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
             if (closed.length) content.push(closedTickets(mail.conversationId, closed));
             // Una stessa richiesta può richiedere un altro ticket, subito o in seguito.
             content.push(state.extraTicketFor === mail.conversationId

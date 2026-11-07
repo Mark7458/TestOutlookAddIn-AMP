@@ -376,9 +376,7 @@
         evidence.forEach(item => { viaOf[item.number] ||= item.via; });
         const known = Object.keys(viaOf).map(number => db.sp.tickets[number]);
         const open = known.filter(ticket => OPEN_STATES.includes(ticket.state)).sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt)));
-        // Principale: il primo ticket (aperto) collegato al thread; si lavora con la risposta via mail.
-        const linkedAt = number => (thread?.links || []).find(link => link.number === number)?.linkedAt || '\uffff';
-        const primary = [...open].sort((a, b) => linkedAt(a.number).localeCompare(linkedAt(b.number)))[0] || null;
+        const primary = primaryAmong(open, thread);
         let tickets = open;
         let previous = null;
         if (!open.length && evidence.length) {
@@ -398,6 +396,16 @@
             thread
         };
     }
+    // Principale di un thread: il primo ticket aperto collegato (ordine di collegamento, poi di apertura).
+    // Si lavora con la risposta via mail; gli altri sono collegati e indipendenti.
+    function primaryAmong(open, thread) {
+        const linkedAt = number => (thread?.links || []).find(link => link.number === number)?.linkedAt || '\uffff';
+        return [...open].sort((a, b) => linkedAt(a.number).localeCompare(linkedAt(b.number)) || String(a.openedAt).localeCompare(String(b.openedAt)))[0] || null;
+    }
+    function isPrimary(ticket, conversationId) {
+        const open = Object.values(db.sp.tickets).filter(item => OPEN_STATES.includes(item.state) && conversationOf(item.number) === conversationId);
+        return primaryAmong(open, db.sp.threads[conversationId])?.number === ticket.number;
+    }
     // Ticket (copia SharePoint) con la mail collegata.
     // mailUnconfirmed: la mail è stata trovata solo per somiglianza e va confermata dall'operatore.
     function decorate(ticket, conversationId) {
@@ -413,6 +421,7 @@
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
             mailUnconfirmed: Boolean(similar),
+            primary: linked ? isPrimary(ticket, linked) : false,
             owner: conversation ? db.sp.threads[conversation]?.owner || '' : '',
             // Ticket senza mail: l'etichetta è quella di chi l'ha aperto
             label: conversation ? null : { name: ticket.assignedTo?.name || '', color: OPERATOR_LABELS[ticket.assignedTo?.name] || 'grafite' },
