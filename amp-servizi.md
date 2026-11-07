@@ -34,8 +34,14 @@ e `TestPluginAPI` (`getCurrentMessageContext`, `onMessageChanged`, `showMainView
 6. **Un thread può avere più ticket**, nel tempo (richieste successive sulla stessa scia) o
    **aperti insieme** (es. creazione della DL e aggiunta dei membri). Il thread resta in gestione
    finché almeno uno è aperto.
-7. **La risposta aggiorna** i ticket aperti del thread con un'azione salvata o citati nel testo
-   ("Rif. INC…"); se nessuno, il più recente.
+7. **Principale e collegati.** Il **principale** è il primo ticket (aperto) collegato al thread: è l'unico
+   legato alla **risposta via mail**, che lo aggiorna (con l'azione salvata, se c'è). Gli altri ticket del
+   thread sono **collegati** e indipendenti: si aggiornano e si chiudono dal pannello (testo e azione subito,
+   come i ticket senza mail); rispondere al thread resta compito dell'operatore. Il principale **non si
+   chiude** (Risolvi, Annulla) finché ci sono collegati aperti: prima si chiudono quelli, poi con l'ultima
+   risposta si chiude il principale.
+8. **Da In coda, con più messaggi nel thread,** l'operatore sceglie da quale messaggio nasce il ticket
+   (frecce e "Usa questo"; mai in automatico): da quel messaggio vengono *Description* e *Reported*.
 
 ## Triangolazione mail ↔ ticket
 
@@ -63,7 +69,7 @@ Ogni servizio restituisce una Promise.
 | `listIgnored()` | Archivio dei thread ignorati in attesa del prossimo messaggio | Graph + SharePoint |
 | `markThreadSeen(conversationId, utente)` | Chi ha il thread ha cliccato il ticket: i messaggi fin qui non sono più nuovi | SharePoint |
 | `listOpenTickets()` | Ticket In Progress e On Hold del gruppo, con la mail collegata, `newMessages`, `lastNewMessage` (chi, quando, prime righe), `lastMessageAt` (ora dell'ultimo messaggio arrivato nel thread, anche già visto) e l'ora dell'ultimo allineamento (`syncedAt`) | Graph + SharePoint |
-| `findTicketForMail(mail)` | Triangolazione: `{ tickets (aperti, anche più di uno, ognuno con via), previous, candidates, discarded }` | SharePoint |
+| `findTicketForMail(mail)` | Triangolazione: `{ tickets (aperti, anche più di uno, ognuno con via e primary = principale del thread), previous, candidates, discarded }` | SharePoint |
 | `getTicket(numero)` | Un ticket | SharePoint |
 | `linkTicket(conversationId, numero, utente)` | L'operatore conferma il collegamento: il thread passa in gestione | SharePoint |
 | `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento. Con `mail = null` è un ticket aperto da Ticket senza mail: nessun thread da collegare, Caller = chi lo apre, `reportedOn` = data e ora scritte dall'operatore | ServiceNow → SharePoint |
@@ -71,8 +77,10 @@ Ogni servizio restituisce una Promise.
 | `addTime(numero, minuti, nome)` | Aggiunge (o toglie, se negativo) tempo lavorato | ServiceNow → SharePoint |
 | `getTicketActivity(numero, { offset, limit })` | Storico completo, dal più recente, a pagine (solo su richiesta) | ServiceNow (journal) |
 | `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento) | SharePoint |
+| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o collegato (non principale): testo come *Additional comments* (o *Resolution notes* / *Work notes* come all'invio) e azione subito | ServiceNow → SharePoint |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
 | `subscribe(listener)` | Facoltativo: avvisa il pannello quando i dati cambiano | — |
+| `listThreadMessages(conversationId)` | Messaggi ricevuti del thread, dal più vecchio: `[{ messageId, sender, receivedAt, preview }]`. In In coda, con più messaggi, l'operatore sceglie da quale aprire il ticket | Graph |
 | `getMailBody(messageId)` | Testo (semplice, senza HTML) di una mail della casella condivisa: in In coda si legge la richiesta e la si prende in carico o la si ignora senza aprirla in Outlook | Graph |
 | `sync()` | Job periodico della Function App (non lo chiama il pannello): allinea SharePoint a ServiceNow | ServiceNow → SharePoint |
 
@@ -101,9 +109,8 @@ Pulizia: thread liberi, ticket chiusi e movimenti più vecchi di N mesi si cance
 
 Quando dalla casella parte una risposta in una conversazione con ticket aperti:
 
-0. si scelgono i ticket da aggiornare: quelli con un'azione salvata e quelli citati nel testo
-   ("Rif. INC…"); se nessuno, il più recente dei ticket aperti del thread;
-1. il testo della mail va su ServiceNow come *Additional comments* di ciascuno (come il pannello AMP su Tampermonkey);
+0. si aggiorna solo il **principale** del thread (regola 7); i collegati non vengono toccati;
+1. il testo della mail va su ServiceNow come *Additional comments* del principale (come il pannello AMP su Tampermonkey);
 2. si applica l'azione salvata (confermata con "Salva e compila"):
    - `comment` (Aggiorna) → solo *Additional comments*; su un ticket On Hold → torna In Progress;
    - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), *Resolution notes* = testo della mail

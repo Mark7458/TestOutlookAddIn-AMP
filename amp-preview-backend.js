@@ -25,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v6';
+    const STORAGE_KEY = 'amp_preview_backend_v7';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -96,7 +96,11 @@
 
         // 1-3. Richieste nuove, nessun ticket
         mail('conv-1', alfa, 'Casella di posta piena',
-            'Buongiorno,\nla casella di posta dell\'ufficio risulta piena e non riceviamo più email dai clienti.\nPotete aiutarci?\n\nGrazie\nMario Bianchi\nAgenzia Alfa', 25 * MINUTE);
+            'Buongiorno,\nla casella di posta dell\'ufficio risulta piena e non riceviamo più email dai clienti.\nPotete aiutarci?\n\nGrazie\nMario Bianchi\nAgenzia Alfa', 55 * MINUTE);
+        mail('conv-1', alfa, 'RE: Casella di posta piena',
+            'Allego il messaggio che compare: la casella ha superato la quota di 50 GB.\n\nMario Bianchi', 40 * MINUTE);
+        mail('conv-1', alfa, 'RE: Casella di posta piena',
+            'Già che ci siamo: lunedì entra un nuovo collega, Paolo Rossi. Servirebbe una casella anche per lui.\n\nGrazie\nMario Bianchi', 25 * MINUTE);
         mail('conv-2', beta, 'Reset password utente Verdi',
             'Salve,\nil collega Luigi Verdi non riesce più ad accedere al gestionale: chiede il reset della password.\n\nCordiali saluti\nAgenzia Beta', 2 * HOUR);
         mail('conv-3', { name: 'Fornitore Servizi', email: 'newsletter@fornitore.example' }, 'Aggiornamento condizioni di servizio',
@@ -372,6 +376,9 @@
         evidence.forEach(item => { viaOf[item.number] ||= item.via; });
         const known = Object.keys(viaOf).map(number => db.sp.tickets[number]);
         const open = known.filter(ticket => OPEN_STATES.includes(ticket.state)).sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt)));
+        // Principale: il primo ticket (aperto) collegato al thread; si lavora con la risposta via mail.
+        const linkedAt = number => (thread?.links || []).find(link => link.number === number)?.linkedAt || '\uffff';
+        const primary = [...open].sort((a, b) => linkedAt(a.number).localeCompare(linkedAt(b.number)))[0] || null;
         let tickets = open;
         let previous = null;
         if (!open.length && evidence.length) {
@@ -385,7 +392,7 @@
             candidates = similarTickets(messages[0].subject, times, previous ? [previous.number] : []);
         }
         return {
-            tickets: tickets.map(ticket => ({ ...decorate(ticket, conversationId), via: viaOf[ticket.number] })),
+            tickets: tickets.map(ticket => ({ ...decorate(ticket, conversationId), via: viaOf[ticket.number], primary: ticket === primary })),
             previous: previous ? decorate(previous, conversationId) : null,
             candidates: candidates.map(item => decorate(item)),
             thread
@@ -477,6 +484,12 @@
         // Thread della casella da prendere in carico (uno per conversationId).
         listQueue() {
             return respond(conversationIds().map(queueItem).filter(Boolean));
+        },
+        // Messaggi ricevuti di un thread, dal più vecchio: In coda, con più messaggi, si sceglie da quale aprire il ticket.
+        listThreadMessages(conversationId) {
+            return respond(conversationMessages(conversationId).filter(item => item.direction === 'in').map(item => ({
+                messageId: item.id, sender: item.from, receivedAt: item.receivedAt, preview: item.body.replace(/\s+/g, ' ').slice(0, 160)
+            })));
         },
         // Testo della mail per l'anteprima in In coda (in produzione: Graph dalla Function App).
         getMailBody(messageId) {
@@ -716,12 +729,9 @@
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
                     body, receivedAt: now(), categories: [], direction: 'out'
                 });
-                // Ticket aggiornati dalla risposta: quelli con un'azione salvata e quelli citati nel
-                // testo (Rif. INC…); se nessuno, il più recente dei ticket aperti del thread.
-                const open = resolveConversation(original.conversationId).tickets.filter(ticket => OPEN_STATES.includes(ticket.state));
-                const cited = (body.match(INC_PATTERN) || []).map(number => number.toUpperCase());
-                let targets = open.filter(ticket => db.sp.tickets[ticket.number].pendingAction || cited.includes(ticket.number));
-                if (!targets.length && open.length) targets = [open[open.length - 1]];
+                // La risposta aggiorna solo il principale del thread (con la sua azione salvata, se c'è);
+                // gli altri ticket sono indipendenti e si lavorano dal pannello.
+                const targets = resolveConversation(original.conversationId).tickets.filter(ticket => ticket.primary);
                 const applied = targets.map(ticket => applyReply(ticket.number, body, operatorName));
                 const conversationThread = db.sp.threads[original.conversationId];
                 if (conversationThread?.owner === operatorName) conversationThread.ownerSeenAt = now();
