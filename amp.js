@@ -537,7 +537,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 18:30';
+    const BUILD = '2026-11-07 19:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1250,7 +1250,7 @@
     // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread scivolano fuori da sotto,
     // uno dopo l'altro, fino al loro posto. inward = false: l'esatto inverso (si richiude tutto nella scheda).
     function unfoldPage(head, inward) {
-        const view = root.querySelector('.ao-scroll .ao-view') || head.closest('.ao-view');
+        const view = head.closest('.ao-scroll'); // la pagina: i suoi pezzi sono i figli dell'area che scorre
         const holder = [...(view?.children || [])].find(child => child.contains(head));
         const above = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed') && child.compareDocumentPosition(holder) & Node.DOCUMENT_POSITION_FOLLOWING);
         const below = [...(view?.children || [])].filter(child => holder && holder.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -1267,13 +1267,22 @@
             moves.push(play(head, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, inward ? 0 : JOURNEY.stagger));
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? index : inner.length - 1 - index) * JOURNEY.stagger)));
         }
-        // gli altri ticket scivolano fuori da sotto il contenitore (al ritorno ci rientrano)
+        // Gli altri ticket del thread escono da sotto la scheda come carte da un mazzo: partono impilati dietro di lei
+        // e scivolano giù uno dopo l'altro fino al loro posto (al ritorno rientrano nel mazzo). Il resto compare piano.
         const top = (holder || head).getBoundingClientRect().top;
-        below.forEach((element, index) => moves.push(play(element,
-            { opacity: 0, transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.97)` }, { opacity: 1, transform: 'none' },
-            (inward ? JOURNEY.build * .5 + index * JOURNEY.stagger * 2 : (below.length - 1 - index) * JOURNEY.stagger * 2))));
-        return Promise.all(moves).catch(() => {});
+        const cards = below.filter(element => element.classList.contains('ao-ticket-card'));
+        if (holder) Object.assign(holder.style, { position: 'relative', zIndex: '2' }); // la scheda resta davanti al mazzo
+        cards.forEach((element, index) => {
+            element.style.position = 'relative';
+            element.style.zIndex = String(1 - index);
+            const order = inward ? index : cards.length - 1 - index;
+            moves.push(play(element, { transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.96)` }, { transform: 'none' },
+                (inward ? JOURNEY.build * .4 : 0) + order * DEAL_STEP).then(() => { element.style.position = ''; element.style.zIndex = ''; }));
+        });
+        below.filter(element => !cards.includes(element)).forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build + cards.length * DEAL_STEP : 0)));
+        return Promise.all(moves).catch(() => {}).then(() => { if (holder) Object.assign(holder.style, { position: '', zIndex: '' }); });
     }
+    const DEAL_STEP = 110; // distacco tra una carta e l'altra quando il mazzo si distribuisce
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
     // Viaggio e atterraggio in un solo movimento continuo, che insegue il posto d'arrivo: se la pagina cambia mentre
@@ -4032,6 +4041,9 @@
 #ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: linear-gradient(rgba(0, 0, 0, var(--ao-deck-shade)), rgba(0, 0, 0, var(--ao-deck-shade))), var(--ao-surface); /* la scheda davanti, un tono più scura per ogni passo indietro */ color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-deck > .ao-item { position: relative; }
 #ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
+/* mazzo in viaggio: l'ombra va sulla scheda davanti, non sull'intero mazzo (sopra c'è lo spazio delle fasce) */
+#ao-root .ao-deck.ao-journey { box-shadow: none !important; }
+#ao-root .ao-deck.ao-journey > .ao-item { box-shadow: var(--ao-raised-shadow); }
 #ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; } /* copia ferma della lista durante l'andata */
 #ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
