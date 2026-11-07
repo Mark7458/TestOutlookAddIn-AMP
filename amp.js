@@ -353,9 +353,7 @@
             ignore: 'Ignora',
             messageOf: (index, total, when) => `${index} di ${total} · ${when}`,
             previousMessage: 'Messaggio precedente',
-            nextMessage: 'Messaggio successivo',
-            useMessage: 'Usa questo',
-            messageChosen: 'Scelto'
+            nextMessage: 'Messaggio successivo'
         },
         tickets: {
             newTicket: 'Nuovo ticket',
@@ -453,6 +451,7 @@
             includeReference: number => `Aggiungi “Rif. ${number}” in fondo alla risposta`,
             prepareReply: 'Salva e compila',
             pendingCleared: 'Azione annullata.',
+            changeChoice: 'Cambia selezione',
             timeInvalid: 'Scrivi per esempio 2h, 1h30, +2h o 120',
             pendingSaved: 'Azione salvata: verrà eseguita all’invio della risposta.',
             replyOpened: 'Risposta aperta in Outlook.'
@@ -542,7 +541,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 21:30';
+    const BUILD = '2026-11-07 22:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1959,13 +1958,13 @@
     function queueDetails(item, config, allowIgnore, info = null) {
         const mail = mailFromQueueItem(item);
         const messages = threadMessagesOf(item);
-        const shown = messages.length > 1 ? shownMessage(item) : null; // con più messaggi: quello che si sta guardando
+        const shown = messages.length > 1 ? chosenMessage(item) : null; // con più messaggi: quello che si sta guardando
         const body = state.mailBodies[shown?.messageId || item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
         // Si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
         const locked = !isMyLabel(item.label);
         const actions = [
-            { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked || !chosenMessage(item) }, // prima si sceglie il messaggio
+            { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
             { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
             allowIgnore ? { value: 'ignore', label: TEXTS.mail.discard, tone: 'danger', disabled: locked } : null
         ].filter(Boolean);
@@ -1983,54 +1982,45 @@
             }, svgIcon(CHEVRON_UP_ICON)));
     }
     // Messaggi del thread in In coda. Con un messaggio solo il ticket nasce da quello; con più messaggi l'operatore li
-    // scorre con le frecce (si parte dall'ultimo) e sceglie con "Usa questo": la scelta è sua, mai automatica.
-    // Cambiando messaggio la scelta si toglie (e Prendi in carico, se era aperto, si richiude).
+    // scorre con le frecce (si parte dall'ultimo): quello che sta guardando è quello da cui nasce il ticket.
     const threadMessagesOf = item => state.threadMessages[item.conversationId] || [];
-    function shownMessage(item) {
-        const messages = threadMessagesOf(item);
-        return messages[state.queueChoice[item.conversationId]?.at ?? messages.length - 1] || null;
-    }
     function chosenMessage(item) {
         const messages = threadMessagesOf(item);
-        if (messages.length <= 1) return messages[0] || { messageId: item.messageId, sender: item.sender, receivedAt: item.receivedAt, preview: item.preview };
-        return messages.find(message => message.messageId === state.queueChoice[item.conversationId]?.message) || null;
+        return messages[state.queueChoice[item.conversationId]?.at ?? messages.length - 1]
+            || { messageId: item.messageId, sender: item.sender, receivedAt: item.receivedAt, preview: item.preview };
     }
     function messagePicker(item, messages, shown) {
-        const choice = state.queueChoice[item.conversationId];
         const at = messages.indexOf(shown);
-        const chosen = choice.message === shown.messageId;
         const step = (direction, label) => h('button', {
             type: 'button', class: 'ao-message-step', 'aria-label': label, title: label, disabled: at + direction < 0 || at + direction >= messages.length,
             onclick: () => showQueueMessage(item, at + direction)
         }, svgIcon(direction < 0 ? CHEVRON_LEFT_ICON : CHEVRON_RIGHT_ICON));
-        return h('div', { class: 'ao-message-picker' },
-            h('div', { class: 'ao-message-nav' },
-                step(-1, TEXTS.queue.previousMessage),
-                h('span', { class: 'ao-message-where' }, TEXTS.queue.messageOf(at + 1, messages.length, formatWhen(shown.receivedAt))),
-                step(1, TEXTS.queue.nextMessage)),
-            h('button', {
-                type: 'button', class: `ao-button ao-small${chosen ? ' ao-primary' : ''}`, 'aria-pressed': String(chosen),
-                onclick: () => { if (!chosen && !state.holdRender) { choice.message = shown.messageId; render(); } }
-            }, chosen ? TEXTS.queue.messageChosen : TEXTS.queue.useMessage));
+        return h('div', { class: 'ao-message-nav' },
+            step(-1, TEXTS.queue.previousMessage),
+            h('span', { class: 'ao-message-where' }, TEXTS.queue.messageOf(at + 1, messages.length, formatWhen(shown.receivedAt))),
+            step(1, TEXTS.queue.nextMessage));
     }
-    // Un altro messaggio del thread: la tendina si adatta al testo nuovo senza scatti.
+    // Un altro messaggio del thread: il testo svanisce, la tendina si adatta al nuovo e questo compare (come nei ticket).
     async function showQueueMessage(item, index) {
         if (state.holdRender) return;
         const id = item.conversationId;
         const choice = state.queueChoice[id];
         const message = threadMessagesOf(item)[index];
         if (!message || !choice) return;
-        if (choice.action === 'take') await swapZone(`queue:${id}`, () => { choice.action = undefined; });
         const form = queueDetailsOf(id);
         const before = form?.offsetHeight || 0;
-        choice.at = index;
-        choice.message = undefined;
-        if (state.mailBodies[message.messageId] === undefined) {
-            state.mailBodies[message.messageId] = await Services.getMailBody(message.messageId).then(text => text || message.preview || '').catch(() => message.preview || '');
-        }
+        const changing = () => [...(queueDetailsOf(id)?.querySelectorAll('.ao-message-where, .ao-mail-preview') || [])];
+        const body = state.mailBodies[message.messageId] === undefined
+            ? Services.getMailBody(message.messageId).then(text => text || message.preview || '').catch(() => message.preview || '') : null;
+        await holdingRender(async () => {
+            await Promise.all(changing().map(element => element.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }).finished)).catch(() => {});
+            if (body) state.mailBodies[message.messageId] = await body;
+            choice.at = index;
+        });
         render();
         const next = queueDetailsOf(id);
-        if (next && before && next.scrollHeight !== before) await holdingRender(() => playOn(next, [{ maxHeight: `${before}px` }, { maxHeight: `${next.scrollHeight}px` }], 240)
+        changing().forEach(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }));
+        if (next && before && next.scrollHeight !== before) await holdingRender(() => playOn(next, [{ maxHeight: `${before}px` }, { maxHeight: `${next.scrollHeight}px` }], MOTION.swap)
             .then(result => { if (result) { result.animation.cancel(); next.style.overflow = result.overflow; } }));
     }
     function queueActionContent(item, mail, config, choice) {
@@ -2122,7 +2112,7 @@
     }
     const queueDetailsOf = conversationId => root?.querySelector(`.ao-queue-item[data-conversation="${CSS.escape(conversationId)}"] .ao-inline-form`);
     function mailFromQueueItem(item) {
-        const message = chosenMessage(item) || {}; // il ticket nasce dal messaggio scelto (o dall'unico)
+        const message = chosenMessage(item); // il ticket nasce dal messaggio che si sta guardando (o dall'unico)
         return {
             conversationId: item.conversationId, itemId: message.messageId || item.messageId, subject: item.subject, sender: message.sender || item.sender,
             receivedAt: message.receivedAt || item.receivedAt, body: state.mailBodies[message.messageId] || message.preview || item.preview, incNumbers: []
@@ -3361,9 +3351,10 @@
                 checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
                 ticketActionBar(ticket, draft, keepOpen ? CLOSING_ACTIONS : []),
                 choiceZone(`ticket:${ticket.number}`, actionFields(draft))),
-            h('div', { class: 'ao-actions' }, confirmed
-                ? h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null))) showStatus(TEXTS.mail.pendingCleared); } }, TEXTS.common.cancel)
-                : h('button', { type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`, onclick: () => prepareReply(ticket, isCurrentMail) }, TEXTS.mail.prepareReply)));
+            h('div', { class: 'ao-actions' }, h('button', {
+                type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`,
+                onclick: confirmed ? async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null))) showStatus(TEXTS.mail.pendingCleared); } : () => prepareReply(ticket, isCurrentMail)
+            }, confirmed ? TEXTS.mail.changeChoice : TEXTS.mail.prepareReply)));
     }
     // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
     function actionFields(draft) {
@@ -3403,7 +3394,7 @@
         [...after.querySelectorAll('.ao-form-fields > :not(.ao-segmented)')].forEach((field, index) => {
             if (fields[index] !== undefined) field.animate([{ opacity: fields[index] }, { opacity: getComputedStyle(field).opacity }], timing);
         });
-        after.querySelector('.ao-actions > .ao-button')?.animate([{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }], timing);
+        after.querySelector('.ao-actions > .ao-button')?.animate([{ color: 'transparent' }, { color: getComputedStyle(after.querySelector('.ao-actions > .ao-button')).color }], timing); // stesso pulsante: cambia solo la scritta
         return result;
     }
     async function savePendingAction(ticket, action) {
@@ -3907,7 +3898,7 @@
 
 /* Elenchi di Coda e Ticket */
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; cursor: pointer; transition: background-color .35s ease, box-shadow .4s ease, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); } /* stessa struttura d'ombra del passaggio del mouse: sfuma invece di scattare */
 /* Ticket che si apre o si richiude: sollevato come la scheda aperta di In coda (openFromCard, closeToList) */
 #ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
@@ -4035,8 +4026,7 @@
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-mail-preview.ao-scrollable { overflow: auto; }
-/* Più messaggi nel thread: frecce per scorrerli e "Usa questo" per scegliere quello da cui nasce il ticket */
-#ao-root .ao-message-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Più messaggi nel thread: frecce per scorrerli; quello che si guarda è quello da cui nasce il ticket */
 #ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
 #ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); cursor: pointer; }
 #ao-root .ao-message-step:hover:where(:not(:disabled)) { background: var(--ao-hover); }
@@ -4158,6 +4148,7 @@
 #ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line), var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
 #ao-root .ao-locked { cursor: default; }
 #ao-root .ao-locked > :not(.ao-segmented) { opacity: .6; } /* bloccati: i campi si attenuano, la scelta resta accesa */
+#ao-root .ao-locked .ao-segment:not(.ao-active) { opacity: var(--ao-disabled-opacity); } /* le altre azioni: spente come quelle non disponibili */
 /* Ticket chiusi del thread */
 #ao-root .ao-closed { display: grid; gap: 6px; }
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
@@ -4195,7 +4186,7 @@
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: inset 0 0 0 1px var(--ao-item-hover-edge), var(--ao-item-hover-glow); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
