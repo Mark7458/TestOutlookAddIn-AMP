@@ -537,7 +537,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 19:00';
+    const BUILD = '2026-11-07 19:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1240,11 +1240,11 @@
     }
     // Le parti che ci sono solo nel thread (tempo lavorato, etichetta dell'operatore, fondo del contenitore):
     // compaiono quando la scheda si posa (show) e spariscono prima che riparta.
-    function threadExtras(head, show) {
+    function threadExtras(head, show, delay = 0) {
         return Promise.all([...head.querySelectorAll('.ao-timer, .ao-item-tags > .ao-user-tag')].map(part => part.animate(show
             ? [{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }]
             : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.85)' }],
-        { duration: JOURNEY.build, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished)).catch(() => {});
+        { duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished)).catch(() => {});
     }
     // Dopo che la scheda si è posata, la pagina si apre da lei: sopra scendono "←" e l'intestazione della mail; il suo
     // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread scivolano fuori da sotto,
@@ -1264,8 +1264,8 @@
             // la scheda si allunga da sotto la testata (quella arrivata dalla lista) fino a mostrare il resto
             const cardRect = head.getBoundingClientRect(), faceRect = head.querySelector('.ao-ticket-face').getBoundingClientRect();
             const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
-            moves.push(play(head, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, inward ? 0 : JOURNEY.stagger));
-            inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? index : inner.length - 1 - index) * JOURNEY.stagger)));
+            moves.push(play(head, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, inward ? JOURNEY.stagger : JOURNEY.stagger));
+            inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger))));
         }
         // Gli altri ticket del thread escono da sotto la scheda come carte da un mazzo: partono impilati dietro di lei
         // e scivolano giù uno dopo l'altro fino al loro posto (al ritorno rientrano nel mazzo). Il resto compare piano.
@@ -1277,7 +1277,7 @@
             element.style.zIndex = String(1 - index);
             const order = inward ? index : cards.length - 1 - index;
             moves.push(play(element, { transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.96)` }, { transform: 'none' },
-                (inward ? JOURNEY.build * .4 : 0) + order * DEAL_STEP).then(() => { element.style.position = ''; element.style.zIndex = ''; }));
+                (inward ? JOURNEY.build * .6 : 0) + order * DEAL_STEP).then(() => { element.style.position = ''; element.style.zIndex = ''; }));
         });
         below.filter(element => !cards.includes(element)).forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build + cards.length * DEAL_STEP : 0)));
         return Promise.all(moves).catch(() => {}).then(() => { if (holder) Object.assign(holder.style, { position: '', zIndex: '' }); });
@@ -1285,34 +1285,35 @@
     const DEAL_STEP = 110; // distacco tra una carta e l'altra quando il mazzo si distribuisce
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
-    // Viaggio e atterraggio in un solo movimento continuo, che insegue il posto d'arrivo: se la pagina cambia mentre
-    // la scheda è in volo (arrivano i dati del thread), la traiettoria si aggiusta in corsa, senza scatti.
-    // Insieme alla posizione la scheda prende anche la larghezza del posto d'arrivo.
-    // goal(): { dx, dy, width } rispetto alla partenza (null finché il posto non c'è).
+    // Viaggio e atterraggio in un solo movimento continuo, eseguito dalla scheda grafica (fluido anche a PC occupato).
+    // Se il posto d'arrivo si sposta mentre la scheda è in volo (arrivano i dati del thread), il movimento riparte
+    // da dove si trova verso il nuovo posto, una volta sola, nel tempo che resta.
+    // goal(): { dx, dy } rispetto alla partenza (null finché il posto non c'è).
     function travelAndLand(copy, goal) {
         const total = JOURNEY.travel + JOURNEY.land;
-        const share = JOURNEY.travel / total;
-        const ease = t => 1 - Math.pow(1 - t, 3); // come travelEasing: parte deciso, arriva piano
-        const [lifted, scale] = [-3, 1.035];
-        const width = copy.getBoundingClientRect().width;
-        copy.style.boxShadow = JOURNEY.liftShadow;
+        const lifted = 'translateY(-3px) scale(1.035)';
+        const frames = (from, to, share) => [
+            { transform: from, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
+            { transform: `translate(${to.dx}px, ${to.dy}px) ${lifted}`, boxShadow: JOURNEY.liftShadow, offset: share, easing: JOURNEY.easing },
+            { transform: `translate(${to.dx}px, ${to.dy}px)`, boxShadow: '0 0 0 transparent' }
+        ];
         return new Promise(resolve => {
-            let first = null, last = { dx: 0, dy: 0, width };
-            const frame = now => {
-                if (first === null) first = now;
-                const t = Math.min(1, (now - first) / total);
-                const target = goal();
-                if (target) last = target;
-                const along = t < share ? ease(t / share) : 1;
-                const settle = t < share ? 0 : ease((t - share) / (1 - share));
-                copy.style.width = `${width + (last.width - width) * along}px`;
-                copy.style.transform = `translate(${last.dx * along}px, ${last.dy * along + lifted * (1 - settle)}px) scale(${scale - (scale - 1) * settle})`;
-                copy.style.boxShadow = settle ? `0 ${12 * (1 - settle)}px ${28 * (1 - settle)}px rgba(0, 0, 0, ${.18 * (1 - settle)})` : JOURNEY.liftShadow;
-                if (t < 1 || !goal()) requestAnimationFrame(frame);
-                else resolve(last);
-            };
+            const begin = performance.now();
+            let target = goal() || { dx: 0, dy: 0 };
             copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
-            requestAnimationFrame(frame);
+            let flight = copy.animate(frames(lifted, target, JOURNEY.travel / total), { duration: total, fill: 'forwards' });
+            const watch = setInterval(() => {
+                const next = goal();
+                const left = total - (performance.now() - begin);
+                if (!next || left < JOURNEY.land || (Math.abs(next.dx - target.dx) < 2 && Math.abs(next.dy - target.dy) < 2)) return;
+                target = next;
+                const from = getComputedStyle(copy).transform;
+                flight.cancel();
+                flight = copy.animate(frames(from, target, Math.max(0, (left - JOURNEY.land) / left)), { duration: left, fill: 'forwards' });
+                flight.finished.then(done, () => {});
+            }, 80);
+            const done = () => { clearInterval(watch); resolve(target); };
+            flight.finished.then(done, () => {});
         });
     }
     // Copia ferma della lista, sopra la pagina che intanto si prepara: si sfoca e svanisce intorno alla scheda.
@@ -1344,11 +1345,11 @@
         body.style.opacity = '0'; // la pagina si prepara nascosta: compare solo dopo che la scheda si è posata
         state.journey = ticket.number;
         openTicketItem(ticket, { slide: false });
-        blurTo([ghost], [0, 1], [5, .55], JOURNEY.lift).then(() => blurTo([ghost], [5, .55], [8, 0], JOURNEY.travel * .5)).catch(() => {});
+        blurTo([ghost], [0, 1], [3, .55], JOURNEY.lift).then(() => blurTo([ghost], [3, .55], [5, 0], JOURNEY.travel * .5)).catch(() => {});
         await Promise.all([lift(copy, true), deckFold(copy, true)]).catch(() => {});
         const goal = () => {
             const head = headOf(ticket.number)?.getBoundingClientRect();
-            return head ? { dx: head.left - front.left, dy: head.top - front.top, width: head.width } : null;
+            return head ? { dx: head.left - front.left, dy: head.top - front.top } : null;
         };
         await Promise.all([travelAndLand(copy, goal), listExtras(copy, true)]).catch(() => {});
         state.journey = null;
@@ -1358,7 +1359,7 @@
         ghost.remove();
         copy.remove();
         if (!target) return;
-        await holdingRender(() => Promise.all([unfoldPage(target, true), threadExtras(target, true)]));
+        await holdingRender(() => Promise.all([unfoldPage(target, true), threadExtras(target, true, JOURNEY.stagger * 3)])); // pezzi scaglionati
     }
     async function closeToList(target) {
         const number = state.openedTicket;
@@ -1380,21 +1381,22 @@
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
         const listed = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
-        copy.style.width = `${head.width}px`; // parte con la misura della scheda nella pagina
         placeAt(copy, from - offset, head.left);
         card.style.visibility = 'hidden';
         scroll.style.opacity = '0';
+        scroll.style.willChange = 'filter, opacity';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
         await holdingRender(async () => {
             const dy = card.getBoundingClientRect().top + offset - from;
             await lift(copy, true).catch(() => {});
             scroll.style.opacity = '';
             await Promise.all([
-                travelAndLand(copy, () => ({ dx: listed.left - head.left, dy, width: listed.width })), listExtras(copy, false),
-                blurTo([scroll], [8, 0], [5, .55], JOURNEY.travel).then(() => blurTo([scroll], [5, .55], [0, 1], JOURNEY.land)),
+                travelAndLand(copy, () => ({ dx: listed.left - head.left, dy })), listExtras(copy, false),
+                blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land)),
                 wait(JOURNEY.travel).then(() => deckFold(copy, false))
             ]).catch(() => {});
             scroll.getAnimations().forEach(animation => animation.cancel());
+            scroll.style.willChange = '';
             card.style.visibility = '';
             copy.remove();
         });
@@ -4044,7 +4046,7 @@
 /* mazzo in viaggio: l'ombra va sulla scheda davanti, non sull'intero mazzo (sopra c'è lo spazio delle fasce) */
 #ao-root .ao-deck.ao-journey { box-shadow: none !important; }
 #ao-root .ao-deck.ao-journey > .ao-item { box-shadow: var(--ao-raised-shadow); }
-#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; } /* copia ferma della lista durante l'andata */
+#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* sfocatura preparata in anticipo */ /* copia ferma della lista durante l'andata */
 #ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
