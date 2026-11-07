@@ -393,7 +393,9 @@
             openFirst: 'Apri la mail in Outlook per prenderla in carico o ignorarla.',
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
-            anotherTicket: '+ Apri un altro ticket su questo thread',
+            addTicket: '＋ Ticket',
+            closeAdd: '× Chiudi',
+            threadCount: count => (count === 1 ? '1 ticket' : `${count} ticket · 1 principale`),
             candidatesTitle: 'Possibili ticket su ServiceNow',
             candidatesHint: 'Stesso oggetto e stessa ora di arrivo. Collega quello giusto, oppure apri un ticket nuovo qui sotto.',
             link: 'Collega',
@@ -541,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 22:15';
+    const BUILD = '2026-11-07 22:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1259,7 +1261,7 @@
     // schede si allungano insieme da sotto la testata mostrando il resto, poi compare quel che segue (ticket chiusi…).
     // inward = false: l'esatto inverso (tutto si richiude nelle testate).
     function unfoldPage(view, inward) {
-        const parts = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed'));
+        const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const cards = parts.filter(child => child.classList.contains('ao-ticket-card'));
         const first = cards.length ? parts.indexOf(cards[0]) : parts.length;
         const above = parts.slice(0, first);
@@ -1630,13 +1632,14 @@
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
         const children = [...view.children];
-        const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row, .ao-source-bar'));
+        const fixedCount = children.findIndex(child => !child.matches('.ao-segmented, .ao-back-row, .ao-source-bar, .ao-thread-head'));
         const fixed = fixedCount < 0 ? children : children.slice(0, fixedCount);
         const scroll = h('div', { class: 'ao-scroll' }, ...(fixedCount < 0 ? [] : children.slice(fixedCount)));
         if (!previousScroll) state.barOffset = 0;
         // La barra è il primo elemento dell'area che scorre: la sua "casa" è in cima all'elenco.
         const bar = fixed.length ? h('div', { class: 'ao-fixed' }, ...fixed) : null;
         if (bar) scroll.prepend(bar);
+        bar?.classList.toggle('ao-pinned', Boolean(bar.querySelector('.ao-thread-head'))); // il thread resta sempre visibile
         view.replaceChildren(scroll);
         body.replaceChildren(view);
         body.dataset.scrollKey = scrollKey;
@@ -1667,6 +1670,18 @@
             const lift = !home && state.barOffset === 0 ? Math.min(1, scroll.scrollTop / BAR_SHADOW_FADE) : 0;
             bar.style.setProperty('--ao-lift', lift.toFixed(3));
         };
+        if (bar.classList.contains('ao-pinned')) {
+            // Testata del thread: non scivola mai via; scorrendo si stringe (oggetto su una riga) e prende l'ombra.
+            const pin = () => {
+                const top = scroll.scrollTop;
+                if (top > 24) bar.classList.add('ao-scrolled');
+                else if (top <= 0) bar.classList.remove('ao-scrolled'); // margine tra le due soglie: niente sfarfallio
+                bar.style.setProperty('--ao-lift', Math.min(1, top / BAR_SHADOW_FADE).toFixed(3));
+            };
+            pin();
+            scroll.addEventListener('scroll', pin, { passive: true });
+            return;
+        }
         apply(scroll.scrollTop > 0 ? state.barOffset : 0);
         scroll.addEventListener('scroll', () => {
             const top = scroll.scrollTop;
@@ -2624,12 +2639,11 @@
             const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
             const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
             const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
+            // Un altro ticket sulla stessa richiesta (dal "＋ Ticket" della testata): il modulo si apre in cima alla pila,
+            // dove poi comparirà il ticket nuovo (il collegato più recente).
+            if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
             ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { isCurrentMail, single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
             if (closed.length) content.push(closedTickets(mail.conversationId, closed));
-            // Una stessa richiesta può richiedere un altro ticket, subito o in seguito.
-            content.push(state.extraTicketFor === mail.conversationId
-                ? newTicketCard(mail, config, user, { allowIgnore: false, onCancel: () => { state.extraTicketFor = null; render(); } })
-                : h('button', { type: 'button', class: 'ao-button ao-subtle ao-add-ticket', onclick: () => { state.extraTicketFor = mail.conversationId; render(); } }, TEXTS.mail.anotherTicket));
         } else if (!isCurrentMail) {
             // Prendere in carico (o ignorare) si fa solo guardando la mail: finché Outlook non la mostra, niente azioni.
             if (result.discarded) content.push(h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(result.discarded.by || TEXTS.common.none, formatWhen(result.discarded.at))));
@@ -2644,19 +2658,61 @@
             if (result.candidates?.length) content.push(candidatesCard(mail, result.candidates, user));
             content.push(newTicketCard(mail, config, user));
         }
+        const count = (result?.tickets || []).filter(found => OPEN_STATES.includes((ticketByNumber(found.number) || found).state)).length;
         return h('div', { class: 'ao-view' },
-            backRow(),
+            threadHead(mail, { showOpen: !isCurrentMail && Boolean(result?.tickets?.length), count }), // senza ticket c'è già il riquadro "Apri la mail"
             notice,
-            mailHeader(mail, !isCurrentMail && Boolean(result?.tickets?.length)), // senza ticket c'è già il riquadro "Apri la mail"
             content);
     }
-    function mailHeader(mail, showOpen) {
-        return h('div', { class: 'ao-mail-head' },
-            h('div', { class: 'ao-mail-subject' }, mail.subject || '(senza oggetto)'),
-            h('div', { class: 'ao-mail-from' },
-                h('span', {}, `${mail.sender?.name || ''}${mail.sender?.email ? ` <${mail.sender.email}>` : ''}`),
-                h('span', { class: 'ao-item-time' }, formatWhen(mail.receivedAt))),
-            showOpen ? h('button', { type: 'button', class: 'ao-link', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook) : null);
+    // Testata del thread, sempre visibile: "‹" per tornare, oggetto e mittente (scorrendo resta solo l'oggetto, su una
+    // riga); sotto, con dei ticket, quanti sono e "＋ Ticket" per aprirne un altro sulla stessa richiesta.
+    function threadHead(mail, { showOpen, count }) {
+        const target = state.backTo || 'tickets';
+        const adding = state.extraTicketFor === mail.conversationId;
+        const back = TEXTS.common.back(TEXTS.tabs[target]);
+        return h('div', { class: 'ao-thread-head' },
+            h('div', { class: 'ao-thread-title' },
+                h('button', { type: 'button', class: 'ao-thread-back', 'aria-label': back, title: back, onclick: () => closeToList(target) }, svgIcon(CHEVRON_LEFT_ICON)),
+                h('div', { class: 'ao-mail-head' },
+                    h('div', { class: 'ao-mail-subject' }, mail.subject || '(senza oggetto)'),
+                    h('div', { class: 'ao-mail-from' },
+                        h('span', {}, `${mail.sender?.name || ''}${mail.sender?.email ? ` <${mail.sender.email}>` : ''}`),
+                        h('span', { class: 'ao-item-time' }, formatWhen(mail.receivedAt))),
+                    showOpen ? h('button', { type: 'button', class: 'ao-link ao-mail-open', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook) : null)),
+            count ? h('div', { class: 'ao-thread-bar' },
+                h('span', { class: 'ao-thread-count' }, TEXTS.mail.threadCount(count)),
+                h('button', {
+                    type: 'button', class: `ao-pill${adding ? ' ao-active' : ''}`, 'aria-expanded': String(adding),
+                    onclick: () => (adding ? closeExtraTicket(mail) : openExtraTicket(mail))
+                }, adding ? TEXTS.mail.closeAdd : TEXTS.mail.addTicket)) : null);
+    }
+    // Modulo per un altro ticket del thread: lo stesso di "Nuovo ticket" in Senza mail (si solleva e si apre;
+    // gli altri ticket si sfocano), con Agenzia e Attività.
+    function extraTicketCard(mail, config) {
+        return h('section', { class: 'ao-card ao-new-ticket-card' },
+            h('div', { class: 'ao-inline-form' },
+                ticketForm(mail, config, { zone: true }),
+                h('div', { class: 'ao-actions' },
+                    openTicketButton(mail, config),
+                    h('span', { class: 'ao-spacer' }),
+                    h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => closeExtraTicket(mail) }, TEXTS.common.cancel))));
+    }
+    async function openExtraTicket(mail) {
+        await whenIdle();
+        state.extraTicketFor = mail.conversationId;
+        render();
+        const scroll = root.querySelector('.ao-scroll');
+        scroll?.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
+        await holdingRender(() => unfold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
+    }
+    async function closeExtraTicket(mail) {
+        if (state.holdRender) return;
+        holdRender();
+        await fold(root.querySelector('.ao-new-ticket-card .ao-inline-form'));
+        state.extraTicketFor = null;
+        delete state.ticketDrafts[mail.conversationId];
+        releaseRender();
+        render();
     }
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
@@ -3954,7 +4010,24 @@
 #ao-root .ao-actions .ao-primary { flex: 1; }
 
 /* Mail aperta */
-#ao-root .ao-mail-head { display: grid; gap: 2px; padding: 2px 2px 0; }
+#ao-root .ao-mail-head { display: grid; gap: 2px; min-width: 0; padding: 2px 2px 0; }
+/* Testata del thread: sempre visibile. Scorrendo prende il fondo e l'ombra, e l'oggetto si stringe a una riga */
+#ao-root .ao-fixed.ao-pinned { will-change: auto; }
+#ao-root .ao-thread-head { display: grid; gap: 8px; margin: -12px -8px 0 -12px; padding: 10px 8px 8px 12px;
+    background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent);
+    box-shadow: 0 3px 10px rgba(0,0,0, calc(.12 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
+#ao-root .ao-thread-title { display: flex; align-items: flex-start; gap: 4px; }
+#ao-root .ao-thread-back { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: -6px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; transition: background-color .25s, color .25s; }
+#ao-root .ao-thread-back:hover { background: var(--ao-hover); color: var(--ao-text); }
+#ao-root .ao-thread-head .ao-mail-subject { transition: font-size .25s; }
+#ao-root .ao-thread-head .ao-mail-from, #ao-root .ao-thread-head .ao-mail-open { max-height: 40px; overflow: hidden; transition: max-height .25s, opacity .25s; }
+#ao-root .ao-scrolled .ao-thread-head .ao-mail-subject { font-size: var(--ao-fs-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-scrolled .ao-thread-head :is(.ao-mail-from, .ao-mail-open) { max-height: 0; opacity: 0; }
+#ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .25s, border-color .25s, color .25s; }
+#ao-root .ao-pill:hover { background: var(--ao-hover); }
+#ao-root .ao-pill.ao-active { border-color: var(--ao-accent); color: var(--ao-text-accent); }
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 
@@ -3988,7 +4061,7 @@
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
 @keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
-#ao-root .ao-view:has(.ao-new-ticket-card) .ao-list .ao-item { filter: blur(5px); }
+#ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-new-ticket-card { animation: none; } }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
@@ -4154,7 +4227,6 @@
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
 #ao-root .ao-closed-item { display: grid; gap: 2px; padding: 7px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); opacity: .8; }
-#ao-root .ao-add-ticket { justify-self: start; color: var(--ao-text-accent); }
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 /* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
