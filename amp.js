@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 21:00';
+    const BUILD = '2026-11-07 21:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -916,7 +916,7 @@
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
-        journey: null, // ticket la cui scheda sta viaggiando: nella pagina il suo posto resta vuoto finché non arriva
+        journey: null, // ticket aperto dalla lista mentre le schede viaggiano: nella pagina i loro posti restano vuoti finché non arrivano
         liftTicket: null, // ticket del thread appena aperto: si disegna ancora a terra, poi si solleva
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
@@ -1221,14 +1221,20 @@
         copy.style.top = `${parseFloat(copy.style.top) + top - now.top}px`;
         copy.style.left = `${parseFloat(copy.style.left) + left - now.left}px`;
     }
-    // Si solleva (up) o si posa dove è arrivata (dy: spostamento del viaggio).
-    const lift = (element, up, dy = 0) => element.animate(up
-        ? [{ transform: 'none' }, { transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow }]
-        : [{ transform: `translateY(${dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow }, { transform: `translateY(${dy}px)` }],
-    { duration: up ? JOURNEY.lift : JOURNEY.land, easing: JOURNEY.easing, fill: 'forwards' }).finished;
-    const travel = (copy, dy) => copy.animate([{ transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow },
-        { transform: `translateY(${dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow }],
-    { duration: JOURNEY.travel, easing: JOURNEY.travelEasing, fill: 'forwards' }).finished;
+    // La scheda si solleva prima di partire.
+    const lift = element => element.animate([{ transform: 'none' }, { transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow }],
+        { duration: JOURNEY.lift, easing: JOURNEY.easing, fill: 'forwards' }).finished;
+    // Copia della sola testata di un ticket della pagina (senza description né Attività), ferma nel punto dato.
+    function faceCopy(card, at) {
+        const copy = card.cloneNode(true);
+        copy.querySelector('.ao-ticket-more')?.remove();
+        copy.classList.remove('ao-away', 'ao-expanded', 'ao-unlifted');
+        copy.classList.add('ao-journey');
+        Object.assign(copy.style, { left: `${at.left}px`, top: `${at.top}px`, width: `${at.width}px`, visibility: 'visible', clipPath: '' });
+        root.append(copy);
+        placeAt(copy, at.top, at.left);
+        return copy;
+    }
     // Mazzo: prima di partire le fasce dietro rientrano sotto la scheda davanti (fold); all'arrivo nella lista riescono.
     function deckFold(copy, fold) {
         const front = copy.querySelector(':scope > .ao-item');
@@ -1250,78 +1256,45 @@
             return part.animate(fold ? [open, shut] : [shut, open], { duration: JOURNEY.travel * .7, easing: JOURNEY.easing, fill: 'forwards' }).finished;
         }));
     }
-    // Dopo che la scheda si è posata, la pagina si apre da lei: sopra scendono "←" e l'intestazione della mail; il suo
-    // contenitore si espande sotto di lei mostrando le sezioni; gli altri ticket del thread escono da sotto di lei,
-    // uno dopo l'altro (dal più vicino), fino al loro posto, sopra o sotto. inward = false: l'esatto inverso.
-    function unfoldPage(head, inward) {
-        const view = head.closest('.ao-scroll'); // la pagina: i suoi pezzi sono i figli dell'area che scorre
-        const parts = [...(view?.children || [])];
-        const holder = parts.find(child => child.contains(head));
-        const at = parts.indexOf(holder);
-        const isCard = element => element !== holder && element.classList.contains('ao-ticket-card');
-        const above = holder ? parts.slice(0, at).filter(child => !child.classList.contains('ao-fixed') && !isCard(child)) : [];
-        const below = holder ? parts.slice(at + 1).filter(child => !isCard(child)) : [];
-        const cards = holder ? parts.filter(isCard).sort((a, b) => Math.abs(parts.indexOf(a) - at) - Math.abs(parts.indexOf(b) - at)) : [];
-        const more = head.querySelector('.ao-ticket-more');
-        const inner = more ? [...more.children] : [];
+    // Dopo che le schede si sono posate la pagina si apre: sopra scendono "←" e l'intestazione della mail, tutte le
+    // schede si allungano insieme da sotto la testata mostrando il resto, poi compare quel che segue (ticket chiusi…).
+    // inward = false: l'esatto inverso (tutto si richiude nelle testate).
+    function unfoldPage(view, inward) {
+        const parts = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed'));
+        const cards = parts.filter(child => child.classList.contains('ao-ticket-card'));
+        const first = cards.length ? parts.indexOf(cards[0]) : parts.length;
+        const above = parts.slice(0, first);
+        const after = parts.slice(first).filter(child => !cards.includes(child));
         const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
         above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
-        if (more) {
-            // la scheda si allunga da sotto la testata (quella arrivata dalla lista) fino a mostrare il resto
-            const cardRect = head.getBoundingClientRect(), faceRect = head.querySelector('.ao-ticket-face').getBoundingClientRect();
+        cards.forEach(card => {
+            const more = card.querySelector('.ao-ticket-more');
+            if (!more) return;
+            const cardRect = card.getBoundingClientRect(), faceRect = card.querySelector('.ao-ticket-face').getBoundingClientRect();
             const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
-            moves.push(play(head, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, inward ? JOURNEY.stagger : JOURNEY.stagger));
-            inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger))));
-        }
-        // Gli altri ticket del thread escono da sotto la scheda come carte da un mazzo: partono impilati dietro di lei
-        // e scivolano uno dopo l'altro fino al loro posto (al ritorno rientrano nel mazzo). Il resto compare piano.
-        const top = (holder || head).getBoundingClientRect().top;
-        if (holder) Object.assign(holder.style, { position: 'relative', zIndex: '2' }); // la scheda resta davanti al mazzo
-        cards.forEach((element, index) => {
-            element.style.position = 'relative';
-            element.style.zIndex = String(1 - index);
-            const order = inward ? index : cards.length - 1 - index;
-            moves.push(play(element, { transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.96)` }, { transform: 'none' },
-                (inward ? JOURNEY.build * .6 : 0) + order * DEAL_STEP).then(() => { element.style.position = ''; element.style.zIndex = ''; }));
+            moves.push(play(card, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, JOURNEY.stagger));
+            const inner = [...more.children];
+            inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' },
+                inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger)));
         });
-        below.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build + cards.length * DEAL_STEP : 0)));
-        return Promise.all(moves).catch(() => {}).then(() => { if (holder) Object.assign(holder.style, { position: '', zIndex: '' }); });
+        after.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build : 0)));
+        return Promise.all(moves).catch(() => {});
     }
-    const DEAL_STEP = 110; // distacco tra una carta e l'altra quando il mazzo si distribuisce
+    const DEAL_STEP = 60; // distacco tra una carta e l'altra quando il mazzo si distribuisce nella pagina
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
     // Viaggio e atterraggio in un solo movimento continuo, eseguito dalla scheda grafica (fluido anche a PC occupato).
-    // Se il posto d'arrivo si sposta mentre la scheda è in volo (arrivano i dati del thread), il movimento riparte
-    // da dove si trova verso il nuovo posto, una volta sola, nel tempo che resta.
-    // goal(): { dx, dy } rispetto alla partenza (null finché il posto non c'è).
-    function travelAndLand(copy, goal) {
+    // to: { dx, dy } rispetto al punto in cui la copia è stata messa; from: da dove parte (già sollevata).
+    function travelAndLand(copy, to, delay = 0, from = { dx: 0, dy: 0 }) {
         const total = JOURNEY.travel + JOURNEY.land;
-        const lifted = 'translateY(-3px) scale(1.035)';
-        const frames = (from, to, share) => [
-            { transform: from, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
-            { transform: `translate(${to.dx}px, ${to.dy}px) ${lifted}`, boxShadow: JOURNEY.liftShadow, offset: share, easing: JOURNEY.easing },
+        copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
+        return copy.animate([
+            { transform: `translate(${from.dx}px, ${from.dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
+            { transform: `translate(${to.dx}px, ${to.dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, offset: JOURNEY.travel / total, easing: JOURNEY.easing },
             { transform: `translate(${to.dx}px, ${to.dy}px)`, boxShadow: '0 0 0 transparent' }
-        ];
-        return new Promise(resolve => {
-            const begin = performance.now();
-            let target = goal() || { dx: 0, dy: 0 };
-            copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
-            let flight = copy.animate(frames(lifted, target, JOURNEY.travel / total), { duration: total, fill: 'forwards' });
-            const watch = setInterval(() => {
-                const next = goal();
-                const left = total - (performance.now() - begin);
-                if (!next || left < JOURNEY.land || (Math.abs(next.dx - target.dx) < 2 && Math.abs(next.dy - target.dy) < 2)) return;
-                target = next;
-                const from = getComputedStyle(copy).transform;
-                flight.cancel();
-                flight = copy.animate(frames(from, target, Math.max(0, (left - JOURNEY.land) / left)), { duration: left, fill: 'forwards' });
-                flight.finished.then(done, () => {});
-            }, 80);
-            const done = () => { clearInterval(watch); resolve(target); };
-            flight.finished.then(done, () => {});
-        });
+        ], { duration: total, delay, fill: 'both' }).finished;
     }
     // Copia ferma della lista, sopra la pagina che intanto si prepara: si sfoca e svanisce intorno alla scheda.
     function listGhost(scroll, card) {
@@ -1339,70 +1312,91 @@
         if (twin) twin.style.visibility = 'hidden';
         return ghost;
     }
-    // card: la scheda o il mazzo nella lista; ticket: quello da aprire (nel mazzo, il più recente).
-    // La pagina si prepara mentre la scheda si stacca; il viaggio parte appena è staccata, verso dove la scheda sta
-    // nella pagina in quel momento, e si aggiusta se la pagina cambia (dati del thread arrivati dopo).
+    // card: la scheda o il mazzo nella lista; ticket: quello da aprire (nel mazzo, il principale, davanti).
+    // La pagina si prepara nascosta mentre la scheda si stacca. Poi ogni ticket del thread scivola dal mazzo al suo
+    // posto nella pagina, tutti insieme (un attimo di distacco tra uno e l'altro): chi finisce fuori dalla vista ci va
+    // e basta. Quando sono tutti posati, si aprono insieme. Con un ticket solo è lo stesso movimento, con una scheda.
     async function openFromCard(card, ticket) {
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
         const body = root.querySelector('.ao-body');
-        const front = frontOf(card).getBoundingClientRect(); // nel mazzo conta la scheda davanti
+        const start = frontOf(card).getBoundingClientRect(); // nel mazzo conta la scheda davanti
         const copy = travelCopy(card, card);
         const ghost = listGhost(root.querySelector('.ao-scroll'), card);
-        body.style.opacity = '0'; // la pagina si prepara nascosta: compare solo dopo che la scheda si è posata
-        state.journey = ticket.number;
+        body.style.opacity = '0';
+        state.journey = ticket.number; // nella pagina le schede restano vuote finché non arrivano
         openTicketItem(ticket, { slide: false });
         blurTo([ghost], [0, 1], [3, .55], JOURNEY.lift).then(() => blurTo([ghost], [3, .55], [5, 0], JOURNEY.travel * .5)).catch(() => {});
-        await Promise.all([lift(copy, true), deckFold(copy, true)]).catch(() => {});
-        const goal = () => {
-            const head = headOf(ticket.number)?.getBoundingClientRect();
-            return head ? { dx: head.left - front.left, dy: head.top - front.top } : null;
-        };
-        await Promise.all([travelAndLand(copy, goal), listExtras(copy, true)]).catch(() => {});
+        const [page] = await Promise.all([pageCardOf(ticket.number), lift(copy), deckFold(copy, true)]).catch(() => []);
+        const cards = page ? [...page.closest('.ao-scroll').querySelectorAll(':scope > .ao-ticket-card')] : [];
+        const from = cards.indexOf(page);
+        const copies = [];
+        await holdingRender(() => Promise.all([listExtras(copy, true), ...cards.map((target, index) => {
+            const place = target.getBoundingClientRect();
+            const traveller = target === page ? copy : faceCopy(target, start); // gli altri partono da sotto quella davanti
+            if (traveller !== copy) { traveller.style.zIndex = String(29 - Math.abs(index - from)); copies.push(traveller); }
+            return travelAndLand(traveller, { dx: place.left - start.left, dy: place.top - start.top }, Math.abs(index - from) * DEAL_STEP);
+        })]).catch(() => {}));
         state.journey = null;
         state.liftTicket = ticket.number; // si posa a terra, si solleva dopo essersi aperta
         render();
         state.liftTicket = null;
         const target = headOf(ticket.number);
         body.style.opacity = '';
-        ghost.remove();
-        copy.remove();
+        [ghost, copy, ...copies].forEach(element => element.remove());
         if (!target) return;
-        await holdingRender(() => unfoldPage(target, true));
+        await holdingRender(() => unfoldPage(target.closest('.ao-scroll'), true));
         target.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
     }
+    // Ritorno: la pagina si richiude nelle testate; il principale (in fondo) si solleva e sale, raccogliendo sotto di sé
+    // i collegati man mano che li incontra; arrivato in cima, il mazzo chiuso torna al suo posto nella lista, che
+    // intanto ricompare, e lì si riapre.
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
         if (state.holdRender || !number || target !== 'tickets' || reducedMotion()) return setView(target);
         const pageCard = await pageCardOf(number);
         if (!pageCard) return setView(target);
-        // Si smonta la pagina intorno alla scheda; poi la scheda si stacca e torna al suo posto nella lista,
-        // mentre la lista ricompare (prima sfocata, poi nitida). Stessi movimenti dell'andata, al contrario.
+        const view = pageCard.closest('.ao-scroll');
         pageCard.classList.add('ao-unlifted'); // torna a terra mentre la pagina si richiude
-        await holdingRender(() => unfoldPage(pageCard, false));
+        await holdingRender(() => unfoldPage(view, false));
         const head = pageCard.getBoundingClientRect();
-        const from = head.top;
+        const others = [...view.querySelectorAll(':scope > .ao-ticket-card')].filter(item => item !== pageCard).map(item => {
+            const place = item.getBoundingClientRect();
+            const copy = faceCopy(item, place);
+            copy.style.zIndex = '29'; // sotto il principale che passa a prenderlo
+            return { copy, place };
+        });
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
         const card = found?.closest('.ao-deck') || found;
-        if (!card) return slideInView(-1);
+        if (!card) { others.forEach(item => item.copy.remove()); return slideInView(-1); }
         card.scrollIntoView({ block: 'nearest' });
         const scroll = root.querySelector('.ao-scroll');
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
         const listed = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
-        placeAt(copy, from - offset, head.left);
+        placeAt(copy, head.top - offset, head.left);
         card.style.visibility = 'hidden';
         scroll.style.opacity = '0';
         scroll.style.willChange = 'filter, opacity';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
         await holdingRender(async () => {
-            const dy = card.getBoundingClientRect().top + offset - from;
-            await lift(copy, true).catch(() => {});
+            await lift(copy).catch(() => {});
+            // sale fino al collegato più in alto: ognuno, quando il principale gli arriva sopra, gli scivola sotto
+            const highest = Math.min(head.top, ...others.map(item => item.place.top));
+            const climb = highest - head.top;
+            if (climb < 0) {
+                const duration = Math.min(700, Math.max(240, -climb * .7));
+                copy.animate([{ transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow }, { transform: `translateY(${climb}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow }],
+                    { duration, easing: 'linear', fill: 'forwards' });
+                await Promise.all(others.map(item => item.copy.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.96)' }],
+                    { duration: 160, delay: duration * (head.top - item.place.top) / -climb, easing: JOURNEY.easing, fill: 'forwards' }).finished)).catch(() => {});
+            }
+            others.forEach(item => item.copy.remove());
             scroll.style.opacity = '';
             await Promise.all([
-                travelAndLand(copy, () => ({ dx: listed.left - head.left, dy })), listExtras(copy, false),
+                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - head.top }, 0, { dx: 0, dy: climb }), listExtras(copy, false),
                 blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land)),
                 wait(JOURNEY.travel).then(() => deckFold(copy, false))
             ]).catch(() => {});
@@ -3094,9 +3088,9 @@
             if (other && other !== event.currentTarget) return collapseTicket(other);
             if (!expanded) expandTicket(ticket.number);
         };
-        const grounded = state.journey === ticket.number || state.liftTicket === ticket.number;
+        const grounded = Boolean(state.journey) || state.liftTicket === ticket.number;
         return h('section', {
-            class: `ao-item ao-ticket-card${open ? '' : ' ao-static'}${expanded ? ' ao-expanded' : ''}${expanded && grounded ? ' ao-unlifted' : ''}${state.journey === ticket.number ? ' ao-away' : ''}`,
+            class: `ao-item ao-ticket-card${open ? '' : ' ao-static'}${expanded ? ' ao-expanded' : ''}${expanded && grounded ? ' ao-unlifted' : ''}${state.journey ? ' ao-away' : ''}`,
             tabindex: open ? '0' : null, 'aria-expanded': open ? String(expanded) : null, onclick: open ? pick : null,
             onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
         },
