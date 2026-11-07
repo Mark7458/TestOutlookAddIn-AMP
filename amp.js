@@ -93,6 +93,7 @@
             itemHover: 'var(--ao-hover)', // scheda al passaggio del mouse: solo lei, senza schiarire il contenuto
             itemHoverEdge: 'transparent',
             itemHoverGlow: '0 0 transparent',
+            quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
             choiceTrack: 'var(--ao-bg)', // fondo del selettore delle azioni (Prendi in carico / Inoltra / Ignora)
@@ -422,6 +423,8 @@
             ticketOpened: number => `Ticket ${number} aperto e assegnato a te.`,
             // Ticket
             openedAt: date => `Aperto ${date}`,
+            opened: 'Aperto',
+            reported: 'Reported',
             openInServiceNow: 'Apri in ServiceNow',
             timeWorked: 'Tempo lavorato',
             minutes: n => `${n} min`,
@@ -534,7 +537,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-06 23:00';
+    const BUILD = '2026-11-07 18:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -907,7 +910,7 @@
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
-        expandedTickets: [], // ticket aperti nella pagina del thread (con più ticket)
+        ticketExpanded: {}, // ticket aperti o chiusi a mano nella pagina del thread (altrimenti: estesa se è l'unico)
         closedOpen: null, // thread di cui si vedono i ticket chiusi
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
         queueExpanded: null,
@@ -1182,8 +1185,8 @@
         lifted: 'translateY(-3px) scale(1.035)', liftShadow: '0 12px 28px rgba(0, 0, 0, .18)'
     };
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
-    const headOf = number => [...root.querySelectorAll('.ao-scroll :is(.ao-ticket-number, .ao-item-number)')]
-        .find(element => element.textContent === number)?.closest('.ao-box-head');
+    const headOf = number => [...root.querySelectorAll('.ao-scroll .ao-ticket-card .ao-item-number')]
+        .find(element => element.textContent === number)?.closest('.ao-ticket-card');
     async function pageCardOf(number) {
         const find = () => headOf(number);
         for (let waited = 0; !find() && waited < 900; waited += 30) await wait(30);
@@ -1248,23 +1251,24 @@
     // uno dopo l'altro, fino al loro posto. inward = false: l'esatto inverso (si richiude tutto nella scheda).
     function unfoldPage(head, inward) {
         const view = root.querySelector('.ao-scroll .ao-view') || head.closest('.ao-view');
-        const box = head.closest('.ao-ticket-box');
         const holder = [...(view?.children || [])].find(child => child.contains(head));
         const above = [...(view?.children || [])].filter(child => !child.classList.contains('ao-fixed') && child.compareDocumentPosition(holder) & Node.DOCUMENT_POSITION_FOLLOWING);
         const below = [...(view?.children || [])].filter(child => holder && holder.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING);
-        const inner = box ? [...box.children].filter(child => child !== head) : [];
+        const more = head.querySelector('.ao-ticket-more');
+        const inner = more ? [...more.children] : [];
         const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
         above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
-        if (box) {
-            const boxRect = box.getBoundingClientRect(), headRect = head.getBoundingClientRect();
-            const closed = `inset(${headRect.top - boxRect.top}px ${boxRect.right - headRect.right}px ${boxRect.bottom - headRect.bottom}px ${headRect.left - boxRect.left}px round var(--ao-radius-base))`;
-            moves.push(play(box, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round calc(var(--ao-radius-base) + 2px))' }, inward ? 0 : JOURNEY.stagger));
+        if (more) {
+            // la scheda si allunga da sotto la testata (quella arrivata dalla lista) fino a mostrare il resto
+            const cardRect = head.getBoundingClientRect(), faceRect = head.querySelector('.ao-ticket-face').getBoundingClientRect();
+            const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
+            moves.push(play(head, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, inward ? 0 : JOURNEY.stagger));
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }, (inward ? index : inner.length - 1 - index) * JOURNEY.stagger)));
         }
         // gli altri ticket scivolano fuori da sotto il contenitore (al ritorno ci rientrano)
-        const top = (holder || box || head).getBoundingClientRect().top;
+        const top = (holder || head).getBoundingClientRect().top;
         below.forEach((element, index) => moves.push(play(element,
             { opacity: 0, transform: `translateY(${top - element.getBoundingClientRect().top}px) scale(.97)` }, { opacity: 1, transform: 'none' },
             (inward ? JOURNEY.build * .5 + index * JOURNEY.stagger * 2 : (below.length - 1 - index) * JOURNEY.stagger * 2))));
@@ -1341,16 +1345,11 @@
         state.journey = null;
         render();
         const target = headOf(ticket.number);
-        if (target) target.closest('.ao-ticket-box')?.style.setProperty('clip-path', 'inset(0 0 100% 0)'); // il resto resta chiuso fino all'apertura
         body.style.opacity = '';
         ghost.remove();
         copy.remove();
         if (!target) return;
-        const box = target.closest('.ao-ticket-box');
-        await holdingRender(async () => {
-            box?.style.removeProperty('clip-path');
-            await Promise.all([unfoldPage(target, true), threadExtras(target, true)]);
-        });
+        await holdingRender(() => Promise.all([unfoldPage(target, true), threadExtras(target, true)]));
     }
     async function closeToList(target) {
         const number = state.openedTicket;
@@ -2522,8 +2521,7 @@
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const expired = isHoldExpired(ticket);
         const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
-            // Etichetta dell'operatore solo con il filtro Operatore su Tutti
-            ticketHead(ticket, user, { query, owner: state.ticketOperator === 'all' }),
+            ticketHead(ticket, user, { query, owner: true }),
             inGroup ? null : newMessagesPreview(ticket),
             // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
             holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
@@ -2995,31 +2993,36 @@
     }
 
     // Ticket collegato: assegnatario, tempo, azione all'invio, storico.
-    // Ticket nella pagina del thread: un contenitore (fondo incassato). In testa la stessa scheda della lista, con in più
-    // il tempo lavorato e l'etichetta dell'operatore; sotto la description (con le date) e, aperto, Attività.
-    // single: unico ticket aperto del thread (o ticket senza mail), sempre aperto. Le azioni valgono anche sui
-    // ticket dei colleghi, che restano a loro; per prenderli si usa l'etichetta (due clic).
+    // Ticket nella pagina del thread: la stessa scheda della lista (che vi atterra), con in più il tempo lavorato,
+    // la description come citazione e le date. Compatta di base; estesa (clic sulla scheda) aggiunge Attività.
+    // Un ticket solo nel thread (o senza mail) si apre estesa. Le azioni valgono anche sui ticket dei colleghi,
+    // che restano a loro; per prenderli si usa l'etichetta (due clic).
     function ticketBox(ticket, config, user, { isCurrentMail, single = false }) {
         const open = OPEN_STATES.includes(ticket.state);
-        const expanded = single || state.expandedTickets.includes(ticket.number);
-        const toggle = () => {
-            state.expandedTickets = expanded ? state.expandedTickets.filter(number => number !== ticket.number) : [...state.expandedTickets, ticket.number];
+        const known = ticket.number in state.ticketExpanded;
+        const expanded = known ? state.ticketExpanded[ticket.number] : single;
+        const toggle = event => {
+            if (event.target.closest('.ao-ticket-more .ao-card, button, a, input, .ao-timer')) return; // dentro Attività o sui comandi: niente
+            state.ticketExpanded[ticket.number] = !expanded;
             render();
         };
-        return h('section', { class: `ao-ticket-box${expanded ? ' ao-expanded' : ''}` },
-            h('div', single ? { class: `ao-item ao-box-head ao-static${state.journey === ticket.number ? ' ao-away' : ''}` } : {
-                class: `ao-item ao-box-head${state.journey === ticket.number ? ' ao-away' : ''}`, tabindex: '0', role: 'button', 'aria-expanded': String(expanded), onclick: toggle,
-                onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) toggle(); }
-            }, ticketHead(ticket, user, { owner: true, takeover: true, timer: timerControl(ticket, open) })),
-            h('section', { class: 'ao-card ao-ticket-about' },
-                ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // sempre intera: è il corpo della mail che l'ha generato
+        return h('section', {
+            class: `ao-item ao-ticket-card${expanded ? ' ao-expanded' : ''}${state.journey === ticket.number ? ' ao-away' : ''}`,
+            tabindex: '0', 'aria-expanded': String(expanded), onclick: toggle,
+            onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) toggle(event); }
+        },
+            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { owner: true, takeover: true, timer: timerControl(ticket, open) })),
+            h('div', { class: 'ao-ticket-more' },
+                ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
                 ticket.state === '3' && ticket.holdExpiration
                     ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
                         `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
-                h('div', { class: 'ao-ticket-dates' }, [TEXTS.mail.openedAt(formatWhen(ticket.openedAt)), TEXTS.mail.reportedAt(formatWhen(ticket.reportedOn))].join(' · '))),
-            expanded && open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
-            expanded && open && !ticket.messageId ? updateCard(ticket, config) : null);
+                h('div', { class: 'ao-ticket-dates' },
+                    h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
+                    h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn))),
+                expanded && open && ticket.messageId && !ticket.mailUnconfirmed ? onSendCard(ticket, config, isCurrentMail) : null,
+                expanded && open && !ticket.messageId ? updateCard(ticket, config) : null));
     }
     // Ticket chiusi del thread: una sezione chiusa in fondo, con un clic si vedono (solo da consultare).
     function closedTickets(conversationId, tickets) {
@@ -3258,7 +3261,7 @@
     // Conferma e annullamento dell'azione: la scelta si accende (o si spegne) e i campi si bloccano (o si sbloccano)
     // con un passaggio morbido dallo stato di prima; il pulsante cambia in dissolvenza.
     async function confirmMorph(number, change) {
-        const attivita = () => [...root.querySelectorAll('.ao-ticket-box')].find(box => box.querySelector('.ao-item-number')?.textContent === number)?.querySelector('.ao-form-fields')?.closest('.ao-card');
+        const attivita = () => [...root.querySelectorAll('.ao-ticket-card')].find(card => card.querySelector('.ao-item-number')?.textContent === number)?.querySelector('.ao-form-fields')?.closest('.ao-card');
         const before = attivita();
         const thumb = before?.querySelector('.ao-segment-thumb');
         const old = thumb ? { boxShadow: getComputedStyle(thumb).boxShadow, filter: getComputedStyle(thumb).filter } : null;
@@ -3989,19 +3992,21 @@
 /* Risposte nuove e più ticket sullo stesso thread */
 /* Contenitore del ticket nella pagina del thread */
 /* Testata del ticket (lista e thread): numero con stato ed etichetta affiancati; agenzia e attività; short description */
+/* Ticket nel thread: una sola scheda. Sotto la testata (uguale alla lista) la description come citazione, le date,
+   e da estesa Attività; estesa si solleva con l'ombra di In coda */
+#ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
+#ao-root .ao-ticket-card.ao-expanded { cursor: default; box-shadow: var(--ao-raised-shadow); }
+#ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
+#ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
+#ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+#ao-root .ao-ticket-dates { display: flex; gap: 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-ticket-dates b { color: var(--ao-text-muted); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-ticket-more > .ao-card { padding: 8px 0 0; border: 0; border-top: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; cursor: default; } /* Attività dentro la scheda */
 #ao-root .ao-item-tags { display: flex; align-items: center; gap: 4px; flex: none; }
 #ao-root .ao-item-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #ao-root .ao-item-place { min-width: 0; }
 #ao-root .ao-item-company { color: var(--ao-text); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-item-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
-/* Contenitore del ticket nel thread: fondo incassato; aperto, sollevato con l'ombra */
-#ao-root .ao-ticket-box { display: grid; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: calc(var(--ao-radius-base) + 2px); background: var(--ao-bg); transition: box-shadow .35s, border-color .35s; }
-#ao-root .ao-ticket-box.ao-expanded { box-shadow: var(--ao-raised-shadow); } /* aperto: solo l'ombra, come In coda */
-#ao-root .ao-box-head.ao-static { cursor: default; }
-#ao-root .ao-box-head.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
-#ao-root .ao-ticket-about { display: grid; gap: 4px; }
-#ao-root .ao-ticket-dates { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
-#ao-root .ao-ticket-description { color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 /* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto).
    Il tempo sta incassato nella traccia dei selettori; − e + sono in rilievo come la voce scelta. */
 #ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
@@ -4047,7 +4052,7 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: inset 0 0 0 1px var(--ao-item-hover-edge), var(--ao-item-hover-glow); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
