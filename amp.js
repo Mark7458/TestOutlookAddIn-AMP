@@ -537,7 +537,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 19:15';
+    const BUILD = '2026-11-07 19:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1238,10 +1238,10 @@
             return part.animate(fold ? [open, shut] : [shut, open], { duration: JOURNEY.travel * .7, easing: JOURNEY.easing, fill: 'forwards' }).finished;
         }));
     }
-    // Le parti che ci sono solo nel thread (tempo lavorato, etichetta dell'operatore, fondo del contenitore):
-    // compaiono quando la scheda si posa (show) e spariscono prima che riparta.
+    // Le parti che ci sono solo nel thread (tempo lavorato): compaiono quando la scheda si posa (show) e spariscono
+    // prima che riparta. L'etichetta dell'operatore c'è anche nella lista: viaggia con la scheda, ferma.
     function threadExtras(head, show, delay = 0) {
-        return Promise.all([...head.querySelectorAll('.ao-timer, .ao-item-tags > .ao-user-tag')].map(part => part.animate(show
+        return Promise.all([...head.querySelectorAll('.ao-timer')].map(part => part.animate(show
             ? [{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }]
             : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.85)' }],
         { duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: show ? 'backwards' : 'forwards' }).finished)).catch(() => {});
