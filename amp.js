@@ -217,7 +217,7 @@
             searchLine: 'transparent',
             searchFocusLine: 'transparent',
             fieldFocusLine: 'rgba(120, 170, 255, .45)', // vetro: un bagliore soffuso al posto dell'anello
-            fieldFocusGlow: '0 0 12px rgba(120, 170, 255, .35)',
+            fieldFocusGlow: '0 0 6px rgba(120, 170, 255, .14)', // campo attivo: appena accennato (l'alone forte è per attirare l'attenzione)
             searchLensLine: 'transparent',
             toneTake: '#0f5fbf', // zaffiro
             toneForward: '#7b3fbf', // ametista
@@ -255,7 +255,7 @@
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
             menuBg: '#2b2e36',
             fieldFocusLine: 'rgba(90, 150, 255, .4)',
-            fieldFocusGlow: '0 0 12px rgba(90, 150, 255, .3)',
+            fieldFocusGlow: '0 0 6px rgba(90, 150, 255, .12)',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
             // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
@@ -543,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 22:45';
+    const BUILD = '2026-11-07 23:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
