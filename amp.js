@@ -93,7 +93,6 @@
             itemHover: 'var(--ao-hover)', // scheda al passaggio del mouse: solo lei, senza schiarire il contenuto
             itemHoverEdge: 'transparent',
             itemHoverGlow: '0 0 transparent',
-            spawnGlow: '0 0 18px color-mix(in srgb, var(--ao-accent) 60%, transparent), 0 0 4px color-mix(in srgb, var(--ao-accent) 80%, transparent)', // lampo del pulsante che rinasce
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -543,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 16:30';
+    const BUILD = '2026-11-08 16:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2799,32 +2798,34 @@
         element.style.visibility = '';
         await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
     }
-    // Il pulsante "nuovo ticket" rinasce dopo che un ticket è stato aperto, in un lampo: al suo posto si accende un
-    // punto di bagliore, che si allarga e si apre in orizzontale fino alla sua forma (tutto luce); dal centro si
-    // materializza il pulsante, che per un attimo brilla più forte e poi torna al suo alone normale.
+    // Il pulsante "nuovo ticket" rinasce dopo che un ticket è stato aperto: al suo posto si accende un punto di luce,
+    // che si allarga e si apre in orizzontale; dal centro compare il pulsante, che per un attimo brilla più forte e poi
+    // torna al suo alone normale.
     async function materialize(button) {
         if (!button || reducedMotion()) return;
-        const form = shape(button);
+        const rect = button.getBoundingClientRect();
+        const radius = shape(button).radius;
         const light = h('div', { class: 'ao-spawn' });
         root.append(light);
-        Object.assign(light.style, { left: `${form.rect.left}px`, top: `${form.rect.top}px`, width: `${form.rect.width}px`, height: `${form.rect.height}px`, borderRadius: form.radius });
-        placeAt(light, form.rect.top, form.rect.left);
-        const dot = Math.min(1, form.rect.height / form.rect.width); // all'inizio è un punto rotondo
+        const size = 10; // il punto di luce
+        Object.assign(light.style, { left: `${rect.left + rect.width / 2 - size / 2}px`, top: `${rect.top + rect.height / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
+        placeAt(light, rect.top + rect.height / 2 - size / 2, rect.left + rect.width / 2 - size / 2);
+        const wide = rect.width / size, tall = rect.height / size;
         light.animate([
-            { transform: `scale(${dot * .2}, .2)`, opacity: 0, borderRadius: '50%' },
-            { transform: `scale(${dot}, 1)`, opacity: 1, borderRadius: '50%', offset: .35 },
-            { transform: 'scale(1.02, 1.05)', opacity: 1, borderRadius: form.radius, offset: .7 },
-            { transform: 'scale(1)', opacity: 0, borderRadius: form.radius }
+            { transform: 'scale(0)', opacity: 0 },
+            { transform: `scale(${tall * 1.6})`, opacity: 1, offset: .45 },
+            { transform: `scale(${wide * 1.1}, ${tall * 2.1})`, opacity: .9, offset: .75 },
+            { transform: `scale(${wide * 1.3}, ${tall * 2.4})`, opacity: 0 }
         ], { duration: SPAWN_MS, easing: JOURNEY.easing, fill: 'forwards' }).finished.then(() => light.remove(), () => light.remove());
         const rest = getComputedStyle(button).boxShadow;
-        const flash = getComputedStyle(root).getPropertyValue('--ao-spawn-glow').trim();
         await button.animate([
-            { clipPath: `inset(50% 50% 50% 50% round ${form.radius})`, boxShadow: flash, filter: 'brightness(1.5)' },
-            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: flash, filter: 'brightness(1.25)', offset: .5 },
-            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: rest === 'none' ? '0 0 0 transparent' : rest, filter: 'none' }
-        ], { duration: SPAWN_MS * .75, delay: SPAWN_MS * .4, easing: JOURNEY.easing, fill: 'backwards' }).finished.catch(() => {});
+            { opacity: 0, clipPath: `inset(50% 50% 50% 50% round ${radius})`, boxShadow: SPAWN_FLASH },
+            { opacity: 1, clipPath: `inset(0 0 0 0 round ${radius})`, boxShadow: SPAWN_FLASH, offset: .6 },
+            { opacity: 1, clipPath: `inset(0 0 0 0 round ${radius})`, boxShadow: rest === 'none' ? '0 0 0 transparent' : rest }
+        ], { duration: SPAWN_MS, delay: 250, easing: JOURNEY.easing, fill: 'backwards' }).finished.catch(() => {});
     }
-    const SPAWN_MS = 620; // un lampo
+    const SPAWN_MS = 900;
+    const SPAWN_FLASH = '0 0 30px rgba(110, 165, 255, .9)'; // il pulsante che brilla appena comparso
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
             h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
@@ -4140,7 +4141,7 @@
 #ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .25s, border-color .25s, color .25s; }
 #ao-root .ao-pill:hover { background: var(--ao-hover); }
 #ao-root .ao-pill.ao-away { visibility: hidden; }
-#ao-root .ao-spawn { position: fixed; z-index: 21; pointer-events: none; background: color-mix(in srgb, var(--ao-accent) 30%, transparent); box-shadow: var(--ao-spawn-glow), inset 0 0 12px color-mix(in srgb, #fff 70%, transparent); filter: blur(3px); } /* bagliore da cui rinasce il pulsante: tutto luce, niente fondo pieno */
+#ao-root .ao-spawn { position: fixed; z-index: 21; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, rgba(170, 210, 255, 1) 0%, rgba(110, 165, 255, .7) 35%, rgba(110, 165, 255, 0) 70%); } /* punto di luce da cui rinasce il pulsante */
 #ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
