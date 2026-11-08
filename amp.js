@@ -394,7 +394,6 @@
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
             addTicket: '＋ Ticket',
-            closeAdd: '× Chiudi',
             threadCount: count => (count === 1 ? '1 ticket' : `${count} ticket · 1 principale`),
             candidatesTitle: 'Possibili ticket su ServiceNow',
             candidatesHint: 'Stesso oggetto e stessa ora di arrivo. Collega quello giusto, oppure apri un ticket nuovo qui sotto.',
@@ -543,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-07 23:00';
+    const BUILD = '2026-11-08 14:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -676,9 +675,15 @@
     Services.prefetchThread = conversationId => {
         const cached = threadCache.get(conversationId);
         if (!conversationId || (cached && Date.now() - cached.at < THREAD_CACHE_MS)) return;
-        const entry = { at: Date.now(), result: null };
+        const entry = { at: Date.now(), result: null, request: null };
         threadCache.set(conversationId, entry);
-        Services.findTicketForMail({ conversationId, incNumbers: [] }).then(result => { entry.result = result; }).catch(() => threadCache.delete(conversationId));
+        entry.request = Services.findTicketForMail({ conversationId, incNumbers: [] });
+        entry.request.then(result => { entry.result = result; }).catch(() => threadCache.delete(conversationId));
+    };
+    // Richiesta di precaricamento ancora in corso: la pagina aspetta quella invece di farne un'altra.
+    Services.pendingThread = conversationId => {
+        const cached = threadCache.get(conversationId);
+        return cached && !cached.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.request : null;
     };
     Services.cachedThread = conversationId => {
         const cached = threadCache.get(conversationId);
@@ -1132,7 +1137,7 @@
             render();
         }
         try {
-            const result = await Services.findTicketForMail(state.target.mail);
+            const result = await (Services.pendingThread(state.target.mail.conversationId) || Services.findTicketForMail(state.target.mail));
             if (sequence !== searchSequence) return;
             state.result = result;
             [...(result.tickets || []), result.previous, ...(result.candidates || [])].forEach(ticket => { if (ticket) state.ticketCache[ticket.number] = ticket; });
@@ -1195,7 +1200,8 @@
     const JOURNEY = {
         lift: 220, travel: 420, land: 200, build: 280, stagger: 50,
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
-        lifted: 'translateY(-3px) scale(1.035)', liftShadow: '0 12px 28px rgba(0, 0, 0, .18)'
+        lifted: 'translateY(-3px) scale(1.035)', liftShadow: '0 12px 28px rgba(0, 0, 0, .18)',
+        floated: 'translateY(-6px) scale(1.045)', float: 700 // se la pagina tarda: la scheda continua piano a salire, mai ferma
     };
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
     const headOf = number => [...root.querySelectorAll('.ao-scroll .ao-ticket-card .ao-item-number')]
@@ -1287,12 +1293,13 @@
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
     // Viaggio e atterraggio in un solo movimento continuo, eseguito dalla scheda grafica (fluido anche a PC occupato).
-    // to: { dx, dy } rispetto al punto in cui la copia è stata messa; from: da dove parte (già sollevata).
-    function travelAndLand(copy, to, delay = 0, from = { dx: 0, dy: 0 }) {
+    // to: { dx, dy } rispetto al punto in cui la copia è stata messa; from: com'è al via (di base già sollevata;
+    // 'none': si solleva partendo, in un solo movimento).
+    function travelAndLand(copy, to, delay = 0, from = JOURNEY.lifted) {
         const total = JOURNEY.travel + JOURNEY.land;
         copy.getAnimations().forEach(animation => animation.cancel()); // prende il posto del sollevamento (stessi valori)
         return copy.animate([
-            { transform: `translate(${from.dx}px, ${from.dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
+            { transform: from, boxShadow: from === 'none' ? '0 0 0 transparent' : JOURNEY.liftShadow, easing: JOURNEY.travelEasing },
             { transform: `translate(${to.dx}px, ${to.dy}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow, offset: JOURNEY.travel / total, easing: JOURNEY.easing },
             { transform: `translate(${to.dx}px, ${to.dy}px)`, boxShadow: '0 0 0 transparent' }
         ], { duration: total, delay, fill: 'both' }).finished;
@@ -1328,7 +1335,16 @@
         state.journey = ticket.number; // nella pagina le schede restano vuote finché non arrivano
         openTicketItem(ticket, { slide: false });
         blurTo([ghost], [0, 1], [3, .55], JOURNEY.lift).then(() => blurTo([ghost], [3, .55], [5, 0], JOURNEY.travel * .5)).catch(() => {});
-        const [page] = await Promise.all([pageCardOf(ticket.number), lift(copy), deckFold(copy, true)]).catch(() => []);
+        const ready = pageCardOf(ticket.number);
+        let page = null;
+        ready.then(found => { page = found; });
+        await Promise.all([lift(copy), deckFold(copy, true)]).catch(() => {});
+        await wait(0);
+        // Pagina non ancora pronta (dati in arrivo): la scheda continua piano a salire invece di fermarsi.
+        const float = page ? null : copy.animate([{ transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow }, { transform: JOURNEY.floated, boxShadow: JOURNEY.liftShadow }],
+            { duration: JOURNEY.float, easing: 'cubic-bezier(.2, .6, .3, 1)', fill: 'forwards' });
+        page = await ready;
+        const floated = float ? getComputedStyle(copy).transform : JOURNEY.lifted;
         const cards = page ? [...page.closest('.ao-scroll').querySelectorAll(':scope > .ao-ticket-card')] : [];
         const from = cards.indexOf(page);
         const copies = [];
@@ -1336,7 +1352,7 @@
             const place = target.getBoundingClientRect();
             const traveller = target === page ? copy : faceCopy(target, start); // gli altri partono da sotto quella davanti
             if (traveller !== copy) { traveller.style.zIndex = String(29 - Math.abs(index - from)); copies.push(traveller); }
-            return travelAndLand(traveller, { dx: place.left - start.left, dy: place.top - start.top }, Math.abs(index - from) * DEAL_STEP);
+            return travelAndLand(traveller, { dx: place.left - start.left, dy: place.top - start.top }, Math.abs(index - from) * DEAL_STEP, traveller === copy ? floated : JOURNEY.lifted);
         })]).catch(() => {}));
         state.journey = null;
         state.liftTicket = ticket.number; // si posa a terra, si solleva dopo essersi aperta
@@ -1349,9 +1365,8 @@
         await holdingRender(() => unfoldPage(target.closest('.ao-scroll'), true));
         target.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
     }
-    // Ritorno: la pagina si richiude nelle testate; il principale (in fondo) si solleva e sale, raccogliendo sotto di sé
-    // i collegati man mano che li incontra; arrivato in cima, il mazzo chiuso torna al suo posto nella lista, che
-    // intanto ricompare, e lì si riapre.
+    // Ritorno, in due tempi: la pagina si richiude nelle testate mentre gli altri ticket scivolano sotto il principale
+    // (raccolti); poi il mazzo si stacca e torna al suo posto nella lista in un solo movimento, mentre la lista ricompare.
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
@@ -1360,18 +1375,18 @@
         if (!pageCard) return setView(target);
         const view = pageCard.closest('.ao-scroll');
         pageCard.classList.add('ao-unlifted'); // torna a terra mentre la pagina si richiude
-        await holdingRender(() => unfoldPage(view, false));
         const head = pageCard.getBoundingClientRect();
-        const others = [...view.querySelectorAll(':scope > .ao-ticket-card')].filter(item => item !== pageCard).map(item => {
-            const place = item.getBoundingClientRect();
-            const copy = faceCopy(item, place);
-            copy.style.zIndex = '29'; // sotto il principale che passa a prenderlo
-            return { copy, place };
+        Object.assign(pageCard.style, { position: 'relative', zIndex: '2' });
+        const gather = [...view.querySelectorAll(':scope > .ao-ticket-card')].filter(item => item !== pageCard).map(item => {
+            Object.assign(item.style, { position: 'relative', zIndex: '1' });
+            return item.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${head.top - item.getBoundingClientRect().top}px) scale(.97)`, opacity: 0 }],
+                { duration: JOURNEY.build, easing: JOURNEY.easing, fill: 'forwards' }).finished;
         });
+        await holdingRender(() => Promise.all([unfoldPage(view, false), ...gather]).catch(() => {}));
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
         const card = found?.closest('.ao-deck') || found;
-        if (!card) { others.forEach(item => item.copy.remove()); return slideInView(-1); }
+        if (!card) return slideInView(-1);
         card.scrollIntoView({ block: 'nearest' });
         const scroll = root.querySelector('.ao-scroll');
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
@@ -1379,25 +1394,11 @@
         const copy = travelCopy(card, card);
         placeAt(copy, head.top - offset, head.left);
         card.style.visibility = 'hidden';
-        scroll.style.opacity = '0';
         scroll.style.willChange = 'filter, opacity';
         copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
         await holdingRender(async () => {
-            await lift(copy).catch(() => {});
-            // sale fino al collegato più in alto: ognuno, quando il principale gli arriva sopra, gli scivola sotto
-            const highest = Math.min(head.top, ...others.map(item => item.place.top));
-            const climb = highest - head.top;
-            if (climb < 0) {
-                const duration = Math.min(700, Math.max(240, -climb * .7));
-                copy.animate([{ transform: JOURNEY.lifted, boxShadow: JOURNEY.liftShadow }, { transform: `translateY(${climb}px) ${JOURNEY.lifted}`, boxShadow: JOURNEY.liftShadow }],
-                    { duration, easing: 'linear', fill: 'forwards' });
-                await Promise.all(others.map(item => item.copy.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.96)' }],
-                    { duration: 160, delay: duration * (head.top - item.place.top) / -climb, easing: JOURNEY.easing, fill: 'forwards' }).finished)).catch(() => {});
-            }
-            others.forEach(item => item.copy.remove());
-            scroll.style.opacity = '';
             await Promise.all([
-                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - head.top }, 0, { dx: 0, dy: climb }), listExtras(copy, false),
+                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - head.top }, 0, 'none'), listExtras(copy, false),
                 blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land)),
                 wait(JOURNEY.travel).then(() => deckFold(copy, false))
             ]).catch(() => {});
@@ -2615,6 +2616,7 @@
         let hover = null;
         item.addEventListener('pointerenter', () => { hover = setTimeout(() => Services.prefetchThread(ticket.conversationId), 120); });
         item.addEventListener('pointerleave', () => clearTimeout(hover));
+        item.addEventListener('pointerdown', () => Services.prefetchThread(ticket.conversationId)); // al tocco (telefono): subito
         return item;
     }
 
@@ -2682,9 +2684,9 @@
             count ? h('div', { class: 'ao-thread-bar' },
                 h('span', { class: 'ao-thread-count' }, TEXTS.mail.threadCount(count)),
                 h('button', {
-                    type: 'button', class: `ao-pill${adding ? ' ao-active' : ''}`, 'aria-expanded': String(adding),
-                    onclick: () => (adding ? closeExtraTicket(mail) : openExtraTicket(mail))
-                }, adding ? TEXTS.mail.closeAdd : TEXTS.mail.addTicket)) : null);
+                    type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), // aperto: è diventato il modulo
+                    onclick: () => openExtraTicket(mail)
+                }, TEXTS.mail.addTicket)) : null);
     }
     // Modulo per un altro ticket del thread: lo stesso di "Nuovo ticket" in Senza mail (si solleva e si apre;
     // gli altri ticket si sfocano), con Agenzia e Attività.
@@ -2697,22 +2699,53 @@
                     h('span', { class: 'ao-spacer' }),
                     h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => closeExtraTicket(mail) }, TEXTS.common.cancel))));
     }
+    // "＋ Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
+    // alla pila; lì compare il contenuto. Annulla fa l'inverso (il modulo torna pillola). Intanto la pillola non c'è.
     async function openExtraTicket(mail) {
         await whenIdle();
+        const scroll = root.querySelector('.ao-scroll');
+        if (scroll) scroll.scrollTop = 0;
+        const from = root.querySelector('.ao-thread-bar .ao-pill')?.getBoundingClientRect();
         state.extraTicketFor = mail.conversationId;
         render();
-        const scroll = root.querySelector('.ao-scroll');
-        scroll?.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
-        await holdingRender(() => unfold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
+        const card = root.querySelector('.ao-new-ticket-card');
+        if (!from || !card || reducedMotion()) return;
+        await holdingRender(() => morphCard(card, from, true));
     }
     async function closeExtraTicket(mail) {
         if (state.holdRender) return;
-        holdRender();
-        await fold(root.querySelector('.ao-new-ticket-card .ao-inline-form'));
+        const card = root.querySelector('.ao-new-ticket-card');
+        const pill = root.querySelector('.ao-thread-bar .ao-pill');
+        if (card && pill && !reducedMotion()) await holdingRender(() => morphCard(card, pill.getBoundingClientRect(), false));
         state.extraTicketFor = null;
         delete state.ticketDrafts[mail.conversationId];
-        releaseRender();
         render();
+    }
+    // Riquadro che va dalla pillola (pill: dov'è) al modulo (inward: aprendo) o al contrario; il contenuto del modulo
+    // compare quando il riquadro è arrivato e sparisce prima che riparta.
+    async function morphCard(card, pill, inward) {
+        const to = card.getBoundingClientRect();
+        const shell = h('div', { class: 'ao-morph' });
+        root.append(shell);
+        Object.assign(shell.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+        placeAt(shell, to.top, to.left);
+        const small = { transform: `translate(${pill.left - to.left}px, ${pill.top - to.top}px)`, width: `${pill.width}px`, height: `${pill.height}px`, borderRadius: `${pill.height / 2}px`, opacity: .9 };
+        const big = { transform: 'none', width: `${to.width}px`, height: `${to.height}px`, borderRadius: getComputedStyle(card).borderRadius, opacity: 1 };
+        const content = [...card.children];
+        card.style.visibility = 'hidden';
+        const timing = { duration: JOURNEY.build + 60, easing: JOURNEY.easing, fill: 'forwards' };
+        if (inward) {
+            await shell.animate([small, big], timing).finished.catch(() => {});
+            card.style.visibility = '';
+            shell.remove();
+            await Promise.all(content.map(part => part.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }).finished)).catch(() => {});
+        } else {
+            card.style.visibility = '';
+            await Promise.all(content.map(part => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }).finished)).catch(() => {});
+            card.style.visibility = 'hidden';
+            await shell.animate([big, small], timing).finished.catch(() => {});
+            shell.remove();
+        }
     }
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
@@ -4027,7 +4060,8 @@
 #ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 #ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .25s, border-color .25s, color .25s; }
 #ao-root .ao-pill:hover { background: var(--ao-hover); }
-#ao-root .ao-pill.ao-active { border-color: var(--ao-accent); color: var(--ao-text-accent); }
+#ao-root .ao-pill.ao-away { visibility: hidden; }
+#ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 
@@ -4064,6 +4098,7 @@
 #ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-new-ticket-card { animation: none; } }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
+#ao-root .ao-view:has(.ao-thread-head) .ao-new-ticket-card { animation: none; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 #ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-sm); cursor: pointer; }
