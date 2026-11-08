@@ -93,7 +93,7 @@
             itemHover: 'var(--ao-hover)', // scheda al passaggio del mouse: solo lei, senza schiarire il contenuto
             itemHoverEdge: 'transparent',
             itemHoverGlow: '0 0 transparent',
-            spawnGlow: '0 0 22px color-mix(in srgb, var(--ao-accent) 75%, transparent), 0 0 6px var(--ao-accent)', // lampo del pulsante che rinasce
+            spawnGlow: '0 0 18px color-mix(in srgb, var(--ao-accent) 60%, transparent), 0 0 4px color-mix(in srgb, var(--ao-accent) 80%, transparent)', // lampo del pulsante che rinasce
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -543,7 +543,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 16:15';
+    const BUILD = '2026-11-08 16:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2799,8 +2799,8 @@
         element.style.visibility = '';
         await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
     }
-    // Il pulsante "nuovo ticket" rinasce dopo che un ticket è stato aperto: al suo posto si accende un punto di luce
-    // piena (colore d'accento, corposo), che si allarga e si apre in orizzontale fino alla sua forma; dal centro si
+    // Il pulsante "nuovo ticket" rinasce dopo che un ticket è stato aperto, in un lampo: al suo posto si accende un
+    // punto di bagliore, che si allarga e si apre in orizzontale fino alla sua forma (tutto luce); dal centro si
     // materializza il pulsante, che per un attimo brilla più forte e poi torna al suo alone normale.
     async function materialize(button) {
         if (!button || reducedMotion()) return;
@@ -2819,12 +2819,12 @@
         const rest = getComputedStyle(button).boxShadow;
         const flash = getComputedStyle(root).getPropertyValue('--ao-spawn-glow').trim();
         await button.animate([
-            { clipPath: `inset(50% 50% 50% 50% round ${form.radius})`, boxShadow: flash },
-            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: flash, offset: .55 },
-            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: rest === 'none' ? '0 0 0 transparent' : rest }
+            { clipPath: `inset(50% 50% 50% 50% round ${form.radius})`, boxShadow: flash, filter: 'brightness(1.5)' },
+            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: flash, filter: 'brightness(1.25)', offset: .5 },
+            { clipPath: `inset(0 0 0 0 round ${form.radius})`, boxShadow: rest === 'none' ? '0 0 0 transparent' : rest, filter: 'none' }
         ], { duration: SPAWN_MS * .75, delay: SPAWN_MS * .4, easing: JOURNEY.easing, fill: 'backwards' }).finished.catch(() => {});
     }
-    const SPAWN_MS = 1000;
+    const SPAWN_MS = 620; // un lampo
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
             h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
@@ -4140,7 +4140,7 @@
 #ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .25s, border-color .25s, color .25s; }
 #ao-root .ao-pill:hover { background: var(--ao-hover); }
 #ao-root .ao-pill.ao-away { visibility: hidden; }
-#ao-root .ao-spawn { position: fixed; z-index: 21; pointer-events: none; background: radial-gradient(ellipse at center, #fff 0%, color-mix(in srgb, var(--ao-accent) 35%, #fff) 28%, var(--ao-accent) 70%); box-shadow: var(--ao-spawn-glow); } /* luce piena da cui rinasce il pulsante */
+#ao-root .ao-spawn { position: fixed; z-index: 21; pointer-events: none; background: color-mix(in srgb, var(--ao-accent) 30%, transparent); box-shadow: var(--ao-spawn-glow), inset 0 0 12px color-mix(in srgb, #fff 70%, transparent); filter: blur(3px); } /* bagliore da cui rinasce il pulsante: tutto luce, niente fondo pieno */
 #ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
