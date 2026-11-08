@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 15:15';
+    const BUILD = '2026-11-08 15:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2730,52 +2730,76 @@
     }
     // "＋ Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
     // alla pila; lì compare il contenuto. Annulla fa l'inverso (il modulo torna pillola). Intanto la pillola non c'è.
+    // Aperto il ticket, il modulo compilato diventa la sua scheda (stesso posto) e la pillola ricompare.
     async function openExtraTicket(mail) {
         await whenIdle();
         const scroll = root.querySelector('.ao-scroll');
         if (scroll) scroll.scrollTop = 0;
-        const from = root.querySelector('.ao-thread-bar .ao-pill')?.getBoundingClientRect();
+        const pill = root.querySelector('.ao-thread-bar .ao-pill');
+        const from = pill && shape(pill);
         state.extraTicketFor = mail.conversationId;
         render();
         const card = root.querySelector('.ao-new-ticket-card');
         if (!from || !card || reducedMotion()) return;
-        await holdingRender(() => morphCard(card, from, true));
+        await holdingRender(() => morphInto(card, from));
     }
     async function closeExtraTicket(mail) {
         if (state.holdRender) return;
         const card = root.querySelector('.ao-new-ticket-card');
         const pill = root.querySelector('.ao-thread-bar .ao-pill');
-        if (card && pill && !reducedMotion()) await holdingRender(() => morphCard(card, pill.getBoundingClientRect(), false));
+        if (card && pill && !reducedMotion()) await holdingRender(async () => {
+            await fadeAll([...card.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' });
+            card.style.visibility = 'hidden';
+            await morphShell(shape(card), shape(pill));
+        });
         state.extraTicketFor = null;
         delete state.ticketDrafts[mail.conversationId];
         render();
+        appear(root.querySelector('.ao-thread-bar .ao-pill'));
     }
-    // Riquadro che va dalla pillola (pill: dov'è) al modulo (inward: aprendo) o al contrario; il contenuto del modulo
-    // compare quando il riquadro è arrivato e sparisce prima che riparta.
-    async function morphCard(card, pill, inward) {
-        const to = card.getBoundingClientRect();
+    // Ticket aperto dal modulo del thread: il contenuto svanisce, la pagina si aggiorna con il modulo ancora al suo
+    // posto, poi il riquadro si adatta alla scheda del ticket nuovo (lì, in cima) e la pillola ricompare.
+    async function extraTicketDone(mail, ticket, config, draft) {
+        Usage.record(draft.companyId, draft.activityId, mail.subject);
+        config.recent = [{ company: draft.companyId, activity: draft.activityId, timestamp: new Date().toISOString() },
+            ...config.recent.filter(item => !(item.company === draft.companyId && item.activity === draft.activityId))].slice(0, 10);
+        saveConfig(config);
+        const form = root.querySelector('.ao-new-ticket-card');
+        const from = form && !reducedMotion() ? shape(form) : null;
+        holdRender();
+        if (form && from) await fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' });
+        await refreshLists().catch(() => {});
+        state.extraTicketFor = null;
+        releaseRender();
+        render();
+        const card = headOf(ticket.number);
+        if (from && card) await holdingRender(() => morphInto(card, from));
+        appear(root.querySelector('.ao-thread-bar .ao-pill'));
+    }
+    // Forma di un elemento (posizione, misura, angoli) per il riquadro che si trasforma.
+    const shape = element => {
+        const rect = element.getBoundingClientRect();
+        return { rect, radius: `${Math.min(parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0, rect.height / 2)}px` }; // pillola: metà altezza, non 9999px
+    };
+    // Riquadro che va da una forma all'altra (con il bagliore del modulo); si toglie arrivato.
+    async function morphShell(from, to) {
         const shell = h('div', { class: 'ao-morph' });
         root.append(shell);
-        Object.assign(shell.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
-        placeAt(shell, to.top, to.left);
-        const small = { transform: `translate(${pill.left - to.left}px, ${pill.top - to.top}px)`, width: `${pill.width}px`, height: `${pill.height}px`, borderRadius: `${pill.height / 2}px`, opacity: .9 };
-        const big = { transform: 'none', width: `${to.width}px`, height: `${to.height}px`, borderRadius: getComputedStyle(card).borderRadius, opacity: 1 };
-        const content = [...card.children];
-        card.style.visibility = 'hidden';
-        const timing = { duration: JOURNEY.build + 60, easing: JOURNEY.easing, fill: 'forwards' };
-        if (inward) {
-            await shell.animate([small, big], timing).finished.catch(() => {});
-            card.style.visibility = '';
-            shell.remove();
-            await Promise.all(content.map(part => part.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }).finished)).catch(() => {});
-        } else {
-            card.style.visibility = '';
-            await Promise.all(content.map(part => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }).finished)).catch(() => {});
-            card.style.visibility = 'hidden';
-            await shell.animate([big, small], timing).finished.catch(() => {});
-            shell.remove();
-        }
+        Object.assign(shell.style, { left: `${to.rect.left}px`, top: `${to.rect.top}px`, width: `${to.rect.width}px`, height: `${to.rect.height}px` });
+        placeAt(shell, to.rect.top, to.rect.left);
+        const frame = form => ({ transform: `translate(${form.rect.left - to.rect.left}px, ${form.rect.top - to.rect.top}px)`, width: `${form.rect.width}px`, height: `${form.rect.height}px`, borderRadius: form.radius });
+        await shell.animate([frame(from), frame(to)], { duration: JOURNEY.build + 60, easing: JOURNEY.easing, fill: 'forwards' }).finished.catch(() => {});
+        shell.remove();
     }
+    // L'elemento prende forma da "from" (pillola o modulo): il riquadro lo raggiunge, poi compare il contenuto.
+    async function morphInto(element, from) {
+        element.style.visibility = 'hidden';
+        await morphShell(from, shape(element));
+        element.style.visibility = '';
+        await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
+    }
+    // Un pulsante che torna al suo posto.
+    const appear = element => element?.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: MOTION.swap, easing: JOURNEY.easing });
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
             h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
@@ -3164,7 +3188,7 @@
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
-        if (state.extraTicketFor === mail.conversationId) state.extraTicketFor = null;
+        if (state.extraTicketFor === mail.conversationId) return extraTicketDone(mail, ticket, config, draft);
         Usage.record(draft.companyId, draft.activityId, mail.manual ? draft.subject : mail.subject);
         if (mail.manual) {
             await holdingRender(() => fold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
