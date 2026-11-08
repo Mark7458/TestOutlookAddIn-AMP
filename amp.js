@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 14:30';
+    const BUILD = '2026-11-08 15:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1289,6 +1289,7 @@
         after.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build : 0)));
         return Promise.all(moves).catch(() => {});
     }
+    const DECK_STRIP = 22; // quanto spunta ogni fascia del mazzo sopra la scheda davanti (come in .ao-deck-strip)
     const DEAL_STEP = 60; // distacco tra una carta e l'altra quando il mazzo si distribuisce nella pagina
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
@@ -1365,8 +1366,10 @@
         await holdingRender(() => unfoldPage(target.closest('.ao-scroll'), true));
         target.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
     }
-    // Ritorno, in due tempi: la pagina si richiude nelle testate mentre gli altri ticket scivolano sotto il principale
-    // (raccolti); poi il mazzo si stacca e torna al suo posto nella lista in un solo movimento, mentre la lista ricompare.
+    // Ritorno. Con più ticket: il principale (in fondo) si solleva e sale fino al primo, e ogni collegato che incontra
+    // gli scivola sotto e viaggia con lui (il mazzo si ricompone); intanto tutte le schede si richiudono nelle testate.
+    // Poi il mazzo torna al suo posto nella lista in un solo movimento, mentre la lista ricompare.
+    // Con un ticket solo: la scheda si richiude e torna nella lista.
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
@@ -1375,14 +1378,40 @@
         if (!pageCard) return setView(target);
         const view = pageCard.closest('.ao-scroll');
         pageCard.classList.add('ao-unlifted'); // torna a terra mentre la pagina si richiude
+        const cards = [...view.querySelectorAll(':scope > .ao-ticket-card')];
         const head = pageCard.getBoundingClientRect();
-        Object.assign(pageCard.style, { position: 'relative', zIndex: '2' });
-        const gather = [...view.querySelectorAll(':scope > .ao-ticket-card')].filter(item => item !== pageCard).map(item => {
-            Object.assign(item.style, { position: 'relative', zIndex: '1' });
-            return item.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${head.top - item.getBoundingClientRect().top}px) scale(.97)`, opacity: 0 }],
-                { duration: JOURNEY.build, easing: JOURNEY.easing, fill: 'forwards' }).finished;
+        const others = cards.filter(item => item !== pageCard)
+            .map(item => ({ item, top: item.getBoundingClientRect().top }))
+            .sort((a, b) => b.top - a.top) // dal più vicino al principale
+            .map((entry, index) => ({ ...entry, step: index + 1 }));
+        // come nel mazzo della lista: ogni collegato raccolto spunta sopra il principale di una fascia, più stretto
+        const climb = others.length ? Math.min(...others.map(entry => entry.top + DECK_STRIP * entry.step)) - head.top : 0;
+        // mosse fotogramma per fotogramma: senza le transizioni delle schede, che le farebbero rincorrere
+        Object.assign(pageCard.style, { position: 'relative', zIndex: String(others.length + 2), transition: 'none' });
+        others.forEach(entry => Object.assign(entry.item.style, { position: 'relative', zIndex: String(others.length + 1 - entry.step), transition: 'none' }));
+        const gather = () => new Promise(resolve => {
+            if (!others.length) return resolve();
+            const duration = JOURNEY.build * 2;
+            const ease = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+            let first = null;
+            const frame = now => {
+                if (first === null) first = now;
+                const t = Math.min(1, (now - first) / duration);
+                const up = Math.min(1, t * 4); // si solleva nei primi istanti della salita
+                const offset = climb * ease(t);
+                pageCard.style.transform = `translateY(${offset - 3 * up}px) scale(${1 + .035 * up})`;
+                pageCard.style.boxShadow = `0 12px 28px rgba(0, 0, 0, ${.18 * up})`;
+                others.forEach(entry => {
+                    if (head.top + offset > entry.top + DECK_STRIP * entry.step + 1) return; // non ancora raggiunto
+                    entry.item.style.transform = `translateY(${head.top + offset - DECK_STRIP * entry.step - entry.top - 3 * up}px) scaleX(${1 - .06 * entry.step})`;
+                });
+                if (t < 1) requestAnimationFrame(frame);
+                else resolve();
+            };
+            requestAnimationFrame(frame);
         });
-        await holdingRender(() => Promise.all([unfoldPage(view, false), ...gather]).catch(() => {}));
+        await holdingRender(() => Promise.all([unfoldPage(view, false), gather()]).catch(() => {}));
+        const from = head.top + climb; // dove sta ora il principale (in cima)
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
         const card = found?.closest('.ao-deck') || found;
@@ -1392,15 +1421,15 @@
         const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
         const listed = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
-        placeAt(copy, head.top - offset, head.left);
+        placeAt(copy, from - offset, head.left);
         card.style.visibility = 'hidden';
         scroll.style.willChange = 'filter, opacity';
-        copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; }); // il mazzo viaggia chiuso
+        // il mazzo è già ricomposto (le fasce visibili); una scheda sola parte da terra e si solleva partendo
+        if (!others.length) copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; });
         await holdingRender(async () => {
             await Promise.all([
-                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - head.top }, 0, 'none'), listExtras(copy, false),
-                blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land)),
-                wait(JOURNEY.travel).then(() => deckFold(copy, false))
+                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - from }, 0, others.length ? JOURNEY.lifted : 'none'), listExtras(copy, false),
+                blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land))
             ]).catch(() => {});
             scroll.getAnimations().forEach(animation => animation.cancel());
             scroll.style.willChange = '';
