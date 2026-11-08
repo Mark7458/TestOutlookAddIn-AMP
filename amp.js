@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 16:45';
+    const BUILD = '2026-11-08 17:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -916,6 +916,7 @@
         searching: false,
         ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
         newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
+        newTicketShape: null, // forma del pulsante "+ Nuovo ticket" (il modulo ci torna con Annulla)
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
         editing: null, // impostazioni: { kind, id }
@@ -2547,19 +2548,41 @@
                     h('span', { class: 'ao-spacer' }),
                     h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeNewTicket(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.cancel))));
     }
+    // "+ Nuovo ticket" si allarga al suo posto fino a diventare il modulo, poi compare il contenuto; Annulla fa
+    // l'inverso (il contenuto svanisce e il modulo torna pulsante, con i suoi angoli).
     async function openNewTicket() {
         await whenIdle();
+        const button = root.querySelector('.ao-new-ticket');
+        state.newTicketShape = button && shape(button);
         state.newTicketOpen = true;
         render();
-        await holdingRender(() => unfold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
+        const card = root.querySelector('.ao-new-ticket-card');
+        if (card && state.newTicketShape && !reducedMotion()) await holdingRender(() => growFrom(card, state.newTicketShape));
     }
     async function closeNewTicket(form) {
-        holdRender();
-        await fold(form);
+        const card = form?.closest('.ao-new-ticket-card');
+        if (card && state.newTicketShape && !reducedMotion()) await holdingRender(() => shrinkTo(card, state.newTicketShape));
         state.newTicketOpen = false;
         delete state.ticketDrafts[NEW_TICKET_KEY];
-        releaseRender();
         render();
+    }
+    // La scheda cresce dalla forma del pulsante (altezza e angoli), poi compare il contenuto.
+    async function growFrom(card, from) {
+        const parts = [...card.children];
+        const full = { height: `${card.offsetHeight}px`, borderRadius: getComputedStyle(card).borderTopLeftRadius };
+        parts.forEach(part => { part.style.opacity = '0'; });
+        card.style.overflow = 'hidden';
+        await card.animate([{ height: `${from.rect.height}px`, borderRadius: from.radius }, full], { duration: JOURNEY.build + 60, easing: JOURNEY.easing }).finished.catch(() => {});
+        card.style.overflow = '';
+        parts.forEach(part => { part.style.opacity = ''; });
+        await fadeAll(parts, 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
+    }
+    // L'inverso: il contenuto svanisce e la scheda torna alla forma del pulsante.
+    async function shrinkTo(card, to) {
+        await fadeAll([...card.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' });
+        card.style.overflow = 'hidden';
+        await card.animate([{ height: `${card.offsetHeight}px`, borderRadius: getComputedStyle(card).borderTopLeftRadius }, { height: `${to.rect.height}px`, borderRadius: to.radius }],
+            { duration: JOURNEY.build + 60, easing: JOURNEY.easing, fill: 'forwards' }).finished.catch(() => {});
     }
     // Messaggi nuovi (numero su sfondo blu) e inizio dell'ultimo arrivato nel thread (chi scrive, quando, prime righe).
     function newMessagesPreview(ticket) {
@@ -2774,7 +2797,7 @@
         render();
         const card = headOf(ticket.number);
         if (from && card) await holdingRender(() => morphInto(card, from));
-        materialize(root.querySelector('.ao-thread-bar .ao-pill'));
+        appear(root.querySelector('.ao-thread-bar .ao-pill'));
     }
     // Forma di un elemento (posizione, misura, angoli) per il riquadro che si trasforma.
     const shape = element => {
@@ -2798,34 +2821,8 @@
         element.style.visibility = '';
         await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
     }
-    // Il pulsante "nuovo ticket" rinasce dopo che un ticket è stato aperto: al suo posto si accende un punto di luce,
-    // che si allarga e si apre in orizzontale; dal centro compare il pulsante, che per un attimo brilla più forte e poi
-    // torna al suo alone normale.
-    async function materialize(button) {
-        if (!button || reducedMotion()) return;
-        const rect = button.getBoundingClientRect();
-        const radius = shape(button).radius;
-        const light = h('div', { class: 'ao-spawn' });
-        root.append(light);
-        const size = 10; // il punto di luce
-        Object.assign(light.style, { left: `${rect.left + rect.width / 2 - size / 2}px`, top: `${rect.top + rect.height / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
-        placeAt(light, rect.top + rect.height / 2 - size / 2, rect.left + rect.width / 2 - size / 2);
-        const wide = rect.width / size, tall = rect.height / size;
-        light.animate([
-            { transform: 'scale(0)', opacity: 0 },
-            { transform: `scale(${tall * 1.6})`, opacity: 1, offset: .45 },
-            { transform: `scale(${wide * 1.1}, ${tall * 2.1})`, opacity: .9, offset: .75 },
-            { transform: `scale(${wide * 1.3}, ${tall * 2.4})`, opacity: 0 }
-        ], { duration: SPAWN_MS, easing: JOURNEY.easing, fill: 'forwards' }).finished.then(() => light.remove(), () => light.remove());
-        const rest = getComputedStyle(button).boxShadow;
-        await button.animate([
-            { opacity: 0, clipPath: `inset(50% 50% 50% 50% round ${radius})`, boxShadow: SPAWN_FLASH },
-            { opacity: 1, clipPath: `inset(0 0 0 0 round ${radius})`, boxShadow: SPAWN_FLASH, offset: .6 },
-            { opacity: 1, clipPath: `inset(0 0 0 0 round ${radius})`, boxShadow: rest === 'none' ? '0 0 0 transparent' : rest }
-        ], { duration: SPAWN_MS, delay: 250, easing: JOURNEY.easing, fill: 'backwards' }).finished.catch(() => {});
-    }
-    const SPAWN_MS = 900;
-    const SPAWN_FLASH = '0 0 30px rgba(110, 165, 255, .9)'; // il pulsante che brilla appena comparso
+    // Il pulsante "nuovo ticket" torna al suo posto dopo che il modulo è diventato il ticket.
+    const appear = element => element?.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: MOTION.swap, easing: JOURNEY.easing });
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
             h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
@@ -3216,15 +3213,27 @@
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
         if (state.extraTicketFor === mail.conversationId) return extraTicketDone(mail, ticket, config, draft);
         Usage.record(draft.companyId, draft.activityId, mail.manual ? draft.subject : mail.subject);
-        if (mail.manual) {
-            await holdingRender(() => fold(root.querySelector('.ao-new-ticket-card .ao-inline-form')));
-            state.newTicketOpen = false;
-        }
         config.recent = [{ company: draft.companyId, activity: draft.activityId, timestamp: new Date().toISOString() },
             ...config.recent.filter(item => !(item.company === draft.companyId && item.activity === draft.activityId))].slice(0, 10);
         saveConfig(config);
+        if (mail.manual) {
+            // Senza mail: il modulo compilato diventa la scheda del ticket nuovo, poi il pulsante torna al suo posto.
+            const form = root.querySelector('.ao-new-ticket-card');
+            const from = form && !reducedMotion() ? shape(form) : null;
+            holdRender();
+            if (from) await fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' });
+            await refreshLists().catch(() => {});
+            state.newTicketOpen = false;
+            delete state.ticketDrafts[NEW_TICKET_KEY];
+            releaseRender();
+            render();
+            const item = [...root.querySelectorAll('.ao-scroll .ao-item')].find(element => element.querySelector('.ao-item-number')?.textContent === ticket.number);
+            if (from && item) await holdingRender(() => morphInto(item, from));
+            appear(root.querySelector('.ao-new-ticket'));
+            showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
+            return;
+        }
         render();
-        if (mail.manual) materialize(root.querySelector('.ao-new-ticket')); // il pulsante rinasce dalla luce
         await refreshLists();
         outcomeRelease(card);
         // Da In coda si resta in In coda (si smista la prossima); l'avviso porta al ticket per lavorarlo.
@@ -4141,7 +4150,6 @@
 #ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .25s, border-color .25s, color .25s; }
 #ao-root .ao-pill:hover { background: var(--ao-hover); }
 #ao-root .ao-pill.ao-away { visibility: hidden; }
-#ao-root .ao-spawn { position: fixed; z-index: 21; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, rgba(170, 210, 255, 1) 0%, rgba(110, 165, 255, .7) 35%, rgba(110, 165, 255, 0) 70%); } /* punto di luce da cui rinasce il pulsante */
 #ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
@@ -4174,12 +4182,9 @@
 #ao-root .ao-form-fields .ao-fav.ao-active .ao-fav-company { color: inherit; }
 #ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
-#ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); animation: ao-lift .32s cubic-bezier(.3, .8, .2, 1); }
-@keyframes ao-lift { from { transform: none; box-shadow: var(--ao-call-glow); } }
+#ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); } /* nasce dal pulsante (growFrom, morphInto) */
 #ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-new-ticket-card { animation: none; } }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
-#ao-root .ao-view:has(.ao-thread-head) .ao-new-ticket-card { animation: none; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 #ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-sm); cursor: pointer; }
