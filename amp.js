@@ -114,7 +114,6 @@
             callGlow: '0 0 transparent',
             lockLine: 'var(--ao-accent)', // azione confermata: nel Flat un bordo (nel vetro basta il bagliore)
             lockGlow: '0%', // intensità del bagliore dell'azione confermata (nel flat niente)
-            favBg: 'var(--ao-quote-bg)', // impostazioni suggerite nel modulo: pillole più scure del fondo (nel flat si confondevano)
             callGlowHover: '0 0 transparent',
             callGlowPulse: '0 0 transparent',
             callEdgeHover: 'var(--ao-accent)',
@@ -222,7 +221,6 @@
             lockGlow: '55%',
             tagHoverEdge: 'transparent',
             openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
-            favBg: 'var(--ao-surface)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
             callGlowPulse: '0 0 28px rgba(80, 150, 255, .78), 0 0 7px rgba(80, 150, 255, .48)',
             callEdgeHover: 'var(--ao-line)', // il bordo resta com'è
@@ -431,6 +429,9 @@
             company: 'Agenzia',
             activity: 'Attività',
             choose: 'Seleziona…',
+            suggestedGroup: 'Suggerite per l\'agenzia',
+            allGroup: 'Tutte',
+            proposedActivity: 'suggerita',
             suggestedFrom: reason => `Suggerita ${reason}`,
             byDomain: domain => `dal dominio @${domain}`,
             byText: 'dal testo della mail',
@@ -555,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 15:00';
+    const BUILD = '2026-11-09 15:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -997,19 +998,27 @@
     // Elenco a discesa del pannello (niente <select> di sistema): campo con il valore e la freccetta, elenco come
     // quello dei filtri. L'elenco si apre sopra a tutto (dentro #ao-root, non tagliato dalle schede) e si chiude
     // scegliendo, cliccando fuori, con Esc o scorrendo. Un valore vuoto ('') è il "Seleziona…", in grigio.
+    // Menu a tendina. options: { value, label } e, per dividere il menu, { group: 'Titolo' }.
+    // searchable: aperto, nel campo si scrive e l'elenco si filtra mentre si digita (Invio sceglie la prima voce).
     function selectField(label, options, value, onchange, extra = {}) {
+        const { searchable = false, ...attrs } = extra;
         let current = String(value ?? '');
+        const choices = options.filter(option => !option.group);
         const text = h('span', { class: 'ao-select-value' });
         const show = () => {
-            const option = options.find(item => String(item.value) === current) || options[0];
+            const option = choices.find(item => String(item.value) === current) || choices[0];
             text.textContent = option ? option.label : '';
-            text.classList.toggle('ao-select-placeholder', !current && options[0]?.value === '');
+            text.classList.toggle('ao-select-placeholder', !current && choices[0]?.value === '');
         };
         show();
         const field = h('div', {
-            class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label, ...extra,
-            onclick: () => toggleSelect(field, options, () => current, next => { current = String(next); show(); onchange(next); }),
+            class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label, ...attrs,
+            onclick: event => {
+                if (event.target.closest('.ao-select-search')) return; // si sta scrivendo
+                toggleSelect(field, options, () => current, next => { current = String(next); show(); onchange(next); }, searchable);
+            },
             onkeydown: event => {
+                if (event.target.closest('.ao-select-search')) return;
                 if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); field.click(); }
                 if (event.key === 'Escape') closeSelects();
             }
@@ -1018,29 +1027,65 @@
     }
     function closeSelects() {
         root?.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
+        root?.querySelectorAll('.ao-select-search').forEach(input => input.remove());
         root?.querySelectorAll('.ao-select.ao-open').forEach(field => field.classList.remove('ao-open'));
     }
-    function toggleSelect(field, options, getValue, pick) {
+    function toggleSelect(field, options, getValue, pick, searchable = false) {
         const wasOpen = field.classList.contains('ao-open');
         closeSelects();
         if (wasOpen) return;
         const box = root.getBoundingClientRect();
         const rect = field.getBoundingClientRect();
+        const choose = value => { closeSelects(); pick(value); field.focus(); };
         const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
-            options.map(option => h('button', {
-                type: 'button', role: 'option', 'aria-selected': String(String(option.value) === getValue()),
-                class: `ao-menu-item${String(option.value) === getValue() ? ' ao-active' : ''}${option.value === '' ? ' ao-select-placeholder' : ''}`,
-                onclick: event => { event.stopPropagation(); closeSelects(); pick(option.value); field.focus(); }
-            }, option.label)));
+            options.map(option => (option.group
+                ? h('div', { class: 'ao-menu-group' }, option.group)
+                : h('button', {
+                    type: 'button', role: 'option', 'aria-selected': String(String(option.value) === getValue()),
+                    class: `ao-menu-item${String(option.value) === getValue() ? ' ao-active' : ''}${option.value === '' ? ' ao-select-placeholder' : ''}`,
+                    onclick: event => { event.stopPropagation(); choose(option.value); }
+                }, option.mark ? h('span', { class: 'ao-suggest-mark', 'aria-hidden': 'true' }, '✦') : null, option.label))));
         // Sotto il campo se c'è spazio, altrimenti sopra; largo come il campo.
         menu.style.left = `${rect.left - box.left}px`;
         menu.style.width = `${rect.width}px`;
         root.append(menu);
-        const below = box.bottom - rect.bottom - 8;
-        if (menu.offsetHeight > below && rect.top - box.top > below) menu.style.top = `${rect.top - box.top - menu.offsetHeight - 4}px`;
-        else menu.style.top = `${rect.bottom - box.top + 4}px`;
+        const place = () => {
+            const below = box.bottom - rect.bottom - 8;
+            if (menu.offsetHeight > below && rect.top - box.top > below) menu.style.top = `${rect.top - box.top - menu.offsetHeight - 4}px`;
+            else menu.style.top = `${rect.bottom - box.top + 4}px`;
+        };
+        place();
         field.classList.add('ao-open');
         menu.querySelector('.ao-active')?.scrollIntoView({ block: 'nearest' });
+        if (!searchable) return;
+        // Si scrive nel campo: restano le voci che contengono il testo (e i titoli dei gruppi che ne hanno ancora)
+        const input = h('input', {
+            class: 'ao-select-search', type: 'text', placeholder: field.querySelector('.ao-select-value')?.textContent || '', 'aria-label': field.getAttribute('aria-label'),
+            oninput: () => {
+                const query = input.value.trim().toLowerCase();
+                let group = null, groupHasItems = false;
+                const finishGroup = () => { if (group) group.hidden = !groupHasItems; };
+                [...menu.children].forEach(entry => {
+                    if (entry.classList.contains('ao-menu-group')) { finishGroup(); group = entry; groupHasItems = false; return; }
+                    const match = !query || (!entry.classList.contains('ao-select-placeholder') && entry.textContent.toLowerCase().includes(query));
+                    entry.hidden = !match;
+                    if (match) groupHasItems = true;
+                });
+                finishGroup();
+                place();
+            },
+            onkeydown: event => {
+                if (event.key === 'Escape') { closeSelects(); field.focus(); }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const first = [...menu.querySelectorAll('.ao-menu-item:not([hidden]):not(.ao-select-placeholder)')][0];
+                    if (first) first.click();
+                }
+                if (event.key === 'ArrowDown') { event.preventDefault(); menu.querySelector('.ao-menu-item:not([hidden])')?.focus(); }
+            }
+        });
+        field.querySelector('.ao-select-caret').before(input);
+        input.focus();
     }
     function textField(label, value, oninput, extra = {}) {
         const { multiline, hint, ...attrs } = extra;
@@ -2545,17 +2590,12 @@
         draft.description ??= '';
         const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId] && String(draft.subject || '').trim());
         const refreshButton = () => { const button = root.querySelector('.ao-new-ticket-card .ao-primary'); if (button) button.disabled = !ready(); };
-        // Scrivendo la Short description si aggiornano solo i suggerimenti (il campo non perde il cursore).
-        const refreshSuggestions = () => {
-            const slot = root.querySelector(`[data-suggest-for="${NEW_TICKET_KEY}"]`);
-            if (slot) slot.replaceChildren(...[suggestionPills(draft, config, draft.subject)].filter(Boolean));
-        };
         const zone = ticketForm(mail, config, { zone: true });
         zone.append(
             h('div', { class: 'ao-field-row' },
                 textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
                 textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
-            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshSuggestions(); refreshButton(); }, { maxlength: '160' }),
+            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshButton(); }, { maxlength: '160' }),
             textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }));
         return h('section', { class: 'ao-card ao-new-ticket-card' },
             // Stesso riquadro della presa in carico da In coda: Agenzia, Attività, data e ora di ricezione,
@@ -2927,17 +2967,22 @@
                 .map(item => item.activityId);
         }
     };
-    function suggestionPills(draft, config, text) {
-        const company = config.companies[draft.companyId];
-        const ids = company ? Usage.suggest(draft.companyId, text, config) : [];
-        if (!ids.length) return null;
-        return h('div', { class: 'ao-chips ao-suggestions' }, ids.map(activityId => h('button', {
-            type: 'button',
-            class: `ao-fav${activityId === draft.activityId ? ' ao-active' : ''}`,
-            onclick: () => { draft.activityId = activityId; render(); }
-        }, h('span', { class: 'ao-fav-company' }, `${company.name} ·`), ` ${config.activities[activityId].name}`)));
+    // Attività dell'agenzia: le suggerite (dall'uso) in cima al menu, poi tutte le altre.
+    function activityOptions(draft, config, text) {
+        const all = Object.entries(config.activities).sort(byName);
+        const suggested = draft.companyId ? Usage.suggest(draft.companyId, text, config) : [];
+        const option = id => ({ value: id, label: config.activities[id].name });
+        return [{ value: '', label: TEXTS.mail.choose },
+            ...(suggested.length ? [{ group: TEXTS.mail.suggestedGroup }, ...suggested.map(id => ({ ...option(id), mark: true })), { group: TEXTS.mail.allGroup }] : []),
+            ...all.filter(([id]) => !suggested.includes(id)).map(([id]) => option(id))];
     }
-
+    // Con l'agenzia scelta, se l'attività non è stata scelta a mano si propone la più probabile (etichetta "suggerita").
+    function proposeActivity(draft, config, text) {
+        if (draft.activityId && !draft.activityProposed) return;
+        const [top] = draft.companyId ? Usage.suggest(draft.companyId, text, config) : [];
+        draft.activityId = top || (draft.activityProposed ? '' : draft.activityId);
+        draft.activityProposed = Boolean(top);
+    }
     function ticketDraft(mail, config) {
         if (!state.ticketDrafts[mail.conversationId]) {
             const suggestion = suggestCompany(config, mail.sender, mail.subject, mail.body);
@@ -2960,35 +3005,25 @@
     function ticketForm(mail, config, { compact = false, zone = false, user = currentUser(config) } = {}) {
         const draft = ticketDraft(mail, config);
         const companies = Object.entries(config.companies).sort(byName);
-        const activities = Object.entries(config.activities).sort(byName);
+        // Parole per i suggerimenti: oggetto e inizio della mail; senza mail, la Short description scritta.
+        const suggestText = mail.manual ? draft.subject : `${mail.subject || ''} ${String(mail.body || '').slice(0, 400)}`;
+        proposeActivity(draft, config, suggestText);
         const company = config.companies[draft.companyId];
         const activity = config.activities[draft.activityId];
         const rerender = () => render();
-        // Parole per i suggerimenti: oggetto e inizio della mail; senza mail, la Short description scritta.
-        const suggestText = mail.manual ? draft.subject : `${mail.subject || ''} ${String(mail.body || '').slice(0, 400)}`;
-        // In coda: campi raccolti in un riquadro; l'agenzia suggerita è un'etichetta accanto ad "Agenzia"
-        // (la frase intera passando sopra) e le pillole stanno sotto "Attività", che è quello che scelgono.
-        if (zone) {
-            const suggested = draft.suggestion && draft.suggestion.id === draft.companyId;
-            const companyField = selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
-                draft.companyId, value => { draft.companyId = value; rerender(); });
-            if (suggested) companyField.querySelector('.ao-label').append(
-                h('span', { class: 'ao-suggest-tag', title: TEXTS.mail.suggestedFrom(draft.suggestion.reason) }, draft.suggestion.tag || TEXTS.mail.suggestedFrom(draft.suggestion.reason)));
-            const activityField = selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
-                draft.activityId, value => { draft.activityId = value; rerender(); });
-            activityField.insertBefore(h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
-                activityField.querySelector('.ao-select'));
-            return h('div', { class: 'ao-form-fields' }, companyField, activityField);
-        }
+        // Agenzia e Attività: nel campo si scrive per filtrare. L'agenzia suggerita (dal dominio) e l'attività proposta
+        // hanno un'etichetta accanto al titolo; nel menu di Attività le suggerite per l'agenzia stanno in cima.
+        const companyField = selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
+            draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; rerender(); }, { searchable: true });
+        if (draft.suggestion && draft.suggestion.id === draft.companyId) companyField.querySelector('.ao-label').append(
+            h('span', { class: 'ao-suggest-tag', title: TEXTS.mail.suggestedFrom(draft.suggestion.reason) }, draft.suggestion.tag || TEXTS.mail.suggestedFrom(draft.suggestion.reason)));
+        const activityField = selectField(TEXTS.mail.activity, activityOptions(draft, config, suggestText),
+            draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; rerender(); }, { searchable: true });
+        if (draft.activityProposed && draft.activityId) activityField.querySelector('.ao-label').append(h('span', { class: 'ao-suggest-tag' }, TEXTS.mail.proposedActivity));
+        if (zone) return h('div', { class: 'ao-form-fields' }, companyField, activityField);
         return [
-            selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
-                draft.companyId, value => { draft.companyId = value; rerender(); }),
-            // Riga sempre presente (anche vuota): se l'avviso sparisce, il modulo non cambia altezza.
-            h('div', { class: 'ao-hint ao-hint-accent ao-hint-slot' },
-                draft.suggestion && draft.suggestion.id === draft.companyId ? TEXTS.mail.suggestedFrom(draft.suggestion.reason) : ''),
-            h('div', { class: 'ao-suggestions-slot', dataset: { suggestFor: mail.conversationId } }, suggestionPills(draft, config, suggestText)),
-            selectField(TEXTS.mail.activity, [{ value: '', label: TEXTS.mail.choose }, ...activities.map(([id, item]) => ({ value: id, label: item.name }))],
-                draft.activityId, value => { draft.activityId = value; rerender(); }),
+            companyField,
+            activityField,
             // Short description = oggetto della mail (+ prefisso dell'attività), Description = corpo: non si modificano.
             // I prefissi tra parentesi quadre (es. [FWD]) li gestirà in automatico il flusso dell'inoltro.
             !compact && company && activity ? h('dl', { class: 'ao-fields' },
@@ -4211,7 +4246,6 @@
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-text-accent); }
-#ao-root .ao-hint-slot { min-height: 1.4em; }
 #ao-root .ao-hint-danger { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
@@ -4250,30 +4284,24 @@
 #ao-root .ao-select-caret { flex: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); transition: transform .2s; }
 #ao-root .ao-select.ao-open { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); }
 #ao-root .ao-select.ao-open .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-menu-group { padding: 6px 10px 2px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-menu-group:not(:first-child) { margin-top: 2px; border-top: 1px solid var(--ao-line); padding-top: 6px; }
+#ao-root .ao-suggest-mark { color: var(--ao-text-accent); font-size: .85em; }
+#ao-root .ao-select-search { flex: 1; min-width: 0; margin: -2px 0; padding: 0; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; } /* aperto con il filtro: al posto del valore si scrive */
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
 #ao-root .ao-input:focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
-#ao-root .ao-suggestions-slot:empty { display: none; }
 /* Campi dei moduli (Prendi in carico, Nuovo ticket, Risposta): campi semplici sulla scheda, come in tutto il pannello;
    l'agenzia suggerita sta accanto all'etichetta, le pillole delle attività sotto "Attività" */
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#ao-root .ao-form-fields .ao-suggestions-slot { margin-bottom: 3px; }
-#ao-root .ao-form-fields .ao-fav { padding: 4px 10px; border-color: transparent; background: var(--ao-fav-bg); box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
-#ao-root .ao-form-fields .ao-fav:hover { border-color: transparent; background: var(--ao-hover); }
-#ao-root .ao-form-fields .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
-#ao-root .ao-form-fields .ao-fav-company { color: var(--ao-text-subtle); }
-#ao-root .ao-form-fields .ao-fav.ao-active .ao-fav-company { color: inherit; }
 #ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); } /* nasce dal pulsante (growFrom, morphInto) */
 #ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
-#ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-#ao-root .ao-fav { padding: 3px 9px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); font-size: var(--ao-fs-sm); cursor: pointer; }
-#ao-root .ao-fav:hover { border-color: var(--ao-accent-border); background: var(--ao-accent-bg); }
-#ao-root .ao-fav.ao-active { border-color: var(--ao-accent); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-fields { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); background: var(--ao-bg-soft); font-size: var(--ao-fs-md); }
 #ao-root .ao-fields dt { color: var(--ao-text-muted); }
 #ao-root .ao-fields dt:first-child { font-weight: var(--ao-fw-medium); color: var(--ao-text); }
