@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-9
+// Test-Plugin file version: 0.2-taskpane.js-devtools-10
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-9',
-    'taskpane.js': '0.2-taskpane.js-devtools-9',
-    'taskpane.css': '0.2-taskpane.css-devtools-9',
+    'taskpane.html': '0.2-taskpane.html-devtools-10',
+    'taskpane.js': '0.2-taskpane.js-devtools-10',
+    'taskpane.css': '0.2-taskpane.css-devtools-10',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -659,7 +659,7 @@ function registerHealthButton() {
   }
 
   function syncDeveloperConversationId() {
-    if (getDeveloperAction() !== "GetTicketByConversationId") return;
+    if (getDeveloperAction() !== "GetRecordByConversationId") return;
     const input = byId("developer-action-input");
     if (input) input.value = currentMessageContext?.normalizedConversationId || "";
   }
@@ -1273,8 +1273,8 @@ function registerHealthButton() {
   }
 
   const DEVELOPER_ENDPOINTS = Object.freeze({
-    GetTicketByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketByConversationId",
-    GetTicketById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetTicketById",
+    GetRecordByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordByConversationId",
+    GetRecordById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordById",
     CreateTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata"
   });
 
@@ -1287,7 +1287,7 @@ function registerHealthButton() {
   }
 
   function getDeveloperAction() {
-    return byId("developer-action-select")?.value || "GetTicketByConversationId";
+    return byId("developer-action-select")?.value || "GetRecordByConversationId";
   }
 
   function setSelectOptions(select, options, preferredValue = "") {
@@ -1355,6 +1355,7 @@ function registerHealthButton() {
     const isCreate = action === "CreateTicket";
     const isCategory = action === "AddCategoriesOfficeJs" || action === "RemoveCategoriesOfficeJs";
     const isAddCategory = action === "AddCategoriesOfficeJs";
+    const isConversationLookup = action === "GetRecordByConversationId";
     const getForm = byId("developer-get-form");
     const createForm = byId("developer-create-form");
     const categoryForm = byId("developer-category-form");
@@ -1365,6 +1366,8 @@ function registerHealthButton() {
     const clearRow = byId("developer-category-clear-row");
     if (replaceRow) replaceRow.hidden = !isAddCategory;
     if (clearRow) clearRow.hidden = isAddCategory;
+    const conversationModeRow = byId("developer-conversation-mode-row");
+    if (conversationModeRow) conversationModeRow.hidden = !isConversationLookup;
 
     if (isCreate) {
       populateCreateTicketForm();
@@ -1385,7 +1388,7 @@ function registerHealthButton() {
     const label = byId("developer-action-input-label");
     const input = byId("developer-action-input");
     if (!label || !input) return;
-    if (action === "GetTicketById") {
+    if (action === "GetRecordById") {
       label.textContent = "Item ID";
       input.placeholder = "es. 9840";
       input.value = developerLastItemId || "";
@@ -1422,12 +1425,94 @@ function registerHealthButton() {
   function addDeveloperField(container, label, value) {
     const card = document.createElement("div");
     card.className = "developer-field-card";
+    if (label === "Note ticket") card.classList.add("developer-note-field");
     const name = document.createElement("span");
     name.textContent = label;
     const content = document.createElement("strong");
     content.textContent = value == null || value === "" ? "Non disponibile" : String(value);
     card.append(name, content);
     container.appendChild(card);
+  }
+
+  function removeRecordLogs(value) {
+    if (Array.isArray(value)) return value.map(removeRecordLogs);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => {
+          const normalizedKey = key.replace(/[^a-z]/gi, "").toLowerCase();
+          return !["log", "logs", "logentry", "logentries", "ticketlog", "ticketlogs"].includes(normalizedKey);
+        })
+        .map(([key, entry]) => [key, removeRecordLogs(entry)])
+    );
+  }
+
+  function getRecordResultEntries(parsed) {
+    if (Array.isArray(parsed)) return parsed;
+    const collections = [
+      parsed?.records,
+      parsed?.items,
+      parsed?.results,
+      parsed?.value,
+      parsed?.data,
+      parsed?.data?.records,
+      parsed?.data?.items
+    ];
+    const collection = collections.find(Array.isArray);
+    if (collection) return collection;
+    if (parsed?.record && typeof parsed.record === "object") return [parsed.record];
+    return parsed?.fields && typeof parsed.fields === "object" ? [parsed] : [];
+  }
+
+  function hasRecordResultShape(parsed) {
+    return Array.isArray(parsed) || Boolean(
+      parsed?.record ||
+      parsed?.fields ||
+      [parsed?.records, parsed?.items, parsed?.results, parsed?.value, parsed?.data, parsed?.data?.records, parsed?.data?.items].some(Array.isArray)
+    );
+  }
+
+  function getRecordFields(record) {
+    return record?.fields && typeof record.fields === "object" ? record.fields : {};
+  }
+
+  function getRecordItemId(record) {
+    const fields = getRecordFields(record);
+    return record?.itemId || record?.id || fields?.id || fields?.Id || fields?.ID || "";
+  }
+
+  function getTicketNotes(record) {
+    const fields = getRecordFields(record);
+    const candidates = [
+      record?.notes,
+      record?.note,
+      fields?.Notes,
+      fields?.Note,
+      fields?.notes,
+      fields?.note,
+      fields?.TicketNotes,
+      fields?.TicketNote
+    ];
+    const direct = candidates.find((value) => value !== undefined && value !== null && value !== "");
+    if (direct !== undefined) return direct;
+    const dynamicEntry = Object.entries(fields).find(([key, value]) => {
+      if (value === undefined || value === null || value === "") return false;
+      const normalizedKey = key.replace(/_x[0-9a-f]{4}_/gi, "").replace(/[^a-z]/gi, "").toLowerCase();
+      return ["note", "notes", "ticketnote", "ticketnotes", "noteticket", "notesticket"].includes(normalizedKey);
+    });
+    return dynamicEntry?.[1];
+  }
+
+  function formatTicketNotes(notes) {
+    if (Array.isArray(notes)) {
+      return notes.map(formatTicketNotes).filter(Boolean).join("\n\n");
+    }
+    if (notes && typeof notes === "object") {
+      const text = notes.text ?? notes.body ?? notes.content ?? notes.note ?? notes.value;
+      if (text !== undefined && text !== null && text !== "") return String(text);
+      return JSON.stringify(removeRecordLogs(notes), null, 2);
+    }
+    return notes == null ? "" : String(notes);
   }
 
   function renderSelectedAmpTicket(container, ticket) {
@@ -1469,19 +1554,17 @@ function registerHealthButton() {
     redraw();
   }
 
-  function renderTicketFields(parsed) {
-    const container = byId("developer-ticket-fields");
-    if (!container) return;
-    container.replaceChildren();
-    container.className = "developer-fields";
-    const fields = parsed?.fields || {};
-    const itemId = parsed?.itemId || fields?.id || "";
+  function renderRecordFields(container, record) {
+    const fields = getRecordFields(record);
+    const itemId = getRecordItemId(record);
     const lookupId = fields?.AssegnataaLookupId;
     const operator = findOperatorByLookupId(lookupId);
     addDeveloperField(container, "Item ID", itemId);
     addDeveloperField(container, "Gruppo", fields?.Gruppo);
     addDeveloperField(container, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})` : (lookupId ? `LookupId ${lookupId}` : null));
     addDeveloperField(container, "Stato SharePoint", fields?._Status);
+    const notes = getTicketNotes(record);
+    if (notes !== undefined) addDeveloperField(container, "Note ticket", formatTicketNotes(notes));
     const metadata = parseAmpMetadata(fields?.AMP_x002d_AVANADE);
     if (metadata.error) {
       const error = document.createElement("div");
@@ -1498,6 +1581,53 @@ function registerHealthButton() {
       return;
     }
     appendTicketSelector(container, metadata.tickets);
+  }
+
+  function appendRecordSelector(container, records) {
+    addDeveloperField(container, "Record restituiti", records.length);
+    if (!records.length) {
+      const empty = document.createElement("div");
+      empty.className = "developer-ticket-empty";
+      empty.textContent = "Nessun record restituito.";
+      container.appendChild(empty);
+      return;
+    }
+
+    if (records.length === 1) {
+      renderRecordFields(container, records[0]);
+      return;
+    }
+
+    const selectorBox = document.createElement("div");
+    selectorBox.className = "developer-ticket-selector";
+    const label = document.createElement("label");
+    label.textContent = "Record SharePoint";
+    const selector = document.createElement("select");
+    records.forEach((record, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      const itemId = getRecordItemId(record);
+      option.textContent = itemId ? `Item ${itemId}` : `Record ${index + 1}`;
+      selector.appendChild(option);
+    });
+    const host = document.createElement("div");
+    const redraw = () => {
+      host.replaceChildren();
+      host.className = "developer-fields";
+      renderRecordFields(host, records[Number(selector.value) || 0]);
+    };
+    selector.addEventListener("change", redraw);
+    selectorBox.append(label, selector);
+    container.append(selectorBox, host);
+    redraw();
+  }
+
+  function renderRecordResultFields(parsed) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    appendRecordSelector(container, getRecordResultEntries(parsed));
   }
 
   function ticketSummaryValue(ticket) {
@@ -1599,6 +1729,10 @@ function registerHealthButton() {
     return action === "AddCategoriesOfficeJs" || action === "RemoveCategoriesOfficeJs";
   }
 
+  function isRecordDeveloperAction(action) {
+    return action === "GetRecordByConversationId" || action === "GetRecordById";
+  }
+
   function formatCategoryNameList(value) {
     if (!Array.isArray(value)) return "Non disponibile";
     return value.length ? value.join(", ") : "Nessuna";
@@ -1645,25 +1779,29 @@ function registerHealthButton() {
     let parsed = null;
     try {
       parsed = JSON.parse(result.body || "{}");
+      if (isRecordDeveloperAction(action)) parsed = removeRecordLogs(parsed);
       response.textContent = JSON.stringify(parsed, null, 2);
     } catch {
       response.textContent = result.body || "(Risposta vuota)";
     }
 
-    const returnedItemId = parsed?.itemId || parsed?.fields?.id;
+    const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
+    const returnedItemId = returnedRecord ? getRecordItemId(returnedRecord) : (parsed?.itemId || parsed?.fields?.id);
     if (action !== "CreateTicket" && returnedItemId) {
       developerLastItemId = String(returnedItemId);
       const createItemInput = byId("developer-create-item-id");
       if (createItemInput) createItemInput.value = developerLastItemId;
     }
 
-    const hasFieldView = action === "CreateTicket" || isCategoryDeveloperAction(action)
-      ? Boolean(parsed && typeof parsed === "object")
-      : Boolean(parsed?.fields);
+    const hasFieldView = isRecordDeveloperAction(action)
+      ? hasRecordResultShape(parsed)
+      : (action === "CreateTicket" || isCategoryDeveloperAction(action)
+        ? Boolean(parsed && typeof parsed === "object")
+        : Boolean(parsed?.fields));
     developerResultView = hasFieldView ? "fields" : "json";
     if (action === "CreateTicket" && parsed) renderCreateTicketFields(parsed);
     else if (isCategoryDeveloperAction(action) && parsed) renderCategoryFields(parsed, action);
-    else if (parsed?.fields) renderTicketFields(parsed);
+    else if (isRecordDeveloperAction(action) && hasRecordResultShape(parsed)) renderRecordResultFields(parsed);
     else byId("developer-ticket-fields")?.replaceChildren();
     applyDeveloperResultView();
   }
@@ -1797,6 +1935,14 @@ function registerHealthButton() {
     };
   }
 
+  function getConversationRecordMode() {
+    const mode = String(byId("developer-conversation-mode")?.value || "all").trim().toLowerCase();
+    if (!["all", "first", "last"].includes(mode)) {
+      throw new Error("Mode non valido: usa all, first oppure last.");
+    }
+    return mode;
+  }
+
   async function executeDeveloperAction(createBodyOverride = null) {
     const action = createBodyOverride ? "CreateTicket" : getDeveloperAction();
     const value = String(byId("developer-action-input")?.value || "").trim();
@@ -1815,7 +1961,7 @@ function registerHealthButton() {
         return;
       }
       if (action !== "CreateTicket" && !value) {
-        throw new Error(action === "GetTicketById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
+        throw new Error(action === "GetRecordById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
       }
       const authentication = await window.WorkflowHealth.getAccessTokenSilently();
       if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile.");
@@ -1842,13 +1988,16 @@ function registerHealthButton() {
         };
         requestContext = body;
       } else {
-        const parameter = action === "GetTicketById" ? "itemId" : "conversationId";
-        url = `${DEVELOPER_ENDPOINTS[action]}?${parameter}=${encodeURIComponent(value)}`;
+        const parameter = action === "GetRecordById" ? "itemId" : "conversationId";
+        const query = new URLSearchParams({ [parameter]: value });
+        const mode = action === "GetRecordByConversationId" ? getConversationRecordMode() : null;
+        if (mode) query.set("mode", mode);
+        url = `${DEVELOPER_ENDPOINTS[action]}?${query.toString()}`;
         request = {
           method: "GET",
           headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" }
         };
-        requestContext = { [parameter]: value };
+        requestContext = { [parameter]: value, ...(mode ? { mode } : {}) };
       }
 
       const fetchResponse = await fetch(url, request);
@@ -1863,16 +2012,18 @@ function registerHealthButton() {
       showTicketResult(result, action);
       let parsed = null;
       try { parsed = JSON.parse(responseBody || "{}"); } catch {}
+      if (parsed && isRecordDeveloperAction(action)) parsed = removeRecordLogs(parsed);
+      const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
       currentSharePointData = {
         operation: action,
-        conversationId: action === "GetTicketByConversationId" ? value : (parsed?.conversationId || null),
-        itemId: action === "CreateTicket" ? requestContext.itemId : (parsed?.itemId || parsed?.fields?.id || null),
+        conversationId: action === "GetRecordByConversationId" ? value : (parsed?.conversationId || returnedRecord?.conversationId || null),
+        itemId: action === "CreateTicket" ? requestContext.itemId : (returnedRecord ? getRecordItemId(returnedRecord) : (parsed?.itemId || parsed?.fields?.id || null)),
         ok: result.ok,
         status: result.status,
         statusText: result.statusText,
         authenticationMode: result.authenticationMode,
         retrievedAt: new Date().toISOString(),
-        request: action === "CreateTicket" ? requestContext : null,
+        request: action === "CreateTicket" || isRecordDeveloperAction(action) ? requestContext : null,
         data: parsed,
         rawBody: parsed ? null : responseBody
       };
@@ -2057,7 +2208,7 @@ function registerHealthButton() {
     registerPluginSettingsControls();
     registerHeaderViewControls();
     // La lettura Outlook e la configurazione operativa sono pipeline indipendenti.
-    // Nessuna delle due esegue automaticamente GetTicketByConversationId.
+    // Nessuna delle due esegue automaticamente GetRecordByConversationId.
     void loadSelectedMessage();
     void initializeOperationalConfig();
     refreshAuthDiagnostics();

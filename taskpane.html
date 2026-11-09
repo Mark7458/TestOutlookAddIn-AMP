@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.2-taskpane.html-devtools-9 -->
+<!-- Test-Plugin file version: 0.2-taskpane.html-devtools-10 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -15,8 +15,8 @@
 <header class="app-header"><img alt="" height="64" src="icon-64.png" width="64"/><div class="app-title"><h1>Test-Plugin</h1><p id="plugin-version">Versione non disponibile</p></div></header>
 <main><div id="main-view"><div aria-live="polite" class="notice" id="loading" role="status">Lettura del messaggio selezionato…</div><div class="notice notice-error" hidden="" id="error" role="alert"></div><section class="toggle-card"><button aria-controls="email-details-panel" aria-expanded="false" class="section-toggle" id="email-details-toggle" type="button">Developer Tools</button>
 <div class="toggle-panel" hidden="" id="email-details-panel"><div class="developer-inline-action" id="developer-inline-action">
-<label for="developer-action-select">Azione</label><select class="developer-input" id="developer-action-select"><option value="GetTicketByConversationId">GetTicketByConversationId</option><option value="GetTicketById">GetTicketById</option><option value="CreateTicket">CreateTicket</option><option value="AddCategoriesOfficeJs">AddCategoriesOfficeJs</option><option value="RemoveCategoriesOfficeJs">RemoveCategoriesOfficeJs</option></select>
-<div class="developer-get-form" id="developer-get-form"><label for="developer-action-input" id="developer-action-input-label">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-action-input" spellcheck="false" type="text"/></div>
+<label for="developer-action-select">Azione</label><select class="developer-input" id="developer-action-select"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option><option value="CreateTicket">CreateTicket</option><option value="AddCategoriesOfficeJs">AddCategoriesOfficeJs</option><option value="RemoveCategoriesOfficeJs">RemoveCategoriesOfficeJs</option></select>
+<div class="developer-get-form" id="developer-get-form"><label for="developer-action-input" id="developer-action-input-label">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-action-input" spellcheck="false" type="text"/><div class="developer-record-mode" id="developer-conversation-mode-row"><label for="developer-conversation-mode">Mode</label><select class="developer-input" id="developer-conversation-mode"><option value="all">all — tutti i record</option><option value="first">first — primo record</option><option value="last">last — ultimo record</option></select><p class="developer-create-help">Il mode viene inviato a GetRecordByConversationId.</p></div></div>
 <div class="developer-create-form" hidden="" id="developer-create-form">
 <div class="developer-create-field"><label for="developer-create-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-create-amp-request-id">Riferimento AMP</label><input autocomplete="off" class="developer-input monospace" id="developer-create-amp-request-id" placeholder="es. INC123456789" spellcheck="false" type="text"/></div>
