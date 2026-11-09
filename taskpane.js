@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.2-taskpane.js-devtools-10
+// Test-Plugin file version: 0.2-taskpane.js-devtools-12
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.2',
   release: '0.2-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.2-taskpane.html-devtools-10',
-    'taskpane.js': '0.2-taskpane.js-devtools-10',
-    'taskpane.css': '0.2-taskpane.css-devtools-10',
+    'taskpane.html': '0.2-taskpane.html-devtools-12',
+    'taskpane.js': '0.2-taskpane.js-devtools-12',
+    'taskpane.css': '0.2-taskpane.css-devtools-12',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1277,6 +1277,7 @@ function registerHealthButton() {
     GetRecordById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordById",
     CreateTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata"
   });
+  const TICKET_NOTES_MAX_LENGTH = 255;
 
   function resetTicketResult() {
     const panel = byId("developer-ticket-result");
@@ -1426,6 +1427,7 @@ function registerHealthButton() {
     const card = document.createElement("div");
     card.className = "developer-field-card";
     if (label === "Note ticket") card.classList.add("developer-note-field");
+    if (label === "Log") card.classList.add("developer-log-field");
     const name = document.createElement("span");
     name.textContent = label;
     const content = document.createElement("strong");
@@ -1434,13 +1436,20 @@ function registerHealthButton() {
     container.appendChild(card);
   }
 
+  function normalizeRecordFieldName(value) {
+    return String(value || "")
+      .replace(/_x[0-9a-f]{4}_/gi, "")
+      .replace(/[^a-z]/gi, "")
+      .toLowerCase();
+  }
+
   function removeRecordLogs(value) {
     if (Array.isArray(value)) return value.map(removeRecordLogs);
     if (!value || typeof value !== "object") return value;
     return Object.fromEntries(
       Object.entries(value)
         .filter(([key]) => {
-          const normalizedKey = key.replace(/[^a-z]/gi, "").toLowerCase();
+          const normalizedKey = normalizeRecordFieldName(key);
           return !["log", "logs", "logentry", "logentries", "ticketlog", "ticketlogs"].includes(normalizedKey);
         })
         .map(([key, entry]) => [key, removeRecordLogs(entry)])
@@ -1481,26 +1490,28 @@ function registerHealthButton() {
     return record?.itemId || record?.id || fields?.id || fields?.Id || fields?.ID || "";
   }
 
-  function getTicketNotes(record) {
-    const fields = getRecordFields(record);
-    const candidates = [
-      record?.notes,
-      record?.note,
-      fields?.Notes,
-      fields?.Note,
-      fields?.notes,
-      fields?.note,
-      fields?.TicketNotes,
-      fields?.TicketNote
-    ];
-    const direct = candidates.find((value) => value !== undefined && value !== null && value !== "");
-    if (direct !== undefined) return direct;
-    const dynamicEntry = Object.entries(fields).find(([key, value]) => {
-      if (value === undefined || value === null || value === "") return false;
-      const normalizedKey = key.replace(/_x[0-9a-f]{4}_/gi, "").replace(/[^a-z]/gi, "").toLowerCase();
-      return ["note", "notes", "ticketnote", "ticketnotes", "noteticket", "notesticket"].includes(normalizedKey);
-    });
-    return dynamicEntry?.[1];
+  function getSharePointAuditLog(fields) {
+    const entry = Object.entries(fields || {}).find(([key, value]) =>
+      normalizeRecordFieldName(key) === "note" && value !== undefined && value !== null && value !== ""
+    );
+    return entry?.[1];
+  }
+
+  function formatSharePointAuditLog(value) {
+    if (Array.isArray(value)) return value.map(formatSharePointAuditLog).filter(Boolean).join("\n\n");
+    if (value && typeof value === "object") return JSON.stringify(removeRecordLogs(value), null, 2);
+    const source = value == null ? "" : String(value);
+    if (!source || !/<[a-z][\s\S]*>/i.test(source)) return source;
+    if (typeof DOMParser !== "undefined") {
+      const document = new DOMParser().parseFromString(source, "text/html");
+      return String(document.body?.textContent || "").trim();
+    }
+    return source
+      .replace(/<br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/div\s*>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   function formatTicketNotes(notes) {
@@ -1527,6 +1538,8 @@ function registerHealthButton() {
     addDeveloperField(details, "Lock acquisito", ticket?.lock?.acquiredAt);
     addDeveloperField(details, "Creato", ticket?.createdAt);
     addDeveloperField(details, "Ultima attività", ticket?.lastActivityAt);
+    const ticketNotes = formatTicketNotes(ticket?.notes);
+    if (ticketNotes) addDeveloperField(details, "Note ticket", ticketNotes);
     container.appendChild(details);
   }
 
@@ -1563,8 +1576,8 @@ function registerHealthButton() {
     addDeveloperField(container, "Gruppo", fields?.Gruppo);
     addDeveloperField(container, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})` : (lookupId ? `LookupId ${lookupId}` : null));
     addDeveloperField(container, "Stato SharePoint", fields?._Status);
-    const notes = getTicketNotes(record);
-    if (notes !== undefined) addDeveloperField(container, "Note ticket", formatTicketNotes(notes));
+    const auditLog = getSharePointAuditLog(fields);
+    if (auditLog !== undefined) addDeveloperField(container, "Log", formatSharePointAuditLog(auditLog));
     const metadata = parseAmpMetadata(fields?.AMP_x002d_AVANADE);
     if (metadata.error) {
       const error = document.createElement("div");
@@ -1717,6 +1730,8 @@ function registerHealthButton() {
     addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
     addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
     addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
+    const createdTicketNotes = formatTicketNotes(createdTicket?.notes ?? body.notes);
+    if (createdTicketNotes && !tickets.length) addDeveloperField(container, "Note ticket", createdTicketNotes);
     addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
     addDeveloperField(container, "Gruppo", parsed?.groupName || body.groupName);
     addDeveloperField(container, "Lock", createdTicket?.lock ? `${createdTicket.lock.operatorId || body.operatorId} · ${createdTicket.lock.workflow || "CreateTicket"}` : `${body.operatorId || "-"} · CreateTicket`);
@@ -1923,6 +1938,10 @@ function registerHealthButton() {
     if (!developerConfig.ticketing.workflows.includes("CreateTicket")) {
       throw new Error("Il workflow CreateTicket non è disponibile in PluginConfig.");
     }
+    const notes = String(byId("developer-create-notes")?.value || "").trim();
+    if (notes.length > TICKET_NOTES_MAX_LENGTH) {
+      throw new Error(`Le note del ticket non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
+    }
     return {
       itemId: requiredFormValue("developer-create-item-id", "Item ID"),
       action: "CreateTicket",
@@ -1931,8 +1950,18 @@ function registerHealthButton() {
       operatorId: requiredFormValue("developer-create-operator-id", "Operatore"),
       requesterId: requiredFormValue("developer-create-requester-id", "Requester"),
       groupName: requiredFormValue("developer-create-group-name", "Gruppo"),
-      createAdditionalTicket: Boolean(byId("developer-create-additional")?.checked)
+      createAdditionalTicket: Boolean(byId("developer-create-additional")?.checked),
+      ...(notes ? { notes } : {})
     };
+  }
+
+  function updateCreateTicketNotesCount() {
+    const input = byId("developer-create-notes");
+    const counter = byId("developer-create-notes-count");
+    if (!counter) return;
+    const length = String(input?.value || "").length;
+    counter.textContent = `${length}/${TICKET_NOTES_MAX_LENGTH}`;
+    counter.className = length > TICKET_NOTES_MAX_LENGTH ? "status-error" : "";
   }
 
   function getConversationRecordMode() {
@@ -2049,8 +2078,10 @@ function registerHealthButton() {
       applyDeveloperResultView();
     });
     byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
+    byId("developer-create-notes")?.addEventListener("input", updateCreateTicketNotesCount);
     byId(elementIds.idToggle)?.addEventListener("click", () => toggleIdentifierView("itemId"));
     byId(elementIds.conversationIdToggle)?.addEventListener("click", () => toggleIdentifierView("conversationId"));
+    updateCreateTicketNotesCount();
     updateDeveloperActionUi();
   }
 

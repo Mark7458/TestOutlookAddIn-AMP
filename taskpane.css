@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.2-taskpane.css-devtools-10 */
+/* Test-Plugin file version: 0.2-taskpane.css-devtools-12 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -563,7 +563,9 @@ footer {
 /* Developer Tools CreateTicket. */
 .developer-get-form,.developer-create-form,.developer-category-form,.developer-create-field,.developer-record-mode{display:grid;gap:5px}
 .developer-record-mode{margin-top:4px;padding:9px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
-.developer-note-field strong{white-space:pre-wrap}
+.developer-note-field strong,.developer-log-field strong{white-space:pre-wrap}
+.developer-notes-input{min-height:74px;resize:vertical;font:inherit}
+.developer-notes-help{display:flex;justify-content:space-between;gap:10px}.developer-notes-help span:first-child{flex:1}.developer-notes-help span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 .developer-create-form,.developer-category-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
 .developer-create-checkbox{display:flex!important;align-items:center;gap:8px;padding:4px 0;color:#323130!important;font-size:12px!important;cursor:pointer}
 .developer-create-checkbox input{width:17px;height:17px;margin:0}
