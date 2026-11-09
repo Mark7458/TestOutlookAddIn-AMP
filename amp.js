@@ -552,7 +552,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 14:30';
+    const BUILD = '2026-11-09 14:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4187,8 +4187,8 @@
 #ao-root .ao-user-tag-in { animation: ao-tag-in .28s cubic-bezier(.32, 1.28, .5, 1); }
 @keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
 /* Posto vuoto per la propria etichetta: più stretto di qualunque etichetta, con il fondo dei selettori */
-#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .2s, background-color .2s; }
-#ao-root .ao-user-tag-add:hover { color: var(--ao-text); background: linear-gradient(var(--ao-segment-hover), var(--ao-segment-hover)), var(--ao-segment-track); }
+#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .3s, box-shadow .4s ease; }
+#ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-item-hover-edge), var(--ao-item-hover-glow); } /* come le schede: non si schiarisce, si accendono bordo (e bagliore nel vetro) */
 /* Profilo: scelta del colore */
 #ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 #ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
