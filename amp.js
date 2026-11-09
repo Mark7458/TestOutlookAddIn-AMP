@@ -110,6 +110,8 @@
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
             lockLine: 'var(--ao-accent)', // azione confermata: nel Flat un bordo (nel vetro basta il bagliore)
+            lockGlow: '0%', // intensità del bagliore dell'azione confermata (nel flat niente)
+            favBg: 'var(--ao-quote-bg)', // impostazioni suggerite nel modulo: pillole più scure del fondo (nel flat si confondevano)
             callGlowHover: '0 0 transparent',
             callGlowPulse: '0 0 transparent',
             callEdgeHover: 'var(--ao-accent)',
@@ -214,6 +216,8 @@
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             lockLine: 'transparent',
+            lockGlow: '55%',
+            favBg: 'var(--ao-surface)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
             callGlowPulse: '0 0 28px rgba(80, 150, 255, .78), 0 0 7px rgba(80, 150, 255, .48)',
             callEdgeHover: 'var(--ao-line)', // il bordo resta com'è
@@ -545,7 +549,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 13:15';
+    const BUILD = '2026-11-09 13:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4236,7 +4240,7 @@
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ao-root .ao-form-fields .ao-suggestions-slot { margin-bottom: 3px; }
-#ao-root .ao-form-fields .ao-fav { padding: 4px 10px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
+#ao-root .ao-form-fields .ao-fav { padding: 4px 10px; border-color: transparent; background: var(--ao-fav-bg); box-shadow: 0 1px 2px rgba(0,0,0,.06); color: var(--ao-text); transition: background-color .2s, color .2s; }
 #ao-root .ao-form-fields .ao-fav:hover { border-color: transparent; background: var(--ao-hover); }
 #ao-root .ao-form-fields .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-form-fields .ao-fav-company { color: var(--ao-text-subtle); }
@@ -4307,11 +4311,11 @@
 #ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
 #ao-root .ao-choice-thumb.ao-moving { transition: transform var(--ao-selection-motion), width var(--ao-selection-motion), background-color .25s; }
 @keyframes ao-fade-in { from { opacity: 0; } }
-#ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
-#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-text: var(--ao-choice-forward-text); }
-#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-choice-danger-bg); --ao-choice-text: var(--ao-choice-danger-text); }
-#ao-root .ao-choice-resolve { --ao-choice-bg: var(--ao-choice-resolve-bg); --ao-choice-text: var(--ao-choice-resolve-text); }
-#ao-root .ao-choice-hold { --ao-choice-bg: var(--ao-choice-hold-bg); --ao-choice-text: var(--ao-choice-hold-text); }
+#ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-glow: var(--ao-accent); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
+#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-glow: var(--ao-tone-forward); --ao-choice-text: var(--ao-choice-forward-text); }
+#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-choice-danger-bg); --ao-choice-glow: var(--ao-tone-ignore); --ao-choice-text: var(--ao-choice-danger-text); }
+#ao-root .ao-choice-resolve { --ao-choice-bg: var(--ao-choice-resolve-bg); --ao-choice-glow: var(--ao-tone-resolve); --ao-choice-text: var(--ao-choice-resolve-text); }
+#ao-root .ao-choice-hold { --ao-choice-bg: var(--ao-choice-hold-bg); --ao-choice-glow: var(--ao-tone-hold); --ao-choice-text: var(--ao-choice-hold-text); }
 /* Selettori delle azioni (In coda, ticket): la voce scelta prende il colore della sua azione */
 #ao-root .ao-segmented.ao-toned .ao-segment-thumb { background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); }
 #ao-root .ao-segmented.ao-toned .ao-segment.ao-active { color: var(--ao-choice-text); }
@@ -4397,7 +4401,9 @@
 #ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
-#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line), var(--ao-call-glow), var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket */
+#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line),
+    0 0 18px color-mix(in srgb, var(--ao-choice-glow) var(--ao-lock-glow), transparent), 0 0 4px color-mix(in srgb, var(--ao-choice-glow) calc(var(--ao-lock-glow) / 2), transparent),
+    var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket, del colore dell'azione scelta */
 #ao-root .ao-locked { cursor: default; }
 #ao-root .ao-locked > :not(.ao-segmented) { opacity: .6; } /* bloccati: i campi si attenuano, la scelta resta accesa */
 #ao-root .ao-locked .ao-segment:not(.ao-active) { opacity: var(--ao-disabled-opacity); } /* le altre azioni: spente come quelle non disponibili */
