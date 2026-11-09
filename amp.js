@@ -395,9 +395,17 @@
             search: 'Cerca',
             searchPlaceholder: 'INC o oggetto',
             noResults: 'Nessun risultato.',
+            searchOnAmp: text => `Cerca «${text}» su AMP`,
+            onAmp: 'Su AMP',
+            nothingOnAmp: 'Nient\'altro su AMP.',
+            openOnAmp: 'Apri su AMP',
+            closedAt: 'Chiuso',
+            worked: 'Tempo',
+            closingNote: 'Chiusura',
             empty: 'Nessun ticket aperto.',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             holdExpired: 'On Hold scaduto',
+            groupCount: count => `${count} ticket`,
             holdUntil: date => `fino al ${date}`,
             dueOn: date => `Scade il ${date}`,
             dueToday: time => `Scade oggi alle ${time}`,
@@ -460,6 +468,14 @@
             // Azione all'invio
             reply: 'Attività',
             updateText: 'Testo',
+            responses: 'Risposte',
+            saveResponse: 'Salva',
+            responseName: 'Nome della risposta',
+            responseSaved: title => `Risposta salvata: ${title}`,
+            copyReply: 'Copia',
+            replyCopied: 'Risposta copiata',
+            replyMissing: 'Scrivi o scegli prima la risposta.',
+            copyFailed: 'Copia non riuscita.',
             updateButtons: { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'Metti in On Hold', cancel: 'Annulla il ticket' },
             updated: number => `${number} aggiornato`,
             closedTicket: number => `${number} chiuso`,
@@ -467,6 +483,7 @@
             resolutionCode: 'Resolution code',
             holdReason: 'On hold reason',
             holdExpiration: 'Scadenza',
+            holdDays: days => (days === 1 ? '1 giorno' : `${days} giorni`),
             replyText: 'Rispondi con',
             replyEmpty: 'Vuoto',
             replyCombination: 'Risposta di Agenzia + Attività',
@@ -549,10 +566,11 @@
         { value: '3', label: 'Awaiting Problem Resolution' }
     ];
     const SEVERITY_LABELS = { '1': '1 - High', '2': '2 - Medium', '3': '3 - Low' };
+    const SEVERITY_TAGS = { '3-3': 'std', '1-1': 'p1', '1-2': 'p2' }; // Impact-Urgency → suffisso del numero copiato (come in Tampermonkey)
     // Tempo lavorato: passo di − e +; tenendo premuto il passo cresce (dopo alcune ripetizioni).
     const TIME_STEP = { base: 5, faster: 15, fastest: 30, after: [5, 12], repeat: 140, hold: 400 };
     const formatMinutes = minutes => (minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`);
-    const DEFAULT_HOLD_DAYS = 2; // scadenza proposta per l'On Hold
+    const HOLD_DAYS = [1, 2, 3, 4, 5, 6, 7]; // durata dell'On Hold (come in Tampermonkey)
 
     // ======================================================================
     // 2. CONFIGURAZIONI (salvate nel browser, stesso formato dello script Tampermonkey)
@@ -562,7 +580,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 19:50';
+    const BUILD = '2026-11-09 21:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -662,10 +680,12 @@
     //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
-    //   updateTicket(numero, azione, testo, utente) → Ticket: ticket senza mail o collegato (non principale), aggiornato direttamente su ServiceNow
+    //   updateTicket(numero, azione, testo, utente) → Ticket: ticket senza mail o di un thread con più ticket, aggiornato subito su ServiceNow
     //   (in azione, qui e in setPendingAction, addMinutes: tempo lavorato da aggiungere o togliere insieme all'azione)
     //                                          (azione come setPendingAction, o null = solo commento; testo = commento / Resolution notes)
     //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
+    //   searchTickets(testo)                → Ticket[] cercati su ServiceNow (numero o short description), anche chiusi e di altri:
+    //                                          solo lettura, con resolutionNotes e lastWorkNote = { author, at, text } | null
     //   (listQueue e listIgnored: ogni mail ha label = { name, color } | null, che si toglie quando la mail viene
     //    ignorata o inoltrata; i ticket senza mail hanno label di chi li ha aperti)
     //
@@ -713,7 +733,7 @@
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
     Services.listThreadMessages = async conversationId => (typeof window.AmpBackend?.listThreadMessages === 'function' ? window.AmpBackend.listThreadMessages(conversationId) : null);
-    ['forwardMail', 'labelMail', 'unlabelMail', 'updateTicket'].forEach(name => {
+    ['forwardMail', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
             return window.AmpBackend[name](...args);
@@ -758,6 +778,11 @@
             if (typeof item?.displayReplyForm !== 'function') return false;
             item.displayReplyForm({ htmlBody: escapeHtml(text).replace(/\n/g, '<br>') });
             return true;
+        },
+        // Apre un link (il ticket su AMP) in una finestra del browser.
+        openLink(url) {
+            if (typeof window.Office?.context?.ui?.openBrowserWindow === 'function') window.Office.context.ui.openBrowserWindow(url);
+            else window.open(url, '_blank', 'noopener');
         }
     };
 
@@ -807,9 +832,6 @@
     function formatServiceNowDate(date) {
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
-    function toDateTimeInput(date) {
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    }
     // "14:05" oggi, "ieri 14:05", altrimenti "27/10 14:05".
     function formatWhen(value) {
         const date = parseDate(value);
@@ -821,11 +843,6 @@
         if (dayDiff === 1) return `ieri ${time}`;
         if (dayDiff === -1) return `domani ${time}`;
         return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
-    }
-    function defaultHoldExpiration() {
-        const date = new Date(Date.now() + DEFAULT_HOLD_DAYS * 86400000);
-        date.setHours(9, 0, 0, 0);
-        return toDateTimeInput(date);
     }
     function isHoldExpired(ticket) {
         const date = ticket?.state === '3' ? parseDate(ticket.holdExpiration) : null;
@@ -931,6 +948,8 @@
         ticketQuery: '', // testo cercato: numero INC o oggetto
         ticketSearchShown: '', // testo dei risultati mostrati
         ticketSearchPending: false, // si sta scrivendo: scheletro di caricamento al posto dei risultati
+        ampSearch: null, // "Cerca su AMP": { query, loading, results } per il testo cercato
+        ampOpen: null, // ticket trovato su AMP aperto (sola lettura)
         mail: null, // mail aperta in Outlook
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
@@ -942,6 +961,8 @@
         liftConfig: null, // voce di Impostazioni appena aperta: si disegna ancora a terra, poi si solleva
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
+        groupOpen: {}, // per thread: righe dei ticket aperte sotto la scheda della lista
+        namingResponse: null, // ticket su cui si sta dando il nome a una nuova Risposta salvata
         timeDrafts: {}, // per ticket: tempo lavorato impostato nel timer, che parte insieme all'azione (non da solo)
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
@@ -1005,7 +1026,8 @@
     };
     // Elenco a discesa del pannello (niente <select> di sistema): campo con il valore e la freccetta, elenco come
     // quello dei filtri. L'elenco si apre sopra a tutto (dentro #ao-root, non tagliato dalle schede) e si chiude
-    // scegliendo, cliccando fuori, con Esc o scorrendo. Un valore vuoto ('') è il "Seleziona…", in grigio.
+    // scegliendo, cliccando fuori, con Esc o scorrendo. Una voce { placeholder: true } (il "Seleziona…") si vede solo
+    // nel campo vuoto, in grigio, e non nell'elenco.
     // Menu a tendina. options: { value, label } e, per dividere il menu, { group: 'Titolo' }.
     // searchable: aperto, nel campo si scrive e l'elenco si filtra mentre si digita (Invio sceglie la prima voce).
     function selectField(label, options, value, onchange, extra = {}) {
@@ -1016,14 +1038,14 @@
         const show = () => {
             const option = choices.find(item => String(item.value) === current) || choices[0];
             text.textContent = option ? option.label : '';
-            text.classList.toggle('ao-select-placeholder', !current && choices[0]?.value === '');
+            text.classList.toggle('ao-select-placeholder', !current && Boolean(choices[0]?.placeholder));
         };
         show();
         const field = h('div', {
             class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label, ...attrs,
             onclick: event => {
                 if (event.target.closest('.ao-select-search')) return; // si sta scrivendo
-                toggleSelect(field, options, () => current, next => { current = String(next); show(); onchange(next); }, searchable);
+                toggleSelect(field, options, () => current, next => { current = String(next); show(); onchange(next); }, { searchable });
             },
             onkeydown: event => {
                 if (event.target.closest('.ao-select-search')) return;
@@ -1036,21 +1058,22 @@
     function closeSelects() {
         root?.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
         root?.querySelectorAll('.ao-select-search').forEach(input => input.remove());
-        root?.querySelectorAll('.ao-select.ao-open').forEach(field => field.classList.remove('ao-open'));
+        root?.querySelectorAll('.ao-select.ao-open, .ao-menu-anchor.ao-open').forEach(field => field.classList.remove('ao-open'));
     }
-    function toggleSelect(field, options, getValue, pick, searchable = false) {
+    // wide: elemento di cui prendere posizione e larghezza (di base il campo stesso)
+    function toggleSelect(field, options, getValue, pick, { searchable = false, wide = field } = {}) {
         const wasOpen = field.classList.contains('ao-open');
         closeSelects();
         if (wasOpen) return;
         const box = root.getBoundingClientRect();
-        const rect = field.getBoundingClientRect();
+        const rect = wide.getBoundingClientRect();
         const choose = value => { closeSelects(); pick(value); field.focus(); };
         const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
-            options.map(option => (option.group
+            options.filter(option => !option.placeholder).map(option => (option.group
                 ? h('div', { class: 'ao-menu-group' }, option.group)
                 : h('button', {
                     type: 'button', role: 'option', 'aria-selected': String(String(option.value) === getValue()),
-                    class: `ao-menu-item${String(option.value) === getValue() ? ' ao-active' : ''}${option.value === '' ? ' ao-select-placeholder' : ''}`,
+                    class: `ao-menu-item${String(option.value) === getValue() ? ' ao-active' : ''}`,
                     onclick: event => { event.stopPropagation(); choose(option.value); }
                 }, option.mark ? h('span', { class: 'ao-suggest-mark', 'aria-hidden': 'true' }, '✦') : null, option.label))));
         // Sotto il campo se c'è spazio, altrimenti sopra; largo come il campo.
@@ -1064,7 +1087,9 @@
         };
         place();
         field.classList.add('ao-open');
-        menu.querySelector('.ao-active')?.scrollIntoView({ block: 'nearest' });
+        // la voce scelta visibile nell'elenco, senza far scorrere la pagina (lo scorrimento chiuderebbe l'elenco)
+        const active = menu.querySelector('.ao-active');
+        if (active) menu.scrollTop = active.offsetTop - (menu.clientHeight - active.offsetHeight) / 2;
         if (!searchable) return;
         // Si scrive nel campo: restano le voci che contengono il testo (e i titoli dei gruppi che ne hanno ancora)
         const input = h('input', {
@@ -1075,7 +1100,7 @@
                 const finishGroup = () => { if (group) group.hidden = !groupHasItems; };
                 [...menu.children].forEach(entry => {
                     if (entry.classList.contains('ao-menu-group')) { finishGroup(); group = entry; groupHasItems = false; return; }
-                    const match = !query || (!entry.classList.contains('ao-select-placeholder') && entry.textContent.toLowerCase().includes(query));
+                    const match = !query || entry.textContent.toLowerCase().includes(query);
                     entry.hidden = !match;
                     if (match) groupHasItems = true;
                 });
@@ -1086,7 +1111,7 @@
                 if (event.key === 'Escape') { closeSelects(); field.focus(); }
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    const first = [...menu.querySelectorAll('.ao-menu-item:not([hidden]):not(.ao-select-placeholder)')][0];
+                    const first = [...menu.querySelectorAll('.ao-menu-item:not([hidden])')][0];
                     if (first) first.click();
                 }
                 if (event.key === 'ArrowDown') { event.preventDefault(); menu.querySelector('.ao-menu-item:not([hidden])')?.focus(); }
@@ -1097,7 +1122,7 @@
     }
     // grow: il testo lungo allarga il campo fino a TEXT_MAX_HEIGHT (come il testo della mail in In coda); oltre scorre.
     function textField(label, value, oninput, extra = {}) {
-        const { multiline, hint, grow, commit, ...attrs } = extra; // commit: il valore passa solo a modifica finita (change)
+        const { multiline, hint, grow, ...attrs } = extra;
         const fit = element => {
             if (!grow) return;
             element.style.height = 'auto';
@@ -1106,7 +1131,7 @@
         };
         const input = h(multiline ? 'textarea' : 'input', {
             class: 'ao-input', value: value ?? '', ...attrs,
-            [commit ? 'onchange' : 'oninput']: event => { fit(event.target); oninput(event.target.value); }
+            oninput: event => { fit(event.target); oninput(event.target.value); }
         });
         if (grow) requestAnimationFrame(() => fit(input));
         return h('label', { class: 'ao-field' },
@@ -1293,16 +1318,12 @@
         for (let waited = 0; !find() && waited < 900; waited += 30) await wait(30);
         return find();
     }
-    const frontOf = card => (card.classList.contains('ao-deck') ? card.querySelector(':scope > .ao-item') : card);
     // Copia della scheda che viaggia sopra a tutto, partendo dalla posizione dell'elemento dato.
     function travelCopy(source, at) {
         const box = at.getBoundingClientRect();
         const copy = source.cloneNode(true);
         copy.classList.add('ao-journey');
-        // l'ombra sta sotto la scheda: nel mazzo solo sotto quella davanti (non nello spazio delle fasce)
-        const front = copy.classList.contains('ao-deck') ? copy.querySelector(':scope > .ao-item') : copy;
-        if (front !== copy) front.style.position = 'relative';
-        front.append(h('div', { class: 'ao-journey-shadow' }));
+        copy.append(h('div', { class: 'ao-journey-shadow' }));
         Object.assign(copy.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, visibility: 'visible' });
         root.append(copy);
         placeAt(copy, box.top, box.left);
@@ -1316,39 +1337,17 @@
     }
     // Si muovono solo posizione e trasparenza (le gestisce la scheda grafica, anche a processore occupato): l'ombra
     // della scheda in viaggio è un livello sotto di lei che compare e svanisce.
-    const shadowOf = copy => copy.querySelector(':scope > .ao-journey-shadow, :scope > .ao-item > .ao-journey-shadow');
+    const shadowOf = copy => copy.querySelector(':scope > .ao-journey-shadow');
     const fadeShadow = (copy, frames, options) => shadowOf(copy)?.animate(frames.map(opacity => ({ opacity })), options);
     // La scheda si solleva prima di partire.
     const lift = element => {
         fadeShadow(element, [0, 1], { duration: JOURNEY.lift, easing: JOURNEY.easing, fill: 'forwards' });
         return element.animate([{ transform: 'none' }, { transform: JOURNEY.lifted }], { duration: JOURNEY.lift, easing: JOURNEY.easing, fill: 'forwards' }).finished;
     };
-    // Copia della sola testata di un ticket della pagina (senza description né Attività), ferma nel punto dato.
-    function faceCopy(card, at) {
-        const copy = card.cloneNode(true);
-        copy.querySelector('.ao-ticket-more')?.remove();
-        copy.classList.remove('ao-away', 'ao-expanded', 'ao-unlifted');
-        copy.classList.add('ao-journey');
-        copy.append(h('div', { class: 'ao-journey-shadow' }));
-        Object.assign(copy.style, { left: `${at.left}px`, top: `${at.top}px`, width: `${at.width}px`, visibility: 'visible', clipPath: '' });
-        root.append(copy);
-        placeAt(copy, at.top, at.left);
-        return copy;
-    }
-    // Mazzo: prima di partire le fasce dietro rientrano sotto la scheda davanti (fold); all'arrivo nella lista riescono.
-    function deckFold(copy, fold) {
-        const front = copy.querySelector(':scope > .ao-item');
-        return Promise.all([...copy.querySelectorAll('.ao-deck-strip')].map(strip => {
-            strip.style.opacity = '';
-            const down = `translateY(${front.offsetTop - strip.offsetTop}px)`;
-            return strip.animate(fold ? [{ transform: 'none', opacity: 1 }, { transform: down, opacity: 0 }] : [{ transform: down, opacity: 0 }, { transform: 'none', opacity: 1 }],
-                { duration: fold ? JOURNEY.lift : JOURNEY.land, easing: JOURNEY.easing, fill: 'forwards' }).finished;
-        }));
-    }
-    // Le parti della scheda della lista che nel thread non ci sono (anteprima del messaggio, termine): si chiudono
-    // durante il viaggio di andata (fold) e si riaprono in quello di ritorno.
+    // Le parti della scheda della lista che nel thread non ci sono (anteprima del messaggio, termine, righe dei ticket del thread):
+    // si chiudono durante il viaggio di andata (fold) e si riaprono in quello di ritorno.
     function listExtras(copy, fold) {
-        return Promise.all([...copy.querySelectorAll('.ao-new-preview, .ao-item-meta')].map(part => {
+        return Promise.all([...copy.querySelectorAll('.ao-new-preview, .ao-item-meta, .ao-group-rows')].map(part => {
             const style = getComputedStyle(part); // misure a scheda aperta (prima di chiuderla)
             const open = { height: `${part.offsetHeight}px`, opacity: 1, marginTop: style.marginTop, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom };
             const shut = { height: '0px', opacity: 0, marginTop: '0px', paddingTop: '0px', paddingBottom: '0px' };
@@ -1356,15 +1355,15 @@
             return part.animate(fold ? [open, shut] : [shut, open], { duration: JOURNEY.travel * .7, easing: JOURNEY.easing, fill: 'forwards' }).finished;
         }));
     }
-    // Dopo che le schede si sono posate la pagina si apre: sopra scendono "←" e l'intestazione della mail, tutte le
-    // schede si allungano insieme da sotto la testata mostrando il resto, poi compare quel che segue (ticket chiusi…).
-    // inward = false: l'esatto inverso (tutto si richiude nelle testate).
-    function unfoldPage(view, inward) {
+    // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
+    // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
+    // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
+    function unfoldPage(view, inward, page) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
-        const cards = parts.filter(child => child.classList.contains('ao-ticket-card'));
-        const first = cards.length ? parts.indexOf(cards[0]) : parts.length;
-        const above = parts.slice(0, first);
-        const after = parts.slice(first).filter(child => !cards.includes(child));
+        const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
+        const cards = first < 0 ? [] : [parts[first]];
+        const above = parts.slice(0, first < 0 ? parts.length : first);
+        const after = parts.slice(first + 1);
         const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
@@ -1382,18 +1381,6 @@
         after.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build : 0)));
         return Promise.all(moves).catch(() => {});
     }
-    // Collegato raccolto dal principale: diventa la fascia del mazzo della lista (un tono più scura per ogni passo
-    // indietro, solo il numero in alto), così quando il mazzo prende il suo posto non cambia niente.
-    function becomeStrip(card, step) {
-        const timing = { duration: 160, easing: 'ease-out', fill: 'forwards' };
-        [...card.children].forEach(part => part.animate([{ opacity: 1 }, { opacity: 0 }], timing));
-        card.animate([{ boxShadow: 'inset 0 0 0 999px rgba(0, 0, 0, 0)' }, { boxShadow: `inset 0 0 0 999px rgba(0, 0, 0, ${.035 * step})` }], timing);
-        const label = h('div', { class: 'ao-strip-label' }, card.querySelector('.ao-item-number')?.textContent || '');
-        card.append(label);
-        label.animate([{ opacity: 0 }, { opacity: 1 }], timing);
-    }
-    const DECK_STRIP = 22; // quanto spunta ogni fascia del mazzo sopra la scheda davanti (come in .ao-deck-strip)
-    const DEAL_STEP = 60; // distacco tra una carta e l'altra quando il mazzo si distribuisce nella pagina
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
         [{ filter: `blur(${from[0]}px)`, opacity: from[1] }, { filter: `blur(${to[0]}px)`, opacity: to[1] }], { duration, fill: 'forwards' }).finished));
     // Viaggio e atterraggio in un solo movimento continuo, eseguito dalla scheda grafica (fluido anche a PC occupato).
@@ -1427,18 +1414,17 @@
         if (twin) twin.style.visibility = 'hidden';
         return ghost;
     }
-    // card: la scheda o il mazzo nella lista; ticket: quello da aprire (nel mazzo, il principale, davanti).
-    // La pagina si prepara nascosta mentre la scheda si stacca. Poi ogni ticket del thread scivola dal mazzo al suo
-    // posto nella pagina, tutti insieme (un attimo di distacco tra uno e l'altro): chi finisce fuori dalla vista ci va
-    // e basta. Quando sono tutti posati, si aprono insieme. Con un ticket solo è lo stesso movimento, con una scheda.
+    // card: la scheda nella lista; ticket: quello da aprire (con più ticket sul thread, il principale).
+    // La pagina si prepara nascosta mentre la scheda si stacca; la scheda va al suo posto nella pagina e, posata,
+    // la pagina si apre attorno a lei. Con più ticket sul thread è lo stesso movimento: gli altri compaiono con la pagina.
     async function openFromCard(card, ticket) {
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
         const body = root.querySelector('.ao-body');
-        const start = frontOf(card).getBoundingClientRect(); // nel mazzo conta la scheda davanti
+        const start = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
         // prima parte il movimento (scheda grafica), poi, già in moto, si prepara la pagina (lavoro del processore)
-        const lifting = Promise.all([lift(copy), deckFold(copy, true)]).catch(() => {});
+        const lifting = lift(copy).catch(() => {});
         await nextFrame();
         const ghost = listGhost(root.querySelector('.ao-scroll'), card);
         body.style.opacity = '0';
@@ -1456,33 +1442,26 @@
         page = await ready;
         const floated = float ? getComputedStyle(copy).transform : JOURNEY.lifted;
         const cards = page ? [...page.closest('.ao-scroll').querySelectorAll(':scope > .ao-ticket-card')] : [];
-        const from = cards.indexOf(page);
-        const copies = [];
-        // Da qui alla fine niente ridisegni: le schede posate si mostrano e basta (un ridisegno a metà fermerebbe tutto).
+        // Da qui alla fine niente ridisegni: la scheda posata si mostra e basta (un ridisegno a metà fermerebbe tutto).
         holdRender();
         try {
-            await Promise.all([listExtras(copy, true), ...cards.map((target, index) => {
-                const place = target.getBoundingClientRect();
-                const traveller = target === page ? copy : faceCopy(target, start); // gli altri partono da sotto quella davanti
-                if (traveller !== copy) { traveller.style.zIndex = String(29 - Math.abs(index - from)); copies.push(traveller); }
-                return travelAndLand(traveller, { dx: place.left - start.left, dy: place.top - start.top }, Math.abs(index - from) * DEAL_STEP, traveller === copy ? floated : JOURNEY.lifted);
-            })]).catch(() => {});
+            const place = page?.getBoundingClientRect();
+            await Promise.all([listExtras(copy, true),
+                place ? travelAndLand(copy, { dx: place.left - start.left, dy: place.top - start.top }, 0, floated) : null]).catch(() => {});
             state.journey = null;
-            cards.forEach(item => item.classList.remove('ao-away')); // posate: compaiono (a terra; il ticket singolo si solleva dopo)
+            cards.forEach(item => item.classList.remove('ao-away')); // posata: compare (a terra; il ticket aperto si solleva dopo)
             body.style.opacity = '';
-            [ghost, copy, ...copies].forEach(element => element.remove());
+            [ghost, copy].forEach(element => element.remove());
             if (!page) return;
-            await unfoldPage(page.closest('.ao-scroll'), true);
+            await unfoldPage(page.closest('.ao-scroll'), true, page);
             page.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
         } finally {
             releaseRender();
         }
     }
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
-    // Ritorno. Con più ticket: il principale (in fondo) si solleva e sale fino al primo, e ogni collegato che incontra
-    // gli scivola sotto e viaggia con lui (il mazzo si ricompone); intanto tutte le schede si richiudono nelle testate.
-    // Poi il mazzo torna al suo posto nella lista in un solo movimento, mentre la lista ricompare.
-    // Con un ticket solo: la scheda si richiude e torna nella lista.
+    // Ritorno: la pagina si richiude nella testata della scheda (gli altri ticket del thread spariscono con lei),
+    // poi la scheda torna al suo posto nella lista, mentre la lista ricompare.
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
@@ -1491,62 +1470,23 @@
         if (!pageCard) return setView(target);
         const view = pageCard.closest('.ao-scroll');
         pageCard.classList.add('ao-unlifted'); // torna a terra mentre la pagina si richiude
-        const cards = [...view.querySelectorAll(':scope > .ao-ticket-card')];
+        await holdingRender(() => unfoldPage(view, false, pageCard));
         const head = pageCard.getBoundingClientRect();
-        const others = cards.filter(item => item !== pageCard)
-            .map(item => ({ item, top: item.getBoundingClientRect().top }))
-            .sort((a, b) => b.top - a.top) // dal più vicino al principale
-            .map((entry, index) => ({ ...entry, step: index + 1 }));
-        // come nel mazzo della lista: ogni collegato raccolto spunta sopra il principale di una fascia, più stretto
-        const climb = others.length ? Math.min(...others.map(entry => entry.top + DECK_STRIP * entry.step)) - head.top : 0;
-        // senza le transizioni delle schede (le farebbero rincorrere); l'ombra del principale è un livello sotto di lui
-        Object.assign(pageCard.style, { position: 'relative', zIndex: String(others.length + 2), transition: 'none' });
-        others.forEach(entry => Object.assign(entry.item.style, { position: 'relative', zIndex: String(others.length + 1 - entry.step), transition: 'none' }));
-        // La salita calcolata in anticipo, punto per punto, e affidata alla scheda grafica: il principale sale; ogni
-        // collegato resta fermo finché non lo raggiunge, poi lo segue come fascia del mazzo.
-        const gather = () => {
-            if (!others.length) return Promise.resolve();
-            const duration = JOURNEY.build * 2;
-            const ease = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-            const steps = 24;
-            const points = Array.from({ length: steps + 1 }, (_, index) => {
-                const t = index / steps;
-                return { t, up: Math.min(1, t * 4), offset: climb * ease(t) };
-            });
-            const shade = h('div', { class: 'ao-journey-shadow' });
-            pageCard.append(shade);
-            shade.animate([{ opacity: 0 }, { opacity: 1 }], { duration: duration / 4, fill: 'forwards' });
-            const moves = [pageCard.animate(points.map(point => ({ offset: point.t, transform: `translateY(${point.offset - 3 * point.up}px) scale(${1 + .035 * point.up})` })),
-                { duration, fill: 'forwards' }).finished];
-            others.forEach(entry => {
-                const reach = points.find(point => head.top + point.offset <= entry.top + DECK_STRIP * entry.step + 1) || points[steps];
-                const frames = points.filter(point => point.t >= reach.t).map(point => ({
-                    offset: point.t, transform: `translateY(${head.top + point.offset - DECK_STRIP * entry.step - entry.top - 3 * point.up}px) scaleX(${1 - .06 * entry.step})`
-                }));
-                moves.push(entry.item.animate([{ offset: 0, transform: 'none' }, { offset: reach.t, transform: 'none' }, ...frames], { duration, fill: 'forwards' }).finished);
-                setTimeout(() => becomeStrip(entry.item, entry.step), reach.t * duration); // prende subito l'aspetto della fascia del mazzo
-            });
-            return Promise.all(moves);
-        };
-        await holdingRender(() => Promise.all([unfoldPage(view, false), gather()]).catch(() => {}));
-        const from = head.top + climb; // dove sta ora il principale (in cima)
+        const from = head.top;
         setView(target, null, { slide: false });
         const found = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.querySelector('.ao-item-number')?.textContent === number);
-        const card = found?.closest('.ao-deck') || found;
+        const card = found;
         if (!card) return slideInView(-1);
         card.scrollIntoView({ block: 'nearest' });
         const scroll = root.querySelector('.ao-scroll');
-        const offset = frontOf(card).getBoundingClientRect().top - card.getBoundingClientRect().top;
         const listed = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
-        placeAt(copy, from - offset, head.left);
+        placeAt(copy, from, head.left);
         card.style.visibility = 'hidden';
         scroll.style.willChange = 'filter, opacity';
-        // il mazzo è già ricomposto (le fasce visibili); una scheda sola parte da terra e si solleva partendo
-        if (!others.length) copy.querySelectorAll('.ao-deck-strip').forEach(strip => { strip.style.opacity = '0'; });
         await holdingRender(async () => {
             await Promise.all([
-                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top + offset - from }, 0, others.length ? JOURNEY.lifted : 'none'), listExtras(copy, false),
+                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top - from }, 0, 'none'), listExtras(copy, false),
                 blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land))
             ]).catch(() => {});
             scroll.getAnimations().forEach(animation => animation.cancel());
@@ -1633,7 +1573,7 @@
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         // Elenchi a discesa: un clic fuori o lo scorrimento li chiude.
         root.addEventListener('click', event => {
-            if (!event.target.closest('.ao-select, .ao-select-menu')) closeSelects();
+            if (!event.target.closest('.ao-select, .ao-menu-anchor, .ao-select-menu')) closeSelects();
         }, true);
         root.addEventListener('scroll', event => { if (!event.target.closest?.('.ao-select-menu')) closeSelects(); }, true);
         // Etichetta di un collega pronta al passaggio: un clic altrove annulla.
@@ -2388,7 +2328,7 @@
         // messaggio arrivato), dalla più recente: un thread con un messaggio nuovo risale da solo.
         const activity = ticket => [String(ticket.openedAt || ''), String(ticket.lastMessageAt || '')].sort().slice(-1)[0];
         const rank = group => [group.tickets.some(isHoldExpired) ? 1 : 0, group.tickets.map(activity).sort().slice(-1)[0]];
-        groups.forEach(group => { group.tickets = threadOrder(group.tickets).reverse(); }); // davanti il principale
+        groups.forEach(group => { group.tickets = threadOrder(group.tickets).reverse(); }); // per primo il principale
         groups.sort((a, b) => {
             const [holdA, dateA] = rank(a);
             const [holdB, dateB] = rank(b);
@@ -2405,11 +2345,12 @@
             searching && state.ticketSearchPending ? searchSkeleton() : null,
             // Ticket senza mail: niente thread, si aprono al loro posto come in In coda.
             groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
-                ? ticketDeck(group, user, query)
+                ? ticketGroup(group, user, query)
                 : fromMail(group.tickets[0]) ? ticketItem(group.tickets[0], user, { query })
                     : h('li', {}, ticketBox(group.tickets[0], config, user, { isCurrentMail: false, listed: true, query })))))
                 : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
-                    : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)));
+                    : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)),
+            searching && query && !state.ticketSearchPending ? ampResults(query, items.map(ticket => ticket.number), user) : null);
     }
     // Barra di Ticket, simmetrica: imbuto (filtri) | Da mail | Senza mail | lente (ricerca).
     // L'imbuto trasforma il selettore nei filtri Stato (Tutti, Aperti, In attesa) e Operatore (Miei, i colleghi, Tutti);
@@ -2560,7 +2501,7 @@
     async function openTicketSearch() {
         if (state.holdRender) return;
         state.filterMenu = null;
-        const open = () => Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const open = () => Object.assign(state, { ticketSearchOpen: true, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false, ampSearch: null });
         const box = barMiddle();
         if (!box || reducedMotion()) { open(); render(); focusTicketSearch(); return; }
         await holdingRender(() => fadeAll([...box.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
@@ -2573,7 +2514,7 @@
     async function closeTicketSearch() {
         if (state.holdRender) return;
         clearTimeout(searchTimer);
-        const close = () => Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false });
+        const close = () => Object.assign(state, { ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false, ampSearch: null });
         const bar = barMiddle();
         if (!bar || reducedMotion()) { close(); render(); return; }
         await holdingRender(() => fadeAll([...bar.children, lensIcon(), ...listBelow()], 1, 0, BAR_FADE_OUT));
@@ -2588,6 +2529,7 @@
     const SEARCH_DELAY = 350;
     function runTicketSearch(value) {
         state.ticketQuery = value;
+        state.ampSearch = null; // testo cambiato: la ricerca su AMP si rifà a richiesta
         clearTimeout(searchTimer);
         const query = value.trim().toLowerCase();
         if (!query) {
@@ -2602,6 +2544,67 @@
         }
         render();
         focusTicketSearch();
+    }
+    // In fondo ai risultati: "Cerca su AMP" cerca lo stesso testo su ServiceNow (anche chiusi e di altri gruppi o
+    // operatori); quel che trova, e che qui non c'è già, compare sotto la linea "Su AMP", in sola lettura.
+    function ampResults(query, shown, user) {
+        const amp = state.ampSearch?.query === query ? state.ampSearch : null;
+        if (!amp) return h('button', { type: 'button', class: 'ao-button ao-amp-search', onclick: () => searchOnAmp(query) }, svgIcon(SEARCH_ICON), TEXTS.tickets.searchOnAmp(state.ticketQuery.trim()));
+        const found = amp.results.filter(ticket => !shown.includes(ticket.number));
+        return [h('div', { class: 'ao-amp-line' }, TEXTS.tickets.onAmp),
+            amp.loading ? searchSkeleton()
+                : found.length ? h('ul', { class: 'ao-list' }, found.map(ticket => h('li', {}, ampTicket(ticket, user, query))))
+                    : h('p', { class: 'ao-empty' }, TEXTS.tickets.nothingOnAmp)];
+    }
+    async function searchOnAmp(query) {
+        state.ampSearch = { query, loading: true, results: [] };
+        render();
+        const results = await run(() => Services.searchTickets(query));
+        if (state.ampSearch?.query !== query) return; // nel frattempo il testo è cambiato
+        state.ampSearch = { query, loading: false, results: Array.isArray(results) ? results : [] };
+        render();
+    }
+    // Ticket trovato su AMP: la scheda dei ticket, in sola lettura. Aperta: date, descrizione, ultima work note,
+    // nota di chiusura e "Apri su AMP".
+    function ampTicket(ticket, user, query) {
+        const open = state.ampOpen === ticket.number;
+        const toggle = async event => {
+            if (state.holdRender || event.target.closest('button')) return;
+            const card = event.currentTarget;
+            if (open) {
+                await holdingRender(() => fold(card.querySelector('.ao-ticket-more')));
+                state.ampOpen = null;
+                render();
+                return;
+            }
+            state.ampOpen = ticket.number;
+            render();
+            const next = [...root.querySelectorAll('.ao-amp-ticket')].find(item => item.dataset.number === ticket.number);
+            await holdingRender(() => unfold(next?.querySelector('.ao-ticket-more')));
+        };
+        const note = (title, text) => h('div', { class: 'ao-amp-note' }, h('div', { class: 'ao-amp-note-title' }, title), text);
+        return h('section', {
+            class: `ao-item ao-ticket-card ao-amp-ticket${open ? ' ao-expanded' : ''}`, dataset: { number: ticket.number }, tabindex: '0', 'aria-expanded': String(open),
+            onclick: toggle, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) toggle(event); }
+        },
+            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { query, owner: true })),
+            open ? h('div', { class: 'ao-ticket-more' },
+                h('div', { class: 'ao-ticket-dates' },
+                    h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
+                    h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn)),
+                    ticket.closedAt ? h('span', null, h('b', null, TEXTS.tickets.closedAt), ' ', formatWhen(ticket.closedAt)) : null,
+                    h('span', null, h('b', null, TEXTS.tickets.worked), ' ', formatMinutes(ticket.timeWorkedMinutes || 0))),
+                ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null,
+                ticket.lastWorkNote ? note(`${ticket.lastWorkNote.author} · ${formatWhen(ticket.lastWorkNote.at)}`, ticket.lastWorkNote.text) : null,
+                ticket.resolutionNotes ? note(TEXTS.tickets.closingNote, ticket.resolutionNotes) : null,
+                h('div', { class: 'ao-actions' },
+                    ticket.url ? h('button', { type: 'button', class: 'ao-button', onclick: () => Outlook.openLink(ticket.url) }, TEXTS.tickets.openOnAmp) : null),
+                h('button', { type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: async event => {
+                    const card = event.currentTarget.closest('.ao-amp-ticket');
+                    await holdingRender(() => fold(card.querySelector('.ao-ticket-more')));
+                    state.ampOpen = null;
+                    render();
+                } }, svgIcon(CHEVRON_UP_ICON))) : null);
     }
     function searchSkeleton() {
         return h('div', { class: 'ao-skeleton-list', 'aria-busy': 'true', 'aria-label': TEXTS.common.loading },
@@ -2713,39 +2716,59 @@
                 last ? h('span', { class: 'ao-item-time' }, formatWhen(last.at)) : null),
             last?.preview ? h('div', { class: 'ao-new-text' }, last.preview) : null);
     }
-    // Thread con più ticket: un mazzo a scaletta verso il basso. Dietro, in alto, le fasce con il numero dei ticket
-    // meno recenti (più strette); davanti, completa, la scheda più recente con l'anteprima. Un clic porta al thread.
-    // Ticket aperti dello stesso thread, nell'ordine in cui si lavorano: in cima i collegati, dal più recente;
-    // per ultimo il principale, che si chiude per ultimo (con la risposta alla mail).
+    // Ticket aperti dello stesso thread: in cima i collegati, dal più recente; per ultimo il principale.
     function threadOrder(tickets) {
         const byOpening = (a, b) => String(a.openedAt || '').localeCompare(String(b.openedAt || ''));
         const primary = tickets.find(ticket => ticket.primary) || [...tickets].sort(byOpening)[0];
         return [...tickets.filter(ticket => ticket !== primary).sort((a, b) => byOpening(b, a)), primary].filter(Boolean);
     }
-    // Mazzo: davanti il principale, dietro i collegati nell'ordine in cui escono nel thread (dal più vicino a lui).
-    function ticketDeck(group, user, query) {
-        const [top, ...rest] = group.tickets;
-        const open = event => openFromCard(event.currentTarget.closest('.ao-deck'), top);
-        return h('li', { class: 'ao-deck', dataset: { deck: group.conversationId } },
-            rest.slice().reverse().map((ticket, index) => h('div', {
-                class: 'ao-deck-strip', style: `--ao-deck-inset: ${(rest.length - index) * 3}%; --ao-deck-shade: ${(rest.length - index) * .035}`, onclick: open
-            }, markText(ticket.number, query))),
-            ticketItem(top, user, { query, onpick: open }));
+    // Più ticket sullo stesso thread: una sola scheda, quella del principale, con "N ticket ▾" accanto al numero; un
+    // clic sul conteggio apre sotto una riga per ticket (numero, short description, stato e operatore), e lo richiude.
+    // Un clic sulla scheda o su una riga porta al thread.
+    function ticketGroup(group, user, query) {
+        const [top] = group.tickets;
+        const id = group.conversationId;
+        const open = Boolean(state.groupOpen[id]);
+        const toggle = async event => {
+            event.stopPropagation();
+            if (state.holdRender) return;
+            const card = event.currentTarget.closest('.ao-item');
+            if (open) {
+                await holdingRender(() => fold(card.querySelector('.ao-group-rows')));
+                state.groupOpen[id] = false;
+                render();
+            } else {
+                state.groupOpen[id] = true;
+                render();
+                const next = [...root.querySelectorAll('.ao-scroll .ao-item')].find(item => item.dataset.group === id);
+                await holdingRender(() => unfold(next?.querySelector('.ao-group-rows')));
+            }
+        };
+        const count = h('button', { type: 'button', class: `ao-group-count${open ? ' ao-open' : ''}`, 'aria-expanded': String(open), onclick: toggle },
+            TEXTS.tickets.groupCount(group.tickets.length), h('span', { class: 'ao-group-caret', 'aria-hidden': 'true' }, '▾'));
+        const item = ticketItem(top, user, { query, count });
+        item.dataset.group = id;
+        if (open) item.append(h('div', { class: 'ao-group-rows' }, threadOrder(group.tickets).reverse().map(ticket => h('div', { class: 'ao-group-row' },
+            h('span', { class: 'ao-group-name' },
+                ticket === top ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)) : null,
+                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)), ' ', h('span', { class: 'ao-group-short' }, ticket.shortDescription || '')),
+            h('span', { class: 'ao-item-tags' }, stateChip(ticket), ownerTag(ticket, user, false))))));
+        return item;
     }
     // Testata del ticket, uguale nella lista e nel thread (è la stessa scheda che viaggia): numero, stato ed etichetta
     // dell'operatore affiancati; agenzia e attività (nel thread con il tempo lavorato a destra); short description.
     // owner: etichetta dell'operatore; takeover: un clic sull'etichetta di un collega la prepara, il secondo lo prende.
-    // primary: il principale del thread (si lavora con la risposta via mail): icona della mail davanti al numero.
-    function ticketHead(ticket, user, { query = '', owner = false, takeover = false, primary = false } = {}) {
+    // primary: il principale del thread (il primo collegato): icona della mail davanti al numero.
+    function ticketHead(ticket, user, { query = '', owner = false, takeover = false, primary = false, count = null } = {}) {
         return [
             h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-number' }, primary ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)) : null, markText(ticket.number, query)),
+                h('span', {}, h('span', { class: 'ao-item-number' }, primary ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)) : null, markText(ticket.number, query)), count),
                 h('div', { class: 'ao-item-tags' }, stateChip(ticket), owner ? ownerTag(ticket, user, takeover) : null)),
             h('div', { class: 'ao-item-where' },
                 h('div', { class: 'ao-item-place' },
                     h('div', { class: 'ao-item-company' }, ticket.companyName || ''),
                     // Durante una ricerca i risultati arrivano da entrambi gli elenchi: si dice da quale.
-                    h('div', { class: 'ao-item-activity' }, [ticket.activityName, query ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')))),
+                    h('div', { class: 'ao-item-activity' }, [ticket.activityName, query && !ticket.readOnly ? (ticket.messageId ? TEXTS.tickets.fromMail : TEXTS.tickets.withoutMail).toLowerCase() : ''].filter(Boolean).join(' · ')))),
             h('div', { class: 'ao-item-title' }, markText(ticket.shortDescription, query))
         ];
     }
@@ -2789,11 +2812,12 @@
         const today = date.toDateString() === new Date().toDateString();
         return h('span', { class: `ao-due ao-due-chip${today ? ' ao-due-today' : ''}` }, svgIcon(CLOCK_ICON), today ? TEXTS.tickets.dueToday(time) : TEXTS.tickets.dueOn(when));
     }
-    function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
+    // count: il conteggio dei ticket del thread, accanto al numero (più ticket sulla stessa mail)
+    function ticketItem(ticket, user, { query = '', count = null } = {}) {
         const expired = isHoldExpired(ticket);
-        const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
-            ticketHead(ticket, user, { query, owner: true }),
-            inGroup ? null : newMessagesPreview(ticket),
+        const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, event => openFromCard(event.currentTarget, ticket),
+            ticketHead(ticket, user, { query, owner: true, count }),
+            newMessagesPreview(ticket),
             ticketMeta(ticket));
         // Fermandosi sopra la scheda si precarica la sua pagina (un attimo di attesa: non ciò che il mouse attraversa)
         let hover = null;
@@ -3043,7 +3067,7 @@
         const all = Object.entries(config.activities).sort(byName);
         const suggested = draft.companyId ? Usage.suggest(draft.companyId, text, config) : [];
         const option = id => ({ value: id, label: config.activities[id].name });
-        return [{ value: '', label: TEXTS.mail.choose },
+        return [{ value: '', label: TEXTS.mail.choose, placeholder: true },
             ...(suggested.length ? [{ group: TEXTS.mail.suggestedGroup }, ...suggested.map(id => ({ ...option(id), mark: true })), { group: TEXTS.mail.allGroup }] : []),
             ...all.filter(([id]) => !suggested.includes(id)).map(([id]) => option(id))];
     }
@@ -3084,7 +3108,7 @@
         const rerender = () => render();
         // Agenzia e Attività: nel campo si scrive per filtrare. L'agenzia suggerita (dal dominio) e l'attività proposta
         // hanno un'etichetta accanto al titolo; nel menu di Attività le suggerite per l'agenzia stanno in cima.
-        const companyField = selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
+        const companyField = selectField(TEXTS.mail.company, [{ value: '', label: TEXTS.mail.choose, placeholder: true }, ...companies.map(([id, item]) => ({ value: id, label: item.name }))],
             draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; rerender(); }, { searchable: true });
         if (draft.suggestion && draft.suggestion.id === draft.companyId) companyField.querySelector('.ao-label').append(
             h('span', { class: 'ao-suggest-tag', title: TEXTS.mail.suggestedFrom(draft.suggestion.reason) }, draft.suggestion.tag || TEXTS.mail.suggestedFrom(draft.suggestion.reason)));
@@ -3378,8 +3402,7 @@
     // citazione e le date. Compatta di base; con un clic si apre come in In coda (si solleva, le altre si sfocano)
     // e sotto scende Attività, con il tempo lavorato. Un ticket solo nel thread (o senza mail) si apre già aperto.
     // Con più ticket se ne apre uno alla volta: un clic su un altro prima richiude quello aperto.
-    // Il principale (il primo collegato al thread) si lavora con la risposta via mail e si chiude per ultimo;
-    // gli altri (collegati) sono indipendenti: testo per ServiceNow e azione subito, come i ticket senza mail.
+    // Con più ticket sul thread ognuno è indipendente (risposta da copiare, azione subito, in qualunque ordine).
     // listed: nell'elenco Ticket (senza mail): chiusa è la scheda della lista; il resto compare solo aprendola.
     function ticketBox(ticket, config, user, { isCurrentMail, single = false, primary = false, others = 0, listed = false, query = '' }) {
         const open = OPEN_STATES.includes(ticket.state);
@@ -3407,14 +3430,16 @@
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
                 expanded ? ticketWork(ticket, config, { isCurrentMail, primary, others }) : null));
     }
-    // Attività del ticket aperto: con la mail (il principale) "Salva e compila"; altrimenti testo e azione subito.
-    // Il tempo lavorato sta sulla riga del titolo. La freccia in fondo richiude, come in In coda.
+    // Attività del ticket aperto. Thread con un solo ticket: "Salva e compila" (l'azione parte con la risposta).
+    // Thread con più ticket: il pannello non lavora mentre si scrive la mail, quindi ogni ticket ha la sua risposta da
+    // preparare e copiare (la mail si scrive a mano) e le sue azioni subito su ServiceNow, in qualunque ordine.
+    // Senza mail: testo e azione subito. Il tempo lavorato sta sulla riga del titolo; la freccia in fondo richiude.
     function ticketWork(ticket, config, { isCurrentMail, primary, others }) {
-        const timer = timerControl(ticket, !(primary && ticket.messageId && ticket.pendingAction)); // confermata: il tempo è già nell'azione
-        const withMail = Boolean(ticket.messageId);
-        const work = !withMail || !primary ? updateCard(ticket, config, timer)
-            : ticket.mailUnconfirmed ? h('section', { class: 'ao-card' }, workTitle(timer)) // mail da confermare: niente azioni
-                : onSendCard(ticket, config, isCurrentMail, { timer, keepOpen: others > 0 });
+        const onSend = primary && Boolean(ticket.messageId) && !others;
+        const timer = timerControl(ticket, !(onSend && ticket.pendingAction)); // confermata: il tempo è già nell'azione
+        const work = primary && ticket.messageId && ticket.mailUnconfirmed ? h('section', { class: 'ao-card' }, workTitle(timer)) // mail da confermare: niente azioni
+            : onSend ? onSendCard(ticket, config, isCurrentMail, { timer })
+                : updateCard(ticket, config, timer, { reply: others > 0 });
         return h('div', { class: 'ao-ticket-work' }, work,
             h('button', {
                 type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close,
@@ -3455,9 +3480,8 @@
     }
     // Tempo lavorato: − valore +, a larghezza fissa (i pulsanti non si spostano mai). Un clic = 5 minuti; tenendo
     // premuto il passo cresce. Clic sul valore: si scrive il tempo (2h, 1h30, 120) o la differenza (+2h, -30).
-    // A ServiceNow va sempre e solo la differenza, una volta sola quando si rilascia o si conferma.
-    // Tempo lavorato: si imposta qui ma non parte da solo; va su ServiceNow insieme all'azione (Aggiorna, Risolvi,
-    // On Hold, Annulla) o, sul principale, con l'azione salvata per l'invio della risposta. Così un solo calcolo.
+    // Non parte da solo: va su ServiceNow insieme all'azione (Aggiorna, Risolvi, On Hold, Annulla) o, con un solo
+    // ticket sul thread, con l'azione salvata per l'invio della risposta. Così un solo calcolo.
     function timerControl(ticket, enabled) {
         const total = workedMinutes(ticket);
         let shown = total;
@@ -3547,7 +3571,7 @@
         if (!action || action.type === 'comment') return TEXTS.mail.actions.comment;
         if (action.type === 'resolve') return `${TEXTS.mail.actions.resolve} · ${action.resolutionCode}`;
         if (action.type === 'cancel') return TEXTS.mail.actions.cancel;
-        if (action.type === 'hold') return `${TEXTS.mail.actions.hold} · ${formatWhen(action.holdExpiration)}`;
+        if (action.type === 'hold') return `${TEXTS.mail.actions.hold} · ${TEXTS.mail.holdDays(action.holdDays)}`;
         return action.type;
     }
     function actionDraft(ticket, config) {
@@ -3558,7 +3582,7 @@
                 type: saved.type || 'comment',
                 resolutionCode: saved.resolutionCode || RESOLUTION_CODES[0],
                 holdReason: saved.holdReason || HOLD_REASONS[0].value,
-                holdExpiration: saved.holdExpiration ? toDateTimeInput(parseDate(saved.holdExpiration)) : defaultHoldExpiration(),
+                holdDays: saved.holdDays || HOLD_DAYS[0],
                 template: config.combinationResponses[key]?.response ? 'combination' : '',
                 includeReference: true
             };
@@ -3566,9 +3590,8 @@
         return state.actionDrafts[ticket.number];
     }
     // Azioni sul ticket (Aggiorna, Risolvi, On Hold, Annulla) con le icone e il colore dell'azione scelta.
-    const CLOSING_ACTIONS = ['resolve', 'cancel'];
-    function ticketActionBar(ticket, draft, hidden = []) { // hidden: azioni non proposte (il principale con collegati aperti non si chiude)
-        return iconBar(Object.entries(TEXTS.mail.actions).filter(([value]) => !hidden.includes(value)).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
+    function ticketActionBar(ticket, draft) {
+        return iconBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
             value => { if (value !== draft.type) swapZone(`ticket:${ticket.number}`, () => { draft.type = value; }); },
             { key: `ticket:${ticket.number}`, tones: true, slide: false });
     }
@@ -3604,24 +3627,83 @@
             content.style.opacity = '';
         });
     }
-    // Ticket senza mail: lo stesso strumento, ma il testo si scrive qui e va direttamente su ServiceNow.
-    function updateCard(ticket, config, timer) {
+    // Testo e azione subito su ServiceNow (ticket senza mail e ticket dei thread con più ticket). reply: thread con più
+    // ticket, sopra il testo gli strumenti per la risposta da incollare nella mail.
+    function updateCard(ticket, config, timer, { reply = false } = {}) {
         const draft = actionDraft(ticket, config);
         draft.text ??= '';
         const refresh = () => { const button = root.querySelector('.ao-update-card .ao-primary'); if (button) button.disabled = !draft.text.trim(); };
         return h('section', { class: 'ao-card ao-update-card' },
             // Prima la risposta (il testo), poi cosa fare del ticket.
             workTitle(timer),
+            reply ? replyTools(ticket, draft, config) : null,
             textField(TEXTS.mail.updateText, draft.text, value => { draft.text = value; refresh(); }, { multiline: true, rows: '4' }),
             ticketActionBar(ticket, draft),
             choiceZone(`ticket:${ticket.number}`, actionFields(draft)),
             h('div', { class: 'ao-actions' },
                 h('button', { type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`, disabled: !draft.text.trim(), onclick: () => updateTicket(ticket) }, TEXTS.mail.updateButtons[draft.type])));
     }
+    // Risposte: le Risposte salvate (un clic ne carica il testo); Salva: il testo diventa una Risposta salvata (con lo
+    // stesso nome la sostituisce); Copia: testo, firma e numero dell'Incident con la severity, come in Tampermonkey.
+    function replyTools(ticket, draft, config) {
+        const responses = Object.entries(config.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
+        const naming = state.namingResponse === ticket.number;
+        const tools = h('div', { class: 'ao-reply-tools' },
+            h('button', {
+                type: 'button', class: 'ao-button ao-small ao-menu-anchor', disabled: !responses.length,
+                onclick: event => toggleSelect(event.currentTarget, responses.map(([id, item]) => ({ value: id, label: item.title })), () => '',
+                    id => { draft.text = config.usefulResponses[id]?.response || ''; render(); }, { wide: tools })
+            }, TEXTS.mail.responses, h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
+            h('button', { type: 'button', class: 'ao-button ao-small', 'aria-pressed': String(naming), onclick: () => { state.namingResponse = naming ? null : ticket.number; render(); } }, TEXTS.mail.saveResponse),
+            h('span', { class: 'ao-spacer' }),
+            h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => copyReply(ticket, draft, config) }, TEXTS.mail.copyReply));
+        if (!naming) return tools;
+        const name = h('input', {
+            class: 'ao-input', placeholder: TEXTS.mail.responseName, 'aria-label': TEXTS.mail.responseName,
+            onkeydown: event => { if (event.key === 'Enter') saveResponse(name.value, draft.text); if (event.key === 'Escape') { state.namingResponse = null; render(); } }
+        });
+        requestAnimationFrame(() => name.focus());
+        return [tools, h('div', { class: 'ao-reply-name' }, name,
+            h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => saveResponse(name.value, draft.text) }, TEXTS.common.save))];
+    }
+    function saveResponse(name, text) {
+        const title = String(name || '').trim();
+        if (!title) return showStatus(TEXTS.settings.nameRequired, 'danger');
+        if (!String(text || '').trim()) return showStatus(TEXTS.mail.replyMissing, 'danger');
+        const config = loadConfig();
+        const id = Object.keys(config.usefulResponses).find(key => String(config.usefulResponses[key].title).toLowerCase() === title.toLowerCase()) || createId(title);
+        const now = new Date().toISOString();
+        config.usefulResponses[id] = { ...config.usefulResponses[id], title, response: text, created: config.usefulResponses[id]?.created || now, updated: now };
+        saveConfig(config);
+        state.namingResponse = null;
+        render();
+        showStatus(TEXTS.mail.responseSaved(title));
+    }
+    async function copyReply(ticket, draft, config) {
+        const text = String(draft.text || '').trim();
+        if (!text) return showStatus(TEXTS.mail.replyMissing, 'danger');
+        const activity = config.activities[ticket.activityId];
+        const severity = activity ? SEVERITY_TAGS[`${activity.impact}-${activity.urgency}`] : '';
+        const copied = await copyText([text, currentUser(config).displayValue, severity ? `${ticket.number}-${severity}` : ticket.number].filter(Boolean).join('\n'));
+        showStatus(copied ? TEXTS.mail.replyCopied : TEXTS.mail.copyFailed, copied ? 'success' : 'danger');
+    }
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            const area = h('textarea', { style: 'position: fixed; opacity: 0;' });
+            area.value = text;
+            document.body.append(area);
+            area.select();
+            const copied = document.execCommand('copy');
+            area.remove();
+            return copied;
+        }
+    }
     async function updateTicket(ticket) {
         const config = loadConfig();
         const draft = actionDraft(ticket, config);
-        if (draft.type === 'hold' && !parseDate(draft.holdExpiration)) return showStatus(TEXTS.mail.holdExpiration, 'danger');
         const user = currentUser(config);
         const updated = await run(() => Services.updateTicket(ticket.number, buildPendingAction(draft, user.displayValue, ticket), draft.text.trim(), user));
         if (!updated) return;
@@ -3632,7 +3714,7 @@
             render();
             showStatus(TEXTS.mail.updated(updated.number));
         } else if (state.view === 'mail' && state.target?.kind === 'mail') {
-            // Collegato chiuso: si resta sul thread, dove passa tra i chiusi (e il principale si può chiudere se era l'ultimo).
+            // Ticket del thread chiuso: si resta sul thread, dove passa tra i chiusi.
             state.ticketExpanded = {}; // se ne resta uno solo, si mostra aperto
             await refreshTarget(true);
             showStatus(TEXTS.mail.closedTicket(updated.number));
@@ -3642,12 +3724,8 @@
             showStatus(TEXTS.mail.closedTicket(updated.number));
         }
     }
-    // keepOpen: ci sono altri ticket aperti sul thread, quindi il principale non si può ancora chiudere (Risolvi, Annulla):
-    // prima si chiudono gli altri, poi con l'ultimo si risponde alla mail.
-    function onSendCard(ticket, config, isCurrentMail, { timer, keepOpen = false }) {
+    function onSendCard(ticket, config, isCurrentMail, { timer }) {
         const draft = actionDraft(ticket, config);
-        const confirmedType = ticket.pendingAction?.type;
-        if (keepOpen && CLOSING_ACTIONS.includes(draft.type) && draft.type !== confirmedType) draft.type = 'comment';
         const rerender = () => render();
         const key = combinationKey(ticket.companyId, ticket.activityId);
         const templates = [
@@ -3664,7 +3742,7 @@
             h('div', { class: `ao-form-fields${confirmed ? ' ao-locked' : ''}`, inert: confirmed ? '' : null },
                 selectField(TEXTS.mail.replyText, templates, draft.template, value => { draft.template = value; }),
                 checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
-                ticketActionBar(ticket, draft, keepOpen ? CLOSING_ACTIONS : []),
+                ticketActionBar(ticket, draft),
                 choiceZone(`ticket:${ticket.number}`, actionFields(draft))),
             h('div', { class: 'ao-actions' }, h('button', {
                 type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`,
@@ -3678,8 +3756,8 @@
             draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
             draft.type === 'hold' ? [
                 selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
-                // scadenza: si legge una volta sola, a modifica finita (non a ogni scatto mentre si scorrono ore e minuti)
-                textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local', commit: true })
+                // durata: la scadenza la calcola ServiceNow quando l'azione parte (adesso + giorni + 5 minuti)
+                selectField(TEXTS.mail.holdExpiration, HOLD_DAYS.map(days => ({ value: days, label: TEXTS.mail.holdDays(days) })), draft.holdDays, value => { draft.holdDays = Number(value); })
             ] : null,
         );
     }
@@ -3688,11 +3766,7 @@
         const minutes = workedMinutes(ticket) - (ticket.timeWorkedMinutes || 0);
         if (minutes) action.addMinutes = minutes; // tempo lavorato aggiunto (o tolto) insieme all'azione
         if (draft.type === 'resolve') action.resolutionCode = draft.resolutionCode;
-        if (draft.type === 'hold') {
-            const date = parseDate(draft.holdExpiration.replace('T', ' '));
-            action.holdReason = draft.holdReason;
-            action.holdExpiration = date ? formatServiceNowDate(date) : '';
-        }
+        if (draft.type === 'hold') Object.assign(action, { holdReason: draft.holdReason, holdDays: draft.holdDays });
         return action;
     }
     // Conferma e annullamento dell'azione: la scelta si accende (o si spegne) e i campi si bloccano (o si sbloccano)
@@ -3730,7 +3804,6 @@
     async function prepareReply(ticket, isCurrentMail) {
         const config = loadConfig();
         const draft = actionDraft(ticket, config);
-        if (draft.type === 'hold' && !parseDate(draft.holdExpiration)) return showStatus(TEXTS.mail.holdExpiration, 'danger');
         const template = draft.template === 'combination'
             ? config.combinationResponses[combinationKey(ticket.companyId, ticket.activityId)]?.response
             : config.usefulResponses[draft.template.replace(/^useful:/, '')]?.response;
@@ -4292,6 +4365,15 @@
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
 #ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; } /* a destra l'etichetta dell'operatore */
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
+/* Più ticket sullo stesso thread: conteggio accanto al numero e, aperte, le righe dei ticket */
+#ao-root .ao-group-count { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); vertical-align: 1px; cursor: pointer; transition: color .25s, border-color .25s; }
+#ao-root .ao-group-count:hover, #ao-root .ao-group-count.ao-open { color: var(--ao-text-accent); border-color: color-mix(in srgb, var(--ao-accent) 35%, transparent); }
+#ao-root .ao-group-caret { display: inline-block; transition: transform .3s; }
+#ao-root .ao-group-count.ao-open .ao-group-caret { transform: rotate(180deg); }
+#ao-root .ao-group-rows { display: grid; margin-top: 6px; overflow: hidden; }
+#ao-root .ao-group-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-md); }
+#ao-root .ao-group-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#ao-root .ao-group-short { color: var(--ao-text-muted); }
 #ao-root .ao-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
 /* Scadenza dell'On Hold: neutra, oggi arancio, passata rossa */
 #ao-root .ao-due { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
@@ -4427,6 +4509,7 @@
 #ao-root .ao-message-step:disabled { opacity: .4; cursor: default; }
 #ao-root .ao-message-where { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #ao-root .ao-spacer { flex: 1; }
+#ao-root .ao-reply-tools, #ao-root .ao-reply-name { display: flex; align-items: center; gap: 6px; } /* risposta da incollare nella mail */
 #ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 #ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 #ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4522,7 +4605,12 @@
 #ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
 #ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
 #ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
-#ao-root .ao-ticket-dates { display: flex; gap: 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-amp-search { width: 100%; margin-top: 10px; color: var(--ao-text-muted); } /* in fondo ai risultati della ricerca */
+#ao-root .ao-amp-line { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-amp-line::after { content: ''; flex: 1; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-amp-note { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+#ao-root .ao-amp-note-title { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-ticket-dates b { color: var(--ao-text-muted); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-ticket-work { display: grid; gap: 6px; }
 #ao-root .ao-ticket-work > .ao-card { padding: 8px 0 0; border: 0; border-top: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; cursor: default; } /* Attività dentro la scheda */
@@ -4555,15 +4643,8 @@
 
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 /* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
-#ao-root .ao-deck { display: grid; cursor: pointer; }
-#ao-root .ao-strip-label { position: absolute; top: 3px; left: 10px; color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); pointer-events: none; } /* numero della fascia (ritorno dal thread) */
-#ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: linear-gradient(rgba(0, 0, 0, var(--ao-deck-shade)), rgba(0, 0, 0, var(--ao-deck-shade))), var(--ao-surface); /* la scheda davanti, un tono più scura per ogni passo indietro */ color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-deck > .ao-item { position: relative; }
 #ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
 #ao-root .ao-journey-shadow { position: absolute; inset: 0; z-index: -1; border-radius: inherit; box-shadow: 0 12px 28px rgba(0, 0, 0, .18); opacity: 0; pointer-events: none; will-change: opacity; } /* ombra della scheda sollevata: compare e svanisce */
-/* mazzo in viaggio: l'ombra va sulla scheda davanti, non sull'intero mazzo (sopra c'è lo spazio delle fasce) */
-#ao-root .ao-deck.ao-journey { box-shadow: none !important; }
-#ao-root .ao-deck.ao-journey > .ao-item { box-shadow: var(--ao-raised-shadow); }
 #ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* sfocatura preparata in anticipo */ /* copia ferma della lista durante l'andata */
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
@@ -4583,7 +4664,7 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-pulse .45s ease-out; } /* non si schiarisce: si accende */
 @keyframes ao-call-pulse { /* impulso breve e misurato (nel flat il bagliore non c'è) */

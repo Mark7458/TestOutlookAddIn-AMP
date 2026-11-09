@@ -34,12 +34,12 @@ e `TestPluginAPI` (`getCurrentMessageContext`, `onMessageChanged`, `showMainView
 6. **Un thread può avere più ticket**, nel tempo (richieste successive sulla stessa scia) o
    **aperti insieme** (es. creazione della DL e aggiunta dei membri). Il thread resta in gestione
    finché almeno uno è aperto.
-7. **Principale e collegati.** Il **principale** è il primo ticket (aperto) collegato al thread: è l'unico
-   legato alla **risposta via mail**, che lo aggiorna (con l'azione salvata, se c'è). Gli altri ticket del
-   thread sono **collegati** e indipendenti: si aggiornano e si chiudono dal pannello (testo e azione subito,
-   come i ticket senza mail); rispondere al thread resta compito dell'operatore. Il principale **non si
-   chiude** (Risolvi, Annulla) finché ci sono collegati aperti: prima si chiudono quelli, poi con l'ultima
-   risposta si chiude il principale.
+7. **Principale e collegati.** Il **principale** è il primo ticket (aperto) collegato al thread: nel
+   pannello ha l'icona della mail. **Con un solo ticket aperto** sul thread è legato alla **risposta via
+   mail**, che lo aggiorna (con l'azione salvata con "Salva e compila", se c'è). **Con più ticket aperti** il
+   pannello non può lavorare mentre si scrive la mail in Outlook: ogni ticket, principale compreso, si
+   aggiorna e si chiude dal pannello (`updateTicket`: testo e azione subito, in qualunque ordine) e la mail
+   la scrive l'operatore (il pannello prepara il testo da copiare); la risposta non tocca ServiceNow.
 8. **Da In coda, con più messaggi nel thread,** l'operatore sceglie da quale messaggio nasce il ticket
    (frecce e "Usa questo"; mai in automatico): da quel messaggio vengono *Description* e *Reported*.
 
@@ -75,8 +75,9 @@ Ogni servizio restituisce una Promise.
 | `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento. Con `mail = null` è un ticket aperto da Ticket senza mail: nessun thread da collegare, Caller = chi lo apre, `reportedOn` = data e ora scritte dall'operatore | ServiceNow → SharePoint |
 | `assignTicket(numero, utente)` | Prende in carico il ticket di un collega (*Assigned to*) | ServiceNow → SharePoint |
 | `getTicketActivity(numero, { offset, limit })` | Storico completo, dal più recente, a pagine (solo su richiesta) | ServiceNow (journal) |
-| `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento). L'azione può avere `addMinutes`: tempo lavorato da aggiungere (o togliere) insieme | SharePoint |
-| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o collegato (non principale), con l'eventuale `addMinutes` dell'azione: testo come *Additional comments* (o *Resolution notes* / *Work notes* come all'invio) e azione subito | ServiceNow → SharePoint |
+| `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento). Azione = `{ type: comment \| resolve \| hold \| cancel, by, resolutionCode (resolve), holdReason e holdDays (hold, 1–7 giorni), addMinutes }`; `addMinutes`: tempo lavorato da aggiungere (o togliere) insieme | SharePoint |
+| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o di un thread con più ticket aperti, con l'eventuale `addMinutes` dell'azione: testo e azione subito, scritti come all'invio (punto 2 di "All'invio della risposta") | ServiceNow → SharePoint |
+| `searchTickets(testo)` | "Cerca su AMP": Incident con il testo nel numero o nella short description, anche chiusi e di altri operatori (i più recenti, max 20). Ogni ticket come quello restituito, più `resolutionNotes`, `lastWorkNote` = `{ author, at, text }` (l'ultima *Work note* dal journal) o `null` e `readOnly: true`. Il pannello li mostra in sola lettura, con "Apri su AMP" (`url`) | ServiceNow |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
 | `forwardMail(conversationId, gruppo, utente)` | Inoltro della richiesta a un reparto interno (PO, ES, PEL); il thread lascia In coda. Sequenza in "Inoltro (FWD)" | Graph (+ ServiceNow) |
 | `subscribe(listener)` | Facoltativo: avvisa il pannello quando i dati cambiano | — |
@@ -109,14 +110,15 @@ Pulizia: thread liberi, ticket chiusi e movimenti più vecchi di N mesi si cance
 
 Quando dalla casella parte una risposta in una conversazione con ticket aperti:
 
-0. si aggiorna solo il **principale** del thread (regola 7); i collegati non vengono toccati;
-1. il testo della mail va su ServiceNow come *Additional comments* del principale (come il pannello AMP su Tampermonkey);
+0. solo se il thread ha **un solo ticket aperto** (regola 7): si aggiorna quello; con più ticket aperti la risposta non tocca ServiceNow;
+1. il testo della mail va su ServiceNow come *Additional comments* del ticket (come il pannello AMP su Tampermonkey);
 2. si applica l'azione salvata (confermata con "Salva e compila"):
    - se l'azione ha `addMinutes`, il tempo lavorato si aggiorna di quei minuti (impostati nel timer del pannello);
    - `comment` (Aggiorna) → solo *Additional comments*; su un ticket On Hold → torna In Progress;
    - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), *Resolution notes* = testo della mail
      seguito dal nome dell'operatore;
-   - `hold` → stato On Hold, *On hold reason*, *On hold expiration*, *Work notes* = testo della mail;
+   - `hold` → stato On Hold, *On hold reason*, *On hold expiration* = momento in cui l'azione parte + `holdDays`
+     giorni (da 1 a 7) + 5 minuti, *Work notes* = testo della mail;
 3. solo se ServiceNow risponde OK si aggiornano la copia del ticket e il thread su SharePoint
    (ticket chiuso → thread libero), si registra il movimento e l'azione si cancella.
 

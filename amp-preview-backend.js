@@ -25,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v7';
+    const STORAGE_KEY = 'amp_preview_backend_v8';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -180,6 +180,21 @@
             state: '2', assignedTo: OPERATORS.giulia, companyId: 'alfa', companyName: 'Agenzia Alfa', activityId: '', activityName: 'Gestionale',
             shortDescription: s9, reportedOn: snDate(at(20 * HOUR - 2 * MINUTE)), openedAt: iso(19 * HOUR), timeWorkedMinutes: 10
         }, [entry(19 * HOUR, 'Giulia Verdi', 'system', 'Ticket aperto da ServiceNow.')]);
+
+        // Ticket chiusi da tempo (solo su ServiceNow): si trovano con "Cerca su AMP"
+        incident('INC0011870', {
+            state: '6', assignedTo: OPERATORS.marco, companyId: 'beta', companyName: 'Agenzia Beta', activityId: 'password', activityName: 'Reset password',
+            shortDescription: 'Reset password Outlook', description: 'Buongiorno, dopo il cambio password non riesco più ad accedere a Outlook.',
+            reportedOn: snDate(at(38 * DAY)), openedAt: iso(38 * DAY - HOUR), closedAt: iso(37 * DAY), timeWorkedMinutes: 25,
+            resolutionCode: 'Solved (Permanently)', resolutionNotes: 'Password reimpostata, utente verificato al telefono.\nMarco Rossi'
+        }, [entry(37.2 * DAY, 'Giulia Verdi', 'work_note', 'Contattato l\'utente: la password temporanea era scaduta. Generata una nuova e inviata via SMS.'),
+            entry(37 * DAY, 'Marco Rossi', 'system', 'Stato: Resolved (Solved (Permanently)).')]);
+        incident('INC0011702', {
+            state: '8', assignedTo: OPERATORS.luca, companyId: 'alfa', companyName: 'Agenzia Alfa', activityId: 'posta', activityName: 'Posta elettronica',
+            shortDescription: '[FWD] Reset password casella commerciale', description: 'Richiesta di reset della password della casella condivisa commerciale@agenziaalfa.it.',
+            reportedOn: snDate(at(52 * DAY)), openedAt: iso(52 * DAY), closedAt: iso(51.9 * DAY), timeWorkedMinutes: 10,
+            resolutionNotes: 'Inoltrato al team Exchange.\nLuca Bianchi'
+        }, [entry(51.9 * DAY, 'Luca Bianchi', 'system', 'Stato: Canceled.')]);
 
         // 10. Ticket di Marco senza mail (aperto direttamente su AMP)
         incident('INC0012098', {
@@ -550,6 +565,22 @@
             delete result.thread;
             return respond(result);
         },
+        // Ricerca su ServiceNow (numero o short description), anche chiusi e di altri: sola lettura,
+        // con la nota di chiusura e l'ultima work note.
+        searchTickets(text) {
+            const query = String(text || '').trim().toLowerCase();
+            if (!query) return respond([]);
+            const found = Object.values(db.incidents)
+                .filter(incident => `${incident.number} ${incident.shortDescription || ''}`.toLowerCase().includes(query))
+                .sort((a, b) => String(b.openedAt).localeCompare(String(a.openedAt)))
+                .slice(0, 20)
+                .map(incident => {
+                    const note = (db.history[incident.number] || []).filter(item => item.kind === 'work_note').slice(-1)[0];
+                    return { ...snowView(incident), resolutionNotes: incident.resolutionNotes || '', readOnly: true,
+                        lastWorkNote: note ? { author: note.author, at: note.at, text: note.text } : null };
+                });
+            return new Promise(resolve => setTimeout(() => resolve(copy(found)), 600)); // ServiceNow: un po' più lento
+        },
         getTicket(number) {
             return db.sp.tickets[number] ? respond(decoratedTicket(number)) : fail(`Ticket ${number} non trovato.`);
         },
@@ -725,9 +756,10 @@
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
                     body, receivedAt: now(), categories: [], direction: 'out'
                 });
-                // La risposta aggiorna solo il principale del thread (con la sua azione salvata, se c'è);
-                // gli altri ticket sono indipendenti e si lavorano dal pannello.
-                const targets = resolveConversation(original.conversationId).tickets.filter(ticket => ticket.primary);
+                // Con un solo ticket aperto la risposta lo aggiorna (con l'azione salvata, se c'è). Con più ticket
+                // aperti sul thread non tocca ServiceNow: ogni ticket si lavora dal pannello, la mail si scrive a mano.
+                const open = resolveConversation(original.conversationId).tickets.filter(ticket => OPEN_STATES.includes(ticket.state));
+                const targets = open.length === 1 ? open : [];
                 const applied = targets.map(ticket => applyReply(ticket.number, body, operatorName));
                 const conversationThread = db.sp.threads[original.conversationId];
                 if (conversationThread?.owner === operatorName) conversationThread.ownerSeenAt = now();
@@ -807,9 +839,11 @@
                 });
                 addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[item.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo della mail.`);
             } else if (action.type === 'hold') {
-                Object.assign(item, { state: '3', holdReason: action.holdReason, holdExpiration: action.holdExpiration });
+                // scadenza come in Tampermonkey: adesso + giorni scelti + 5 minuti
+                const holdExpiration = snDate(new Date(Date.now() + (Number(action.holdDays) || 1) * DAY + 5 * 60000));
+                Object.assign(item, { state: '3', holdReason: action.holdReason, holdExpiration });
                 addHistory(number, operator, 'work_note', body);
-                addHistory(number, operator, 'system', `Stato: On Hold fino al ${action.holdExpiration}.`);
+                addHistory(number, operator, 'system', `Stato: On Hold fino al ${holdExpiration}.`);
             } else if (item.state === '3') {
                 Object.assign(item, { state: '2', holdReason: '', holdExpiration: '' });
                 addHistory(number, operator, 'system', 'Stato: In Progress.');
