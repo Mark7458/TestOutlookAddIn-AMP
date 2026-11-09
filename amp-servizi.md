@@ -79,6 +79,7 @@ Ogni servizio restituisce una Promise.
 | `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento) | SharePoint |
 | `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o collegato (non principale): testo come *Additional comments* (o *Resolution notes* / *Work notes* come all'invio) e azione subito | ServiceNow → SharePoint |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
+| `forwardMail(conversationId, gruppo, utente)` | Inoltro della richiesta a un reparto interno (PO, ES, PEL); il thread lascia In coda. Sequenza in "Inoltro (FWD)" | Graph (+ ServiceNow) |
 | `subscribe(listener)` | Facoltativo: avvisa il pannello quando i dati cambiano | — |
 | `listThreadMessages(conversationId)` | Messaggi ricevuti del thread, dal più vecchio: `[{ messageId, sender, receivedAt, preview }]`. In In coda, con più messaggi, l'operatore sceglie da quale aprire il ticket | Graph |
 | `getMailBody(messageId)` | Testo (semplice, senza HTML) di una mail della casella condivisa: in In coda si legge la richiesta e la si prende in carico o la si ignora senza aprirla in Outlook | Graph |
@@ -134,6 +135,33 @@ condivisa (`MessageCopyForSentAsEnabled` / `MessageCopyForSendOnBehalfEnabled`).
 - Rispondere con un testo pronto: `Office.context.mailbox.item.displayReplyForm(...)` (solo sulla mail aperta).
 - Elenco delle mail della casella condivisa: non disponibile da Office.js → Graph nella Function App.
 
+## Inoltro (FWD)
+
+Quando l'operatore sceglie Inoltra e un gruppo (PO, ES o PEL), in quest'ordine:
+
+1. **apre il ticket** (assegnato a chi inoltra);
+2. **risponde alla mail** con il testo di presa in carico e il riferimento al ticket;
+3. **controlla che la casella M365** sia in A o in Cc e, se manca, la aggiunge in Cc;
+4. **antepone all'oggetto** `[PO]`, `[ES]` o `[PEL]` secondo la scelta;
+5. **invia** la risposta;
+6. **chiude il ticket** con il testo "Inoltrato a PO" / "Inoltrato a ES" / "Inoltrato a PEL".
+
+Se un passaggio fallisce ci si ferma e il pannello lo mostra (per esempio: ticket aperto ma risposta non inviata),
+così l'operatore può riprovare l'invio o annullare il ticket.
+
+**Lato Outlook (passaggi 2–5), fattibile dal pannello con Microsoft Graph.** La risposta si crea come bozza
+(createReply sulla mail della casella condivisa), si modificano testo, Cc e oggetto della bozza e poi si invia.
+Le bozze restano modificabili anche dopo il 31/12/2026, quando Microsoft bloccherà le modifiche a oggetto e
+destinatari delle mail già esistenti senza permessi speciali. Accesso con nested app authentication (MSAL).
+Permessi necessari:
+- registrazione dell'app (consenso amministratore): `Mail.ReadWrite.Shared` e `Mail.Send.Shared`;
+- casella condivisa, per ogni operatore: accesso completo (Full Access) e "Invia come" (Send As) oppure
+  "Invia per conto di" (Send on Behalf).
+
+**Lato ServiceNow (passaggi 1 e 6).** Dal pannello servono OAuth per l'app e regole CORS sull'istanza;
+altrimenti restano alla Function App. La prima versione probabilmente agirà solo lato Outlook: apertura e
+chiusura del ticket le farà l'operatore, con un'interfaccia temporanea per i ticket da inoltrare (da definire).
+
 ## Riferimenti a ServiceNow (sys_id)
 
 Nelle impostazioni Company, Assignment group, Category e Assigned to si scrivono per nome.
@@ -145,4 +173,5 @@ Le voci senza sys_id compaiono come "da verificare". Servizio da aggiungere:
 
 ## Da definire
 
-- Flusso FWD (inoltro al reparto interno competente): priorità per il primo rilascio.
+- Flusso FWD: testo di presa in carico, indirizzo della casella M365 (nelle impostazioni), interfaccia
+  temporanea per i ticket da inoltrare nella prima versione (solo Outlook).
