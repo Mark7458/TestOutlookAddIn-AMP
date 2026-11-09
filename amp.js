@@ -556,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 16:45';
+    const BUILD = '2026-11-09 17:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3826,9 +3826,9 @@
             h('p', { class: 'ao-footnote' }, TEXTS.settings.version(BUILD))
         ];
     }
-    // Agenzie, Attività e Risposte: le stesse schede del resto del pannello. Compatte (nome, riassunto, etichetta);
-    // un clic le apre come in In coda (si sollevano, le altre si sfocano) con il modulo già compilato, da modificare lì;
-    // la freccia le richiude. "+ Nuova …" ha lo stile di "+ Nuovo ticket" e si trasforma nel modulo vuoto.
+    // Agenzie, Attività e Risposte: le stesse schede del resto del pannello. Chiuse si leggono (nome, riassunto o testo
+    // intero della risposta); un clic le apre come in In coda (si sollevano, le altre si sfocano) e il contenuto diventa
+    // direttamente il modulo da modificare; la freccia le richiude. "+ Nuova …" ha lo stile di "+ Nuovo ticket".
     function collectionSection(tab, config) {
         const editor = EDITORS[tab];
         const items = Object.entries(config[collectionOf(tab)]).sort(byName);
@@ -3847,13 +3847,12 @@
                     onclick: event => pickConfigItem(event, tab, id),
                     onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pickConfigItem(event, tab, id); }
                 },
-                    h('div', { class: 'ao-config-face' },
+                    expanded ? h('div', { class: 'ao-config-more' }, editorForm(tab, id, item)) : h('div', { class: 'ao-config-face' },
                         h('div', { class: 'ao-item-head' },
                             h('span', { class: 'ao-item-title' }, item[nameKey]),
                             editor.unverified?.(item) ? chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint) : null,
                             badge ? chip(badge, 'neutral') : null),
-                        editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null),
-                    expanded ? h('div', { class: 'ao-config-more' }, editorForm(tab, id, item)) : null);
+                        editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null));
             })) : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
         ];
     }
@@ -3864,8 +3863,12 @@
         if (open && open !== event.currentTarget) return collapseConfigItem(open);
         if (!open) openConfigItem(tab, id);
     }
+    // Aprendo, il contenuto svanisce e la scheda si allunga fino al modulo, che compare; chiudendo, l'inverso.
     async function openConfigItem(tab, id) {
         await whenIdle();
+        const before = configCardOf(id);
+        const from = before && shape(before);
+        if (before && !reducedMotion()) await holdingRender(() => fadeAll([...before.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
         state.editing = { kind: tab, id };
         state.liftConfig = id; // si disegna ancora a terra, poi si solleva con la transizione
         render();
@@ -3873,16 +3876,18 @@
         const card = configCardOf(id);
         card?.getBoundingClientRect();
         card?.classList.remove('ao-unlifted');
-        await holdingRender(() => unfold(card?.querySelector('.ao-config-more')));
+        if (card && from && !reducedMotion()) await holdingRender(() => growFrom(card, from));
     }
     async function collapseConfigItem(card) {
         if (!card || state.holdRender) return;
-        card.classList.add('ao-unlifted'); // torna a terra mentre il modulo risale
-        holdRender();
-        await fold(card.querySelector('.ao-config-more'));
+        const id = card.dataset.id;
+        card.classList.add('ao-unlifted'); // torna a terra mentre il modulo svanisce
+        const from = shape(card);
+        if (!reducedMotion()) await holdingRender(() => fadeAll([...card.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
         state.editing = null;
-        releaseRender();
         render();
+        const closed = configCardOf(id);
+        if (closed && !reducedMotion()) await holdingRender(() => growFrom(closed, from));
     }
     const configCardOf = id => [...root.querySelectorAll('.ao-config-item')].find(card => card.dataset.id === id);
     async function openNewItem(tab) {
@@ -4460,8 +4465,7 @@
 #ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
 #ao-root .ao-config-summary { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
-#ao-root .ao-config-text { white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } /* risposta: le prime due righe */
-#ao-root .ao-config-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line); overflow: hidden; }
+#ao-root .ao-config-text { color: var(--ao-text); white-space: pre-line; } /* risposta: il testo intero, da leggere */
 #ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
 #ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
 #ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
