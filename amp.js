@@ -562,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 19:35';
+    const BUILD = '2026-11-09 19:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3398,14 +3398,12 @@
             onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
         },
             h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { query, owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) }), // l'icona serve a distinguerlo dai collegati
-                listed ? ticketMeta(ticket) : null),
+                ticketMeta(ticket)), // scadenza dell'On Hold (e azione in attesa) come sulla scheda della lista
             listed && !expanded ? null : h('div', { class: 'ao-ticket-more' },
                 h('div', { class: 'ao-ticket-dates' }, // prima le date
                     h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
                     h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn))),
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
-                !listed && ticket.state === '3' && ticket.holdExpiration // nella lista la scadenza è già sulla scheda chiusa
-                    ? h('div', { class: 'ao-hold-line' }, h('span', { class: 'ao-hint' }, HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'), holdDue(ticket)) : null,
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
                 expanded ? ticketWork(ticket, config, { isCurrentMail, primary, others }) : null));
     }
@@ -4301,7 +4299,6 @@
 #ao-root .ao-due-chip svg { width: 13px; height: 13px; }
 #ao-root .ao-due-today { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-due-late { color: var(--ao-danger); }
-#ao-root .ao-hold-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #ao-root .ao-empty, #ao-root .ao-footnote { margin: 8px 0; color: var(--ao-text-subtle); text-align: center; }
 #ao-root .ao-footnote { font-size: var(--ao-fs-sm); }
 
