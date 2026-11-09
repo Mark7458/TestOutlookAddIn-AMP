@@ -452,7 +452,6 @@
             openInServiceNow: 'Apri in ServiceNow',
             timeWorked: 'Tempo lavorato',
             minutes: n => `${n} min`,
-            timeChanged: (delta, total) => `Tempo ${delta > 0 ? '+' : '−'}${formatMinutes(Math.abs(delta))} · totale ${formatMinutes(total)}.`,
             closed: state => `Ticket ${state}: nessuna azione disponibile.`,
             noLinkedMail: 'Nessuna mail collegata: la risposta non è disponibile da qui.',
             // Azione all'invio
@@ -560,7 +559,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 18:55';
+    const BUILD = '2026-11-09 19:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -647,7 +646,6 @@
     //   createTicket(mail, { companyId, companyName, activityId, activityName, fields }) → Ticket
     //                                          (mail = null: ticket aperto da Ticket senza mail, senza thread)
     //   assignTicket(numero, utente)        → Ticket    (Assigned to = utente)
-    //   addTime(numero, minuti, nome)       → Ticket    (minuti anche negativi)
     //   getTicketActivity(numero, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
     //   setPendingAction(numero, azione | null)      → Ticket   (eseguita all'invio della risposta)
     //   discardMail(conversationId, utente) / restoreMail(conversationId)
@@ -662,6 +660,7 @@
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
     //   updateTicket(numero, azione, testo, utente) → Ticket: ticket senza mail o collegato (non principale), aggiornato direttamente su ServiceNow
+    //   (in azione, qui e in setPendingAction, addMinutes: tempo lavorato da aggiungere o togliere insieme all'azione)
     //                                          (azione come setPendingAction, o null = solo commento; testo = commento / Resolution notes)
     //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
     //   (listQueue e listIgnored: ogni mail ha label = { name, color } | null, che si toglie quando la mail viene
@@ -676,7 +675,7 @@
     // ======================================================================
 
     const SERVICE_METHODS = ['listQueue', 'listIgnored', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
-        'assignTicket', 'addTime', 'getTicketActivity', 'setPendingAction', 'discardMail', 'restoreMail'];
+        'assignTicket', 'getTicketActivity', 'setPendingAction', 'discardMail', 'restoreMail'];
 
     class ServicesMissingError extends Error {}
 
@@ -940,6 +939,7 @@
         liftConfig: null, // voce di Impostazioni appena aperta: si disegna ancora a terra, poi si solleva
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
+        timeDrafts: {}, // per ticket: tempo lavorato impostato nel timer, che parte insieme all'azione (non da solo)
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
@@ -3409,7 +3409,7 @@
     // Attività del ticket aperto: con la mail (il principale) "Salva e compila"; altrimenti testo e azione subito.
     // Il tempo lavorato sta sulla riga del titolo. La freccia in fondo richiude, come in In coda.
     function ticketWork(ticket, config, { isCurrentMail, primary, others }) {
-        const timer = timerControl(ticket, true);
+        const timer = timerControl(ticket, !(primary && ticket.messageId && ticket.pendingAction)); // confermata: il tempo è già nell'azione
         const withMail = Boolean(ticket.messageId);
         const work = !withMail || !primary ? updateCard(ticket, config, timer)
             : ticket.mailUnconfirmed ? h('section', { class: 'ao-card' }, workTitle(timer)) // mail da confermare: niente azioni
@@ -3455,27 +3455,19 @@
     // Tempo lavorato: − valore +, a larghezza fissa (i pulsanti non si spostano mai). Un clic = 5 minuti; tenendo
     // premuto il passo cresce. Clic sul valore: si scrive il tempo (2h, 1h30, 120) o la differenza (+2h, -30).
     // A ServiceNow va sempre e solo la differenza, una volta sola quando si rilascia o si conferma.
+    // Tempo lavorato: si imposta qui ma non parte da solo; va su ServiceNow insieme all'azione (Aggiorna, Risolvi,
+    // On Hold, Annulla) o, sul principale, con l'azione salvata per l'invio della risposta. Così un solo calcolo.
     function timerControl(ticket, enabled) {
-        const total = ticket.timeWorkedMinutes || 0;
+        const total = workedMinutes(ticket);
         let shown = total;
-        let sent = total; // quanto è già stato mandato: due modifiche di fila non devono sommare due volte la prima
-        const value = h('span', { class: 'ao-timer-value', role: 'button', tabindex: enabled ? '0' : null, title: enabled ? TEXTS.mail.timeWorked : null });
-        const paint = () => { value.textContent = formatMinutes(shown); };
-        // Un invio alla volta: le modifiche fatte mentre il precedente è in viaggio partono subito dopo (niente clic persi).
-        let sending = false;
-        const send = async () => {
-            if (sending || shown === sent) return;
-            sending = true;
-            const delta = shown - sent;
-            const before = sent;
-            sent = shown;
-            const updated = await run(() => Services.addTime(ticket.number, delta, currentUser().displayValue));
-            sending = false;
-            if (!updated) { sent = before; shown = before; paint(); return; }
-            rememberTicket(updated);
-            if (shown !== sent) return send(); // altri clic nel frattempo
-            render();
-            showStatus(TEXTS.mail.timeChanged(updated.timeWorkedMinutes - total, updated.timeWorkedMinutes));
+        const value = h('span', { class: `ao-timer-value${shown !== (ticket.timeWorkedMinutes || 0) ? ' ao-timer-changed' : ''}`, role: 'button', tabindex: enabled ? '0' : null, title: enabled ? TEXTS.mail.timeWorked : null });
+        const paint = () => {
+            value.textContent = formatMinutes(shown);
+            value.classList.toggle('ao-timer-changed', shown !== (ticket.timeWorkedMinutes || 0)); // da mandare con l'azione
+        };
+        const keep = () => {
+            if (shown === (ticket.timeWorkedMinutes || 0)) delete state.timeDrafts[ticket.number];
+            else state.timeDrafts[ticket.number] = shown;
         };
         const stepper = direction => {
             let timer = null, repeats = 0;
@@ -3489,7 +3481,7 @@
                 if (!repeats) return;
                 clearTimeout(timer); clearInterval(timer);
                 repeats = 0;
-                send();
+                keep();
             };
             return h('button', {
                 type: 'button', class: 'ao-timer-step', disabled: !enabled, 'aria-label': direction > 0 ? '+' : '−',
@@ -3509,16 +3501,16 @@
             if (!enabled || value.querySelector('input')) return;
             const input = h('input', { class: 'ao-timer-input', value: formatMinutes(shown), 'aria-label': TEXTS.mail.timeWorked });
             let finished = false;
-            const done = keep => {
+            const done = save => {
                 if (finished) return;
-                if (keep) {
+                if (save) {
                     const next = parseMinutes(input.value, shown);
                     if (next === null) { showStatus(TEXTS.mail.timeInvalid, 'danger'); input.focus(); return; }
                     shown = next;
+                    keep();
                 }
                 finished = true;
                 paint();
-                if (keep) send();
             };
             input.onkeydown = key => { if (key.key === 'Enter') done(true); if (key.key === 'Escape') done(false); };
             input.onblur = () => { if (value.contains(input)) done(true); };
@@ -3532,6 +3524,9 @@
         paint();
         return h('div', { class: 'ao-timer', onclick: event => event.stopPropagation() }, stepper(-1), value, stepper(1));
     }
+    // Tempo mostrato: quello impostato e non ancora mandato, oppure quello salvato con l'azione all'invio, oppure il totale.
+    const workedMinutes = ticket => state.timeDrafts[ticket.number]
+        ?? (ticket.timeWorkedMinutes || 0) + (ticket.pendingAction?.addMinutes || 0);
     // "2h", "1h30", "1,5h", "120", "90m" = tempo totale; con + o − davanti = differenza da quello attuale.
     function parseMinutes(text, current) {
         const clean = String(text).trim().toLowerCase().replace(/\s+/g, '').replace(/min$/, 'm').replace('−', '-');
@@ -3627,10 +3622,11 @@
         const draft = actionDraft(ticket, config);
         if (draft.type === 'hold' && !parseDate(draft.holdExpiration)) return showStatus(TEXTS.mail.holdExpiration, 'danger');
         const user = currentUser(config);
-        const updated = await run(() => Services.updateTicket(ticket.number, buildPendingAction(draft, user.displayValue), draft.text.trim(), user));
+        const updated = await run(() => Services.updateTicket(ticket.number, buildPendingAction(draft, user.displayValue, ticket), draft.text.trim(), user));
         if (!updated) return;
         rememberTicket(updated);
         delete state.actionDrafts[ticket.number];
+        delete state.timeDrafts[ticket.number];
         if (OPEN_STATES.includes(updated.state)) {
             render();
             showStatus(TEXTS.mail.updated(updated.number));
@@ -3686,8 +3682,10 @@
             ] : null,
         );
     }
-    function buildPendingAction(draft, by) {
+    function buildPendingAction(draft, by, ticket) {
         const action = { type: draft.type, by }; // anche Aggiorna si conferma; il testo è quello della mail
+        const minutes = workedMinutes(ticket) - (ticket.timeWorkedMinutes || 0);
+        if (minutes) action.addMinutes = minutes; // tempo lavorato aggiunto (o tolto) insieme all'azione
         if (draft.type === 'resolve') action.resolutionCode = draft.resolutionCode;
         if (draft.type === 'hold') {
             const date = parseDate(draft.holdExpiration.replace('T', ' '));
@@ -3718,9 +3716,12 @@
     }
     // keepDraft: "Cambia selezione" sblocca e lascia la configurazione com'era (niente reset, niente salti).
     async function savePendingAction(ticket, action, keepDraft = false) {
+        const minutes = workedMinutes(ticket); // tempo mostrato: resta lo stesso, prima nell'azione, poi di nuovo nel timer
         const updated = await run(() => Services.setPendingAction(ticket.number, action));
         if (!updated) return null;
         rememberTicket(updated);
+        if (action) delete state.timeDrafts[ticket.number];
+        else if (minutes !== (updated.timeWorkedMinutes || 0)) state.timeDrafts[ticket.number] = minutes;
         if (!keepDraft) delete state.actionDrafts[ticket.number];
         render();
         return updated;
@@ -3734,7 +3735,7 @@
             : config.usefulResponses[draft.template.replace(/^useful:/, '')]?.response;
         // Il riferimento all'Incident nella risposta (in fondo) rende sicuro il collegamento mail ↔ ticket.
         const text = [template || '', draft.includeReference ? TEXTS.mail.reference(ticket.number) : ''].filter(Boolean).join('\n\n'); // il riferimento in fondo
-        const updated = await confirmMorph(ticket.number, () => savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue)));
+        const updated = await confirmMorph(ticket.number, () => savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue, ticket)));
         if (!updated) return;
         // In Outlook la risposta si apre solo sulla mail aperta: per un'altra mail
         // si apre la mail e l'azione resta salvata. L'anteprima le gestisce entrambe.
@@ -4533,6 +4534,7 @@
 /* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto).
    Il tempo sta incassato nella traccia dei selettori; − e + sono in rilievo come la voce scelta. */
 #ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+#ao-root .ao-timer-value.ao-timer-changed { color: var(--ao-text-accent); } /* tempo impostato, parte con l'azione */
 #ao-root .ao-timer-step { width: 24px; height: 100%; padding: 0; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; transition: filter .3s, box-shadow .35s; }
 #ao-root .ao-timer-step:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-hover-glow); }
 #ao-root .ao-timer-step:disabled { opacity: .4; cursor: default; }

@@ -600,19 +600,6 @@
                 return respond(decoratedTicket(number));
             } catch (error) { return fail(error.message); }
         },
-        addTime(number, deltaMinutes, by) {
-            try {
-                let applied = 0;
-                applyOnServiceNow(number, by, 'tempo', `${deltaMinutes > 0 ? '+' : ''}${deltaMinutes} minuti`, incident => {
-                    const before = incident.timeWorkedMinutes;
-                    incident.timeWorkedMinutes = Math.max(0, before + Number(deltaMinutes));
-                    applied = incident.timeWorkedMinutes - before;
-                    addHistory(number, by, 'system', `Tempo lavorato: ${applied >= 0 ? '+' : ''}${applied} minuti (totale ${incident.timeWorkedMinutes}).`);
-                });
-                persist();
-                return respond(decoratedTicket(number));
-            } catch (error) { return fail(error.message); }
-        },
         // Storico completo di ServiceNow (commenti di tutti): letto solo su richiesta.
         getTicketActivity(number, { offset = 0, limit = 5 } = {}) {
             const all = (db.history[number] || []).slice().reverse();
@@ -808,6 +795,11 @@
             // Come il pannello AMP su Tampermonkey: il testo va sempre negli Additional comments;
             // Risolvi/Annulla anche nelle Resolution notes (con il nome dell'operatore), On Hold anche nelle Work notes.
             addHistory(number, operator, 'comment', body);
+            if (action.addMinutes) { // tempo lavorato impostato nel pannello, insieme all'azione
+                const before = item.timeWorkedMinutes;
+                item.timeWorkedMinutes = Math.max(0, before + Number(action.addMinutes));
+                addHistory(number, operator, 'system', `Tempo lavorato: ${item.timeWorkedMinutes - before >= 0 ? '+' : ''}${item.timeWorkedMinutes - before} minuti (totale ${item.timeWorkedMinutes}).`);
+            }
             if (action.type === 'resolve' || action.type === 'cancel') {
                 Object.assign(item, {
                     state: action.type === 'resolve' ? '6' : '8', resolutionCode: action.resolutionCode || '',

@@ -74,10 +74,9 @@ Ogni servizio restituisce una Promise.
 | `linkTicket(conversationId, numero, utente)` | L'operatore conferma il collegamento: il thread passa in gestione | SharePoint |
 | `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento. Con `mail = null` è un ticket aperto da Ticket senza mail: nessun thread da collegare, Caller = chi lo apre, `reportedOn` = data e ora scritte dall'operatore | ServiceNow → SharePoint |
 | `assignTicket(numero, utente)` | Prende in carico il ticket di un collega (*Assigned to*) | ServiceNow → SharePoint |
-| `addTime(numero, minuti, nome)` | Aggiunge (o toglie, se negativo) tempo lavorato | ServiceNow → SharePoint |
 | `getTicketActivity(numero, { offset, limit })` | Storico completo, dal più recente, a pagine (solo su richiesta) | ServiceNow (journal) |
-| `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento) | SharePoint |
-| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o collegato (non principale): testo come *Additional comments* (o *Resolution notes* / *Work notes* come all'invio) e azione subito | ServiceNow → SharePoint |
+| `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento). L'azione può avere `addMinutes`: tempo lavorato da aggiungere (o togliere) insieme | SharePoint |
+| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o collegato (non principale), con l'eventuale `addMinutes` dell'azione: testo come *Additional comments* (o *Resolution notes* / *Work notes* come all'invio) e azione subito | ServiceNow → SharePoint |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
 | `forwardMail(conversationId, gruppo, utente)` | Inoltro della richiesta a un reparto interno (PO, ES, PEL); il thread lascia In coda. Sequenza in "Inoltro (FWD)" | Graph (+ ServiceNow) |
 | `subscribe(listener)` | Facoltativo: avvisa il pannello quando i dati cambiano | — |
@@ -113,6 +112,7 @@ Quando dalla casella parte una risposta in una conversazione con ticket aperti:
 0. si aggiorna solo il **principale** del thread (regola 7); i collegati non vengono toccati;
 1. il testo della mail va su ServiceNow come *Additional comments* del principale (come il pannello AMP su Tampermonkey);
 2. si applica l'azione salvata (confermata con "Salva e compila"):
+   - se l'azione ha `addMinutes`, il tempo lavorato si aggiorna di quei minuti (impostati nel timer del pannello);
    - `comment` (Aggiorna) → solo *Additional comments*; su un ticket On Hold → torna In Progress;
    - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), *Resolution notes* = testo della mail
      seguito dal nome dell'operatore;
