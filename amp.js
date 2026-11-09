@@ -112,7 +112,7 @@
             callBorder: '1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent)',
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
-            lockLine: 'var(--ao-accent)', // azione confermata: nel Flat un bordo (nel vetro basta il bagliore)
+            lockLine: '100%', // azione confermata: nel Flat un bordo del colore dell'azione, come le etichette (nel vetro basta il bagliore)
             lockGlow: '0%', // intensità del bagliore dell'azione confermata (nel flat niente)
             callGlowHover: '0 0 transparent',
             callGlowPulse: '0 0 transparent',
@@ -217,7 +217,7 @@
             callBorder: '1px solid var(--ao-line)',
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
-            lockLine: 'transparent',
+            lockLine: '0%',
             lockGlow: '55%',
             tagHoverEdge: 'transparent',
             openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
@@ -556,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 17:00';
+    const BUILD = '2026-11-09 17:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3422,14 +3422,22 @@
     function timerControl(ticket, enabled) {
         const total = ticket.timeWorkedMinutes || 0;
         let shown = total;
+        let sent = total; // quanto è già stato mandato: due modifiche di fila non devono sommare due volte la prima
         const value = h('span', { class: 'ao-timer-value', role: 'button', tabindex: enabled ? '0' : null, title: enabled ? TEXTS.mail.timeWorked : null });
         const paint = () => { value.textContent = formatMinutes(shown); };
+        // Un invio alla volta: le modifiche fatte mentre il precedente è in viaggio partono subito dopo (niente clic persi).
+        let sending = false;
         const send = async () => {
-            const delta = shown - total;
-            if (!delta) return;
+            if (sending || shown === sent) return;
+            sending = true;
+            const delta = shown - sent;
+            const before = sent;
+            sent = shown;
             const updated = await run(() => Services.addTime(ticket.number, delta, currentUser().displayValue));
-            if (!updated) { shown = total; paint(); return; }
+            sending = false;
+            if (!updated) { sent = before; shown = before; paint(); return; }
             rememberTicket(updated);
+            if (shown !== sent) return send(); // altri clic nel frattempo
             render();
             showStatus(TEXTS.mail.timeChanged(updated.timeWorkedMinutes - total, updated.timeWorkedMinutes));
         };
@@ -4487,7 +4495,7 @@
 #ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 /* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
-#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px var(--ao-lock-line),
+#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, color-mix(in srgb, var(--ao-choice-glow) var(--ao-tag-ink), var(--ao-tag-ink-base)) var(--ao-lock-line), transparent),
     0 0 18px color-mix(in srgb, var(--ao-choice-glow) var(--ao-lock-glow), transparent), 0 0 4px color-mix(in srgb, var(--ao-choice-glow) calc(var(--ao-lock-glow) / 2), transparent),
     var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket, del colore dell'azione scelta */
 #ao-root .ao-locked { cursor: default; }
