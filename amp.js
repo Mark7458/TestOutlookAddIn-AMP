@@ -93,7 +93,6 @@
             itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
             itemHoverEdge: 'var(--ao-accent)',
             itemHoverGlow: '0 0 transparent',
-            itemHoverPulse: '0 0 transparent', // impulso iniziale del bagliore (nel flat niente)
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -201,9 +200,9 @@
             chipLine: 'rgba(0, 50, 110, .16)',
             notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            itemHoverEdge: 'rgba(110, 165, 255, .75)', // vetro: si accendono il bordo e un alone azzurro (con un impulso)
+            itemHover: 'var(--ao-surface)', // vetro: la scheda non si schiarisce; bordo vicino al colore della scheda e alone azzurro
+            itemHoverEdge: 'rgba(255, 255, 255, .95)',
             itemHoverGlow: '0 0 16px rgba(110, 165, 255, .38)',
-            itemHoverPulse: '0 0 24px rgba(110, 165, 255, .62)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
             segmentHover: 'rgba(255, 255, 255, .4)',
             choiceTrack: 'var(--ao-segment-track)',
@@ -258,9 +257,8 @@
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
-            itemHoverEdge: 'rgba(140, 185, 255, .6)',
+            itemHoverEdge: 'rgba(255, 255, 255, .2)',
             itemHoverGlow: '0 0 16px rgba(90, 150, 255, .3)',
-            itemHoverPulse: '0 0 24px rgba(90, 150, 255, .55)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
@@ -555,7 +553,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 12:00';
+    const BUILD = '2026-11-09 12:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4396,11 +4394,7 @@
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); animation: ao-item-pulse .7s ease-out; } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
-@keyframes ao-item-pulse { /* il bagliore si accende forte e si assesta (nel flat l'impulso non c'è) */
-    0% { box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; }
-    35% { box-shadow: var(--ao-shadow-card), var(--ao-item-hover-pulse), inset 0 0 0 1px var(--ao-item-hover-edge); }
-    100% { box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root .ao-new-ticket:hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover), var(--ao-call-ring-hover); animation: ao-call-pulse .7s ease-out; } /* non si schiarisce: si accende */
 @keyframes ao-call-pulse {
     0% { box-shadow: var(--ao-call-glow), var(--ao-call-ring); }
