@@ -556,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 17:15';
+    const BUILD = '2026-11-09 17:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1087,13 +1087,23 @@
         field.querySelector('.ao-select-caret').before(input);
         input.focus();
     }
+    // grow: il testo lungo allarga il campo fino a TEXT_MAX_HEIGHT (come il testo della mail in In coda); oltre scorre.
     function textField(label, value, oninput, extra = {}) {
-        const { multiline, hint, ...attrs } = extra;
+        const { multiline, hint, grow, ...attrs } = extra;
+        const fit = element => {
+            if (!grow) return;
+            element.style.height = 'auto';
+            element.style.height = `${Math.min(element.scrollHeight + 2, TEXT_MAX_HEIGHT)}px`;
+            element.style.overflowY = element.scrollHeight + 2 > TEXT_MAX_HEIGHT ? 'auto' : 'hidden';
+        };
+        const input = h(multiline ? 'textarea' : 'input', { class: 'ao-input', value: value ?? '', oninput: event => { fit(event.target); oninput(event.target.value); }, ...attrs });
+        if (grow) requestAnimationFrame(() => fit(input));
         return h('label', { class: 'ao-field' },
             h('span', { class: 'ao-label' }, label),
-            h(multiline ? 'textarea' : 'input', { class: 'ao-input', value: value ?? '', oninput: event => oninput(event.target.value), ...attrs }),
+            input,
             hint ? h('span', { class: 'ao-hint' }, hint) : null);
     }
+    const TEXT_MAX_HEIGHT = 230;
     function checkboxField(label, checked, onchange) {
         return h('label', { class: 'ao-check' },
             h('input', { type: 'checkbox', checked, onchange: event => onchange(event.target.checked) }),
@@ -1278,7 +1288,10 @@
         const box = at.getBoundingClientRect();
         const copy = source.cloneNode(true);
         copy.classList.add('ao-journey');
-        copy.append(h('div', { class: 'ao-journey-shadow' }));
+        // l'ombra sta sotto la scheda: nel mazzo solo sotto quella davanti (non nello spazio delle fasce)
+        const front = copy.classList.contains('ao-deck') ? copy.querySelector(':scope > .ao-item') : copy;
+        if (front !== copy) front.style.position = 'relative';
+        front.append(h('div', { class: 'ao-journey-shadow' }));
         Object.assign(copy.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, visibility: 'visible' });
         root.append(copy);
         placeAt(copy, box.top, box.left);
@@ -1292,7 +1305,7 @@
     }
     // Si muovono solo posizione e trasparenza (le gestisce la scheda grafica, anche a processore occupato): l'ombra
     // della scheda in viaggio è un livello sotto di lei che compare e svanisce.
-    const shadowOf = copy => copy.querySelector(':scope > .ao-journey-shadow');
+    const shadowOf = copy => copy.querySelector(':scope > .ao-journey-shadow, :scope > .ao-item > .ao-journey-shadow');
     const fadeShadow = (copy, frames, options) => shadowOf(copy)?.animate(frames.map(opacity => ({ opacity })), options);
     // La scheda si solleva prima di partire.
     const lift = element => {
@@ -3882,6 +3895,7 @@
         render();
         state.liftConfig = null;
         const card = configCardOf(id);
+        card?.querySelectorAll('textarea').forEach(area => area.dispatchEvent(new Event('input'))); // misura giusta prima di allungarsi
         card?.getBoundingClientRect();
         card?.classList.remove('ao-unlifted');
         if (card && from && !reducedMotion()) await holdingRender(() => growFrom(card, from));
@@ -3930,7 +3944,7 @@
             const initial = field.list ? (item[field.key] || []).join(', ') : (item[field.key] ?? '');
             values[field.key] = String(initial);
             return textField(field.label, initial, value => { values[field.key] = value; },
-                { hint: field.hint, multiline: field.multiline, rows: field.multiline ? '5' : undefined, type: field.number ? 'number' : undefined, min: field.number ? '0' : undefined });
+                { hint: field.hint, multiline: field.multiline, grow: field.multiline, rows: field.multiline ? '5' : undefined, type: field.number ? 'number' : undefined, min: field.number ? '0' : undefined });
         });
         const save = async event => {
             const nameKey = editor.nameKey || 'name';
