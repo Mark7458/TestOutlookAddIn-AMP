@@ -556,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 17:40';
+    const BUILD = '2026-11-09 17:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3731,9 +3731,9 @@
     // si mostra né si modifica. Se il nome cambia, il sys_id si azzera e la voce è "da verificare".
     const EDITORS = {
         companies: {
-            // scheda compatta: sotto il nome company e gruppo; accanto il primo dominio
+            // scheda compatta: sotto il nome company e gruppo; in fondo tutti i domini
             summary: item => [normalizeReference(item.company).displayValue, normalizeReference(item.assignmentGroup).displayValue].filter(Boolean).join(' · '),
-            badge: item => ((item.domains || []).length ? `@${item.domains[0]}${item.domains.length > 1 ? ` +${item.domains.length - 1}` : ''}` : null),
+            footer: item => (item.domains || []).map(domain => `@${domain}`),
             unverified: item => [item.company, item.assignmentGroup].some(reference => normalizeReference(reference).displayValue && !normalizeReference(reference).value),
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
@@ -3861,7 +3861,6 @@
                 : h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewItem(tab) }, TEXTS.settings.newItem[tab]),
             items.length ? h('ul', { class: 'ao-list' }, items.map(([id, item]) => {
                 const expanded = editing?.id === id;
-                const badge = editor.badge?.(item);
                 return h('li', {
                     class: `ao-item ao-config-item${expanded ? ' ao-expanded' : ''}${expanded && state.liftConfig === id ? ' ao-unlifted' : ''}`,
                     dataset: { id }, tabindex: '0', 'aria-expanded': String(expanded),
@@ -3871,9 +3870,9 @@
                     expanded ? h('div', { class: 'ao-config-more' }, editorForm(tab, id, item)) : h('div', { class: 'ao-config-face' },
                         h('div', { class: 'ao-item-head' },
                             h('span', { class: 'ao-item-title' }, editor.prefix?.(item) ? h('span', { class: 'ao-config-prefix' }, editor.prefix(item)) : null, item[nameKey]),
-                            editor.unverified?.(item) ? chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint) : null,
-                            badge ? chip(badge, 'neutral') : null),
-                        editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null));
+                            editor.unverified?.(item) ? chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint) : null),
+                        editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null,
+                        editor.footer?.(item).length ? h('div', { class: 'ao-config-footer' }, editor.footer(item).map(text => chip(text, 'neutral'))) : null));
             })) : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
         ];
     }
@@ -4487,6 +4486,7 @@
 #ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
 #ao-root .ao-config-prefix { margin-right: 5px; color: var(--ao-text-muted); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-config-footer { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } /* domini dell'agenzia, tutti */
 #ao-root .ao-config-summary { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 #ao-root .ao-config-text { color: var(--ao-text); white-space: pre-line; } /* risposta: il testo intero, da leggere */
 #ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
