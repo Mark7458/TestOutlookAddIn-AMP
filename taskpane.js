@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-13
+// Test-Plugin file version: 0.3-taskpane.js-devtools-14
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
   release: '0.3-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-13',
-    'taskpane.js': '0.3-taskpane.js-devtools-13',
-    'taskpane.css': '0.3-taskpane.css-devtools-13',
+    'taskpane.html': '0.3-taskpane.html-devtools-14',
+    'taskpane.js': '0.3-taskpane.js-devtools-14',
+    'taskpane.css': '0.3-taskpane.css-devtools-14',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1311,20 +1311,25 @@ function registerHealthButton() {
     if (wanted && options.some((entry) => String(entry.value) === wanted)) select.value = wanted;
   }
 
+  function getEnabledGroupOptions(config = developerConfig) {
+    return Object.entries(config?.groups || {})
+      .filter(([, group]) => group?.enabled !== false)
+      .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
+  }
+
   function populateCreateTicketForm(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
     const status = byId("developer-create-config-status");
     const operators = Object.entries(config?.operators || {})
       .filter(([, operator]) => operator?.enabled !== false)
       .map(([id, operator]) => ({ value: id, label: `${operator?.displayName || id} · ${id}` }));
-    const groups = Object.entries(config?.groups || {})
-      .filter(([, group]) => group?.enabled !== false)
-      .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
+    const groups = getEnabledGroupOptions(config);
     const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
 
     setSelectOptions(byId("developer-create-operator-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-create-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-create-group-name"), groups);
     setSelectOptions(byId("developer-create-amp-status"), ampStatuses);
+    updateCreateForwardedTicketControls();
 
     const itemInput = byId("developer-create-item-id");
     if (itemInput && !itemInput.value && developerLastItemId) itemInput.value = developerLastItemId;
@@ -1345,10 +1350,12 @@ function registerHealthButton() {
 
   function populateTicketAndLockForms(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
     const operators = getEnabledOperatorOptions(config);
+    const groups = getEnabledGroupOptions(config);
     const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
     const optionalAmpStatuses = [{ value: "", label: "— non modificare —" }, ...ampStatuses];
     const workflows = (config?.ticketing?.workflows || []).map((value) => ({ value, label: value }));
     setSelectOptions(byId("developer-edit-requester-id"), operators, currentOperatorId);
+    setSelectOptions(byId("developer-edit-group-name"), groups);
     setSelectOptions(byId("developer-edit-amp-status"), optionalAmpStatuses, "");
     setSelectOptions(byId("developer-lock-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-lock-operator-id"), operators, currentOperatorId);
@@ -1357,6 +1364,7 @@ function registerHealthButton() {
       const input = byId(id);
       if (input && !input.value && developerLastItemId) input.value = developerLastItemId;
     });
+    updateEditExternalAssignmentControls();
   }
 
   function getM365AdminCenterMailbox(config = developerConfig) {
@@ -1803,6 +1811,7 @@ function registerHealthButton() {
     addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
     addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
     addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
+    addDeveloperField(container, "Ticket inoltrato", (createdTicket?.isForwardedTicket ?? body.isForwardedTicket) ? "Sì — lifecycle AMP disaccoppiato" : "No — lifecycle AMP collegato");
     const createdTicketNotes = formatTicketNotes(createdTicket?.notes ?? body.notes);
     if (createdTicketNotes && !tickets.length) addDeveloperField(container, "Note ticket", createdTicketNotes);
     addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
@@ -1874,6 +1883,18 @@ function registerHealthButton() {
     addDeveloperField(container, "Ticket ID", parsed?.ticketId);
     addDeveloperField(container, "Stato AMP", parsed?.ampStatus || parsed?.ticket?.status);
     addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
+    if (parsed?.mode === "refreshExternalAssignment" || parsed?.refreshExternalAssignment) {
+      addDeveloperField(container, "Modalità", "refreshExternalAssignment");
+      addDeveloperField(container, "Gruppo precedente", parsed?.previousGroup);
+      addDeveloperField(container, "Nuovo gruppo", parsed?.newGroup);
+      addDeveloperField(container, "Requester refresh", parsed?.requesterId);
+      addDeveloperField(container, "Timestamp refresh", parsed?.timestamp);
+      addDeveloperField(container, "Forzature", `forceRefresh=${Boolean(parsed?.forceRefresh)}, forceChangeGroup=${Boolean(parsed?.forceChangeGroup)}`);
+    }
+    if (parsed?.lastRefresh) {
+      addDeveloperField(container, "Ultimo refresh requester", parsed.lastRefresh.requesterId);
+      addDeveloperField(container, "Ultimo refresh timestamp", parsed.lastRefresh.timestamp);
+    }
     if (parsed?.reason) addDeveloperField(container, "Motivo", parsed.reason);
     const lock = parsed?.currentLock || parsed?.lock || parsed?.ticket?.lock;
     if (lock) addDeveloperField(container, "Lock", `${lock.operatorId || "-"} · ${lock.workflow || "-"}`);
@@ -2054,6 +2075,11 @@ function registerHealthButton() {
       throw new Error("Il workflow CreateTicket non è disponibile in PluginConfig.");
     }
     const notes = String(byId("developer-create-notes")?.value || "").trim();
+    const isForwardedTicket = Boolean(byId("developer-create-forwarded")?.checked);
+    const ampStatus = requiredFormValue("developer-create-amp-status", "Stato AMP");
+    if (isForwardedTicket && ampStatus !== "Resolved") {
+      throw new Error("Per isForwardedTicket=true lo Stato AMP deve essere Resolved.");
+    }
     if (notes.length > TICKET_NOTES_MAX_LENGTH) {
       throw new Error(`Le note del ticket non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
     }
@@ -2061,7 +2087,8 @@ function registerHealthButton() {
       itemId: requiredFormValue("developer-create-item-id", "Item ID"),
       action: "createTicket",
       ampRequestId: requiredFormValue("developer-create-amp-request-id", "Riferimento AMP"),
-      ampStatus: requiredFormValue("developer-create-amp-status", "Stato AMP"),
+      ampStatus,
+      isForwardedTicket,
       operatorId: requiredFormValue("developer-create-operator-id", "Operatore"),
       requesterId: requiredFormValue("developer-create-requester-id", "Requester"),
       groupName: requiredFormValue("developer-create-group-name", "Gruppo"),
@@ -2072,16 +2099,30 @@ function registerHealthButton() {
 
   function collectEditTicketBody() {
     validateTicketingConfig(developerConfig);
+    const common = {
+      itemId: requiredFormValue("developer-edit-item-id", "Item ID"),
+      action: "editTicket",
+      ticketId: requiredFormValue("developer-edit-ticket-id", "Ticket ID"),
+      requesterId: requiredFormValue("developer-edit-requester-id", "Requester")
+    };
+    const refreshExternalAssignment = Boolean(byId("developer-edit-refresh-external")?.checked);
+    if (refreshExternalAssignment) {
+      return {
+        ...common,
+        refreshExternalAssignment: true,
+        groupName: requiredFormValue("developer-edit-group-name", "Gruppo esterno"),
+        forceChangeGroup: Boolean(byId("developer-edit-force-change-group")?.checked),
+        forceRefresh: Boolean(byId("developer-edit-force-refresh")?.checked)
+      };
+    }
+
     const ampStatus = String(byId("developer-edit-amp-status")?.value || "").trim();
     const removeNotes = Boolean(byId("developer-edit-remove-notes")?.checked);
     const notes = String(byId("developer-edit-notes")?.value || "").trim();
     if (notes.length > TICKET_NOTES_MAX_LENGTH) throw new Error(`Le note del ticket non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
     if (!ampStatus && !removeNotes && !notes) throw new Error("Indica almeno uno tra Stato AMP e Note ticket.");
     return {
-      itemId: requiredFormValue("developer-edit-item-id", "Item ID"),
-      action: "editTicket",
-      ticketId: requiredFormValue("developer-edit-ticket-id", "Ticket ID"),
-      requesterId: requiredFormValue("developer-edit-requester-id", "Requester"),
+      ...common,
       ...(ampStatus ? { ampStatus } : {}),
       ...(removeNotes ? { notes: null } : (notes ? { notes } : {})),
       force: Boolean(byId("developer-edit-force")?.checked)
@@ -2123,6 +2164,63 @@ function registerHealthButton() {
     };
   }
 
+  function updateCreateForwardedTicketControls() {
+    const forwarded = Boolean(byId("developer-create-forwarded")?.checked);
+    const ampStatus = byId("developer-create-amp-status");
+    const help = byId("developer-create-forwarded-help");
+    if (ampStatus) {
+      if (forwarded) {
+        if (ampStatus.value !== "Resolved") ampStatus.dataset.previousNormalValue = ampStatus.value;
+        ampStatus.value = "Resolved";
+        ampStatus.disabled = true;
+      } else {
+        ampStatus.disabled = false;
+        const previous = ampStatus.dataset.previousNormalValue;
+        if (previous && Array.from(ampStatus.options).some((option) => option.value === previous)) ampStatus.value = previous;
+        delete ampStatus.dataset.previousNormalValue;
+      }
+    }
+    if (help) help.className = `developer-create-help${forwarded ? " status-warning" : ""}`;
+  }
+
+  function updateEditExternalAssignmentControls() {
+    const refresh = Boolean(byId("developer-edit-refresh-external")?.checked);
+    const normalIds = ["developer-edit-amp-status", "developer-edit-notes", "developer-edit-remove-notes", "developer-edit-force"];
+    normalIds.forEach((id) => {
+      const control = byId(id);
+      if (control) control.disabled = refresh;
+    });
+    ["developer-edit-group-name", "developer-edit-force-change-group", "developer-edit-force-refresh"].forEach((id) => {
+      const control = byId(id);
+      if (control) control.disabled = !refresh;
+    });
+
+    if (refresh) {
+      const ampStatus = byId("developer-edit-amp-status");
+      const notes = byId("developer-edit-notes");
+      const removeNotes = byId("developer-edit-remove-notes");
+      const force = byId("developer-edit-force");
+      if (ampStatus) ampStatus.value = "";
+      if (notes) notes.value = "";
+      if (removeNotes) removeNotes.checked = false;
+      if (force) force.checked = false;
+    } else {
+      const forceChangeGroup = byId("developer-edit-force-change-group");
+      const forceRefresh = byId("developer-edit-force-refresh");
+      if (forceChangeGroup) forceChangeGroup.checked = false;
+      if (forceRefresh) forceRefresh.checked = false;
+    }
+
+    const options = byId("developer-edit-external-options");
+    if (options) options.classList.toggle("is-disabled", !refresh);
+    const help = byId("developer-edit-mode-help");
+    if (help) help.textContent = refresh
+      ? "Modalità refresh esterno attiva: groupName è l’unico dato di assegnazione inviato; metadata AMP, note ticket e lock restano invariati."
+      : "Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.";
+    updateEditTicketNotesCount();
+    updateEditNotesControls();
+  }
+
   function updateEditTicketNotesCount() {
     const input = byId("developer-edit-notes");
     const counter = byId("developer-edit-notes-count");
@@ -2133,9 +2231,10 @@ function registerHealthButton() {
   }
 
   function updateEditNotesControls() {
+    const refresh = Boolean(byId("developer-edit-refresh-external")?.checked);
     const remove = Boolean(byId("developer-edit-remove-notes")?.checked);
     const input = byId("developer-edit-notes");
-    if (input) input.disabled = remove;
+    if (input) input.disabled = refresh || remove;
   }
 
   function updateGraphCategoryControls() {
@@ -2293,14 +2392,18 @@ function registerHealthButton() {
     });
     byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
     byId("developer-create-notes")?.addEventListener("input", updateCreateTicketNotesCount);
+    byId("developer-create-forwarded")?.addEventListener("change", updateCreateForwardedTicketControls);
     byId("developer-edit-notes")?.addEventListener("input", updateEditTicketNotesCount);
     byId("developer-edit-remove-notes")?.addEventListener("change", updateEditNotesControls);
+    byId("developer-edit-refresh-external")?.addEventListener("change", updateEditExternalAssignmentControls);
     byId("developer-graph-action")?.addEventListener("change", updateGraphCategoryControls);
     byId("developer-graph-clear")?.addEventListener("change", updateGraphCategoryControls);
     byId(elementIds.idToggle)?.addEventListener("click", () => toggleIdentifierView("itemId"));
     byId(elementIds.conversationIdToggle)?.addEventListener("click", () => toggleIdentifierView("conversationId"));
     updateCreateTicketNotesCount();
+    updateCreateForwardedTicketControls();
     updateEditTicketNotesCount();
+    updateEditExternalAssignmentControls();
     updateEditNotesControls();
     updateGraphCategoryControls();
     updateDeveloperActionUi();

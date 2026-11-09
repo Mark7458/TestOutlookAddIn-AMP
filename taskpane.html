@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-13 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-14 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -26,6 +26,8 @@
 <div class="developer-create-field"><label for="developer-create-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-create-amp-request-id">Riferimento AMP</label><input autocomplete="off" class="developer-input monospace" id="developer-create-amp-request-id" placeholder="es. INC123456789" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-create-amp-status">Stato AMP</label><select class="developer-input" id="developer-create-amp-status"></select></div>
+<label class="developer-create-checkbox" for="developer-create-forwarded"><input id="developer-create-forwarded" type="checkbox"/><span>isForwardedTicket — inoltrato a un gruppo esterno</span></label>
+<p class="developer-create-help" id="developer-create-forwarded-help">Ticket normale: lo stato AMP contribuisce al lifecycle SharePoint. Per un ticket inoltrato, ampStatus è bloccato su Resolved e il lifecycle AMP è disaccoppiato dallo stato SharePoint.</p>
 <div class="developer-create-field"><label for="developer-create-operator-id">Operatore</label><select class="developer-input" id="developer-create-operator-id"></select></div>
 <div class="developer-create-field"><label for="developer-create-requester-id">Requester</label><select class="developer-input" id="developer-create-requester-id"></select></div>
 <div class="developer-create-field"><label for="developer-create-group-name">Gruppo</label><select class="developer-input" id="developer-create-group-name"></select></div>
@@ -37,11 +39,18 @@
 <div class="developer-create-field"><label for="developer-edit-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-edit-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-edit-ticket-id">Ticket ID</label><input autocomplete="off" class="developer-input monospace" id="developer-edit-ticket-id" placeholder="es. SHP-10243-1" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-edit-requester-id">Requester</label><select class="developer-input" id="developer-edit-requester-id"></select></div>
-<div class="developer-create-field"><label for="developer-edit-amp-status">Stato AMP (opzionale)</label><select class="developer-input" id="developer-edit-amp-status"></select></div>
-<div class="developer-create-field"><label for="developer-edit-notes">Note ticket (opzionali)</label><textarea aria-describedby="developer-edit-notes-help" class="developer-input developer-notes-input" id="developer-edit-notes" maxlength="255" placeholder="Vuoto = non modificare" rows="3"></textarea><p class="developer-create-help developer-notes-help" id="developer-edit-notes-help"><span>Stringa = imposta/sostituisce; usa “rimuovi notes” per inviare null.</span><span id="developer-edit-notes-count">0/255</span></p></div>
-<label class="developer-create-checkbox" for="developer-edit-remove-notes"><input id="developer-edit-remove-notes" type="checkbox"/><span>Rimuovi notes (invia null)</span></label>
-<label class="developer-create-checkbox" for="developer-edit-force"><input id="developer-edit-force" type="checkbox"/><span>force — takeover atomico del lock e modifica</span></label>
-<p class="developer-create-help">È richiesto almeno uno tra Stato AMP e Note ticket.</p>
+<label class="developer-create-checkbox developer-mode-checkbox" for="developer-edit-refresh-external"><input id="developer-edit-refresh-external" type="checkbox"/><span>refreshExternalAssignment — aggiorna esclusivamente l’assegnazione esterna</span></label>
+<div class="developer-external-refresh-options" id="developer-edit-external-options">
+<div class="developer-create-field"><label for="developer-edit-group-name">Gruppo esterno</label><select class="developer-input" disabled="" id="developer-edit-group-name"></select></div>
+<label class="developer-create-checkbox" for="developer-edit-force-change-group"><input disabled="" id="developer-edit-force-change-group" type="checkbox"/><span>forceChangeGroup — consenti il cambio rispetto al gruppo SharePoint corrente</span></label>
+<label class="developer-create-checkbox" for="developer-edit-force-refresh"><input disabled="" id="developer-edit-force-refresh" type="checkbox"/><span>forceRefresh — ignora il blocco di 3 ore dall’ultimo refresh</span></label>
+<p class="developer-create-help">In questa modalità viene inviato groupName; ampStatus, notes e force lock non vengono inviati né modificati. Il backend esegue i due PATCH SharePoint NA/rimozione gruppo → Non Avviata/ripristino gruppo.</p>
+</div>
+<div class="developer-create-field" id="developer-edit-amp-status-row"><label for="developer-edit-amp-status">Stato AMP (opzionale)</label><select class="developer-input" id="developer-edit-amp-status"></select></div>
+<div class="developer-create-field" id="developer-edit-notes-row"><label for="developer-edit-notes">Note ticket (opzionali)</label><textarea aria-describedby="developer-edit-notes-help" class="developer-input developer-notes-input" id="developer-edit-notes" maxlength="255" placeholder="Vuoto = non modificare" rows="3"></textarea><p class="developer-create-help developer-notes-help" id="developer-edit-notes-help"><span>Stringa = imposta/sostituisce; usa “rimuovi notes” per inviare null.</span><span id="developer-edit-notes-count">0/255</span></p></div>
+<label class="developer-create-checkbox" for="developer-edit-remove-notes" id="developer-edit-remove-notes-row"><input id="developer-edit-remove-notes" type="checkbox"/><span>Rimuovi notes (invia null)</span></label>
+<label class="developer-create-checkbox" for="developer-edit-force" id="developer-edit-force-row"><input id="developer-edit-force" type="checkbox"/><span>force — takeover atomico del lock e modifica</span></label>
+<p class="developer-create-help" id="developer-edit-mode-help">Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.</p>
 </div>
 <div class="developer-lock-form" hidden="" id="developer-lock-form">
 <div class="developer-create-field"><label for="developer-lock-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-lock-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
