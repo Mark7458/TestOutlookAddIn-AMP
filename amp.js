@@ -477,6 +477,7 @@
         settings: {
             title: 'Impostazioni',
             tabs: { profile: 'Profilo', companies: 'Agenzie', activities: 'Attività', responses: 'Risposte' },
+            prefixInSummary: prefix => `Tag: ${prefix}`,
             newItem: { companies: '+ Nuova agenzia', activities: '+ Nuova attività', responses: '+ Nuova risposta' },
             profile: 'Profilo',
             profileHint: 'Il tuo nome come compare su ServiceNow: i ticket che apri vengono assegnati a te.',
@@ -556,7 +557,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 17:50';
+    const BUILD = '2026-11-09 18:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3743,8 +3744,8 @@
             ]
         },
         activities: {
-            summary: item => [normalizeReference(item.category).displayValue, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`, TEXTS.mail.minutes(Number(item.timeWorked) || 0)].filter(Boolean).join(' · '),
-            prefix: item => item.shortDescriptionPrefix || null, // vicino al nome, come comparirà nella Short description
+            summary: item => [normalizeReference(item.category).displayValue, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`, TEXTS.mail.minutes(Number(item.timeWorked) || 0),
+                item.shortDescriptionPrefix ? TEXTS.settings.prefixInSummary(item.shortDescriptionPrefix) : null].filter(Boolean).join(' · '),
             unverified: item => Boolean(normalizeReference(item.category).displayValue && !normalizeReference(item.category).value),
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
@@ -3869,7 +3870,7 @@
                 },
                     expanded ? h('div', { class: 'ao-config-more' }, editorForm(tab, id, item)) : h('div', { class: 'ao-config-face' },
                         h('div', { class: 'ao-item-head' },
-                            h('span', { class: 'ao-item-title' }, editor.prefix?.(item) ? h('span', { class: 'ao-config-prefix' }, editor.prefix(item)) : null, item[nameKey]),
+                            h('span', { class: 'ao-item-title' }, item[nameKey]),
                             editor.unverified?.(item) ? chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint) : null),
                         editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null,
                         editor.footer?.(item).length ? h('div', { class: 'ao-config-footer' }, editor.footer(item).map(text => chip(text, 'neutral'))) : null));
@@ -4485,7 +4486,6 @@
 #ao-root .ao-config-face { display: grid; gap: 2px; }
 #ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
-#ao-root .ao-config-prefix { margin-right: 5px; color: var(--ao-text-muted); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-config-footer { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } /* domini dell'agenzia, tutti */
 #ao-root .ao-config-summary { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 #ao-root .ao-config-text { color: var(--ao-text); white-space: pre-line; } /* risposta: il testo intero, da leggere */
