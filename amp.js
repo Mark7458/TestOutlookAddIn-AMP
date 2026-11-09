@@ -396,7 +396,10 @@
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             holdExpired: 'On Hold scaduto',
             holdUntil: date => `fino al ${date}`,
-            holdExpiredOn: date => `scaduto il ${date}`
+            dueOn: date => `Scade il ${date}`,
+            dueToday: time => `Scade oggi alle ${time}`,
+            expired: 'Scaduto',
+            expiredOn: date => `il ${date}`
         },
         mail: {
             outcomeWorking: 'Apro il ticket…',
@@ -557,7 +560,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 18:20';
+    const BUILD = '2026-11-09 18:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -846,6 +849,7 @@
     const FILTER_OFF_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/><path d="M2.5 2.5l15 15"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
+    const CLOCK_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6.5V10l2.5 1.5"/></svg>';
     const CHEVRON_LEFT_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 5l-5 5 5 5"/></svg>';
     const CHEVRON_RIGHT_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 5l5 5-5 5"/></svg>';
     // Icone delle azioni (selettori di In coda e dei ticket)
@@ -2763,19 +2767,28 @@
             }
         }, armed ? [h('s', {}, surname(label.name)), svgIcon(SWAP_ICON), h('span', { class: 'ao-tag-next' }, surname(currentUser(config).displayValue))] : surname(label.name));
     }
-    // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
-    function ticketMeta(ticket, holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null, expired = isHoldExpired(ticket)) {
-        return holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
-            holdDate ? h('span', { class: `ao-item-time${expired ? ' ao-item-late' : ''}` }, (expired ? TEXTS.tickets.holdExpiredOn : TEXTS.tickets.holdUntil)(formatWhen(holdDate))) : null,
-            ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null;
+    // In basso, solo se ci sono: scadenza dell'On Hold e azione in attesa.
+    function ticketMeta(ticket) {
+        const due = holdDue(ticket);
+        return due || ticket.pendingAction ? h('div', { class: 'ao-item-meta' }, due, ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null;
+    }
+    // Scadenza dell'On Hold, ben visibile. Solo date e ore (non "tra 3 ore": la lista non si aggiorna di continuo):
+    // un altro giorno, neutra; oggi, arancio; passata, l'etichetta rossa "Scaduto" con la data.
+    function holdDue(ticket) {
+        const date = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
+        if (!date) return null;
+        const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const when = `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
+        if (isHoldExpired(ticket)) return h('span', { class: 'ao-due ao-due-late' }, chip(TEXTS.tickets.expired, 'danger'), TEXTS.tickets.expiredOn(when));
+        const today = date.toDateString() === new Date().toDateString();
+        return h('span', { class: `ao-due ao-due-chip${today ? ' ao-due-today' : ''}` }, svgIcon(CLOCK_ICON), today ? TEXTS.tickets.dueToday(time) : TEXTS.tickets.dueOn(when));
     }
     function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
-        const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const expired = isHoldExpired(ticket);
         const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
             ticketHead(ticket, user, { query, owner: true }),
             inGroup ? null : newMessagesPreview(ticket),
-            ticketMeta(ticket, holdDate, expired));
+            ticketMeta(ticket));
         // Fermandosi sopra la scheda si precarica la sua pagina (un attimo di attesa: non ciò che il mouse attraversa)
         let hover = null;
         item.addEventListener('pointerenter', () => { hover = setTimeout(() => Services.prefetchThread(ticket.conversationId), 120); });
@@ -3382,9 +3395,8 @@
                 listed ? ticketMeta(ticket) : null),
             listed && !expanded ? null : h('div', { class: 'ao-ticket-more' },
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
-                ticket.state === '3' && ticket.holdExpiration
-                    ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
-                        `${HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'} · ${TEXTS.tickets.holdUntil(formatWhen(ticket.holdExpiration))}`) : null,
+                !listed && ticket.state === '3' && ticket.holdExpiration // nella lista la scadenza è già sulla scheda chiusa
+                    ? h('div', { class: 'ao-hold-line' }, h('span', { class: 'ao-hint' }, HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'), holdDue(ticket)) : null,
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
                 h('div', { class: 'ao-ticket-dates' },
                     h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
@@ -4275,6 +4287,13 @@
 #ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; } /* a destra l'etichetta dell'operatore */
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
 #ao-root .ao-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
+/* Scadenza dell'On Hold: neutra, oggi arancio, passata rossa */
+#ao-root .ao-due { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
+#ao-root .ao-due-chip { padding: 2px 8px; border-radius: var(--ao-radius-badge); background: var(--ao-line-light); color: var(--ao-text-muted); }
+#ao-root .ao-due-chip svg { width: 13px; height: 13px; }
+#ao-root .ao-due-today { background: var(--ao-warning-bg); color: var(--ao-warning); }
+#ao-root .ao-due-late { color: var(--ao-danger); }
+#ao-root .ao-hold-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #ao-root .ao-empty, #ao-root .ao-footnote { margin: 8px 0; color: var(--ao-text-subtle); text-align: center; }
 #ao-root .ao-footnote { font-size: var(--ao-fs-sm); }
 
@@ -4313,7 +4332,6 @@
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-hint-accent { margin-top: -4px; color: var(--ao-text-accent); }
-#ao-root .ao-hint-danger { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
 
@@ -4541,7 +4559,6 @@
 #ao-root .ao-deck.ao-journey { box-shadow: none !important; }
 #ao-root .ao-deck.ao-journey > .ao-item { box-shadow: var(--ao-raised-shadow); }
 #ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* sfocatura preparata in anticipo */ /* copia ferma della lista durante l'andata */
-#ao-root .ao-item-late { color: var(--ao-danger); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
