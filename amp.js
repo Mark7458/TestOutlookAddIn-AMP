@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-08 17:15';
+    const BUILD = '2026-11-09 11:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2137,8 +2137,10 @@
     // Barra di scorrimento del testo della mail: solo ad animazione finita (durante le tendine non deve comparire).
     function allowPreviewScroll(conversationId) {
         if (state.queueExpanded !== conversationId) return;
+        const preview = queueDetailsOf(conversationId)?.querySelector('.ao-mail-preview');
+        if (!preview || preview.scrollHeight <= preview.clientHeight + 1) return; // il testo ci sta: niente barra
         state.previewScroll = conversationId;
-        queueDetailsOf(conversationId)?.querySelector('.ao-mail-preview')?.classList.add('ao-scrollable');
+        preview.classList.add('ao-scrollable');
     }
     function stopPreviewScroll(element) {
         state.previewScroll = null;
@@ -4218,8 +4220,8 @@
 #ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
-#ao-root .ao-mail-preview { max-height: 180px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
-#ao-root .ao-mail-preview.ao-scrollable { overflow: auto; }
+#ao-root .ao-mail-preview { max-height: 230px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; } /* testo oltre 230px (scheda di sola lettura grande circa quanto il modulo di Senza mail): solo allora la barra */
 /* Più messaggi nel thread: frecce per scorrerli; quello che si guarda è quello da cui nasce il ticket */
 #ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
 #ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); cursor: pointer; }
