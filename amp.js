@@ -557,7 +557,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 18:00';
+    const BUILD = '2026-11-09 18:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2393,9 +2393,11 @@
             }),
             state.ticketSource === 'none' && !searching ? newTicketSection(config) : null,
             searching && state.ticketSearchPending ? searchSkeleton() : null,
+            // Ticket senza mail: niente thread, si aprono al loro posto come in In coda.
             groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
                 ? ticketDeck(group, user, query)
-                : ticketItem(group.tickets[0], user, { query }))))
+                : fromMail(group.tickets[0]) ? ticketItem(group.tickets[0], user, { query })
+                    : h('li', {}, ticketBox(group.tickets[0], config, user, { isCurrentMail: false, listed: true, query })))))
                 : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
                     : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)));
     }
@@ -2761,16 +2763,19 @@
             }
         }, armed ? [h('s', {}, surname(label.name)), svgIcon(SWAP_ICON), h('span', { class: 'ao-tag-next' }, surname(currentUser(config).displayValue))] : surname(label.name));
     }
+    // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
+    function ticketMeta(ticket, holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null, expired = isHoldExpired(ticket)) {
+        return holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
+            holdDate ? h('span', { class: `ao-item-time${expired ? ' ao-item-late' : ''}` }, (expired ? TEXTS.tickets.holdExpiredOn : TEXTS.tickets.holdUntil)(formatWhen(holdDate))) : null,
+            ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null;
+    }
     function ticketItem(ticket, user, { inGroup = false, query = '', onpick = null } = {}) {
         const holdDate = ticket.state === '3' ? parseDate(ticket.holdExpiration) : null;
         const expired = isHoldExpired(ticket);
         const item = clickable(`ao-item${expired ? ' ao-item-alert' : ''}`, onpick || (event => openFromCard(event.currentTarget, ticket)),
             ticketHead(ticket, user, { query, owner: true }),
             inGroup ? null : newMessagesPreview(ticket),
-            // In basso, solo se ci sono: termine (On Hold) e azione in attesa.
-            holdDate || ticket.pendingAction ? h('div', { class: 'ao-item-meta' },
-                holdDate ? h('span', { class: `ao-item-time${expired ? ' ao-item-late' : ''}` }, (expired ? TEXTS.tickets.holdExpiredOn : TEXTS.tickets.holdUntil)(formatWhen(holdDate))) : null,
-                ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null);
+            ticketMeta(ticket, holdDate, expired));
         // Fermandosi sopra la scheda si precarica la sua pagina (un attimo di attesa: non ciò che il mouse attraversa)
         let hover = null;
         item.addEventListener('pointerenter', () => { hover = setTimeout(() => Services.prefetchThread(ticket.conversationId), 120); });
@@ -3356,7 +3361,8 @@
     // Con più ticket se ne apre uno alla volta: un clic su un altro prima richiude quello aperto.
     // Il principale (il primo collegato al thread) si lavora con la risposta via mail e si chiude per ultimo;
     // gli altri (collegati) sono indipendenti: testo per ServiceNow e azione subito, come i ticket senza mail.
-    function ticketBox(ticket, config, user, { isCurrentMail, single = false, primary = false, others = 0 }) {
+    // listed: nell'elenco Ticket (senza mail): chiusa è la scheda della lista; il resto compare solo aprendola.
+    function ticketBox(ticket, config, user, { isCurrentMail, single = false, primary = false, others = 0, listed = false, query = '' }) {
         const open = OPEN_STATES.includes(ticket.state);
         const known = ticket.number in state.ticketExpanded;
         const expanded = open && (known ? state.ticketExpanded[ticket.number] : single);
@@ -3368,12 +3374,13 @@
         };
         const grounded = Boolean(state.journey) || state.liftTicket === ticket.number;
         return h('section', {
-            class: `ao-item ao-ticket-card${open ? '' : ' ao-static'}${expanded ? ' ao-expanded' : ''}${expanded && grounded ? ' ao-unlifted' : ''}${state.journey ? ' ao-away' : ''}`,
+            class: `ao-item ao-ticket-card${listed ? ' ao-listed' : ''}${isHoldExpired(ticket) ? ' ao-item-alert' : ''}${open ? '' : ' ao-static'}${expanded ? ' ao-expanded' : ''}${expanded && grounded ? ' ao-unlifted' : ''}${state.journey ? ' ao-away' : ''}`,
             tabindex: open ? '0' : null, 'aria-expanded': open ? String(expanded) : null, onclick: open ? pick : null,
             onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
         },
-            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) })), // l'icona serve a distinguerlo dai collegati
-            h('div', { class: 'ao-ticket-more' },
+            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { query, owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) }), // l'icona serve a distinguerlo dai collegati
+                listed ? ticketMeta(ticket) : null),
+            listed && !expanded ? null : h('div', { class: 'ao-ticket-more' },
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
                 ticket.state === '3' && ticket.holdExpiration
                     ? h('div', { class: `ao-hint${isHoldExpired(ticket) ? ' ao-hint-danger' : ''}` },
@@ -3408,14 +3415,14 @@
         const card = headOf(number);
         card?.getBoundingClientRect();
         card?.classList.remove('ao-unlifted');
-        await holdingRender(() => unfold(card?.querySelector('.ao-ticket-work')));
+        await holdingRender(() => unfold(card?.querySelector(card.classList.contains('ao-listed') ? '.ao-ticket-more' : '.ao-ticket-work')));
     }
     async function collapseTicket(card) {
         const number = card?.querySelector('.ao-item-number')?.textContent;
         if (!number || state.holdRender) return;
         card.classList.add('ao-unlifted'); // torna a terra mentre Attività risale
         holdRender();
-        await fold(card.querySelector('.ao-ticket-work'));
+        await fold(card.querySelector(card.classList.contains('ao-listed') ? '.ao-ticket-more' : '.ao-ticket-work'));
         state.ticketExpanded[number] = false;
         releaseRender();
         render();
@@ -3612,7 +3619,7 @@
         if (OPEN_STATES.includes(updated.state)) {
             render();
             showStatus(TEXTS.mail.updated(updated.number));
-        } else if (state.target?.kind === 'mail') {
+        } else if (state.view === 'mail' && state.target?.kind === 'mail') {
             // Collegato chiuso: si resta sul thread, dove passa tra i chiusi (e il principale si può chiudere se era l'ultimo).
             state.ticketExpanded = {}; // se ne resta uno solo, si mostra aperto
             await refreshTarget(true);
