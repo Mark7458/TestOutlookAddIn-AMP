@@ -560,7 +560,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 18:40';
+    const BUILD = '2026-11-09 18:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1094,14 +1094,17 @@
     }
     // grow: il testo lungo allarga il campo fino a TEXT_MAX_HEIGHT (come il testo della mail in In coda); oltre scorre.
     function textField(label, value, oninput, extra = {}) {
-        const { multiline, hint, grow, ...attrs } = extra;
+        const { multiline, hint, grow, commit, ...attrs } = extra; // commit: il valore passa solo a modifica finita (change)
         const fit = element => {
             if (!grow) return;
             element.style.height = 'auto';
             element.style.height = `${Math.min(element.scrollHeight + 2, TEXT_MAX_HEIGHT)}px`;
             element.style.overflowY = element.scrollHeight + 2 > TEXT_MAX_HEIGHT ? 'auto' : 'hidden';
         };
-        const input = h(multiline ? 'textarea' : 'input', { class: 'ao-input', value: value ?? '', oninput: event => { fit(event.target); oninput(event.target.value); }, ...attrs });
+        const input = h(multiline ? 'textarea' : 'input', {
+            class: 'ao-input', value: value ?? '', ...attrs,
+            [commit ? 'onchange' : 'oninput']: event => { fit(event.target); oninput(event.target.value); }
+        });
         if (grow) requestAnimationFrame(() => fit(input));
         return h('label', { class: 'ao-field' },
             h('span', { class: 'ao-label' }, label),
@@ -3678,7 +3681,8 @@
             draft.type === 'resolve' ? selectField(TEXTS.mail.resolutionCode, RESOLUTION_CODES.map(code => ({ value: code, label: code })), draft.resolutionCode, value => { draft.resolutionCode = value; }) : null,
             draft.type === 'hold' ? [
                 selectField(TEXTS.mail.holdReason, HOLD_REASONS, draft.holdReason, value => { draft.holdReason = value; }),
-                textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local' })
+                // scadenza: si legge una volta sola, a modifica finita (non a ogni scatto mentre si scorrono ore e minuti)
+                textField(TEXTS.mail.holdExpiration, draft.holdExpiration, value => { draft.holdExpiration = value; }, { type: 'datetime-local', commit: true })
             ] : null,
         );
     }
