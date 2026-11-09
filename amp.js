@@ -113,8 +113,6 @@
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
             callGlowRest: '0 0 transparent', // + Nuovo ticket e ＋ Ticket a riposo: bagliore tenue (il modulo aperto tiene callGlow)
-            lockLine: '100%', // azione confermata: nel Flat un bordo del colore dell'azione, come le etichette (nel vetro basta il bagliore)
-            lockGlow: '0%', // intensità del bagliore dell'azione confermata (nel flat niente)
             callGlowHover: '0 0 transparent',
             callGlowPulse: '0 0 transparent',
             callEdgeHover: 'var(--ao-accent)',
@@ -219,8 +217,6 @@
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             callGlowRest: '0 0 12px rgba(80, 150, 255, .28), 0 0 3px rgba(80, 150, 255, .14)',
-            lockLine: '0%',
-            lockGlow: '55%',
             tagHoverEdge: 'transparent',
             openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
@@ -405,7 +401,7 @@
             empty: 'Nessun ticket aperto.',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             holdExpired: 'On Hold scaduto',
-            groupCount: count => `${count} ticket`,
+            groupCount: count => `+${count} ticket`, // ticket collegati al thread oltre al principale
             holdUntil: date => `fino al ${date}`,
             dueOn: date => `Scade il ${date}`,
             dueToday: time => `Scade oggi alle ${time}`,
@@ -484,17 +480,7 @@
             holdReason: 'On hold reason',
             holdExpiration: 'Scadenza',
             holdDays: days => (days === 1 ? '1 giorno' : `${days} giorni`),
-            replyText: 'Rispondi con',
-            replyEmpty: 'Vuoto',
-            replyCombination: 'Risposta di Agenzia + Attività',
-            reference: number => `Rif. ${number}`,
-            includeReference: number => `Aggiungi “Rif. ${number}” in fondo alla risposta`,
-            prepareReply: 'Salva e compila',
-            pendingCleared: 'Azione annullata.',
-            changeChoice: 'Cambia selezione',
-            timeInvalid: 'Scrivi per esempio 2h, 1h30, +2h o 120',
-            pendingSaved: 'Azione salvata: verrà eseguita all’invio della risposta.',
-            replyOpened: 'Risposta aperta in Outlook.'
+            timeInvalid: 'Scrivi per esempio 2h, 1h30, +2h o 120'
         },
         settings: {
             title: 'Impostazioni',
@@ -580,7 +566,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 21:30';
+    const BUILD = '2026-11-09 22:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -648,7 +634,6 @@
             .toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
         return `${base || 'voce'}_${Date.now().toString(36)}`;
     }
-    const combinationKey = (companyId, activityId) => `${companyId}::${activityId}`;
     const byName = (a, b) => String(a[1].name || a[1].title || '').localeCompare(String(b[1].name || b[1].title || ''), 'it');
 
     // ======================================================================
@@ -668,7 +653,6 @@
     //                                          (mail = null: ticket aperto da Ticket senza mail, senza thread)
     //   assignTicket(numero, utente)        → Ticket    (Assigned to = utente)
     //   getTicketActivity(numero, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
-    //   setPendingAction(numero, azione | null)      → Ticket   (eseguita all'invio della risposta)
     //   discardMail(conversationId, utente) / restoreMail(conversationId)
     //   subscribe(listener)                 → funzione per smettere (facoltativo)
     //   getMailBody(messageId)              → testo della mail (Graph, casella condivisa) per l'anteprima in In coda
@@ -680,9 +664,9 @@
     //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
-    //   updateTicket(numero, azione, testo, utente) → Ticket: ticket senza mail o di un thread con più ticket, aggiornato subito su ServiceNow
-    //   (in azione, qui e in setPendingAction, addMinutes: tempo lavorato da aggiungere o togliere insieme all'azione)
-    //                                          (azione come setPendingAction, o null = solo commento; testo = commento / Resolution notes)
+    //   updateTicket(numero, azione, testo, utente) → Ticket: testo e azione subito su ServiceNow (il pannello lavora solo lì;
+    //                                          la mail la scrive l'operatore). azione = { type: comment|resolve|hold|cancel, by,
+    //                                          resolutionCode, holdReason, holdDays (1–7), addMinutes (tempo lavorato in più o in meno) }
     //   labelMail(…, { force: true })        → sostituisce l'etichetta di un collega (tenendo premuta la sua, a scheda aperta)
     //   searchTickets(testo)                → Ticket[] cercati su ServiceNow (numero o short description), anche chiusi e di altri:
     //                                          solo lettura, con resolutionNotes e lastWorkNote = { author, at, text } | null
@@ -693,12 +677,12 @@
     // utente = { displayValue, value: sys_id }   (il profilo del pannello)
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
-    //            holdExpiration, conversationId, messageId, pendingAction, owner, newMessages,
+    //            holdExpiration, conversationId, messageId, owner, newMessages,
     //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt }
     // ======================================================================
 
     const SERVICE_METHODS = ['listQueue', 'listIgnored', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
-        'assignTicket', 'getTicketActivity', 'setPendingAction', 'discardMail', 'restoreMail'];
+        'assignTicket', 'getTicketActivity', 'discardMail', 'restoreMail'];
 
     class ServicesMissingError extends Error {}
 
@@ -770,14 +754,6 @@
                 return true;
             }
             return false;
-        },
-        // Apre la risposta alla mail aperta con un testo di partenza.
-        openReply(text) {
-            if (window.AmpPreviewOutlook) return window.AmpPreviewOutlook.openReply(text);
-            const item = window.Office?.context?.mailbox?.item;
-            if (typeof item?.displayReplyForm !== 'function') return false;
-            item.displayReplyForm({ htmlBody: escapeHtml(text).replace(/\n/g, '<br>') });
-            return true;
         },
         // Apre un link (il ticket su AMP) in una finestra del browser.
         openLink(url) {
@@ -1140,11 +1116,6 @@
             hint ? h('span', { class: 'ao-hint' }, hint) : null);
     }
     const TEXT_MAX_HEIGHT = 230;
-    function checkboxField(label, checked, onchange) {
-        return h('label', { class: 'ao-check' },
-            h('input', { type: 'checkbox', checked, onchange: event => onchange(event.target.checked) }),
-            h('span', {}, label));
-    }
     // Pulsante che chiede conferma con un secondo clic (confirm() non esiste negli add-in Office).
     function confirmButton(label, className, action) {
         const button = h('button', { type: 'button', class: className }, label);
@@ -2347,7 +2318,7 @@
             groups.length ? h('ul', { class: `ao-list${searching ? ' ao-results-in' : ''}` }, groups.map(group => (group.tickets.length > 1
                 ? ticketGroup(group, user, query)
                 : fromMail(group.tickets[0]) ? ticketItem(group.tickets[0], user, { query })
-                    : h('li', {}, ticketBox(group.tickets[0], config, user, { isCurrentMail: false, listed: true, query })))))
+                    : h('li', {}, ticketBox(group.tickets[0], config, user, { listed: true, query })))))
                 : (servicesBlocked() || (searching && (!query || state.ticketSearchPending)) ? null
                     : h('p', { class: 'ao-empty' }, searching ? TEXTS.tickets.noResults : TEXTS.tickets.empty)),
             searching && query && !state.ticketSearchPending ? ampResults(query, items.map(ticket => ticket.number), user) : null);
@@ -2722,8 +2693,9 @@
         const primary = tickets.find(ticket => ticket.primary) || [...tickets].sort(byOpening)[0];
         return [...tickets.filter(ticket => ticket !== primary).sort((a, b) => byOpening(b, a)), primary].filter(Boolean);
     }
-    // Più ticket sullo stesso thread: una sola scheda, quella del principale, con "N ticket ▾" accanto al numero; un
-    // clic sul conteggio apre sotto una riga per ticket (numero, short description, stato e operatore), e lo richiude.
+    // Più ticket sullo stesso thread: una sola scheda, quella del principale, con "+N ticket ▾" accanto al numero; un
+    // clic sul conteggio apre sotto una riga per ogni ticket collegato (numero, short description, stato e operatore),
+    // e le richiude.
     // Un clic sulla scheda o su una riga porta al thread.
     function ticketGroup(group, user, query) {
         const [top] = group.tickets;
@@ -2745,12 +2717,11 @@
             }
         };
         const count = h('button', { type: 'button', class: `ao-group-count${open ? ' ao-open' : ''}`, 'aria-expanded': String(open), onclick: toggle },
-            TEXTS.tickets.groupCount(group.tickets.length), h('span', { class: 'ao-group-caret', 'aria-hidden': 'true' }, '▾'));
+            TEXTS.tickets.groupCount(group.tickets.length - 1), h('span', { class: 'ao-group-caret', 'aria-hidden': 'true' }, '▾'));
         const item = ticketItem(top, user, { query, count });
         item.dataset.group = id;
-        if (open) item.append(h('div', { class: 'ao-group-rows' }, threadOrder(group.tickets).reverse().map(ticket => h('div', { class: 'ao-group-row' },
+        if (open) item.append(h('div', { class: 'ao-group-rows' }, threadOrder(group.tickets).slice(0, -1).map(ticket => h('div', { class: 'ao-group-row' }, // solo i collegati, dal più recente
             h('span', { class: 'ao-group-name' },
-                ticket === top ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)) : null,
                 h('span', { class: 'ao-item-number' }, markText(ticket.number, query)), ' ', h('span', { class: 'ao-group-short' }, ticket.shortDescription || '')),
             h('span', { class: 'ao-item-tags' }, stateChip(ticket), ownerTag(ticket, user, false))))));
         return item;
@@ -2796,10 +2767,10 @@
             }
         }, armed ? [h('s', {}, surname(label.name)), svgIcon(SWAP_ICON), h('span', { class: 'ao-tag-next' }, surname(currentUser(config).displayValue))] : surname(label.name));
     }
-    // In basso, solo se ci sono: scadenza dell'On Hold e azione in attesa.
+    // In basso, solo se c'è: scadenza dell'On Hold.
     function ticketMeta(ticket) {
         const due = holdDue(ticket);
-        return due || ticket.pendingAction ? h('div', { class: 'ao-item-meta' }, due, ticket.pendingAction ? chip(pendingLabel(ticket.pendingAction), 'warning') : null) : null;
+        return due ? h('div', { class: 'ao-item-meta' }, due) : null;
     }
     // Scadenza dell'On Hold, ben visibile. Solo date e ore (non "tra 3 ore": la lista non si aggiorna di continuo):
     // un altro giorno, neutra; oggi, arancio; passata, l'etichetta rossa "Scaduto" con la data.
@@ -2835,7 +2806,7 @@
         if (target.kind === 'ticket') {
             const ticket = ticketByNumber(target.number);
             return h('div', { class: 'ao-view' }, backRow(), notice,
-                ticket ? ticketBox(ticket, config, user, { isCurrentMail: false, single: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
+                ticket ? ticketBox(ticket, config, user, { single: true }) : h('p', { class: 'ao-muted' }, TEXTS.common.loading));
         }
         const mail = target.mail;
         const isCurrentMail = state.mail?.conversationId === mail.conversationId;
@@ -2851,7 +2822,7 @@
             // Un altro ticket sulla stessa richiesta (dal "＋ Ticket" della testata): il modulo si apre in cima alla pila,
             // dove poi comparirà il ticket nuovo (il collegato più recente).
             if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
-            ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { isCurrentMail, single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
+            ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
             if (closed.length) content.push(closedTickets(mail.conversationId, closed));
         } else if (!isCurrentMail) {
             // Prendere in carico (o ignorare) si fa solo guardando la mail: finché Outlook non la mostra, niente azioni.
@@ -3404,7 +3375,7 @@
     // Con più ticket se ne apre uno alla volta: un clic su un altro prima richiude quello aperto.
     // Con più ticket sul thread ognuno è indipendente (risposta da copiare, azione subito, in qualunque ordine).
     // listed: nell'elenco Ticket (senza mail): chiusa è la scheda della lista; il resto compare solo aprendola.
-    function ticketBox(ticket, config, user, { isCurrentMail, single = false, primary = false, others = 0, listed = false, query = '' }) {
+    function ticketBox(ticket, config, user, { single = false, primary = false, others = 0, listed = false, query = '' }) {
         const open = OPEN_STATES.includes(ticket.state);
         const known = ticket.number in state.ticketExpanded;
         const expanded = open && (known ? state.ticketExpanded[ticket.number] : single);
@@ -3428,18 +3399,15 @@
                     h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn))),
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
-                expanded ? ticketWork(ticket, config, { isCurrentMail, primary, others }) : null));
+                expanded ? ticketWork(ticket, config) : null));
     }
-    // Attività del ticket aperto. Thread con un solo ticket: "Salva e compila" (l'azione parte con la risposta).
-    // Thread con più ticket: il pannello non lavora mentre si scrive la mail, quindi ogni ticket ha la sua risposta da
-    // preparare e copiare (la mail si scrive a mano) e le sue azioni subito su ServiceNow, in qualunque ordine.
-    // Senza mail: testo e azione subito. Il tempo lavorato sta sulla riga del titolo; la freccia in fondo richiude.
-    function ticketWork(ticket, config, { isCurrentMail, primary, others }) {
-        const onSend = primary && Boolean(ticket.messageId) && !others;
-        const timer = timerControl(ticket, !(onSend && ticket.pendingAction)); // confermata: il tempo è già nell'azione
-        const work = primary && ticket.messageId && ticket.mailUnconfirmed ? h('section', { class: 'ao-card' }, workTitle(timer)) // mail da confermare: niente azioni
-            : onSend ? onSendCard(ticket, config, isCurrentMail, { timer })
-                : updateCard(ticket, config, timer, { reply: others > 0 });
+    // Attività del ticket aperto: il pannello lavora solo su ServiceNow (testo e azione subito, in qualunque ordine);
+    // la mail la scrive l'operatore in Outlook: per i ticket con la mail il pannello prepara la risposta da copiare.
+    // Il tempo lavorato sta sulla riga del titolo; la freccia in fondo richiude.
+    function ticketWork(ticket, config) {
+        const timer = timerControl(ticket);
+        const work = ticket.mailUnconfirmed ? h('section', { class: 'ao-card' }, workTitle(timer)) // mail da confermare: niente azioni
+            : updateCard(ticket, config, timer, { reply: Boolean(ticket.messageId) });
         return h('div', { class: 'ao-ticket-work' }, work,
             h('button', {
                 type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close,
@@ -3482,10 +3450,10 @@
     // premuto il passo cresce. Clic sul valore: si scrive il tempo (2h, 1h30, 120) o la differenza (+2h, -30).
     // Non parte da solo: va su ServiceNow insieme all'azione (Aggiorna, Risolvi, On Hold, Annulla) o, con un solo
     // ticket sul thread, con l'azione salvata per l'invio della risposta. Così un solo calcolo.
-    function timerControl(ticket, enabled) {
+    function timerControl(ticket) {
         const total = workedMinutes(ticket);
         let shown = total;
-        const value = h('span', { class: `ao-timer-value${shown !== (ticket.timeWorkedMinutes || 0) ? ' ao-timer-changed' : ''}`, role: 'button', tabindex: enabled ? '0' : null, title: enabled ? TEXTS.mail.timeWorked : null });
+        const value = h('span', { class: `ao-timer-value${shown !== (ticket.timeWorkedMinutes || 0) ? ' ao-timer-changed' : ''}`, role: 'button', tabindex: '0', title: TEXTS.mail.timeWorked });
         const paint = () => {
             value.textContent = formatMinutes(shown);
             value.classList.toggle('ao-timer-changed', shown !== (ticket.timeWorkedMinutes || 0)); // da mandare con l'azione
@@ -3509,7 +3477,7 @@
                 keep();
             };
             return h('button', {
-                type: 'button', class: 'ao-timer-step', disabled: !enabled, 'aria-label': direction > 0 ? '+' : '−',
+                type: 'button', class: 'ao-timer-step', 'aria-label': direction > 0 ? '+' : '−',
                 onpointerdown: event => {
                     event.preventDefault();
                     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -3523,7 +3491,7 @@
         };
         const edit = event => {
             event.stopPropagation();
-            if (!enabled || value.querySelector('input')) return;
+            if (value.querySelector('input')) return;
             const input = h('input', { class: 'ao-timer-input', value: formatMinutes(shown), 'aria-label': TEXTS.mail.timeWorked });
             let finished = false;
             const done = save => {
@@ -3549,9 +3517,8 @@
         paint();
         return h('div', { class: 'ao-timer', onclick: event => event.stopPropagation() }, stepper(-1), value, stepper(1));
     }
-    // Tempo mostrato: quello impostato e non ancora mandato, oppure quello salvato con l'azione all'invio, oppure il totale.
-    const workedMinutes = ticket => state.timeDrafts[ticket.number]
-        ?? (ticket.timeWorkedMinutes || 0) + (ticket.pendingAction?.addMinutes || 0);
+    // Tempo mostrato: quello impostato e non ancora mandato, oppure il totale.
+    const workedMinutes = ticket => state.timeDrafts[ticket.number] ?? (ticket.timeWorkedMinutes || 0);
     // "2h", "1h30", "1,5h", "120", "90m" = tempo totale; con + o − davanti = differenza da quello attuale.
     function parseMinutes(text, current) {
         const clean = String(text).trim().toLowerCase().replace(/\s+/g, '').replace(/min$/, 'm').replace('−', '-');
@@ -3566,26 +3533,9 @@
         return Math.max(0, relative ? current + sign * minutes : minutes);
     }
 
-    // Azione da eseguire su ServiceNow quando parte la risposta alla mail.
-    function pendingLabel(action) {
-        if (!action || action.type === 'comment') return TEXTS.mail.actions.comment;
-        if (action.type === 'resolve') return `${TEXTS.mail.actions.resolve} · ${action.resolutionCode}`;
-        if (action.type === 'cancel') return TEXTS.mail.actions.cancel;
-        if (action.type === 'hold') return `${TEXTS.mail.actions.hold} · ${TEXTS.mail.holdDays(action.holdDays)}`;
-        return action.type;
-    }
-    function actionDraft(ticket, config) {
+    function actionDraft(ticket) {
         if (!state.actionDrafts[ticket.number]) {
-            const saved = ticket.pendingAction || {};
-            const key = combinationKey(ticket.companyId, ticket.activityId);
-            state.actionDrafts[ticket.number] = {
-                type: saved.type || 'comment',
-                resolutionCode: saved.resolutionCode || RESOLUTION_CODES[0],
-                holdReason: saved.holdReason || HOLD_REASONS[0].value,
-                holdDays: saved.holdDays || HOLD_DAYS[0],
-                template: config.combinationResponses[key]?.response ? 'combination' : '',
-                includeReference: true
-            };
+            state.actionDrafts[ticket.number] = { type: 'comment', resolutionCode: RESOLUTION_CODES[0], holdReason: HOLD_REASONS[0].value, holdDays: HOLD_DAYS[0], text: '' };
         }
         return state.actionDrafts[ticket.number];
     }
@@ -3630,8 +3580,7 @@
     // Testo e azione subito su ServiceNow (ticket senza mail e ticket dei thread con più ticket). reply: thread con più
     // ticket, sopra il testo gli strumenti per la risposta da incollare nella mail.
     function updateCard(ticket, config, timer, { reply = false } = {}) {
-        const draft = actionDraft(ticket, config);
-        draft.text ??= '';
+        const draft = actionDraft(ticket);
         const refresh = () => { const button = root.querySelector('.ao-update-card .ao-primary'); if (button) button.disabled = !draft.text.trim(); };
         return h('section', { class: 'ao-card ao-update-card' },
             // Prima la risposta (il testo), poi cosa fare del ticket.
@@ -3703,9 +3652,9 @@
     }
     async function updateTicket(ticket) {
         const config = loadConfig();
-        const draft = actionDraft(ticket, config);
+        const draft = actionDraft(ticket);
         const user = currentUser(config);
-        const updated = await run(() => Services.updateTicket(ticket.number, buildPendingAction(draft, user.displayValue, ticket), draft.text.trim(), user));
+        const updated = await run(() => Services.updateTicket(ticket.number, buildAction(draft, user.displayValue, ticket), draft.text.trim(), user));
         if (!updated) return;
         rememberTicket(updated);
         delete state.actionDrafts[ticket.number];
@@ -3724,31 +3673,6 @@
             showStatus(TEXTS.mail.closedTicket(updated.number));
         }
     }
-    function onSendCard(ticket, config, isCurrentMail, { timer }) {
-        const draft = actionDraft(ticket, config);
-        const rerender = () => render();
-        const key = combinationKey(ticket.companyId, ticket.activityId);
-        const templates = [
-            { value: '', label: TEXTS.mail.replyEmpty },
-            ...(config.combinationResponses[key]?.response ? [{ value: 'combination', label: TEXTS.mail.replyCombination }] : []),
-            ...Object.entries(config.usefulResponses).sort(byName).map(([id, item]) => ({ value: `useful:${id}`, label: item.title }))
-        ];
-        // Prima con cosa rispondere, poi cosa fare del ticket all'invio. "Salva e compila" conferma l'azione e compila
-        // la risposta in Outlook (vuota se non si sceglie un testo). Confermata, la scelta resta accesa e bloccata;
-        // il pulsante diventa "Annulla" (toglie l'azione e sblocca).
-        const confirmed = Boolean(ticket.pendingAction);
-        return h('section', { class: 'ao-card' },
-            workTitle(timer),
-            h('div', { class: `ao-form-fields${confirmed ? ' ao-locked' : ''}`, inert: confirmed ? '' : null },
-                selectField(TEXTS.mail.replyText, templates, draft.template, value => { draft.template = value; }),
-                checkboxField(TEXTS.mail.includeReference(ticket.number), draft.includeReference, value => { draft.includeReference = value; }),
-                ticketActionBar(ticket, draft),
-                choiceZone(`ticket:${ticket.number}`, actionFields(draft))),
-            h('div', { class: 'ao-actions' }, h('button', {
-                type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`,
-                onclick: confirmed ? async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null, true))) showStatus(TEXTS.mail.pendingCleared); } : () => prepareReply(ticket, isCurrentMail)
-            }, confirmed ? TEXTS.mail.changeChoice : TEXTS.mail.prepareReply)));
-    }
     // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
     function actionFields(draft) {
         if (draft.type === 'comment') return null;
@@ -3761,67 +3685,14 @@
             ] : null,
         );
     }
-    function buildPendingAction(draft, by, ticket) {
-        const action = { type: draft.type, by }; // anche Aggiorna si conferma; il testo è quello della mail
+    function buildAction(draft, by, ticket) {
+        const action = { type: draft.type, by };
         const minutes = workedMinutes(ticket) - (ticket.timeWorkedMinutes || 0);
         if (minutes) action.addMinutes = minutes; // tempo lavorato aggiunto (o tolto) insieme all'azione
         if (draft.type === 'resolve') action.resolutionCode = draft.resolutionCode;
         if (draft.type === 'hold') Object.assign(action, { holdReason: draft.holdReason, holdDays: draft.holdDays });
         return action;
     }
-    // Conferma e annullamento dell'azione: la scelta si accende (o si spegne) e i campi si bloccano (o si sbloccano)
-    // con un passaggio morbido dallo stato di prima; il pulsante cambia in dissolvenza.
-    async function confirmMorph(number, change) {
-        const attivita = () => [...root.querySelectorAll('.ao-ticket-card')].find(card => card.querySelector('.ao-item-number')?.textContent === number)?.querySelector('.ao-form-fields')?.closest('.ao-card');
-        const before = attivita();
-        const thumb = before?.querySelector('.ao-segment-thumb');
-        const old = thumb ? { boxShadow: getComputedStyle(thumb).boxShadow, filter: getComputedStyle(thumb).filter } : null;
-        const fields = [...(before?.querySelectorAll('.ao-form-fields > :not(.ao-segmented)') || [])].map(field => getComputedStyle(field).opacity);
-        const result = await change();
-        const after = attivita();
-        if (!after || reducedMotion()) return result;
-        const timing = { duration: MOTION.swap * 1.6, easing: 'cubic-bezier(.3, .8, .2, 1)' };
-        const newThumb = after.querySelector('.ao-segment-thumb');
-        if (newThumb && old) newThumb.animate([old, { boxShadow: getComputedStyle(newThumb).boxShadow, filter: getComputedStyle(newThumb).filter }], timing);
-        [...after.querySelectorAll('.ao-form-fields > :not(.ao-segmented)')].forEach((field, index) => {
-            if (fields[index] !== undefined) field.animate([{ opacity: fields[index] }, { opacity: getComputedStyle(field).opacity }], timing);
-        });
-        after.querySelector('.ao-actions > .ao-button')?.animate([{ color: 'transparent' }, { color: getComputedStyle(after.querySelector('.ao-actions > .ao-button')).color }], timing); // stesso pulsante: cambia solo la scritta
-        return result;
-    }
-    // keepDraft: "Cambia selezione" sblocca e lascia la configurazione com'era (niente reset, niente salti).
-    async function savePendingAction(ticket, action, keepDraft = false) {
-        const minutes = workedMinutes(ticket); // tempo mostrato: resta lo stesso, prima nell'azione, poi di nuovo nel timer
-        const updated = await run(() => Services.setPendingAction(ticket.number, action));
-        if (!updated) return null;
-        rememberTicket(updated);
-        if (action) delete state.timeDrafts[ticket.number];
-        else if (minutes !== (updated.timeWorkedMinutes || 0)) state.timeDrafts[ticket.number] = minutes;
-        if (!keepDraft) delete state.actionDrafts[ticket.number];
-        render();
-        return updated;
-    }
-    async function prepareReply(ticket, isCurrentMail) {
-        const config = loadConfig();
-        const draft = actionDraft(ticket, config);
-        const template = draft.template === 'combination'
-            ? config.combinationResponses[combinationKey(ticket.companyId, ticket.activityId)]?.response
-            : config.usefulResponses[draft.template.replace(/^useful:/, '')]?.response;
-        // Il riferimento all'Incident nella risposta (in fondo) rende sicuro il collegamento mail ↔ ticket.
-        const text = [template || '', draft.includeReference ? TEXTS.mail.reference(ticket.number) : ''].filter(Boolean).join('\n\n'); // il riferimento in fondo
-        const updated = await confirmMorph(ticket.number, () => savePendingAction(ticket, buildPendingAction(draft, currentUser(config).displayValue, ticket)));
-        if (!updated) return;
-        // In Outlook la risposta si apre solo sulla mail aperta: per un'altra mail
-        // si apre la mail e l'azione resta salvata. L'anteprima le gestisce entrambe.
-        let opened = false;
-        if (isCurrentMail) opened = Outlook.openReply(text);
-        else {
-            Outlook.openMessage(ticket.messageId);
-            if (window.AmpPreviewOutlook) opened = Outlook.openReply(text);
-        }
-        showStatus(opened ? TEXTS.mail.replyOpened : TEXTS.mail.pendingSaved, opened ? 'success' : 'warning');
-    }
-
     // ---------------------------- Impostazioni ----------------------------
     // Profilo e configurazioni in schede separate (barra secondaria). Ogni configurazione mostra
     // subito tutti i suoi valori; la modifica avviene in linea. EDITORS descrive i campi.
@@ -4625,16 +4496,8 @@
 #ao-root .ao-timer-value.ao-timer-changed { color: var(--ao-text-accent); } /* tempo impostato, parte con l'azione */
 #ao-root .ao-timer-step { width: 24px; height: 100%; padding: 0; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; transition: filter .3s, box-shadow .35s; }
 #ao-root .ao-timer-step:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-hover-glow); }
-#ao-root .ao-timer-step:disabled { opacity: .4; cursor: default; }
 #ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
-/* Azione confermata: la scelta resta accesa (come una scheda sotto il mouse) e non si può cambiare */
-#ao-root .ao-locked .ao-segment-thumb { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, color-mix(in srgb, var(--ao-choice-glow) var(--ao-tag-ink), var(--ao-tag-ink-base)) var(--ao-lock-line), transparent),
-    0 0 18px color-mix(in srgb, var(--ao-choice-glow) var(--ao-lock-glow), transparent), 0 0 4px color-mix(in srgb, var(--ao-choice-glow) calc(var(--ao-lock-glow) / 2), transparent),
-    var(--ao-selection-shadow); } /* bagliore forte come + Nuovo ticket, del colore dell'azione scelta */
-#ao-root .ao-locked { cursor: default; }
-#ao-root .ao-locked > :not(.ao-segmented) { opacity: .6; } /* bloccati: i campi si attenuano, la scelta resta accesa */
-#ao-root .ao-locked .ao-segment:not(.ao-active) { opacity: var(--ao-disabled-opacity); } /* le altre azioni: spente come quelle non disponibili */
 /* Ticket chiusi del thread */
 #ao-root .ao-closed { display: grid; gap: 6px; }
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
@@ -4657,8 +4520,6 @@
 #ao-root .ao-card-warning { border-color: var(--ao-warning-bg); border-left: 3px solid var(--ao-warning); }
 #ao-root .ao-candidate { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); transition: box-shadow .35s, filter .3s; }
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
-#ao-root .ao-check { display: flex; align-items: center; gap: 6px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; }
-#ao-root .ao-check input { margin: 0; accent-color: var(--ao-accent); }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }

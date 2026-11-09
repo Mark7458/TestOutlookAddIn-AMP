@@ -247,10 +247,9 @@
   function send() {
     const text = (compose?.text || '').trim();
     if (!text) return;
-    const { applied } = mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName);
+    mailbox.sendReply(selectedMessage().id, text, OPERATOR.displayName);
     compose = null;
-    const STATES = { '2': 'In Progress', '3': 'On Hold', '6': 'Resolved', '8': 'Canceled' };
-    toast = applied.length ? `Risposta inviata · aggiornati su ServiceNow (commento): ${applied.map(item => `${item.number} → ${STATES[item.state]}`).join(', ')}.` : 'Risposta inviata (nessun ticket aperto collegato).';
+    toast = 'Risposta inviata.';
     renderOutlook();
     publish();
   }
@@ -295,8 +294,7 @@
       if (!message) return false;
       select(message.conversationId, message.id);
       return true;
-    },
-    openReply
+    }
   });
   // Quando il pannello cambia qualcosa (tag, ticket), la finta Outlook si aggiorna.
   window.AmpBackend.subscribe(renderOutlook);

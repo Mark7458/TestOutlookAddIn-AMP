@@ -25,7 +25,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'amp_preview_backend_v8';
+    const STORAGE_KEY = 'amp_preview_backend_v9';
     const SERVICENOW_URL = 'https://amp.service-now.com/incident.do?sys_id=';
     const DELAY_MS = 220;
     const SIMILAR_MINUTES = 15;
@@ -279,10 +279,9 @@
     const SNOW_FIELDS = ['number', 'sysId', 'url', 'state', 'assignedTo', 'companyId', 'companyName', 'activityId', 'activityName',
         'shortDescription', 'description', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode'];
     const snowView = incident => Object.fromEntries(SNOW_FIELDS.map(key => [key, incident[key] ?? '']));
-    // Copia su SharePoint i valori del ticket letti da ServiceNow (l'azione all'invio resta).
+    // Copia su SharePoint i valori del ticket letti da ServiceNow.
     function mirror(number) {
-        const previous = db.sp.tickets[number] || {};
-        db.sp.tickets[number] = { ...snowView(db.incidents[number]), pendingAction: previous.pendingAction || null, updatedAt: now() };
+        db.sp.tickets[number] = { ...snowView(db.incidents[number]), updatedAt: now() };
         return db.sp.tickets[number];
     }
     function record(type, number, by, details = '', conversationId = null) {
@@ -636,20 +635,10 @@
             const all = (db.history[number] || []).slice().reverse();
             return respond({ entries: all.slice(offset, offset + limit), total: all.length });
         },
-        // Azione da eseguire all'invio della risposta (solo SharePoint).
-        setPendingAction(number, action) {
-            const ticket = db.sp.tickets[number];
-            if (!ticket) return fail(`Ticket ${number} non trovato.`);
-            ticket.pendingAction = action ? { ...action, at: now() } : null;
-            record('azione all\'invio', number, action?.by || '', action ? action.type : 'tolta');
-            persist();
-            return respond(decoratedTicket(number));
-        },
-        // Ticket senza mail aggiornato dal pannello: stessa logica della risposta, ma il testo arriva dal pannello.
+        // Testo e azione dal pannello, subito su ServiceNow (poi la copia su SharePoint).
         updateTicket(number, action, text, by) {
             if (!db.sp.tickets[number]) return fail(`Ticket ${number} non trovato.`);
-            db.sp.tickets[number].pendingAction = action || { type: 'comment' };
-            applyReply(number, text, by?.displayValue || '');
+            applyAction(number, action || { type: 'comment' }, text, by?.displayValue || '');
             persist();
             return respond(decoratedTicket(number));
         },
@@ -756,15 +745,11 @@
                     subject: thread[0].subject.startsWith('RE:') ? thread[0].subject : `RE: ${thread[0].subject}`,
                     body, receivedAt: now(), categories: [], direction: 'out'
                 });
-                // Con un solo ticket aperto la risposta lo aggiorna (con l'azione salvata, se c'è). Con più ticket
-                // aperti sul thread non tocca ServiceNow: ogni ticket si lavora dal pannello, la mail si scrive a mano.
-                const open = resolveConversation(original.conversationId).tickets.filter(ticket => OPEN_STATES.includes(ticket.state));
-                const targets = open.length === 1 ? open : [];
-                const applied = targets.map(ticket => applyReply(ticket.number, body, operatorName));
+                // La risposta non tocca ServiceNow: i ticket si lavorano dal pannello.
                 const conversationThread = db.sp.threads[original.conversationId];
                 if (conversationThread?.owner === operatorName) conversationThread.ownerSeenAt = now();
                 persist();
-                return { applied };
+                return true;
             },
             // Solo anteprima: il cliente risponde di nuovo sul thread del ticket (di default quello a mazzo, conv-10).
             simulateIncoming(number = null) {
@@ -820,10 +805,9 @@
         }
     };
 
-    // Cosa succede quando parte la risposta (logica "lato server"): ServiceNow, poi SharePoint.
-    function applyReply(number, body, operator) {
-        const action = db.sp.tickets[number]?.pendingAction || { type: 'comment' };
-        const incident = applyOnServiceNow(number, operator, 'risposta', action.type, item => {
+    // Azione dal pannello (logica "lato server"): ServiceNow, poi SharePoint.
+    function applyAction(number, action, body, operator) {
+        const incident = applyOnServiceNow(number, operator, 'aggiornamento', action.type, item => {
             // Come il pannello AMP su Tampermonkey: il testo va sempre negli Additional comments;
             // Risolvi/Annulla anche nelle Resolution notes (con il nome dell'operatore), On Hold anche nelle Work notes.
             addHistory(number, operator, 'comment', body);
@@ -837,7 +821,7 @@
                     state: action.type === 'resolve' ? '6' : '8', resolutionCode: action.resolutionCode || '',
                     resolutionNotes: `${body}\n${operator}`, holdReason: '', holdExpiration: '', closedAt: now()
                 });
-                addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[item.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo della mail.`);
+                addHistory(number, operator, 'system', `Stato: ${STATE_NAMES[item.state]}${action.resolutionCode ? ` (${action.resolutionCode})` : ''}. Resolution notes = testo.`);
             } else if (action.type === 'hold') {
                 // scadenza come in Tampermonkey: adesso + giorni scelti + 5 minuti
                 const holdExpiration = snDate(new Date(Date.now() + (Number(action.holdDays) || 1) * DAY + 5 * 60000));
@@ -849,7 +833,6 @@
                 addHistory(number, operator, 'system', 'Stato: In Progress.');
             }
         });
-        db.sp.tickets[number].pendingAction = null;
         return { type: action.type, state: incident.state, number };
     }
 

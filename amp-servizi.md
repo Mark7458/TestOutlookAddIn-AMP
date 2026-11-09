@@ -35,11 +35,10 @@ e `TestPluginAPI` (`getCurrentMessageContext`, `onMessageChanged`, `showMainView
    **aperti insieme** (es. creazione della DL e aggiunta dei membri). Il thread resta in gestione
    finché almeno uno è aperto.
 7. **Principale e collegati.** Il **principale** è il primo ticket (aperto) collegato al thread: nel
-   pannello ha l'icona della mail. **Con un solo ticket aperto** sul thread è legato alla **risposta via
-   mail**, che lo aggiorna (con l'azione salvata con "Salva e compila", se c'è). **Con più ticket aperti** il
-   pannello non può lavorare mentre si scrive la mail in Outlook: ogni ticket, principale compreso, si
-   aggiorna e si chiude dal pannello (`updateTicket`: testo e azione subito, in qualunque ordine) e la mail
-   la scrive l'operatore (il pannello prepara il testo da copiare); la risposta non tocca ServiceNow.
+   pannello ha l'icona della mail e nella lista Ticket rappresenta il thread. Tutti i ticket del thread,
+   principale compreso, si aggiornano e si chiudono **dal pannello** (`updateTicket`: testo e azione subito,
+   in qualunque ordine). **Il pannello lavora solo su ServiceNow**: la mail la scrive l'operatore in Outlook
+   (il pannello prepara il testo da copiare) e la risposta non tocca ServiceNow.
 8. **Da In coda, con più messaggi nel thread,** l'operatore sceglie da quale messaggio nasce il ticket
    (frecce e "Usa questo"; mai in automatico): da quel messaggio vengono *Description* e *Reported*.
 
@@ -75,8 +74,7 @@ Ogni servizio restituisce una Promise.
 | `createTicket(mail, dati)` | Crea l'Incident assegnato a chi lo apre; poi copia, thread in gestione, movimento. Con `mail = null` è un ticket aperto da Ticket senza mail: nessun thread da collegare, Caller = chi lo apre, `reportedOn` = data e ora scritte dall'operatore | ServiceNow → SharePoint |
 | `assignTicket(numero, utente)` | Prende in carico il ticket di un collega (*Assigned to*) | ServiceNow → SharePoint |
 | `getTicketActivity(numero, { offset, limit })` | Storico completo, dal più recente, a pagine (solo su richiesta) | ServiceNow (journal) |
-| `setPendingAction(numero, azione)` | Cosa fare all'invio della risposta (`null` = solo commento). Azione = `{ type: comment \| resolve \| hold \| cancel, by, resolutionCode (resolve), holdReason e holdDays (hold, 1–7 giorni), addMinutes }`; `addMinutes`: tempo lavorato da aggiungere (o togliere) insieme | SharePoint |
-| `updateTicket(numero, azione, testo, utente)` | Ticket senza mail o di un thread con più ticket aperti, con l'eventuale `addMinutes` dell'azione: testo e azione subito, scritti come all'invio (punto 2 di "All'invio della risposta") | ServiceNow → SharePoint |
+| `updateTicket(numero, azione, testo, utente)` | Qualunque ticket aperto: testo e azione subito, scritti come in "Azioni del pannello su ServiceNow". Azione = `{ type: comment \| resolve \| hold \| cancel, by, resolutionCode (resolve), holdReason e holdDays (hold, 1–7 giorni), addMinutes }`; `addMinutes`: tempo lavorato da aggiungere (o togliere) insieme | ServiceNow → SharePoint |
 | `searchTickets(testo)` | "Cerca su AMP": Incident con il testo nel numero o nella short description, anche chiusi e di altri operatori (i più recenti, max 20). Ogni ticket come quello restituito, più `resolutionNotes`, `lastWorkNote` = `{ author, at, text }` (l'ultima *Work note* dal journal) o `null` e `readOnly: true`. Il pannello li mostra in sola lettura, con "Apri su AMP" (`url`) | ServiceNow |
 | `discardMail(conversationId, utente)` / `restoreMail(conversationId)` | Thread che non richiede un ticket (Ignora); torna In coda con un messaggio nuovo | SharePoint |
 | `forwardMail(conversationId, gruppo, utente)` | Inoltro della richiesta a un reparto interno (PO, ES, PEL); il thread lascia In coda. Sequenza in "Inoltro (FWD)" | Graph (+ ServiceNow) |
@@ -94,40 +92,33 @@ Ogni servizio restituisce una Promise.
   caratteri), `reportedOn` (arrivo della mail, `AAAA-MM-GG hh:mm:ss`).
 - Ticket restituito: `{ number, sysId, url, state, assignedTo: { name, sysId }, companyName,
   activityName, shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
-  holdExpiration, conversationId, messageId, pendingAction }`.
+  holdExpiration, conversationId, messageId }`.
 
 ## SharePoint: le liste
 
 | Lista | Una riga per | Campi |
 |---|---|---|
 | **Thread AMP** | conversazione | `conversationId`, `internetMessageId` e immutable ID dell'ultima mail, `status` (libero / in gestione / scartato), `owner` (chi l'ha in carico), `ownerSeenAt` (ultimo clic sul ticket di chi l'ha in carico), `tickets` (JSON: `number`, `linkedAt`, `linkedBy`, `confirmedBy` per ogni ticket del thread), `freedAt`, `discardedBy`, `discardedAt`, `updatedAt` |
-| **Ticket AMP** | ticket del gruppo | copia dei valori di ServiceNow: `number`, `sysId`, `state`, `assignedTo`, `company`, `activity`, `shortDescription`, `description`, `reportedOn`, `openedAt`, `closedAt`, `timeWorkedMinutes`, `holdReason`, `holdExpiration`, `resolutionCode`; più `pendingAction` (JSON dell'azione all'invio) e `updatedAt` |
-| **Movimenti AMP** | azione | `at`, `type` (apertura, collegamento, tempo, assegnazione, risposta, azione all'invio, ignorata, allineamento…), `ticketNumber`, `by`, `details`, `conversationId`, esito su ServiceNow |
+| **Ticket AMP** | ticket del gruppo | copia dei valori di ServiceNow: `number`, `sysId`, `state`, `assignedTo`, `company`, `activity`, `shortDescription`, `description`, `reportedOn`, `openedAt`, `closedAt`, `timeWorkedMinutes`, `holdReason`, `holdExpiration`, `resolutionCode`; più `updatedAt` |
+| **Movimenti AMP** | azione | `at`, `type` (apertura, collegamento, tempo, assegnazione, aggiornamento, ignorata, allineamento…), `ticketNumber`, `by`, `details`, `conversationId`, esito su ServiceNow |
 
 Pulizia: thread liberi, ticket chiusi e movimenti più vecchi di N mesi si cancellano in automatico.
 
-## All'invio della risposta (lato server)
+## Azioni del pannello su ServiceNow (`updateTicket`)
 
-Quando dalla casella parte una risposta in una conversazione con ticket aperti:
+Come il pannello AMP su Tampermonkey:
 
-0. solo se il thread ha **un solo ticket aperto** (regola 7): si aggiorna quello; con più ticket aperti la risposta non tocca ServiceNow;
-1. il testo della mail va su ServiceNow come *Additional comments* del ticket (come il pannello AMP su Tampermonkey);
-2. si applica l'azione salvata (confermata con "Salva e compila"):
-   - se l'azione ha `addMinutes`, il tempo lavorato si aggiorna di quei minuti (impostati nel timer del pannello);
-   - `comment` (Aggiorna) → solo *Additional comments*; su un ticket On Hold → torna In Progress;
-   - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), *Resolution notes* = testo della mail
-     seguito dal nome dell'operatore;
+1. se l'azione ha `addMinutes`, il tempo lavorato si aggiorna di quei minuti (impostati nel timer del pannello);
+2. secondo l'azione:
+   - `comment` (Aggiorna) → testo in *Additional comments* (Customer visible); su un ticket On Hold → torna In Progress;
+   - `resolve` / `cancel` → stato Resolved / Canceled, *Resolution code* (resolve), testo seguito dal nome
+     dell'operatore in *Additional comments* e in *Resolution notes*;
    - `hold` → stato On Hold, *On hold reason*, *On hold expiration* = momento in cui l'azione parte + `holdDays`
-     giorni (da 1 a 7) + 5 minuti, *Work notes* = testo della mail;
+     giorni (da 1 a 7) + 5 minuti, testo in *Additional comments* e in *Work notes*;
 3. solo se ServiceNow risponde OK si aggiornano la copia del ticket e il thread su SharePoint
-   (ticket chiuso → thread libero), si registra il movimento e l'azione si cancella.
+   (ticket chiuso → thread libero quando non ne restano di aperti) e si registra il movimento.
 
-Proposta: farlo nella Function App osservando la Posta inviata della casella con una
-sottoscrizione Microsoft Graph, così funziona anche se l'add-in è chiuso. Da verificare con chi
-gestisce Exchange: rispondendo dalla casella condivisa, di base la copia inviata può finire nella
-Posta inviata personale di chi scrive; va attivato il salvataggio della copia anche nella casella
-condivisa (`MessageCopyForSentAsEnabled` / `MessageCopyForSendOnBehalfEnabled`). In alternativa l'evento
-`OnMessageSend` dell'add-in (va dichiarato nel manifest e verificato sulle caselle condivise).
+La risposta alla mail la scrive l'operatore in Outlook e non tocca ServiceNow.
 
 ## Outlook (Office.js) usato dal pannello
 
