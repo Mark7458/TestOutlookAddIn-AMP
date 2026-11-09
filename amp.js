@@ -556,7 +556,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 15:45';
+    const BUILD = '2026-11-09 16:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1350,6 +1350,16 @@
         after.forEach(element => moves.push(play(element, { opacity: 0 }, { opacity: 1 }, inward ? JOURNEY.build : 0)));
         return Promise.all(moves).catch(() => {});
     }
+    // Collegato raccolto dal principale: diventa la fascia del mazzo della lista (un tono più scura per ogni passo
+    // indietro, solo il numero in alto), così quando il mazzo prende il suo posto non cambia niente.
+    function becomeStrip(card, step) {
+        const timing = { duration: 160, easing: 'ease-out', fill: 'forwards' };
+        [...card.children].forEach(part => part.animate([{ opacity: 1 }, { opacity: 0 }], timing));
+        card.animate([{ boxShadow: 'inset 0 0 0 999px rgba(0, 0, 0, 0)' }, { boxShadow: `inset 0 0 0 999px rgba(0, 0, 0, ${.035 * step})` }], timing);
+        const label = h('div', { class: 'ao-strip-label' }, card.querySelector('.ao-item-number')?.textContent || '');
+        card.append(label);
+        label.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    }
     const DECK_STRIP = 22; // quanto spunta ogni fascia del mazzo sopra la scheda davanti (come in .ao-deck-strip)
     const DEAL_STEP = 60; // distacco tra una carta e l'altra quando il mazzo si distribuisce nella pagina
     const blurTo = (elements, from, to, duration) => Promise.all(elements.map(element => element.animate(
@@ -1465,6 +1475,7 @@
                 others.forEach(entry => {
                     if (head.top + offset > entry.top + DECK_STRIP * entry.step + 1) return; // non ancora raggiunto
                     entry.item.style.transform = `translateY(${head.top + offset - DECK_STRIP * entry.step - entry.top - 3 * up}px) scaleX(${1 - .06 * entry.step})`;
+                    if (!entry.taken) { entry.taken = true; becomeStrip(entry.item, entry.step); } // prende subito l'aspetto della fascia del mazzo
                 });
                 if (t < 1) requestAnimationFrame(frame);
                 else resolve();
@@ -4465,6 +4476,7 @@
 /* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
 /* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
 #ao-root .ao-deck { display: grid; cursor: pointer; }
+#ao-root .ao-strip-label { position: absolute; top: 3px; left: 10px; color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); pointer-events: none; } /* numero della fascia (ritorno dal thread) */
 #ao-root .ao-deck-strip { margin: 0 var(--ao-deck-inset) -8px; padding: 3px 10px 11px; border: 1px solid var(--ao-line); border-bottom: 0; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: linear-gradient(rgba(0, 0, 0, var(--ao-deck-shade)), rgba(0, 0, 0, var(--ao-deck-shade))), var(--ao-surface); /* la scheda davanti, un tono più scura per ogni passo indietro */ color: var(--ao-text-accent); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-deck > .ao-item { position: relative; }
 #ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
