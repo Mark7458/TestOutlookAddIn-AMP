@@ -112,6 +112,7 @@
             callBorder: '1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent)',
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
+            callGlowRest: '0 0 transparent', // + Nuovo ticket e ＋ Ticket a riposo: bagliore tenue (il modulo aperto tiene callGlow)
             lockLine: '100%', // azione confermata: nel Flat un bordo del colore dell'azione, come le etichette (nel vetro basta il bagliore)
             lockGlow: '0%', // intensità del bagliore dell'azione confermata (nel flat niente)
             callGlowHover: '0 0 transparent',
@@ -217,6 +218,7 @@
             callBorder: '1px solid var(--ao-line)',
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
+            callGlowRest: '0 0 12px rgba(80, 150, 255, .28), 0 0 3px rgba(80, 150, 255, .14)',
             lockLine: '0%',
             lockGlow: '55%',
             tagHoverEdge: 'transparent',
@@ -269,6 +271,7 @@
             fieldFocusLine: 'rgba(90, 150, 255, .4)',
             fieldFocusGlow: '0 0 6px rgba(90, 150, 255, .12)',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
+            callGlowRest: '0 0 12px rgba(70, 140, 255, .28), 0 0 3px rgba(70, 140, 255, .14)',
             callGlowHover: '0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38)',
             callGlowPulse: '0 0 28px rgba(70, 140, 255, .78), 0 0 7px rgba(70, 140, 255, .48)',
             openShadow: '0 0 18px rgba(70, 140, 255, .45), 0 6px 16px rgba(0, 0, 0, .3)',
@@ -559,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 19:15';
+    const BUILD = '2026-11-09 19:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4356,7 +4359,7 @@
 #ao-root .ao-scrolled .ao-thread-head :is(.ao-mail-from, .ao-mail-open) { max-height: 0; opacity: 0; }
 #ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come + Nuovo ticket */
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come + Nuovo ticket */
 #ao-root .ao-pill.ao-away { visibility: hidden; }
 #ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
@@ -4386,7 +4389,7 @@
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
+#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); } /* nasce dal pulsante (growFrom, morphInto) */
 #ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
@@ -4587,7 +4590,7 @@
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-pulse .45s ease-out; } /* non si schiarisce: si accende */
 @keyframes ao-call-pulse { /* impulso breve e misurato (nel flat il bagliore non c'è) */
-    0% { box-shadow: var(--ao-call-glow); }
+    0% { box-shadow: var(--ao-call-glow-rest); }
     30% { box-shadow: var(--ao-call-glow-pulse); }
     100% { box-shadow: var(--ao-call-glow-hover); } }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
