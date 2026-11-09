@@ -552,7 +552,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 14:15';
+    const BUILD = '2026-11-09 14:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4348,7 +4348,7 @@
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
     box-shadow: var(--ao-open-shadow);
 }
-#ao-root .ao-queue-item.ao-expanded.ao-unlifted, #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
 /* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
 #ao-root .ao-list:has(.ao-queue-item.ao-expanded:not(.ao-unlifted):not(.ao-resolving)) .ao-queue-item:not(.ao-expanded) { filter: blur(5px); }
 /* Titolo: neutro finché non si sceglie l'azione, poi del suo colore */
@@ -4385,7 +4385,9 @@
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 /* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
 #ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow); }
-#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-shadow-card); }
+/* Appena aperta, ancora a terra: lo stesso aspetto del passaggio del mouse (bagliore e bordo), così sollevandosi il
+   bagliore prosegue senza spegnersi; richiudendo torna allo stesso aspetto */
+#ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
 #ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
 #ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
 /* Voci di Impostazioni (agenzie, attività, risposte): schede compatte come le altre; aperte, il modulo sotto */
