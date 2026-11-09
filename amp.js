@@ -542,7 +542,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 11:00';
+    const BUILD = '2026-11-09 11:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1450,6 +1450,7 @@
         state.backTo = backTo;
         state.editing = null;
         state.filterMenu = null;
+        if (from !== view) state.newTicketOpen = false; // uscendo, il modulo "Nuovo ticket" si richiude (al ritorno c'è il pulsante)
         render();
         scrollToTop();
         if (slide && from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
@@ -2336,6 +2337,7 @@
             ], state.ticketSource, value => {
                 if (value === state.ticketSource) return;
                 state.ticketSource = value;
+                state.newTicketOpen = false;
                 render();
             });
         return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton, middle, searchButton));
@@ -3433,8 +3435,8 @@
     }
     // Azioni sul ticket (Aggiorna, Risolvi, On Hold, Annulla) con le icone e il colore dell'azione scelta.
     const CLOSING_ACTIONS = ['resolve', 'cancel'];
-    function ticketActionBar(ticket, draft, locked = []) {
-        return iconBar(Object.entries(TEXTS.mail.actions).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value], disabled: locked.includes(value) })), draft.type,
+    function ticketActionBar(ticket, draft, hidden = []) { // hidden: azioni non proposte (il principale con collegati aperti non si chiude)
+        return iconBar(Object.entries(TEXTS.mail.actions).filter(([value]) => !hidden.includes(value)).map(([value, label]) => ({ value, label, icon: ACTION_ICONS[value] })), draft.type,
             value => { if (value !== draft.type) swapZone(`ticket:${ticket.number}`, () => { draft.type = value; }); },
             { key: `ticket:${ticket.number}`, tones: true, slide: false });
     }
@@ -4220,7 +4222,7 @@
 #ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
-#ao-root .ao-mail-preview { max-height: 230px; overflow: hidden; padding: 0 0 10px; border-bottom: 1px solid var(--ao-line-light); color: var(--ao-text); font-size: var(--ao-fs-md); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
+#ao-root .ao-mail-preview { max-height: 230px; overflow: hidden; padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; } /* come la description nel thread */
 #ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; } /* testo oltre 230px (scheda di sola lettura grande circa quanto il modulo di Senza mail): solo allora la barra */
 /* Più messaggi nel thread: frecce per scorrerli; quello che si guarda è quello da cui nasce il ticket */
 #ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -4299,7 +4301,7 @@
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
-#ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; }
+#ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--ao-line); } /* titolo separato dal contenuto, come le altre schede */
 #ao-root .ao-config-card-head .ao-config-name { flex: 1; }
 #ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; margin: 0; font-size: var(--ao-fs-md); line-height: 1.35; }
 #ao-root .ao-props dt { align-self: center; color: var(--ao-text-muted); }
