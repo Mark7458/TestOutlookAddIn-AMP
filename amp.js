@@ -89,7 +89,8 @@
             navInkSoft: 'rgba(255, 255, 255, .72)', // schede non scelte
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
-            raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata o aperta (In coda, ticket nel thread)
+            raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata (in viaggio, al clic)
+            openShadow: 'var(--ao-raised-shadow)', // scheda aperta (In coda, ticket nel thread, Impostazioni): nel vetro bagliore + ombra leggera, come + Nuovo ticket aperto
             itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
             itemHoverEdge: 'color-mix(in srgb, var(--ao-accent) 35%, transparent)', // flat: bordo blu sottile e tenue
             itemHoverGlow: '0 0 transparent',
@@ -217,6 +218,7 @@
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             lockLine: 'transparent',
             lockGlow: '55%',
+            openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
             favBg: 'var(--ao-surface)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
             callGlowPulse: '0 0 28px rgba(80, 150, 255, .78), 0 0 7px rgba(80, 150, 255, .48)',
@@ -268,6 +270,7 @@
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowHover: '0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38)',
             callGlowPulse: '0 0 28px rgba(70, 140, 255, .78), 0 0 7px rgba(70, 140, 255, .48)',
+            openShadow: '0 0 18px rgba(70, 140, 255, .45), 0 6px 16px rgba(0, 0, 0, .3)',
             // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
             toneTake: 'color-mix(in srgb, #0f5fbf 82%, #000)',
             toneForward: 'color-mix(in srgb, #7b3fbf 82%, #000)',
@@ -549,7 +552,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 13:40';
+    const BUILD = '2026-11-09 14:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2630,10 +2633,11 @@
     // Testata del ticket, uguale nella lista e nel thread (è la stessa scheda che viaggia): numero, stato ed etichetta
     // dell'operatore affiancati; agenzia e attività (nel thread con il tempo lavorato a destra); short description.
     // owner: etichetta dell'operatore; takeover: un clic sull'etichetta di un collega la prepara, il secondo lo prende.
-    function ticketHead(ticket, user, { query = '', owner = false, takeover = false } = {}) {
+    // primary: il principale del thread (si lavora con la risposta via mail): icona della mail davanti al numero.
+    function ticketHead(ticket, user, { query = '', owner = false, takeover = false, primary = false } = {}) {
         return [
             h('div', { class: 'ao-item-top' },
-                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
+                h('span', { class: 'ao-item-number' }, primary ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)) : null, markText(ticket.number, query)),
                 h('div', { class: 'ao-item-tags' }, stateChip(ticket), owner ? ownerTag(ticket, user, takeover) : null)),
             h('div', { class: 'ao-item-where' },
                 h('div', { class: 'ao-item-place' },
@@ -3275,7 +3279,7 @@
             tabindex: open ? '0' : null, 'aria-expanded': open ? String(expanded) : null, onclick: open ? pick : null,
             onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
         },
-            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { owner: true, takeover: true })),
+            h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) })), // l'icona serve a distinguerlo dai collegati
             h('div', { class: 'ao-ticket-more' },
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
                 ticket.state === '3' && ticket.holdExpiration
@@ -4150,6 +4154,8 @@
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); } /* aperta: niente schiarimento al passaggio del mouse */
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
+#ao-root .ao-primary-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 5px; vertical-align: -3px; border-radius: 5px; background: var(--ao-accent-bg); color: var(--ao-text-accent); } /* principale del thread */
+#ao-root .ao-primary-mark svg { width: 12px; height: 12px; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
 #ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; } /* a destra l'etichetta dell'operatore */
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
@@ -4331,7 +4337,7 @@
 /* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
 #ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
-    box-shadow: var(--ao-raised-shadow);
+    box-shadow: var(--ao-open-shadow);
 }
 #ao-root .ao-queue-item.ao-expanded.ao-unlifted, #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
 /* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
@@ -4369,7 +4375,7 @@
 #ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 /* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
-#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow); }
 #ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
 #ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
