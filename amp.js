@@ -90,9 +90,10 @@
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata o aperta (In coda, ticket nel thread)
-            itemHover: 'var(--ao-hover)', // scheda al passaggio del mouse: solo lei, senza schiarire il contenuto
-            itemHoverEdge: 'transparent',
+            itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
+            itemHoverEdge: 'var(--ao-accent)',
             itemHoverGlow: '0 0 transparent',
+            itemHoverPulse: '0 0 transparent', // impulso iniziale del bagliore (nel flat niente)
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -103,13 +104,18 @@
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
             selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
             menuBg: 'var(--ao-surface)', // elenchi aperti: sempre pieni, si leggono sopra a tutto
-            // + Nuovo ticket: nel flat bordo tratteggiato; nel vetro card come le altre con un bagliore fisso che "chiama",
-            // un po' più forte al passaggio del mouse; aperto tiene il bagliore
-            callBorder: '1px dashed var(--ao-accent)',
+            // + Nuovo ticket: nel flat bordo netto blu, che al passaggio del mouse si ispessisce; nel vetro card come le
+            // altre con un bagliore fisso che "chiama": al passaggio del mouse non si schiarisce, il bagliore dà un
+            // impulso e resta più forte, e il bordo si accende; aperto tiene il bagliore
+            callBorder: '1px solid var(--ao-accent)',
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
             lockLine: 'var(--ao-accent)', // azione confermata: nel Flat un bordo (nel vetro basta il bagliore)
             callGlowHover: '0 0 transparent',
+            callGlowPulse: '0 0 transparent',
+            callEdgeHover: 'var(--ao-accent)',
+            callRing: 'inset 0 0 0 0 transparent', // flat: il bordo si ispessisce (secondo pixel dentro)
+            callRingHover: 'inset 0 0 0 1px var(--ao-accent)',
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
             searchLine: 'var(--ao-accent-border)',
@@ -195,9 +201,9 @@
             chipLine: 'rgba(0, 50, 110, .16)',
             notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
             hoverGlow: '0 0 12px rgba(120, 170, 255, .2)',
-            itemHover: 'var(--ao-surface)', // vetro: la scheda non si sbianca, si accendono il bordo e un alone azzurro
-            itemHoverEdge: 'rgba(255, 255, 255, .95)',
+            itemHoverEdge: 'rgba(110, 165, 255, .75)', // vetro: si accendono il bordo e un alone azzurro (con un impulso)
             itemHoverGlow: '0 0 16px rgba(110, 165, 255, .38)',
+            itemHoverPulse: '0 0 24px rgba(110, 165, 255, .62)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
             segmentHover: 'rgba(255, 255, 255, .4)',
             choiceTrack: 'var(--ao-segment-track)',
@@ -211,7 +217,11 @@
             callOpenBorder: 'var(--ao-line)',
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             lockLine: 'transparent',
-            callGlowHover: '0 0 21px rgba(80, 150, 255, .58), 0 0 5px rgba(80, 150, 255, .3)',
+            callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
+            callGlowPulse: '0 0 32px rgba(80, 150, 255, .85), 0 0 8px rgba(80, 150, 255, .55)',
+            callEdgeHover: 'rgba(110, 165, 255, .85)',
+            callRing: '0 0 transparent',
+            callRingHover: '0 0 transparent',
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
             searchLine: 'transparent',
@@ -248,8 +258,9 @@
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
-            itemHoverEdge: 'rgba(255, 255, 255, .2)',
+            itemHoverEdge: 'rgba(140, 185, 255, .6)',
             itemHoverGlow: '0 0 16px rgba(90, 150, 255, .3)',
+            itemHoverPulse: '0 0 24px rgba(90, 150, 255, .55)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
             segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
@@ -257,7 +268,9 @@
             fieldFocusLine: 'rgba(90, 150, 255, .4)',
             fieldFocusGlow: '0 0 6px rgba(90, 150, 255, .12)',
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
-            callGlowHover: '0 0 21px rgba(70, 140, 255, .58), 0 0 5px rgba(70, 140, 255, .3)',
+            callGlowHover: '0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38)',
+            callGlowPulse: '0 0 32px rgba(70, 140, 255, .85), 0 0 8px rgba(70, 140, 255, .55)',
+            callEdgeHover: 'rgba(140, 185, 255, .8)',
             // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
             toneTake: 'color-mix(in srgb, #0f5fbf 82%, #000)',
             toneForward: 'color-mix(in srgb, #7b3fbf 82%, #000)',
@@ -542,7 +555,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 11:30';
+    const BUILD = '2026-11-09 12:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4184,7 +4197,7 @@
 #ao-root .ao-form-fields .ao-fav.ao-active { border-color: transparent; box-shadow: none; background: color-mix(in srgb, var(--ao-accent) 14%, var(--ao-surface)); color: var(--ao-text-accent); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-form-fields .ao-fav-company { color: var(--ao-text-subtle); }
 #ao-root .ao-form-fields .ao-fav.ao-active .ao-fav-company { color: inherit; }
-#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow), var(--ao-call-ring); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
 /* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
 #ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); } /* nasce dal pulsante (growFrom, morphInto) */
 #ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
@@ -4383,8 +4396,16 @@
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
-#ao-root .ao-new-ticket:hover { background: var(--ao-hover); filter: var(--ao-hover-filter); box-shadow: var(--ao-call-glow-hover); }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); animation: ao-item-pulse .7s ease-out; } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
+@keyframes ao-item-pulse { /* il bagliore si accende forte e si assesta (nel flat l'impulso non c'è) */
+    0% { box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; }
+    35% { box-shadow: var(--ao-shadow-card), var(--ao-item-hover-pulse), inset 0 0 0 1px var(--ao-item-hover-edge); }
+    100% { box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } }
+#ao-root .ao-new-ticket:hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover), var(--ao-call-ring-hover); animation: ao-call-pulse .7s ease-out; } /* non si schiarisce: si accende */
+@keyframes ao-call-pulse {
+    0% { box-shadow: var(--ao-call-glow), var(--ao-call-ring); }
+    35% { box-shadow: var(--ao-call-glow-pulse), var(--ao-call-ring-hover); }
+    100% { box-shadow: var(--ao-call-glow-hover), var(--ao-call-ring-hover); } }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
