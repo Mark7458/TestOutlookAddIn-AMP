@@ -552,7 +552,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 14:00';
+    const BUILD = '2026-11-09 14:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2812,9 +2812,10 @@
         state.extraTicketFor = null;
         releaseRender();
         render();
+        const pill = aside(root.querySelector('.ao-thread-bar .ao-pill'));
         const card = headOf(ticket.number);
         if (from && card) await holdingRender(() => morphInto(card, from));
-        appear(root.querySelector('.ao-thread-bar .ao-pill'));
+        appear(pill);
     }
     // Forma di un elemento (posizione, misura, angoli) per il riquadro che si trasforma.
     const shape = element => {
@@ -2839,7 +2840,13 @@
         await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
     }
     // Il pulsante "nuovo ticket" torna al suo posto dopo che il modulo è diventato il ticket.
-    const appear = element => element?.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: MOTION.swap, easing: JOURNEY.easing });
+    // Il pulsante resta nascosto mentre il modulo diventa la scheda (aside), poi ricompare (appear).
+    const aside = element => { if (element) element.style.opacity = '0'; return element; };
+    const appear = element => {
+        if (!element) return;
+        element.style.opacity = '';
+        element.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: MOTION.swap, easing: JOURNEY.easing });
+    };
     function discardedCard(mail, discarded) {
         return h('div', { class: 'ao-card' },
             h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(discarded.by || TEXTS.common.none, formatWhen(discarded.at))),
@@ -3244,9 +3251,10 @@
             delete state.ticketDrafts[NEW_TICKET_KEY];
             releaseRender();
             render();
+            const button = aside(root.querySelector('.ao-scroll .ao-new-ticket'));
             const item = [...root.querySelectorAll('.ao-scroll .ao-item')].find(element => element.querySelector('.ao-item-number')?.textContent === ticket.number);
             if (from && item) await holdingRender(() => morphInto(item, from));
-            appear(root.querySelector('.ao-new-ticket'));
+            appear(button);
             showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
             return;
         }
@@ -3869,10 +3877,11 @@
             if (from) await holdingRender(() => fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
             state.editing = null;
             render();
+            const button = aside(root.querySelector('.ao-scroll .ao-new-ticket'));
             const card = configCardOf(targetId);
             card?.scrollIntoView({ block: 'nearest' });
             if (from && card) await holdingRender(() => morphInto(card, from));
-            appear(root.querySelector('.ao-scroll .ao-new-ticket'));
+            appear(button);
         };
         return h('div', { class: 'ao-editor' },
             fields,
