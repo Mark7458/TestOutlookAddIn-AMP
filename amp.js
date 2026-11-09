@@ -562,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 19:25';
+    const BUILD = '2026-11-09 19:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3400,13 +3400,13 @@
             h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { query, owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) }), // l'icona serve a distinguerlo dai collegati
                 listed ? ticketMeta(ticket) : null),
             listed && !expanded ? null : h('div', { class: 'ao-ticket-more' },
+                h('div', { class: 'ao-ticket-dates' }, // prima le date
+                    h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
+                    h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn))),
                 ticket.description ? h('div', { class: 'ao-ticket-description' }, ticket.description) : null, // il corpo della mail che l'ha generato
                 !listed && ticket.state === '3' && ticket.holdExpiration // nella lista la scadenza è già sulla scheda chiusa
                     ? h('div', { class: 'ao-hold-line' }, h('span', { class: 'ao-hint' }, HOLD_REASONS.find(item => item.value === ticket.holdReason)?.label || 'On Hold'), holdDue(ticket)) : null,
                 open ? null : h('p', { class: 'ao-muted' }, TEXTS.mail.closed(TICKET_STATES[ticket.state]?.label || ticket.state)),
-                h('div', { class: 'ao-ticket-dates' },
-                    h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
-                    h('span', null, h('b', null, TEXTS.mail.reported), ' ', formatWhen(ticket.reportedOn))),
                 expanded ? ticketWork(ticket, config, { isCurrentMail, primary, others }) : null));
     }
     // Attività del ticket aperto: con la mail (il principale) "Salva e compila"; altrimenti testo e azione subito.
