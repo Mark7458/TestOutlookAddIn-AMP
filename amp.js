@@ -91,7 +91,7 @@
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata o aperta (In coda, ticket nel thread)
             itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
-            itemHoverEdge: 'var(--ao-accent)',
+            itemHoverEdge: 'color-mix(in srgb, var(--ao-accent) 35%, transparent)', // flat: bordo blu sottile e tenue
             itemHoverGlow: '0 0 transparent',
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
@@ -466,6 +466,7 @@
         settings: {
             title: 'Impostazioni',
             tabs: { profile: 'Profilo', companies: 'Agenzie', activities: 'Attività', responses: 'Risposte' },
+            newItem: { companies: '+ Nuova agenzia', activities: '+ Nuova attività', responses: '+ Nuova risposta' },
             profile: 'Profilo',
             profileHint: 'Il tuo nome come compare su ServiceNow: i ticket che apri vengono assegnati a te.',
             assignedTo: 'Assigned to',
@@ -482,14 +483,10 @@
             assignmentGroup: 'Assignment group',
             domains: 'Domini email',
             domainsHint: 'Separati da virgola, es. agenziaalfa.it, alfa.it',
-            noDomains: 'nessuno: niente agenzia suggerita',
             category: 'Category',
-            impactUrgency: 'Impact / Urgency',
             impact: 'Impact',
             urgency: 'Urgency',
-            timeWorked: 'Tempo',
             timeWorkedMinutes: 'Minuti',
-            prefix: 'Prefisso',
             prefixLong: 'Prefisso Short description',
             responseTitle: 'Titolo',
             response: 'Testo',
@@ -548,7 +545,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 12:30';
+    const BUILD = '2026-11-09 13:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -923,6 +920,8 @@
         ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
         newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
         newTicketShape: null, // forma del pulsante "+ Nuovo ticket" (il modulo ci torna con Annulla)
+        newItemShape: null, // lo stesso per "+ Nuova agenzia/attività/risposta" in Impostazioni
+        liftConfig: null, // voce di Impostazioni appena aperta: si disegna ancora a terra, poi si solleva
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
         editing: null, // impostazioni: { kind, id }
@@ -3623,13 +3622,10 @@
     // si mostra né si modifica. Se il nome cambia, il sys_id si azzera e la voce è "da verificare".
     const EDITORS = {
         companies: {
-            properties: item => [
-                [TEXTS.settings.company, referenceValue(item.company)],
-                [TEXTS.settings.assignmentGroup, referenceValue(item.assignmentGroup)],
-                [TEXTS.settings.domains, (item.domains || []).length
-                    ? (item.domains || []).map(domain => chip(`@${domain}`, 'neutral'))
-                    : h('span', { class: 'ao-missing' }, TEXTS.settings.noDomains)]
-            ],
+            // scheda compatta: sotto il nome company e gruppo; accanto il primo dominio
+            summary: item => [normalizeReference(item.company).displayValue, normalizeReference(item.assignmentGroup).displayValue].filter(Boolean).join(' · '),
+            badge: item => ((item.domains || []).length ? `@${item.domains[0]}${item.domains.length > 1 ? ` +${item.domains.length - 1}` : ''}` : null),
+            unverified: item => [item.company, item.assignmentGroup].some(reference => normalizeReference(reference).displayValue && !normalizeReference(reference).value),
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
                 { key: 'company', label: TEXTS.settings.company, reference: true },
@@ -3638,12 +3634,9 @@
             ]
         },
         activities: {
-            properties: item => [
-                [TEXTS.settings.category, referenceValue(item.category), { twoLines: true }],
-                [TEXTS.settings.impactUrgency, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`],
-                [TEXTS.settings.timeWorked, TEXTS.mail.minutes(Number(item.timeWorked) || 0)],
-                [TEXTS.settings.prefix, item.shortDescriptionPrefix || h('span', { class: 'ao-missing' }, TEXTS.common.none)]
-            ],
+            summary: item => [normalizeReference(item.category).displayValue, `${SEVERITY_LABELS[item.impact] || '?'} / ${SEVERITY_LABELS[item.urgency] || '?'}`, TEXTS.mail.minutes(Number(item.timeWorked) || 0)].filter(Boolean).join(' · '),
+            badge: item => item.shortDescriptionPrefix || null,
+            unverified: item => Boolean(normalizeReference(item.category).displayValue && !normalizeReference(item.category).value),
             fields: [
                 { key: 'name', label: TEXTS.settings.companyName, required: true },
                 { key: 'category', label: TEXTS.settings.category, reference: true },
@@ -3656,7 +3649,7 @@
         responses: {
             collection: 'usefulResponses',
             nameKey: 'title',
-            body: item => h('p', { class: 'ao-response-text' }, item.response || ''),
+            summary: item => item.response || '',
             fields: [
                 { key: 'title', label: TEXTS.settings.responseTitle, required: true },
                 { key: 'response', label: TEXTS.settings.response, multiline: true }
@@ -3665,12 +3658,6 @@
     };
     const collectionOf = tab => EDITORS[tab].collection || tab;
 
-    // Valore di un riferimento: il nome, con l'avviso se non è ancora collegato a ServiceNow.
-    function referenceValue(reference) {
-        const normalized = normalizeReference(reference);
-        if (!normalized.displayValue) return h('span', { class: 'ao-missing' }, TEXTS.common.none);
-        return [normalized.displayValue, normalized.value ? null : chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint)];
-    }
     // Il sys_id resta quello di prima solo se il nome non è cambiato.
     function keepReference(previous, displayValue) {
         const before = normalizeReference(previous);
@@ -3751,30 +3738,82 @@
             h('p', { class: 'ao-footnote' }, TEXTS.settings.version(BUILD))
         ];
     }
+    // Agenzie, Attività e Risposte: le stesse schede del resto del pannello. Compatte (nome, riassunto, etichetta);
+    // un clic le apre come in In coda (si sollevano, le altre si sfocano) con il modulo già compilato, da modificare lì;
+    // la freccia le richiude. "+ Nuova …" ha lo stile di "+ Nuovo ticket" e si trasforma nel modulo vuoto.
     function collectionSection(tab, config) {
         const editor = EDITORS[tab];
         const items = Object.entries(config[collectionOf(tab)]).sort(byName);
         const editing = state.editing?.kind === tab ? state.editing : null;
+        const nameKey = editor.nameKey || 'name';
         return [
-            editing?.id === null ? editorForm(tab, null, {}) : h('div', { class: 'ao-toolbar' },
-                h('span', { class: 'ao-hint' }, `${items.length} ${TEXTS.settings.tabs[tab].toLowerCase()}`),
-                h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => { state.editing = { kind: tab, id: null }; render(); } }, `+ ${TEXTS.common.add}`)),
-            items.length ? h('ul', { class: 'ao-config-list' }, items.map(([id, item]) => h('li', {}, editing?.id === id
-                ? editorForm(tab, id, item)
-                : h('div', { class: 'ao-config-card' },
-                    h('div', { class: 'ao-config-card-head' },
-                        h('span', { class: 'ao-config-name' }, item[editor.nameKey || 'name']),
-                        h('button', { type: 'button', class: 'ao-icon-button', title: TEXTS.common.edit, 'aria-label': TEXTS.common.edit, onclick: () => { state.editing = { kind: tab, id }; render(); } }, '✎'),
-                        confirmButton('🗑', 'ao-icon-button ao-danger', () => deleteItem(tab, id))),
-                    editor.properties
-                        ? h('dl', { class: 'ao-props' }, editor.properties(item).map(([label, value, options = {}]) => {
-                            const className = options.twoLines ? 'ao-prop-two-lines' : undefined;
-                            return [h('dt', { class: className }, label), h('dd', { class: className }, value)];
-                        }))
-                        : editor.body(item)))))
-                : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
+            editing?.id === null
+                ? h('section', { class: 'ao-card ao-new-ticket-card ao-config-new' }, h('div', { class: 'ao-inline-form' }, editorForm(tab, null, {})))
+                : h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewItem(tab) }, TEXTS.settings.newItem[tab]),
+            items.length ? h('ul', { class: 'ao-list' }, items.map(([id, item]) => {
+                const expanded = editing?.id === id;
+                const badge = editor.badge?.(item);
+                return h('li', {
+                    class: `ao-item ao-config-item${expanded ? ' ao-expanded' : ''}${expanded && state.liftConfig === id ? ' ao-unlifted' : ''}`,
+                    dataset: { id }, tabindex: '0', 'aria-expanded': String(expanded),
+                    onclick: event => pickConfigItem(event, tab, id),
+                    onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pickConfigItem(event, tab, id); }
+                },
+                    h('div', { class: 'ao-config-face' },
+                        h('div', { class: 'ao-item-head' },
+                            h('span', { class: 'ao-item-title' }, item[nameKey]),
+                            editor.unverified?.(item) ? chip(TEXTS.settings.toVerify, 'warning', TEXTS.settings.toVerifyHint) : null,
+                            badge ? chip(badge, 'neutral') : null),
+                        editor.summary(item) ? h('div', { class: `ao-config-summary${tab === 'responses' ? ' ao-config-text' : ''}` }, editor.summary(item)) : null),
+                    expanded ? h('div', { class: 'ao-config-more' }, editorForm(tab, id, item)) : null);
+            })) : (editing ? null : h('p', { class: 'ao-muted' }, TEXTS.settings.empty))
         ];
     }
+    // Clic su una scheda: se un'altra è aperta prima si richiude quella; altrimenti si apre questa.
+    function pickConfigItem(event, tab, id) {
+        if (state.holdRender || event.target.closest('.ao-config-more, button, a, input, textarea, select')) return;
+        const open = root.querySelector('.ao-config-item.ao-expanded');
+        if (open && open !== event.currentTarget) return collapseConfigItem(open);
+        if (!open) openConfigItem(tab, id);
+    }
+    async function openConfigItem(tab, id) {
+        await whenIdle();
+        state.editing = { kind: tab, id };
+        state.liftConfig = id; // si disegna ancora a terra, poi si solleva con la transizione
+        render();
+        state.liftConfig = null;
+        const card = configCardOf(id);
+        card?.getBoundingClientRect();
+        card?.classList.remove('ao-unlifted');
+        await holdingRender(() => unfold(card?.querySelector('.ao-config-more')));
+    }
+    async function collapseConfigItem(card) {
+        if (!card || state.holdRender) return;
+        card.classList.add('ao-unlifted'); // torna a terra mentre il modulo risale
+        holdRender();
+        await fold(card.querySelector('.ao-config-more'));
+        state.editing = null;
+        releaseRender();
+        render();
+    }
+    const configCardOf = id => [...root.querySelectorAll('.ao-config-item')].find(card => card.dataset.id === id);
+    async function openNewItem(tab) {
+        await whenIdle();
+        const button = root.querySelector('.ao-scroll .ao-new-ticket');
+        state.newItemShape = button && shape(button);
+        state.editing = { kind: tab, id: null };
+        render();
+        const card = root.querySelector('.ao-config-new');
+        if (card && state.newItemShape && !reducedMotion()) await holdingRender(() => growFrom(card, state.newItemShape));
+    }
+    async function closeNewItem() {
+        const card = root.querySelector('.ao-config-new');
+        if (card && state.newItemShape && !reducedMotion()) await holdingRender(() => shrinkTo(card, state.newItemShape));
+        state.editing = null;
+        render();
+    }
+    // Campi del modulo (già compilati con i valori della voce) e i comandi: Salva ed Elimina sulla voce aperta,
+    // Salva e Annulla su quella nuova. Salvata, la voce aperta si richiude; quella nuova diventa la sua scheda.
     function editorForm(tab, id, item) {
         const editor = EDITORS[tab];
         const values = {};
@@ -3792,7 +3831,7 @@
             return textField(field.label, initial, value => { values[field.key] = value; },
                 { hint: field.hint, multiline: field.multiline, rows: field.multiline ? '5' : undefined, type: field.number ? 'number' : undefined, min: field.number ? '0' : undefined });
         });
-        const save = () => {
+        const save = async event => {
             const nameKey = editor.nameKey || 'name';
             if (!String(values[nameKey] || '').trim()) return showStatus(TEXTS.settings.nameRequired, 'danger');
             const config = loadConfig();
@@ -3814,15 +3853,27 @@
             }
             config[collection][targetId] = next;
             saveConfig(config);
+            showStatus(TEXTS.settings.saved);
+            if (id) return collapseConfigItem(event.currentTarget.closest('.ao-config-item'));
+            // voce nuova: il modulo compilato diventa la sua scheda, poi "+ Nuova …" torna al suo posto
+            const form = root.querySelector('.ao-config-new');
+            const from = form && !reducedMotion() ? shape(form) : null;
+            if (from) await holdingRender(() => fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
             state.editing = null;
             render();
-            showStatus(TEXTS.settings.saved);
+            const card = configCardOf(targetId);
+            card?.scrollIntoView({ block: 'nearest' });
+            if (from && card) await holdingRender(() => morphInto(card, from));
+            appear(root.querySelector('.ao-scroll .ao-new-ticket'));
         };
         return h('div', { class: 'ao-editor' },
             fields,
             h('div', { class: 'ao-actions' },
                 h('button', { type: 'button', class: 'ao-button ao-primary', onclick: save }, TEXTS.common.save),
-                h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => { state.editing = null; render(); } }, TEXTS.common.cancel)));
+                h('span', { class: 'ao-spacer' }),
+                id ? confirmButton(TEXTS.common.delete, 'ao-button ao-subtle ao-danger', () => deleteItem(tab, id))
+                    : h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: closeNewItem }, TEXTS.common.cancel)),
+            id ? h('button', { type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: event => collapseConfigItem(event.currentTarget.closest('.ao-config-item')) }, svgIcon(CHEVRON_UP_ICON)) : null);
     }
     function deleteItem(tab, id) {
         const config = loadConfig();
@@ -3836,6 +3887,7 @@
             });
         }
         saveConfig(config);
+        state.editing = null;
         render();
         showStatus(TEXTS.settings.deleted);
     }
@@ -4216,9 +4268,7 @@
 #ao-root .ao-back-link { font-weight: var(--ao-fw-medium); }
 
 /* Impostazioni */
-#ao-root .ao-config-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-config-name { font-weight: var(--ao-fw-medium); }
-#ao-root .ao-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--ao-accent-border); border-radius: var(--ao-radius-base); background: var(--ao-accent-bg); }
+#ao-root .ao-editor { display: grid; gap: 8px; } /* modulo dentro la scheda (Impostazioni) */
 
 /* In coda: riga con azioni e modulo compatto */
 #ao-root .ao-open-first { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); color: var(--ao-text-muted); }
@@ -4305,16 +4355,7 @@
 
 /* Impostazioni */
 #ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-#ao-root .ao-config-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
-#ao-root .ao-config-card-head { display: flex; align-items: center; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--ao-line); } /* titolo separato dal contenuto, come le altre schede */
-#ao-root .ao-config-card-head .ao-config-name { flex: 1; }
-#ao-root .ao-props { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; margin: 0; font-size: var(--ao-fs-md); line-height: 1.35; }
-#ao-root .ao-props dt { align-self: center; color: var(--ao-text-muted); }
 /* Category: spazio per due righe, etichetta centrata in altezza */
-#ao-root .ao-props dd.ao-prop-two-lines { min-height: calc(2em * 1.35); }
-#ao-root .ao-props dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; overflow-wrap: anywhere; }
-#ao-root .ao-props .ao-missing { color: var(--ao-text-subtle); font-style: italic; }
-#ao-root .ao-response-text { margin: 0; color: var(--ao-text-muted); font-size: var(--ao-fs-md); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Risposte nuove e più ticket sullo stesso thread */
 /* Contenitore del ticket nella pagina del thread */
@@ -4324,9 +4365,17 @@
 #ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 /* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
-#ao-root .ao-ticket-card.ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
-#ao-root .ao-ticket-card.ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-shadow-card); }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
+#ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
+/* Voci di Impostazioni (agenzie, attività, risposte): schede compatte come le altre; aperte, il modulo sotto */
+#ao-root .ao-config-face { display: grid; gap: 2px; }
+#ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
+#ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
+#ao-root .ao-config-summary { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
+#ao-root .ao-config-text { white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } /* risposta: le prime due righe */
+#ao-root .ao-config-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line); overflow: hidden; }
 #ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
 #ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
 #ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
@@ -4387,7 +4436,7 @@
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-config-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-deck-strip, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 #ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-pulse .45s ease-out; } /* non si schiarisce: si accende */
 @keyframes ao-call-pulse { /* impulso breve e misurato (nel flat il bagliore non c'è) */
