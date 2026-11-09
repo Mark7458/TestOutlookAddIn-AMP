@@ -94,6 +94,8 @@
             itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
             itemHoverEdge: 'color-mix(in srgb, var(--ao-accent) 35%, transparent)', // flat: bordo blu sottile e tenue
             itemHoverGlow: '0 0 transparent',
+            tagHoverEdge: 'var(--ao-item-hover-edge)', // "+" dell'etichetta: nel flat il bordo delle schede, nel vetro solo il bagliore
+            openEdge: 'var(--ao-item-hover-edge)', // scheda aperta: tiene il bordo del passaggio del mouse (flat: blu sottile)
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
             segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
@@ -218,6 +220,7 @@
             callGlow: '0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25)',
             lockLine: 'transparent',
             lockGlow: '55%',
+            tagHoverEdge: 'transparent',
             openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
             favBg: 'var(--ao-surface)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
@@ -552,7 +555,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 14:45';
+    const BUILD = '2026-11-09 15:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3556,7 +3559,7 @@
                 choiceZone(`ticket:${ticket.number}`, actionFields(draft))),
             h('div', { class: 'ao-actions' }, h('button', {
                 type: 'button', class: `ao-button ao-primary${ACTION_FILLS[draft.type] || ''}`,
-                onclick: confirmed ? async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null))) showStatus(TEXTS.mail.pendingCleared); } : () => prepareReply(ticket, isCurrentMail)
+                onclick: confirmed ? async () => { if (await confirmMorph(ticket.number, () => savePendingAction(ticket, null, true))) showStatus(TEXTS.mail.pendingCleared); } : () => prepareReply(ticket, isCurrentMail)
             }, confirmed ? TEXTS.mail.changeChoice : TEXTS.mail.prepareReply)));
     }
     // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
@@ -3600,11 +3603,12 @@
         after.querySelector('.ao-actions > .ao-button')?.animate([{ color: 'transparent' }, { color: getComputedStyle(after.querySelector('.ao-actions > .ao-button')).color }], timing); // stesso pulsante: cambia solo la scritta
         return result;
     }
-    async function savePendingAction(ticket, action) {
+    // keepDraft: "Cambia selezione" sblocca e lascia la configurazione com'era (niente reset, niente salti).
+    async function savePendingAction(ticket, action, keepDraft = false) {
         const updated = await run(() => Services.setPendingAction(ticket.number, action));
         if (!updated) return null;
         rememberTicket(updated);
-        delete state.actionDrafts[ticket.number];
+        if (!keepDraft) delete state.actionDrafts[ticket.number];
         render();
         return updated;
     }
@@ -4188,7 +4192,7 @@
 @keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
 /* Posto vuoto per la propria etichetta: più stretto di qualunque etichetta, con il fondo dei selettori */
 #ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .3s, box-shadow .4s ease; }
-#ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-item-hover-edge), var(--ao-item-hover-glow); } /* come le schede: non si schiarisce, si accendono bordo (e bagliore nel vetro) */
+#ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-tag-hover-edge), var(--ao-item-hover-glow); } /* come le schede: non si schiarisce, si accendono bordo (e bagliore nel vetro) */
 /* Profilo: scelta del colore */
 #ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 #ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
@@ -4346,7 +4350,7 @@
 /* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
 #ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
     z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
-    box-shadow: var(--ao-open-shadow);
+    box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge);
 }
 #ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
 /* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
@@ -4384,7 +4388,7 @@
 #ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 /* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
-#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow); }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
 /* Appena aperta, ancora a terra: lo stesso aspetto del passaggio del mouse (bagliore e bordo), così sollevandosi il
    bagliore prosegue senza spegnersi; richiudendo torna allo stesso aspetto */
 #ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
