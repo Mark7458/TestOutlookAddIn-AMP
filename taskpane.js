@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-16
+// Test-Plugin file version: 0.3-taskpane.js-devtools-17
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
   release: '0.3-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-16',
-    'taskpane.js': '0.3-taskpane.js-devtools-16',
-    'taskpane.css': '0.3-taskpane.css-devtools-16',
+    'taskpane.html': '0.3-taskpane.html-devtools-17',
+    'taskpane.js': '0.3-taskpane.js-devtools-17',
+    'taskpane.css': '0.3-taskpane.css-devtools-17',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1851,17 +1851,29 @@ function registerHealthButton() {
     container.className = "developer-fields";
     const graphAction = action === "SetMessageCategories";
     const semanticAction = graphAction ? String(parsed?.action || "") : (action === "AddCategoriesOfficeJs" ? "add" : "remove");
-    const isAdd = semanticAction === "add";
-    const mode = isAdd
-      ? (parsed?.replace ? "Sostituzione completa" : "Aggiunta")
-      : (parsed?.clear ? "Rimozione completa" : "Rimozione selettiva");
     addDeveloperField(container, "Operazione", action);
+
     if (graphAction) {
       addDeveloperField(container, "Action Graph", semanticAction);
       addDeveloperField(container, "Mail", parsed?.mail);
       addDeveloperField(container, "Message ID", parsed?.messageId);
-      addDeveloperField(container, "GET finale", parsed?.finalGetSkipped || parsed?.skipFinalGet ? "Saltato" : "Eseguito");
     }
+
+    if (graphAction && semanticAction === "get") {
+      addDeveloperField(container, "Modalità", "Lettura Graph");
+      addDeveloperField(container, "Aggiornato", parsed?.updated === false ? "false" : String(parsed?.updated ?? "Non disponibile"));
+      addDeveloperField(container, "GET Graph", parsed?.initialGetPerformed ? "Eseguito" : "Non eseguito");
+      addDeveloperField(container, "PATCH", "Non eseguito");
+      addDeveloperField(container, "Categorie Graph", formatCategoryNameList(parsed?.categories));
+      if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
+      return;
+    }
+
+    const isAdd = semanticAction === "add";
+    const mode = isAdd
+      ? (parsed?.replace ? "Sostituzione completa" : "Aggiunta")
+      : (parsed?.clear ? "Rimozione completa" : "Rimozione selettiva");
+    if (graphAction) addDeveloperField(container, "GET finale", parsed?.finalGetSkipped || parsed?.skipFinalGet ? "Saltato" : "Eseguito");
     addDeveloperField(container, "Modalità", mode);
     addDeveloperField(container, "Categorie richieste", formatCategoryNameList(parsed?.requestedCategories || parsed?.categoriesRequested || parsed?.categories));
     addDeveloperField(container, "Categorie before", formatCategoryNameList(parsed?.categoriesBefore));
@@ -2143,18 +2155,24 @@ function registerHealthButton() {
 
   function collectGraphCategoryBody() {
     const semanticAction = String(byId("developer-graph-action")?.value || "").trim();
+    if (!['add', 'remove', 'get'].includes(semanticAction)) throw new Error("Action Graph non valida: usa add, remove oppure get.");
+
+    const baseBody = {
+      mail: requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig"),
+      messageId: requiredFormValue("developer-graph-message-id", "Message ID"),
+      action: semanticAction
+    };
+    if (semanticAction === "get") return baseBody;
+
     const replace = Boolean(byId("developer-graph-replace")?.checked);
     const clear = Boolean(byId("developer-graph-clear")?.checked);
-    if (!['add', 'remove'].includes(semanticAction)) throw new Error("Action Graph non valida: usa add oppure remove.");
     if (semanticAction === "add" && clear) throw new Error("clear richiede action remove.");
     if (semanticAction === "remove" && replace) throw new Error("replace richiede action add.");
     const parsedCategories = parseCategoryInput(byId("developer-graph-categories")?.value || "");
     const categories = semanticAction === "remove" && clear ? [] : canonicalizeConfiguredCategories(parsedCategories);
     if (!(semanticAction === "remove" && clear) && !categories.length) throw new Error("Inserisci almeno una categoria oppure usa clear con action remove.");
     return {
-      mail: requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig"),
-      messageId: requiredFormValue("developer-graph-message-id", "Message ID"),
-      action: semanticAction,
+      ...baseBody,
       categories,
       ...(semanticAction === "add" ? { replace } : { clear }),
       skipFinalGet: Boolean(byId("developer-graph-skip-final-get")?.checked)
@@ -2237,20 +2255,32 @@ function registerHealthButton() {
   function updateGraphCategoryControls() {
     const action = String(byId("developer-graph-action")?.value || "add");
     const isAdd = action === "add";
+    const isRemove = action === "remove";
+    const isGet = action === "get";
     const replaceRow = byId("developer-graph-replace-row");
     const clearRow = byId("developer-graph-clear-row");
-    if (replaceRow) replaceRow.hidden = !isAdd;
-    if (clearRow) clearRow.hidden = isAdd;
-    if (isAdd) {
-      const clear = byId("developer-graph-clear");
-      if (clear) clear.checked = false;
-    } else {
-      const replace = byId("developer-graph-replace");
-      if (replace) replace.checked = false;
-    }
-    const clear = !isAdd && Boolean(byId("developer-graph-clear")?.checked);
+    const skipFinalGetRow = byId("developer-graph-skip-final-get-row");
+    const replace = byId("developer-graph-replace");
+    const clear = byId("developer-graph-clear");
+    const skipFinalGet = byId("developer-graph-skip-final-get");
     const categories = byId("developer-graph-categories");
-    if (categories) categories.disabled = clear;
+
+    if (replaceRow) replaceRow.hidden = !isAdd;
+    if (clearRow) clearRow.hidden = !isRemove;
+    if (skipFinalGetRow) skipFinalGetRow.hidden = isGet;
+
+    if (!isAdd && replace) replace.checked = false;
+    if (!isRemove && clear) clear.checked = false;
+    if (isGet) {
+      if (skipFinalGet) skipFinalGet.checked = false;
+      if (categories) categories.value = "";
+    }
+
+    const clearAll = isRemove && Boolean(clear?.checked);
+    if (categories) categories.disabled = isGet || clearAll;
+    if (replace) replace.disabled = isGet;
+    if (clear) clear.disabled = isGet;
+    if (skipFinalGet) skipFinalGet.disabled = isGet;
   }
 
   function updateCreateTicketNotesCount() {

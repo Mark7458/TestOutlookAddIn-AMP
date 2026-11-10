@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-16 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-17 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -69,11 +69,11 @@
 <div class="developer-graph-category-form" hidden="" id="developer-graph-category-form">
 <div class="developer-create-field"><label for="developer-graph-mail">Mail Function (PluginConfig.groups[&quot;GRP-01&quot;].email)</label><input aria-describedby="developer-graph-mail-help" aria-readonly="true" class="developer-input developer-readonly-input monospace" id="developer-graph-mail" readonly="" type="email"/><p class="developer-create-help" id="developer-graph-mail-help">Valore obbligatorio caricato automaticamente dal gruppo Competence Center; non modificabile manualmente.</p></div>
 <div class="developer-create-field"><label for="developer-graph-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-graph-message-id" spellcheck="false" type="text"/></div>
-<div class="developer-create-field"><label for="developer-graph-action">Action</label><select class="developer-input" id="developer-graph-action"><option value="add">add</option><option value="remove">remove</option></select></div>
-<div class="developer-create-field"><label for="developer-graph-categories">Categorie (separate da virgola)</label><input autocomplete="off" class="developer-input" id="developer-graph-categories" list="developer-category-options" placeholder="es. Irace, Da Completare" spellcheck="false" type="text"/></div>
+<div class="developer-create-field"><label for="developer-graph-action">Action</label><select class="developer-input" id="developer-graph-action"><option value="add">add</option><option value="remove">remove</option><option value="get">get</option></select></div>
+<div class="developer-create-field" id="developer-graph-categories-row"><label for="developer-graph-categories">Categorie (separate da virgola)</label><input autocomplete="off" class="developer-input" id="developer-graph-categories" list="developer-category-options" placeholder="es. Irace, Da Completare" spellcheck="false" type="text"/></div>
 <label class="developer-create-checkbox" for="developer-graph-replace" id="developer-graph-replace-row"><input id="developer-graph-replace" type="checkbox"/><span>replace — set cieco delle categorie richieste</span></label>
 <label class="developer-create-checkbox" for="developer-graph-clear" hidden="" id="developer-graph-clear-row"><input id="developer-graph-clear" type="checkbox"/><span>clear — ignora l’elenco e rimuove tutte le categorie</span></label>
-<label class="developer-create-checkbox" for="developer-graph-skip-final-get"><input id="developer-graph-skip-final-get" type="checkbox"/><span>skipFinalGet — non rileggere lo stato finale da Graph</span></label>
+<label class="developer-create-checkbox" for="developer-graph-skip-final-get" id="developer-graph-skip-final-get-row"><input id="developer-graph-skip-final-get" type="checkbox"/><span>skipFinalGet — non rileggere lo stato finale da Graph</span></label>
 <p class="developer-create-help" id="developer-graph-status" role="status"></p>
 </div>
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button><div class="function-result" hidden="" id="developer-ticket-result"><div class="function-result-toolbar"><button class="result-view-toggle" id="developer-result-view-toggle" type="button">Mostra JSON</button><button aria-label="Chiudi risultato" class="result-close-button" id="close-developer-ticket-result" type="button">×</button></div><div class="function-result-row"><span>Azione</span><strong id="developer-result-action"></strong></div><div class="function-result-row"><span>Stato HTTP</span><strong id="developer-ticket-status"></strong></div><div class="function-result-row"><span>Autenticazione</span><strong id="developer-ticket-auth-mode"></strong></div><div id="developer-ticket-fields"></div><pre hidden="" id="developer-ticket-response"></pre></div></div><section aria-label="Dati del messaggio" hidden="" id="message-data"><dl class="message-fields">
