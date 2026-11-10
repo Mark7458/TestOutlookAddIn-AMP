@@ -114,7 +114,8 @@
             callGlow: '0 0 transparent',
             callGlowRest: '0 0 transparent', // + Nuovo ticket e ＋ Ticket a riposo: bagliore tenue (il modulo aperto tiene callGlow)
             callGlowHover: '0 0 transparent',
-            callGlowPulse: '0 0 transparent',
+            callGlowLeft: '0 0 transparent', // al passaggio il bagliore scivola piano tra sinistra e destra (nel flat non c'è)
+            callGlowRight: '0 0 transparent',
             callEdgeHover: 'var(--ao-accent)',
             searchBg: 'var(--ao-surface)', // ricerca aperta: campo
             searchLensBg: 'var(--ao-accent-bg)', // ricerca aperta: lente
@@ -220,7 +221,8 @@
             tagHoverEdge: 'transparent',
             openShadow: '0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1)',
             callGlowHover: '0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38)',
-            callGlowPulse: '0 0 28px rgba(80, 150, 255, .78), 0 0 7px rgba(80, 150, 255, .48)',
+            callGlowLeft: '-7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36)',
+            callGlowRight: '7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36)',
             callEdgeHover: 'var(--ao-line)', // il bordo resta com'è
             searchBg: 'var(--ao-hover)', // ricerca aperta: accesa come una card al passaggio del mouse, senza contorno
             searchLensBg: 'var(--ao-hover)',
@@ -269,7 +271,8 @@
             callGlow: '0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25)',
             callGlowRest: '0 0 12px rgba(70, 140, 255, .28), 0 0 3px rgba(70, 140, 255, .14)',
             callGlowHover: '0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38)',
-            callGlowPulse: '0 0 28px rgba(70, 140, 255, .78), 0 0 7px rgba(70, 140, 255, .48)',
+            callGlowLeft: '-7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36)',
+            callGlowRight: '7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36)',
             openShadow: '0 0 18px rgba(70, 140, 255, .45), 0 6px 16px rgba(0, 0, 0, .3)',
             // Scuro: le stesse pietre, scurite come l'intestazione; niente riflesso sul bordo
             toneTake: 'color-mix(in srgb, #0f5fbf 82%, #000)',
@@ -369,7 +372,7 @@
             nextMessage: 'Messaggio successivo'
         },
         tickets: {
-            newTicket: 'Nuovo ticket',
+            newTicket: 'Ticket',
             shortDescription: 'Short description',
             description: 'Description',
             receivedDate: 'Ricevuta il',
@@ -417,7 +420,7 @@
             openFirst: 'Apri la mail in Outlook per prenderla in carico o ignorarla.',
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
-            addTicket: '＋ Ticket',
+            addTicket: 'Ticket',
             threadCount: count => (count === 1 ? '1 ticket' : `${count} ticket · 1 principale`),
             candidatesTitle: 'Possibili ticket su ServiceNow',
             candidatesHint: 'Stesso oggetto e stessa ora di arrivo. Collega quello giusto, oppure apri un ticket nuovo qui sotto.',
@@ -486,7 +489,7 @@
             title: 'Impostazioni',
             tabs: { profile: 'Profilo', companies: 'Agenzie', activities: 'Attività', responses: 'Risposte' },
             prefixInSummary: prefix => `Tag: ${prefix}`,
-            newItem: { companies: '+ Nuova agenzia', activities: '+ Nuova attività', responses: '+ Nuova risposta' },
+            newItem: { companies: 'Agenzia', activities: 'Attività', responses: 'Risposta' },
             profile: 'Profilo',
             profileHint: 'Il tuo nome come compare su ServiceNow: i ticket che apri vengono assegnati a te.',
             assignedTo: 'Assigned to',
@@ -566,7 +569,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-09 22:15';
+    const BUILD = '2026-11-10 11:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -843,6 +846,7 @@
     // Con i filtri o la ricerca aperti il loro pulsante cambia icona: ricliccandolo si richiudono.
     const FILTER_OFF_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/><path d="M2.5 2.5l15 15"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
+    const PLUS_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v6M7 10h6"/></svg>'; // nuova voce delle Impostazioni
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     const CLOCK_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6.5V10l2.5 1.5"/></svg>';
     const CHEVRON_LEFT_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 5l-5 5 5 5"/></svg>';
@@ -933,7 +937,7 @@
         ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
         newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
         newTicketShape: null, // forma del pulsante "+ Nuovo ticket" (il modulo ci torna con Annulla)
-        newItemShape: null, // lo stesso per "+ Nuova agenzia/attività/risposta" in Impostazioni
+        newItemShape: null, // lo stesso per i pulsanti Agenzia, Attività e Risposta in Impostazioni
         liftConfig: null, // voce di Impostazioni appena aperta: si disegna ancora a terra, poi si solleva
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
         actionDrafts: {}, // per ticket: azione all'invio
@@ -2864,7 +2868,7 @@
                 h('button', {
                     type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), // aperto: è diventato il modulo
                     onclick: () => openExtraTicket(mail)
-                }, TEXTS.mail.addTicket)) : null);
+                }, svgIcon(SEGMENT_ICONS.none), TEXTS.mail.addTicket)) : null);
     }
     // Modulo per un altro ticket del thread: lo stesso di "Nuovo ticket" in Senza mail (si solleva e si apre;
     // gli altri ticket si sfocano), con Agenzia e Attività.
@@ -3828,7 +3832,7 @@
         return [
             editing?.id === null
                 ? h('section', { class: 'ao-card ao-new-ticket-card ao-config-new' }, h('div', { class: 'ao-inline-form' }, editorForm(tab, null, {})))
-                : h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewItem(tab) }, TEXTS.settings.newItem[tab]),
+                : h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openNewItem(tab) }, svgIcon(PLUS_ICON), TEXTS.settings.newItem[tab]),
             items.length ? h('ul', { class: 'ao-list' }, items.map(([id, item]) => {
                 const expanded = editing?.id === id;
                 return h('li', {
@@ -4309,7 +4313,7 @@
 #ao-root .ao-scrolled .ao-thread-head :is(.ao-mail-from, .ao-mail-open) { max-height: 0; opacity: 0; }
 #ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come + Nuovo ticket */
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come + Nuovo ticket */
 #ao-root .ao-pill.ao-away { visibility: hidden; }
 #ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
@@ -4527,11 +4531,13 @@
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
 #ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
-#ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-pulse .45s ease-out; } /* non si schiarisce: si accende */
-@keyframes ao-call-pulse { /* impulso breve e misurato (nel flat il bagliore non c'è) */
-    0% { box-shadow: var(--ao-call-glow-rest); }
-    30% { box-shadow: var(--ao-call-glow-pulse); }
-    100% { box-shadow: var(--ao-call-glow-hover); } }
+/* non si schiarisce: si accende, poi il bagliore scivola piano avanti e indietro (il pulsante resta fermo) */
+#ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-on .4s ease-out, ao-call-sway 4.8s ease-in-out .4s infinite; }
+@keyframes ao-call-on { from { box-shadow: var(--ao-call-glow-rest); } to { box-shadow: var(--ao-call-glow-hover); } }
+@keyframes ao-call-sway {
+    0%, 100% { box-shadow: var(--ao-call-glow-hover); }
+    25% { box-shadow: var(--ao-call-glow-left); }
+    75% { box-shadow: var(--ao-call-glow-right); } }
 /* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
 #ao-root .ao-bar-btn:hover, #ao-root .ao-candidate:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
 #ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
