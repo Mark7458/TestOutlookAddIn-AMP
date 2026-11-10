@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-21 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-22 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -16,7 +16,7 @@
 <main><div id="main-view"><div aria-live="polite" class="notice" id="loading" role="status">Lettura del messaggio selezionato…</div><div class="notice notice-error" hidden="" id="error" role="alert"></div><section class="toggle-card"><button aria-controls="email-details-panel" aria-expanded="false" class="section-toggle" id="email-details-toggle" type="button">Developer Tools</button>
 <div class="toggle-panel" hidden="" id="email-details-panel"><div class="developer-inline-action" id="developer-inline-action">
 <label for="developer-action-select">Azione</label><select class="developer-input" id="developer-action-select">
-<optgroup label="Record SharePoint"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option><option value="setOutOfScope">setOutOfScope</option></optgroup>
+<optgroup label="Record SharePoint"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option><option value="setOutOfScope">setOutOfScope</option><option value="confirmReviewed">confirmReviewed</option></optgroup>
 <optgroup label="Ticket"><option value="createTicket">createTicket</option><option value="editTicket">editTicket</option><option value="SearchTicketRecords">SearchTicketRecords</option></optgroup>
 <optgroup label="Lock"><option value="acquireLock">acquireLock</option><option value="releaseLock">releaseLock</option></optgroup>
 <optgroup label="Categorie Outlook"><option value="ManageCategories">Office.js — ManageCategories</option><option value="SetMessageCategories">Graph — SetMessageCategories</option></optgroup>
@@ -69,6 +69,12 @@
 <div class="developer-create-field"><label for="developer-out-of-scope-requester-id">Requester</label><select class="developer-input" id="developer-out-of-scope-requester-id"></select></div>
 <label class="developer-create-checkbox developer-mode-checkbox" for="developer-out-of-scope-value"><input checked="" id="developer-out-of-scope-value" type="checkbox"/><span>outOfScope — attivo imposta “Out Of Scope”; disattivo imposta “Non Avviata”</span></label>
 <p class="developer-create-help">Azione record-level: non richiede Ticket ID e non modifica metadata AMP, ticket, note ticket o lock.</p>
+</div>
+<div class="developer-reviewed-form" hidden="" id="developer-reviewed-form">
+<div class="developer-create-field"><label for="developer-reviewed-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-reviewed-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+<div class="developer-create-field"><label for="developer-reviewed-requester-id">Requester</label><select class="developer-input" id="developer-reviewed-requester-id"></select></div>
+<label class="developer-create-checkbox developer-mode-checkbox" for="developer-reviewed-value"><input checked="" id="developer-reviewed-value" type="checkbox"/><span>reviewed — attivo consente “Da Verificare” → “Completata”; disattivo consente “Completata” → “Da Verificare”</span></label>
+<p class="developer-create-help">Azione record-level: non richiede Ticket ID. reviewed=true aggiorna Data fine al timestamp UTC corrente; reviewed=false lascia Data fine invariata.</p>
 </div>
 <div class="developer-lock-form" hidden="" id="developer-lock-form">
 <div class="developer-create-field"><label for="developer-lock-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-lock-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>

@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.3-taskpane.css-devtools-21 */
+/* Test-Plugin file version: 0.3-taskpane.css-devtools-22 */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -561,12 +561,12 @@ footer {
 
 
 /* Developer Tools CreateTicket. */
-.developer-get-form,.developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form,.developer-create-field,.developer-record-mode{display:grid;gap:5px}
+.developer-get-form,.developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-reviewed-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form,.developer-create-field,.developer-record-mode{display:grid;gap:5px}
 .developer-record-mode{margin-top:4px;padding:9px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
 .developer-note-field strong,.developer-log-field strong{white-space:pre-wrap}
 .developer-notes-input{min-height:74px;resize:vertical;font:inherit}
 .developer-notes-help{display:flex;justify-content:space-between;gap:10px}.developer-notes-help span:first-child{flex:1}.developer-notes-help span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
-.developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
+.developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-reviewed-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form{gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
 .developer-multiselect{min-height:104px;padding:4px}.developer-multiselect option{padding:5px 7px}.developer-search-period{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.developer-search-record{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid #c8c6c4;border-radius:7px;background:#fff}.developer-search-record h4{margin:0;font-size:13px}.developer-search-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .developer-create-checkbox{display:flex!important;align-items:center;gap:8px;padding:4px 0;color:#323130!important;font-size:12px!important;cursor:pointer}
 .developer-create-checkbox input{width:17px;height:17px;margin:0}
@@ -580,7 +580,7 @@ footer {
 .developer-existing-ticket dt{color:#605e5c;font-weight:600}.developer-existing-ticket dd{margin:0;overflow-wrap:anywhere}
 .developer-force-create{margin-top:2px}
 @media(prefers-color-scheme:dark){
-  .developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form,.developer-record-mode{border-color:#484644;background:#252423}
+  .developer-create-form,.developer-edit-form,.developer-search-form,.developer-out-of-scope-form,.developer-reviewed-form,.developer-lock-form,.developer-category-form,.developer-graph-category-form,.developer-record-mode{border-color:#484644;background:#252423}
   .developer-create-checkbox{color:#f3f2f1!important}.developer-create-help{color:#c8c6c4}
   .developer-conflict{border-color:#f7630c;background:#3b2f00;color:#f3f2f1}
   .developer-existing-ticket{border-color:#484644;background:#201f1e}
@@ -611,3 +611,5 @@ footer {
 .developer-category-summary.status-warning{padding:8px;border:1px solid #d83b01;border-radius:6px;background:#fff4ce;color:#323130}
 .developer-multiselect option.category-not-configured{font-weight:700;color:#a4262c}
 @media(prefers-color-scheme:dark){.developer-category-summary.status-warning{border-color:#f7630c;background:#3b2f00;color:#f3f2f1}.developer-multiselect option.category-not-configured{color:#ff99a4}}
+
+/* Developer Tools devtools-22: azione record-level confirmReviewed. */

@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-21
+// Test-Plugin file version: 0.3-taskpane.js-devtools-22
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
-  release: '0.3-devtools-21',
+  release: '0.3-devtools-22',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-21',
-    'taskpane.js': '0.3-taskpane.js-devtools-21',
-    'taskpane.css': '0.3-taskpane.css-devtools-21',
+    'taskpane.html': '0.3-taskpane.html-devtools-22',
+    'taskpane.js': '0.3-taskpane.js-devtools-22',
+    'taskpane.css': '0.3-taskpane.css-devtools-22',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 4, requiredDataVersion: 5 }),
+  database: Object.freeze({ schemaVersion: 4, requiredDataVersion: 7 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -1323,6 +1323,7 @@ function registerHealthButton() {
     createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     setOutOfScope: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
+    confirmReviewed: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     acquireLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     releaseLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
@@ -1436,12 +1437,13 @@ function registerHealthButton() {
     const workflows = (config?.ticketing?.workflows || []).map((value) => ({ value, label: value }));
     setSelectOptions(byId("developer-edit-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-out-of-scope-requester-id"), operators, currentOperatorId);
+    setSelectOptions(byId("developer-reviewed-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-edit-group-name"), groups);
     setSelectOptions(byId("developer-edit-amp-status"), optionalAmpStatuses, "");
     setSelectOptions(byId("developer-lock-requester-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-lock-operator-id"), operators, currentOperatorId);
     setSelectOptions(byId("developer-lock-workflow"), workflows, workflows.some((entry) => entry.value === "TakeOwnership") ? "TakeOwnership" : "");
-    ["developer-edit-item-id", "developer-out-of-scope-item-id", "developer-lock-item-id"].forEach((id) => {
+    ["developer-edit-item-id", "developer-out-of-scope-item-id", "developer-reviewed-item-id", "developer-lock-item-id"].forEach((id) => {
       const input = byId(id);
       if (input && !input.value && developerLastItemId) input.value = developerLastItemId;
     });
@@ -1686,6 +1688,7 @@ function registerHealthButton() {
     const isEdit = action === "editTicket";
     const isSearch = action === "SearchTicketRecords";
     const isSetOutOfScope = action === "setOutOfScope";
+    const isConfirmReviewed = action === "confirmReviewed";
     const isLock = action === "acquireLock" || action === "releaseLock";
     const isAcquireLock = action === "acquireLock";
     const isOfficeCategory = action === "ManageCategories";
@@ -1699,6 +1702,7 @@ function registerHealthButton() {
       "developer-edit-form": isEdit,
       "developer-search-form": isSearch,
       "developer-out-of-scope-form": isSetOutOfScope,
+      "developer-reviewed-form": isConfirmReviewed,
       "developer-lock-form": isLock,
       "developer-category-form": isOfficeCategory,
       "developer-graph-category-form": isGraphCategory
@@ -1725,7 +1729,7 @@ function registerHealthButton() {
       populateSearchTicketRecordsForm();
       return;
     }
-    if (isEdit || isSetOutOfScope || isLock) {
+    if (isEdit || isSetOutOfScope || isConfirmReviewed || isLock) {
       populateTicketAndLockForms();
       return;
     }
@@ -2179,7 +2183,7 @@ function registerHealthButton() {
   }
 
   function isTicketDeveloperAction(action) {
-    return action === "createTicket" || action === "editTicket" || action === "setOutOfScope" || action === "SearchTicketRecords";
+    return action === "createTicket" || action === "editTicket" || action === "setOutOfScope" || action === "confirmReviewed" || action === "SearchTicketRecords";
   }
 
   function isSearchTicketRecordsAction(action) {
@@ -2256,11 +2260,16 @@ function registerHealthButton() {
     addDeveloperField(container, "Item ID", parsed?.itemId);
     addDeveloperField(container, "Ticket ID", parsed?.ticketId);
     addDeveloperField(container, "Stato AMP", parsed?.ampStatus || parsed?.ticket?.status);
-    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
+    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus || parsed?.currentStatus);
     addDeveloperField(container, "Data fine", parsed?.Data_x0020_Fine);
     if (action === "setOutOfScope") {
       addDeveloperField(container, "outOfScope", String(Boolean(parsed?.outOfScope)));
       addDeveloperField(container, "Stato precedente", parsed?.previousStatus);
+      addDeveloperField(container, "Nuovo stato", parsed?.newStatus);
+    }
+    if (action === "confirmReviewed") {
+      addDeveloperField(container, "reviewed richiesto", String(parsed?.reviewed ?? parsed?.requestedReviewed));
+      addDeveloperField(container, "Stato precedente", parsed?.previousStatus || parsed?.currentStatus);
       addDeveloperField(container, "Nuovo stato", parsed?.newStatus);
     }
     if (parsed?.mode === "refreshExternalAssignment" || parsed?.refreshExternalAssignment) {
@@ -2317,7 +2326,7 @@ function registerHealthButton() {
     const returnedItemId = returnedRecord ? getRecordItemId(returnedRecord) : (parsed?.itemId || parsed?.fields?.id);
     if (action !== "createTicket" && returnedItemId) {
       developerLastItemId = String(returnedItemId);
-      ["developer-create-item-id", "developer-edit-item-id", "developer-out-of-scope-item-id", "developer-lock-item-id"].forEach((id) => {
+      ["developer-create-item-id", "developer-edit-item-id", "developer-out-of-scope-item-id", "developer-reviewed-item-id", "developer-lock-item-id"].forEach((id) => {
         const input = byId(id);
         if (input) input.value = developerLastItemId;
       });
@@ -2331,7 +2340,7 @@ function registerHealthButton() {
     developerResultView = hasFieldView ? "fields" : "json";
     if (action === "createTicket" && parsed) renderCreateTicketFields(parsed);
     else if (isSearchTicketRecordsAction(action) && parsed) renderSearchTicketRecordsFields(parsed);
-    else if ((action === "editTicket" || action === "setOutOfScope" || isLockDeveloperAction(action)) && parsed) renderTicketOrLockFields(parsed, action);
+    else if ((action === "editTicket" || action === "setOutOfScope" || action === "confirmReviewed" || isLockDeveloperAction(action)) && parsed) renderTicketOrLockFields(parsed, action);
     else if (isCategoryDeveloperAction(action) && parsed) renderCategoryFields(parsed, action);
     else if (isRecordDeveloperAction(action) && hasRecordResultShape(parsed)) renderRecordResultFields(parsed);
     else byId("developer-ticket-fields")?.replaceChildren();
@@ -2576,6 +2585,15 @@ function registerHealthButton() {
       action: "setOutOfScope",
       requesterId: requiredFormValue("developer-out-of-scope-requester-id", "Requester"),
       outOfScope: Boolean(byId("developer-out-of-scope-value")?.checked)
+    };
+  }
+
+  function collectConfirmReviewedBody() {
+    return {
+      itemId: requiredFormValue("developer-reviewed-item-id", "Item ID"),
+      action: "confirmReviewed",
+      requesterId: requiredFormValue("developer-reviewed-requester-id", "Requester"),
+      reviewed: Boolean(byId("developer-reviewed-value")?.checked)
     };
   }
 
@@ -2848,6 +2866,8 @@ function registerHealthButton() {
           body = collectEditTicketBody();
         } else if (action === "setOutOfScope") {
           body = collectSetOutOfScopeBody();
+        } else if (action === "confirmReviewed") {
+          body = collectConfirmReviewedBody();
         } else if (isLockDeveloperAction(action)) {
           body = collectLockBody(action);
         } else {
