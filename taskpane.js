@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-14
+// Test-Plugin file version: 0.3-taskpane.js-devtools-16
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
   release: '0.3-devtools',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-14',
-    'taskpane.js': '0.3-taskpane.js-devtools-14',
-    'taskpane.css': '0.3-taskpane.css-devtools-14',
+    'taskpane.html': '0.3-taskpane.html-devtools-16',
+    'taskpane.js': '0.3-taskpane.js-devtools-16',
+    'taskpane.css': '0.3-taskpane.css-devtools-16',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1572,10 +1572,7 @@ function registerHealthButton() {
   }
 
   function getSharePointAuditLog(fields) {
-    const entry = Object.entries(fields || {}).find(([key, value]) =>
-      normalizeRecordFieldName(key) === "note" && value !== undefined && value !== null && value !== ""
-    );
-    return entry?.[1];
+    return fields?.AvanadeLog;
   }
 
   function formatSharePointAuditLog(value) {
@@ -1619,8 +1616,7 @@ function registerHealthButton() {
     addDeveloperField(details, "Lock acquisito", ticket?.lock?.acquiredAt);
     addDeveloperField(details, "Creato", ticket?.createdAt);
     addDeveloperField(details, "Ultima attività", ticket?.lastActivityAt);
-    const ticketNotes = formatTicketNotes(ticket?.notes);
-    if (ticketNotes) addDeveloperField(details, "Note ticket", ticketNotes);
+    addDeveloperField(details, "Note ticket", formatTicketNotes(ticket?.notes));
     container.appendChild(details);
   }
 
@@ -1658,7 +1654,7 @@ function registerHealthButton() {
     addDeveloperField(container, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})` : (lookupId ? `LookupId ${lookupId}` : null));
     addDeveloperField(container, "Stato SharePoint", fields?._Status);
     const auditLog = getSharePointAuditLog(fields);
-    if (auditLog !== undefined) addDeveloperField(container, "Log", formatSharePointAuditLog(auditLog));
+    addDeveloperField(container, "Log", formatSharePointAuditLog(auditLog));
     const metadata = parseAmpMetadata(fields?.AMP_x002d_AVANADE);
     if (metadata.error) {
       const error = document.createElement("div");
@@ -1746,7 +1742,8 @@ function registerHealthButton() {
         ["Riferimento AMP", ticket?.ampRequestId],
         ["Stato AMP", ticket?.status || ticket?.ampStatus],
         ["Operatore", ticket?.lock?.operatorId],
-        ["Workflow", ticket?.lock?.workflow]
+        ["Workflow", ticket?.lock?.workflow],
+        ["Note ticket", formatTicketNotes(ticket?.notes)]
       ].forEach(([label, value]) => {
         const term = document.createElement("dt");
         const description = document.createElement("dd");
@@ -1813,7 +1810,7 @@ function registerHealthButton() {
     addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
     addDeveloperField(container, "Ticket inoltrato", (createdTicket?.isForwardedTicket ?? body.isForwardedTicket) ? "Sì — lifecycle AMP disaccoppiato" : "No — lifecycle AMP collegato");
     const createdTicketNotes = formatTicketNotes(createdTicket?.notes ?? body.notes);
-    if (createdTicketNotes && !tickets.length) addDeveloperField(container, "Note ticket", createdTicketNotes);
+    if (!tickets.length) addDeveloperField(container, "Note ticket", createdTicketNotes);
     addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
     addDeveloperField(container, "Gruppo", parsed?.groupName || body.groupName);
     addDeveloperField(container, "Lock", createdTicket?.lock ? `${createdTicket.lock.operatorId || body.operatorId} · ${createdTicket.lock.workflow || "CreateTicket"}` : `${body.operatorId || "-"} · CreateTicket`);
