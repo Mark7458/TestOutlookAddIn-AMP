@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-18
+// Test-Plugin file version: 0.3-taskpane.js-devtools-19
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
-  release: '0.3-devtools',
+  release: '0.3-devtools-19',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-18',
-    'taskpane.js': '0.3-taskpane.js-devtools-18',
-    'taskpane.css': '0.3-taskpane.css-devtools-18',
+    'taskpane.html': '0.3-taskpane.html-devtools-19',
+    'taskpane.js': '0.3-taskpane.js-devtools-19',
+    'taskpane.css': '0.3-taskpane.css-devtools-19',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1209,6 +1209,7 @@ function registerHealthButton() {
     }
     populateCreateTicketForm(config, developerCurrentOperatorId);
     populateTicketAndLockForms(config, developerCurrentOperatorId);
+    populateSearchTicketRecordsForm(config);
     populateCategoryForm(config);
     populateGraphCategoryForm(config);
 
@@ -1277,6 +1278,7 @@ function registerHealthButton() {
   const DEVELOPER_ENDPOINTS = Object.freeze({
     GetRecordByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordByConversationId",
     GetRecordById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordById",
+    SearchTicketRecords: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SearchTicketRecords",
     createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
     setOutOfScope: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
@@ -1285,6 +1287,7 @@ function registerHealthButton() {
     SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
   });
   const TICKET_NOTES_MAX_LENGTH = 255;
+  const SEARCH_TICKET_STATUSES = Object.freeze(["In corso", "Completata", "Da Verificare"]);
 
   function resetTicketResult() {
     const panel = byId("developer-ticket-result");
@@ -1318,6 +1321,32 @@ function registerHealthButton() {
       .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
   }
 
+  function getEnabledGroupIdOptions(config = developerConfig) {
+    return Object.entries(config?.groups || {})
+      .filter(([, group]) => group?.enabled !== false)
+      .map(([id, group]) => ({ value: id, label: `${group?.displayName || id} · ${id}` }));
+  }
+
+  function setMultiSelectOptions(select, options) {
+    if (!select) return;
+    const selected = new Set(Array.from(select.selectedOptions || []).map((option) => option.value));
+    select.replaceChildren();
+    options.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = String(value);
+      option.textContent = String(label);
+      option.selected = selected.has(option.value);
+      select.appendChild(option);
+    });
+  }
+
+  function populateSearchTicketRecordsForm(config = developerConfig) {
+    setMultiSelectOptions(byId("developer-search-operator-ids"), getEnabledOperatorOptions(config));
+    setMultiSelectOptions(byId("developer-search-group-ids"), getEnabledGroupIdOptions(config));
+    const statuses = SEARCH_TICKET_STATUSES.map((status) => ({ value: status, label: status }));
+    setMultiSelectOptions(byId("developer-search-statuses"), statuses);
+  }
+
   function populateCreateTicketForm(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
     const status = byId("developer-create-config-status");
     const operators = Object.entries(config?.operators || {})
@@ -1334,6 +1363,8 @@ function registerHealthButton() {
 
     const itemInput = byId("developer-create-item-id");
     if (itemInput && !itemInput.value && developerLastItemId) itemInput.value = developerLastItemId;
+    const messageInput = byId("developer-create-message-id");
+    if (messageInput && !messageInput.value) messageInput.value = currentMessageContext?.itemId || "";
     if (status) {
       const workflowsOk = Array.isArray(config?.ticketing?.workflows) && config.ticketing.workflows.includes("CreateTicket");
       status.textContent = config
@@ -1413,6 +1444,7 @@ function registerHealthButton() {
     const action = getDeveloperAction();
     const isCreate = action === "createTicket";
     const isEdit = action === "editTicket";
+    const isSearch = action === "SearchTicketRecords";
     const isSetOutOfScope = action === "setOutOfScope";
     const isLock = action === "acquireLock" || action === "releaseLock";
     const isAcquireLock = action === "acquireLock";
@@ -1426,6 +1458,7 @@ function registerHealthButton() {
       "developer-get-form": isRecordLookup,
       "developer-create-form": isCreate,
       "developer-edit-form": isEdit,
+      "developer-search-form": isSearch,
       "developer-out-of-scope-form": isSetOutOfScope,
       "developer-lock-form": isLock,
       "developer-category-form": isOfficeCategory,
@@ -1451,6 +1484,10 @@ function registerHealthButton() {
       populateCreateTicketForm();
       const itemInput = byId("developer-create-item-id");
       if (itemInput && developerLastItemId) itemInput.value = developerLastItemId;
+      return;
+    }
+    if (isSearch) {
+      populateSearchTicketRecordsForm();
       return;
     }
     if (isEdit || isSetOutOfScope || isLock) {
@@ -1513,6 +1550,7 @@ function registerHealthButton() {
     card.className = "developer-field-card";
     if (label === "Note ticket") card.classList.add("developer-note-field");
     if (label === "Log") card.classList.add("developer-log-field");
+    if (label === "Filtri applicati") card.classList.add("developer-log-field");
     const name = document.createElement("span");
     name.textContent = label;
     const content = document.createElement("strong");
@@ -1612,6 +1650,7 @@ function registerHealthButton() {
     const details = document.createElement("div");
     details.className = "developer-fields";
     addDeveloperField(details, "Ticket interno", ticket?.ticketId);
+    addDeveloperField(details, "Message ID", ticket?.messageId);
     addDeveloperField(details, "Riferimento AMP", ticket?.ampRequestId);
     addDeveloperField(details, "Stato AMP", ticket?.status || ticket?.ampStatus);
     addDeveloperField(details, "Lock operatore", ticket?.lock?.operatorId || "Nessun lock");
@@ -1725,6 +1764,79 @@ function registerHealthButton() {
     appendRecordSelector(container, getRecordResultEntries(parsed));
   }
 
+  function renderSearchTicketRecord(container, record) {
+    const card = document.createElement("div");
+    card.className = "developer-search-record";
+    const heading = document.createElement("h4");
+    heading.textContent = record?.title || (record?.itemId ? `Item ${record.itemId}` : "Record SharePoint");
+    card.appendChild(heading);
+    const summary = document.createElement("div");
+    summary.className = "developer-search-summary";
+    const operator = findOperatorByLookupId(record?.assignedLookupId);
+    addDeveloperField(summary, "Item ID", record?.itemId);
+    addDeveloperField(summary, "Conversation ID", record?.conversationId);
+    addDeveloperField(summary, "Gruppo", record?.groupName);
+    addDeveloperField(summary, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${record?.assignedLookupId})` : (record?.assignedLookupId ? `LookupId ${record.assignedLookupId}` : null));
+    addDeveloperField(summary, "Stato SharePoint", record?.sharePointStatus);
+    addDeveloperField(summary, "Created", record?.created);
+    addDeveloperField(summary, "Modified", record?.modified);
+    addDeveloperField(summary, "Data fine", record?.completionDate);
+    addDeveloperField(summary, "Ticket", record?.ticketsCount ?? (Array.isArray(record?.tickets) ? record.tickets.length : 0));
+    card.appendChild(summary);
+    const tickets = Array.isArray(record?.tickets) ? record.tickets : [];
+    if (tickets.length) appendTicketSelector(card, tickets, "Ticket annidati");
+    else {
+      const empty = document.createElement("div");
+      empty.className = "developer-ticket-empty";
+      empty.textContent = "Nessun ticket AMP presente (ticketsCount=0).";
+      card.appendChild(empty);
+    }
+    container.appendChild(card);
+  }
+
+  function renderSearchTicketRecordsFields(parsed) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    addDeveloperField(container, "Esito", parsed?.status);
+    addDeveloperField(container, "Totale record", parsed?.totalCount ?? 0);
+    addDeveloperField(container, "Record restituiti", parsed?.returnedCount ?? 0);
+    addDeveloperField(container, "Troncato", parsed?.truncated ? "Sì" : "No");
+    addDeveloperField(container, "Tempo", parsed?.elapsedMs == null ? null : `${parsed.elapsedMs} ms`);
+    addDeveloperField(container, "Filtri applicati", JSON.stringify(parsed?.filters || {}, null, 2));
+
+    const records = Array.isArray(parsed?.records) ? parsed.records : [];
+    if (!records.length) {
+      const empty = document.createElement("div");
+      empty.className = "developer-ticket-empty";
+      empty.textContent = "Nessun record SharePoint corrispondente.";
+      container.appendChild(empty);
+      return;
+    }
+
+    const selectorBox = document.createElement("div");
+    selectorBox.className = "developer-ticket-selector";
+    const label = document.createElement("label");
+    label.textContent = "Record SharePoint";
+    const selector = document.createElement("select");
+    records.forEach((record, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${record?.itemId ? `Item ${record.itemId}` : `Record ${index + 1}`}${record?.title ? ` · ${record.title}` : ""} · ${record?.ticketsCount ?? 0} ticket`;
+      selector.appendChild(option);
+    });
+    const host = document.createElement("div");
+    const redraw = () => {
+      host.replaceChildren();
+      renderSearchTicketRecord(host, records[Number(selector.value) || 0]);
+    };
+    selector.addEventListener("change", redraw);
+    selectorBox.append(label, selector);
+    container.append(selectorBox, host);
+    redraw();
+  }
+
   function ticketSummaryValue(ticket) {
     return [
       ticket?.ticketId,
@@ -1744,6 +1856,7 @@ function registerHealthButton() {
       const details = document.createElement("dl");
       [
         ["Ticket interno", ticket?.ticketId],
+        ["Message ID", ticket?.messageId],
         ["Riferimento AMP", ticket?.ampRequestId],
         ["Stato AMP", ticket?.status || ticket?.ampStatus],
         ["Operatore", ticket?.lock?.operatorId],
@@ -1811,6 +1924,7 @@ function registerHealthButton() {
 
     addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
     addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
+    addDeveloperField(container, "Message ID", parsed?.messageId || createdTicket?.messageId || body.messageId);
     addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
     addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
     addDeveloperField(container, "Ticket inoltrato", (createdTicket?.isForwardedTicket ?? body.isForwardedTicket) ? "Sì — lifecycle AMP disaccoppiato" : "No — lifecycle AMP collegato");
@@ -1834,7 +1948,11 @@ function registerHealthButton() {
   }
 
   function isTicketDeveloperAction(action) {
-    return action === "createTicket" || action === "editTicket" || action === "setOutOfScope";
+    return action === "createTicket" || action === "editTicket" || action === "setOutOfScope" || action === "SearchTicketRecords";
+  }
+
+  function isSearchTicketRecordsAction(action) {
+    return action === "SearchTicketRecords";
   }
 
   function isLockDeveloperAction(action) {
@@ -1971,6 +2089,7 @@ function registerHealthButton() {
         : Boolean(parsed?.fields));
     developerResultView = hasFieldView ? "fields" : "json";
     if (action === "createTicket" && parsed) renderCreateTicketFields(parsed);
+    else if (isSearchTicketRecordsAction(action) && parsed) renderSearchTicketRecordsFields(parsed);
     else if ((action === "editTicket" || action === "setOutOfScope" || isLockDeveloperAction(action)) && parsed) renderTicketOrLockFields(parsed, action);
     else if (isCategoryDeveloperAction(action) && parsed) renderCategoryFields(parsed, action);
     else if (isRecordDeveloperAction(action) && hasRecordResultShape(parsed)) renderRecordResultFields(parsed);
@@ -2090,6 +2209,52 @@ function registerHealthButton() {
     return executeOfficeCategoryAction("RemoveCategoriesOfficeJs", request);
   }
 
+  function getSelectedValues(id) {
+    return Array.from(byId(id)?.selectedOptions || []).map((option) => option.value);
+  }
+
+  function optionalDateTimeToIso(id, label) {
+    const value = String(byId(id)?.value || "").trim();
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw new Error(`${label} non è una data valida.`);
+    return date.toISOString();
+  }
+
+  function collectSearchTicketRecordsBody() {
+    validateTicketingConfig(developerConfig);
+    const operatorIds = getSelectedValues("developer-search-operator-ids");
+    const groupIds = getSelectedValues("developer-search-group-ids");
+    const sharePointStatuses = getSelectedValues("developer-search-statuses");
+    const invalidStatuses = sharePointStatuses.filter((status) => !SEARCH_TICKET_STATUSES.includes(status));
+    if (invalidStatuses.length) throw new Error(`Stati SharePoint non ammessi: ${invalidStatuses.join(", ")}.`);
+
+    const createdFrom = optionalDateTimeToIso("developer-search-created-from", "Created da");
+    const createdTo = optionalDateTimeToIso("developer-search-created-to", "Created a");
+    if (createdFrom && createdTo && Date.parse(createdFrom) > Date.parse(createdTo)) {
+      throw new Error("Created da non può essere successivo a Created a.");
+    }
+
+    const resultSizeText = String(byId("developer-search-result-size")?.value || "").trim();
+    let resultSize = null;
+    if (resultSizeText) {
+      if (!/^\d+$/.test(resultSizeText)) throw new Error("Result size deve essere un intero da 1 a 1000.");
+      resultSize = Number(resultSizeText);
+      if (!Number.isInteger(resultSize) || resultSize < 1 || resultSize > 1000) {
+        throw new Error("Result size deve essere un intero da 1 a 1000.");
+      }
+    }
+
+    return {
+      ...(operatorIds.length ? { operatorIds } : {}),
+      ...(groupIds.length ? { groupIds } : {}),
+      ...(sharePointStatuses.length ? { sharePointStatuses } : {}),
+      ...(createdFrom ? { createdFrom } : {}),
+      ...(createdTo ? { createdTo } : {}),
+      ...(resultSize == null ? {} : { resultSize })
+    };
+  }
+
   function collectCreateTicketBody() {
     validateTicketingConfig(developerConfig);
     if (!developerConfig.ticketing.workflows.includes("CreateTicket")) {
@@ -2107,6 +2272,7 @@ function registerHealthButton() {
     return {
       itemId: requiredFormValue("developer-create-item-id", "Item ID"),
       action: "createTicket",
+      messageId: requiredFormValue("developer-create-message-id", "Message ID"),
       ampRequestId: requiredFormValue("developer-create-amp-request-id", "Riferimento AMP"),
       ampStatus,
       isForwardedTicket,
@@ -2356,6 +2522,8 @@ function registerHealthButton() {
           body.action = "createTicket";
           body.createAdditionalTicket = Boolean(body.createAdditionalTicket);
           developerLastCreateBody = { ...body };
+        } else if (action === "SearchTicketRecords") {
+          body = collectSearchTicketRecordsBody();
         } else if (action === "editTicket") {
           body = collectEditTicketBody();
         } else if (action === "setOutOfScope") {
@@ -2557,6 +2725,8 @@ function registerHealthButton() {
       showData();
       publishMessageContext();
       syncDeveloperConversationId();
+      const createMessageId = byId("developer-create-message-id");
+      if (createMessageId) createMessageId.value = currentMessageContext?.itemId || "";
       const graphMessageId = byId("developer-graph-message-id");
       if (graphMessageId) graphMessageId.value = currentMessageContext?.itemId || "";
     } catch (error) {

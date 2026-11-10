@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-18 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-19 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -16,14 +16,15 @@
 <main><div id="main-view"><div aria-live="polite" class="notice" id="loading" role="status">Lettura del messaggio selezionato…</div><div class="notice notice-error" hidden="" id="error" role="alert"></div><section class="toggle-card"><button aria-controls="email-details-panel" aria-expanded="false" class="section-toggle" id="email-details-toggle" type="button">Developer Tools</button>
 <div class="toggle-panel" hidden="" id="email-details-panel"><div class="developer-inline-action" id="developer-inline-action">
 <label for="developer-action-select">Azione</label><select class="developer-input" id="developer-action-select">
-<optgroup label="Record SharePoint"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option></optgroup>
-<optgroup label="Ticket"><option value="createTicket">createTicket</option><option value="editTicket">editTicket</option><option value="setOutOfScope">setOutOfScope</option></optgroup>
+<optgroup label="Record SharePoint"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option><option value="setOutOfScope">setOutOfScope</option></optgroup>
+<optgroup label="Ticket"><option value="createTicket">createTicket</option><option value="editTicket">editTicket</option><option value="SearchTicketRecords">SearchTicketRecords</option></optgroup>
 <optgroup label="Lock"><option value="acquireLock">acquireLock</option><option value="releaseLock">releaseLock</option></optgroup>
 <optgroup label="Categorie Outlook"><option value="AddCategoriesOfficeJs">Office.js — AddCategories</option><option value="RemoveCategoriesOfficeJs">Office.js — RemoveCategories</option><option value="SetMessageCategories">Graph — SetMessageCategories</option></optgroup>
 </select>
 <div class="developer-get-form" id="developer-get-form"><label for="developer-action-input" id="developer-action-input-label">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-action-input" spellcheck="false" type="text"/><div class="developer-record-mode" id="developer-conversation-mode-row"><label for="developer-conversation-mode">Mode</label><select class="developer-input" id="developer-conversation-mode"><option value="all">all — tutti i record</option><option value="first">first — primo record</option><option value="last">last — ultimo record</option></select><p class="developer-create-help">Il mode viene inviato a GetRecordByConversationId.</p></div></div>
 <div class="developer-create-form" hidden="" id="developer-create-form">
 <div class="developer-create-field"><label for="developer-create-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+<div class="developer-create-field"><label for="developer-create-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-message-id" spellcheck="false" type="text"/><p class="developer-create-help">Obbligatorio e immutabile: identifica il messaggio Outlook che origina il ticket.</p></div>
 <div class="developer-create-field"><label for="developer-create-amp-request-id">Riferimento AMP</label><input autocomplete="off" class="developer-input monospace" id="developer-create-amp-request-id" placeholder="es. INC123456789" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-create-amp-status">Stato AMP</label><select class="developer-input" id="developer-create-amp-status"></select></div>
 <label class="developer-create-checkbox" for="developer-create-forwarded"><input id="developer-create-forwarded" type="checkbox"/><span>isForwardedTicket — inoltrato a un gruppo esterno</span></label>
@@ -51,6 +52,17 @@
 <label class="developer-create-checkbox" for="developer-edit-remove-notes" id="developer-edit-remove-notes-row"><input id="developer-edit-remove-notes" type="checkbox"/><span>Rimuovi notes (invia null)</span></label>
 <label class="developer-create-checkbox" for="developer-edit-force" id="developer-edit-force-row"><input id="developer-edit-force" type="checkbox"/><span>force — takeover atomico del lock e modifica</span></label>
 <p class="developer-create-help" id="developer-edit-mode-help">Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.</p>
+</div>
+<div class="developer-search-form" hidden="" id="developer-search-form">
+<p class="developer-create-help">I valori selezionati nella stessa multiselezione sono combinati con OR; le famiglie di filtri sono combinate con AND. Nessuna selezione equivale a nessun filtro.</p>
+<div class="developer-create-field"><label for="developer-search-operator-ids">Operatori</label><select class="developer-input developer-multiselect" id="developer-search-operator-ids" multiple="" size="5"></select></div>
+<div class="developer-create-field"><label for="developer-search-group-ids">Gruppi</label><select class="developer-input developer-multiselect" id="developer-search-group-ids" multiple="" size="5"></select></div>
+<div class="developer-create-field"><label for="developer-search-statuses">Stati SharePoint</label><select class="developer-input developer-multiselect" id="developer-search-statuses" multiple="" size="3"></select></div>
+<div class="developer-search-period">
+<div class="developer-create-field"><label for="developer-search-created-from">Created da (opzionale)</label><input class="developer-input" id="developer-search-created-from" type="datetime-local"/></div>
+<div class="developer-create-field"><label for="developer-search-created-to">Created a (opzionale)</label><input class="developer-input" id="developer-search-created-to" type="datetime-local"/></div>
+</div>
+<div class="developer-create-field"><label for="developer-search-result-size">Result size (opzionale)</label><input class="developer-input" id="developer-search-result-size" inputmode="numeric" max="1000" min="1" placeholder="Vuoto = tutti i risultati" step="1" type="number"/><p class="developer-create-help">Se presente deve essere un intero da 1 a 1000. I risultati sono ordinati per Created desc.</p></div>
 </div>
 <div class="developer-out-of-scope-form" hidden="" id="developer-out-of-scope-form">
 <div class="developer-create-field"><label for="developer-out-of-scope-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-out-of-scope-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
