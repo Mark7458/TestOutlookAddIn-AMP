@@ -394,9 +394,10 @@
             search: 'Cerca',
             searchPlaceholder: 'INC o oggetto',
             noResults: 'Nessun risultato.',
-            searchOnAmp: text => `Cerca «${text}» su AMP`,
+            searchOnAmp: 'Cerca su AMP',
+            amp: 'AMP',
             onAmp: 'Su AMP',
-            nothingOnAmp: 'Nient\'altro su AMP.',
+            nothingOnAmp: more => (more ? 'Nient\'altro su AMP.' : 'Niente neanche su AMP.'),
             openOnAmp: 'Apri su AMP',
             closedAt: 'Chiuso',
             worked: 'Tempo',
@@ -569,7 +570,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-10 11:45';
+    const BUILD = '2026-11-10 12:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2352,12 +2353,18 @@
         }, svgIcon(state.ticketSearchOpen ? CLOSE_ICON : SEARCH_ICON));
         if (state.ticketSearchOpen) {
             filterButton.disabled = true;
+            // "AMP" a destra nel campo, appena c'è del testo: cerca lo stesso testo su ServiceNow
+            const ampButton = h('button', {
+                type: 'button', class: `ao-amp-pill${state.ampSearch ? ' ao-active' : ''}`, hidden: !state.ticketQuery.trim(),
+                title: TEXTS.tickets.searchOnAmp, 'aria-label': TEXTS.tickets.searchOnAmp, onclick: searchOnAmp
+            }, svgIcon(SEARCH_ICON), TEXTS.tickets.amp);
             return h('div', { class: 'ao-source-bar' }, h('div', { class: 'ao-bar-row' }, filterButton,
                 h('div', { class: 'ao-segmented ao-search-bar', role: 'search' },
                     h('input', {
                         class: 'ao-search-input', type: 'search', value: state.ticketQuery, placeholder: TEXTS.tickets.searchPlaceholder, 'aria-label': TEXTS.tickets.search,
-                        oninput: event => runTicketSearch(event.target.value)
-                    })),
+                        oninput: event => { ampButton.hidden = !event.target.value.trim(); ampButton.classList.remove('ao-active'); runTicketSearch(event.target.value); }
+                    }),
+                    ampButton),
                 searchButton));
         }
         const middle = state.ticketFilterOpen ? h('div', { class: 'ao-segmented ao-filter-bar' },
@@ -2520,24 +2527,29 @@
         render();
         focusTicketSearch();
     }
-    // In fondo ai risultati: "Cerca su AMP" cerca lo stesso testo su ServiceNow (anche chiusi e di altri gruppi o
-    // operatori); quel che trova, e che qui non c'è già, compare sotto la linea "Su AMP", in sola lettura.
+    // "AMP" nel campo di ricerca cerca lo stesso testo su ServiceNow (anche chiusi e di altri gruppi o operatori);
+    // quel che trova, e che qui non c'è già, compare in fondo ai risultati sotto la linea "Su AMP", in sola lettura.
     function ampResults(query, shown, user) {
         const amp = state.ampSearch?.query === query ? state.ampSearch : null;
-        if (!amp) return h('button', { type: 'button', class: 'ao-button ao-amp-search', onclick: () => searchOnAmp(query) }, svgIcon(SEARCH_ICON), TEXTS.tickets.searchOnAmp(state.ticketQuery.trim()));
+        if (!amp) return null;
         const found = amp.results.filter(ticket => !shown.includes(ticket.number));
         return [h('div', { class: 'ao-amp-line' }, TEXTS.tickets.onAmp),
             amp.loading ? searchSkeleton()
                 : found.length ? h('ul', { class: 'ao-list' }, found.map(ticket => h('li', {}, ampTicket(ticket, user, query))))
-                    : h('p', { class: 'ao-empty' }, TEXTS.tickets.nothingOnAmp)];
+                    : h('p', { class: 'ao-empty' }, TEXTS.tickets.nothingOnAmp(shown.length > 0))];
     }
-    async function searchOnAmp(query) {
-        state.ampSearch = { query, loading: true, results: [] };
+    async function searchOnAmp() {
+        const query = state.ticketQuery.trim().toLowerCase();
+        if (!query) return;
+        clearTimeout(searchTimer); // i risultati del pannello subito, senza aspettare la pausa di scrittura
+        Object.assign(state, { ticketSearchShown: query, ticketSearchPending: false, ampSearch: { query, loading: true, results: [] } });
         render();
+        focusTicketSearch();
         const results = await run(() => Services.searchTickets(query));
         if (state.ampSearch?.query !== query) return; // nel frattempo il testo è cambiato
         state.ampSearch = { query, loading: false, results: Array.isArray(results) ? results : [] };
         render();
+        focusTicketSearch();
     }
     // Ticket trovato su AMP: la scheda dei ticket, in sola lettura. Aperta: date, descrizione, ultima work note,
     // nota di chiusura e "Apri su AMP".
@@ -2724,10 +2736,12 @@
             TEXTS.tickets.groupCount(group.tickets.length - 1), h('span', { class: 'ao-group-caret', 'aria-hidden': 'true' }, '▾'));
         const item = ticketItem(top, user, { query, count });
         item.dataset.group = id;
-        if (open) item.append(h('div', { class: 'ao-group-rows' }, threadOrder(group.tickets).slice(0, -1).map(ticket => h('div', { class: 'ao-group-row' }, // solo i collegati, dal più recente
-            h('span', { class: 'ao-group-name' },
-                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)), ' ', h('span', { class: 'ao-group-short' }, ticket.shortDescription || '')),
-            h('span', { class: 'ao-item-tags' }, stateChip(ticket), ownerTag(ticket, user, false))))));
+        // solo i collegati, dal più recente: sopra il numero (con stato e operatore), sotto la short description
+        if (open) item.append(h('div', { class: 'ao-group-rows' }, threadOrder(group.tickets).slice(0, -1).map(ticket => h('div', { class: 'ao-group-row' },
+            h('div', { class: 'ao-item-top' },
+                h('span', { class: 'ao-item-number' }, markText(ticket.number, query)),
+                h('span', { class: 'ao-item-tags' }, stateChip(ticket), ownerTag(ticket, user, false))),
+            ticket.shortDescription ? h('div', { class: 'ao-group-short' }, markText(ticket.shortDescription, query)) : null))));
         return item;
     }
     // Testata del ticket, uguale nella lista e nel thread (è la stessa scheda che viaggia): numero, stato ed etichetta
@@ -4241,14 +4255,13 @@
 #ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; } /* a destra l'etichetta dell'operatore */
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
 /* Più ticket sullo stesso thread: conteggio accanto al numero e, aperte, le righe dei ticket */
-#ao-root .ao-group-count { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); vertical-align: 1px; cursor: pointer; transition: color .25s, border-color .25s; }
-#ao-root .ao-group-count:hover, #ao-root .ao-group-count.ao-open { color: var(--ao-text-accent); border-color: color-mix(in srgb, var(--ao-accent) 35%, transparent); }
+#ao-root .ao-group-count { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--ao-accent) 40%, transparent); border-radius: var(--ao-radius-pill); background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); vertical-align: 1px; cursor: pointer; transition: color .25s, border-color .25s; }
+#ao-root .ao-group-count:hover, #ao-root .ao-group-count.ao-open { border-color: color-mix(in srgb, var(--ao-accent) 75%, transparent); } /* blu come il numero; acceso al passaggio e da aperto */
 #ao-root .ao-group-caret { display: inline-block; transition: transform .3s; }
 #ao-root .ao-group-count.ao-open .ao-group-caret { transform: rotate(180deg); }
 #ao-root .ao-group-rows { display: grid; margin-top: 6px; overflow: hidden; }
-#ao-root .ao-group-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-md); }
-#ao-root .ao-group-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-#ao-root .ao-group-short { color: var(--ao-text-muted); }
+#ao-root .ao-group-row { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-md); }
+#ao-root .ao-group-short { overflow: hidden; color: var(--ao-text-muted); white-space: nowrap; text-overflow: ellipsis; }
 #ao-root .ao-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
 /* Scadenza dell'On Hold: neutra, oggi arancio, passata rossa */
 #ao-root .ao-due { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
@@ -4481,7 +4494,10 @@
 #ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
 #ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 #ao-root .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
-#ao-root .ao-amp-search { width: 100%; margin-top: 10px; color: var(--ao-text-muted); } /* in fondo ai risultati della ricerca */
+#ao-root .ao-amp-pill { flex: none; display: inline-flex; align-items: center; gap: 4px; align-self: center; height: 22px; margin-right: 4px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--ao-accent) 40%, transparent); border-radius: var(--ao-radius-pill); background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .25s; } /* nel campo di ricerca */
+#ao-root .ao-amp-pill[hidden] { display: none; }
+#ao-root .ao-amp-pill:hover, #ao-root .ao-amp-pill.ao-active { border-color: color-mix(in srgb, var(--ao-accent) 75%, transparent); }
+#ao-root .ao-amp-pill svg { width: 12px; height: 12px; }
 #ao-root .ao-amp-line { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-amp-line::after { content: ''; flex: 1; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-amp-note { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
