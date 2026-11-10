@@ -1,11 +1,11 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-19
+// Test-Plugin file version: 0.3-taskpane.js-devtools-20
 const TEST_PLUGIN_BUILD = Object.freeze({
   application: '0.3',
-  release: '0.3-devtools-19',
+  release: '0.3-devtools-20',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-19',
-    'taskpane.js': '0.3-taskpane.js-devtools-19',
-    'taskpane.css': '0.3-taskpane.css-devtools-19',
+    'taskpane.html': '0.3-taskpane.html-devtools-20',
+    'taskpane.js': '0.3-taskpane.js-devtools-20',
+    'taskpane.css': '0.3-taskpane.css-devtools-20',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
@@ -1118,7 +1118,7 @@ function registerHealthButton() {
   }
   function validateTicketingConfig(payload) {
     const ticketing = payload?.ticketing;
-    const requiredCollections = ["ampStatuses", "workflows"];
+    const requiredCollections = ["ampStatuses", "sharePointStatuses", "workflows"];
     const missing = requiredCollections.filter((name) =>
       !Array.isArray(ticketing?.[name]) || !ticketing[name].some((value) => String(value || "").trim())
     );
@@ -1287,7 +1287,11 @@ function registerHealthButton() {
     SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
   });
   const TICKET_NOTES_MAX_LENGTH = 255;
-  const SEARCH_TICKET_STATUSES = Object.freeze(["In corso", "Completata", "Da Verificare"]);
+  function getConfiguredSharePointStatuses(config = developerConfig) {
+    return Array.from(new Set((config?.ticketing?.sharePointStatuses || [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)));
+  }
 
   function resetTicketResult() {
     const panel = byId("developer-ticket-result");
@@ -1343,7 +1347,7 @@ function registerHealthButton() {
   function populateSearchTicketRecordsForm(config = developerConfig) {
     setMultiSelectOptions(byId("developer-search-operator-ids"), getEnabledOperatorOptions(config));
     setMultiSelectOptions(byId("developer-search-group-ids"), getEnabledGroupIdOptions(config));
-    const statuses = SEARCH_TICKET_STATUSES.map((status) => ({ value: status, label: status }));
+    const statuses = getConfiguredSharePointStatuses(config).map((status) => ({ value: status, label: status }));
     setMultiSelectOptions(byId("developer-search-statuses"), statuses);
   }
 
@@ -1804,7 +1808,7 @@ function registerHealthButton() {
     addDeveloperField(container, "Record restituiti", parsed?.returnedCount ?? 0);
     addDeveloperField(container, "Troncato", parsed?.truncated ? "Sì" : "No");
     addDeveloperField(container, "Tempo", parsed?.elapsedMs == null ? null : `${parsed.elapsedMs} ms`);
-    addDeveloperField(container, "Filtri applicati", JSON.stringify(parsed?.filters || {}, null, 2));
+    addDeveloperField(container, "Filtri applicati (operatorIds, groupNames, sharePointStatuses)", JSON.stringify(parsed?.filters || {}, null, 2));
 
     const records = Array.isArray(parsed?.records) ? parsed.records : [];
     if (!records.length) {
@@ -2225,8 +2229,20 @@ function registerHealthButton() {
     validateTicketingConfig(developerConfig);
     const operatorIds = getSelectedValues("developer-search-operator-ids");
     const groupIds = getSelectedValues("developer-search-group-ids");
+    const groupNames = groupIds.map((groupId) => {
+      const group = developerConfig?.groups?.[groupId];
+      if (!group || group.enabled === false) {
+        throw new Error(`Gruppo non disponibile in PluginConfig: ${groupId}.`);
+      }
+      const groupName = String(group.displayName || "").trim();
+      if (!groupName) {
+        throw new Error(`PluginConfig groups.${groupId}.displayName mancante.`);
+      }
+      return groupName;
+    });
     const sharePointStatuses = getSelectedValues("developer-search-statuses");
-    const invalidStatuses = sharePointStatuses.filter((status) => !SEARCH_TICKET_STATUSES.includes(status));
+    const configuredStatuses = getConfiguredSharePointStatuses(developerConfig);
+    const invalidStatuses = sharePointStatuses.filter((status) => !configuredStatuses.includes(status));
     if (invalidStatuses.length) throw new Error(`Stati SharePoint non ammessi: ${invalidStatuses.join(", ")}.`);
 
     const createdFrom = optionalDateTimeToIso("developer-search-created-from", "Created da");
@@ -2247,7 +2263,7 @@ function registerHealthButton() {
 
     return {
       ...(operatorIds.length ? { operatorIds } : {}),
-      ...(groupIds.length ? { groupIds } : {}),
+      ...(groupNames.length ? { groupNames } : {}),
       ...(sharePointStatuses.length ? { sharePointStatuses } : {}),
       ...(createdFrom ? { createdFrom } : {}),
       ...(createdTo ? { createdTo } : {}),

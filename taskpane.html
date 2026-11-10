@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-19 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-20 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -54,9 +54,9 @@
 <p class="developer-create-help" id="developer-edit-mode-help">Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.</p>
 </div>
 <div class="developer-search-form" hidden="" id="developer-search-form">
-<p class="developer-create-help">I valori selezionati nella stessa multiselezione sono combinati con OR; le famiglie di filtri sono combinate con AND. Nessuna selezione equivale a nessun filtro.</p>
+<p class="developer-create-help">Operatori, gruppi e stati sono caricati dalla PluginConfig. I riferimenti gruppo selezionati vengono risolti nel taskpane nei nomi SharePoint e inviati come groupNames. I valori nella stessa multiselezione sono combinati con OR; le famiglie di filtri con AND. Nessuna selezione equivale a nessun filtro.</p>
 <div class="developer-create-field"><label for="developer-search-operator-ids">Operatori</label><select class="developer-input developer-multiselect" id="developer-search-operator-ids" multiple="" size="5"></select></div>
-<div class="developer-create-field"><label for="developer-search-group-ids">Gruppi</label><select class="developer-input developer-multiselect" id="developer-search-group-ids" multiple="" size="5"></select></div>
+<div class="developer-create-field"><label for="developer-search-group-ids">Gruppi (nome · riferimento config)</label><select class="developer-input developer-multiselect" id="developer-search-group-ids" multiple="" size="5"></select></div>
 <div class="developer-create-field"><label for="developer-search-statuses">Stati SharePoint</label><select class="developer-input developer-multiselect" id="developer-search-statuses" multiple="" size="3"></select></div>
 <div class="developer-search-period">
 <div class="developer-create-field"><label for="developer-search-created-from">Created da (opzionale)</label><input class="developer-input" id="developer-search-created-from" type="datetime-local"/></div>
@@ -85,7 +85,7 @@
 <p class="developer-create-help" id="developer-category-available" role="status"></p>
 </div>
 <div class="developer-graph-category-form" hidden="" id="developer-graph-category-form">
-<div class="developer-create-field"><label for="developer-graph-mail">Mail Function (PluginConfig.groups[&quot;GRP-01&quot;].email)</label><input aria-describedby="developer-graph-mail-help" aria-readonly="true" class="developer-input developer-readonly-input monospace" id="developer-graph-mail" readonly="" type="email"/><p class="developer-create-help" id="developer-graph-mail-help">Valore obbligatorio caricato automaticamente dal gruppo Competence Center; non modificabile manualmente.</p></div>
+<div class="developer-create-field"><label for="developer-graph-mail">Mail Function (PluginConfig.groups[&quot;GRP-01&quot;].email)</label><input aria-describedby="developer-graph-mail-help" aria-readonly="true" class="developer-input developer-readonly-input monospace" id="developer-graph-mail" readonly="" type="email"/><p class="developer-create-help" id="developer-graph-mail-help">Valore obbligatorio caricato automaticamente dal gruppo configurato con riferimento GRP-01; non modificabile manualmente.</p></div>
 <div class="developer-create-field"><label for="developer-graph-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-graph-message-id" spellcheck="false" type="text"/></div>
 <div class="developer-create-field"><label for="developer-graph-action">Action</label><select class="developer-input" id="developer-graph-action"><option value="add">add</option><option value="remove">remove</option><option value="get">get</option></select></div>
 <div class="developer-create-field" id="developer-graph-categories-row"><label for="developer-graph-categories">Categorie (separate da virgola)</label><input autocomplete="off" class="developer-input" id="developer-graph-categories" list="developer-category-options" placeholder="es. Irace, Da Completare" spellcheck="false" type="text"/></div>
