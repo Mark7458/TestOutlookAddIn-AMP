@@ -1,4 +1,4 @@
-<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-17 -->
+<!-- Test-Plugin file version: 0.3-taskpane.html-devtools-18 -->
 <!DOCTYPE html>
 
 <html lang="it">
@@ -17,7 +17,7 @@
 <div class="toggle-panel" hidden="" id="email-details-panel"><div class="developer-inline-action" id="developer-inline-action">
 <label for="developer-action-select">Azione</label><select class="developer-input" id="developer-action-select">
 <optgroup label="Record SharePoint"><option value="GetRecordByConversationId">GetRecordByConversationId</option><option value="GetRecordById">GetRecordById</option></optgroup>
-<optgroup label="Ticket"><option value="createTicket">createTicket</option><option value="editTicket">editTicket</option></optgroup>
+<optgroup label="Ticket"><option value="createTicket">createTicket</option><option value="editTicket">editTicket</option><option value="setOutOfScope">setOutOfScope</option></optgroup>
 <optgroup label="Lock"><option value="acquireLock">acquireLock</option><option value="releaseLock">releaseLock</option></optgroup>
 <optgroup label="Categorie Outlook"><option value="AddCategoriesOfficeJs">Office.js — AddCategories</option><option value="RemoveCategoriesOfficeJs">Office.js — RemoveCategories</option><option value="SetMessageCategories">Graph — SetMessageCategories</option></optgroup>
 </select>
@@ -51,6 +51,12 @@
 <label class="developer-create-checkbox" for="developer-edit-remove-notes" id="developer-edit-remove-notes-row"><input id="developer-edit-remove-notes" type="checkbox"/><span>Rimuovi notes (invia null)</span></label>
 <label class="developer-create-checkbox" for="developer-edit-force" id="developer-edit-force-row"><input id="developer-edit-force" type="checkbox"/><span>force — takeover atomico del lock e modifica</span></label>
 <p class="developer-create-help" id="developer-edit-mode-help">Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.</p>
+</div>
+<div class="developer-out-of-scope-form" hidden="" id="developer-out-of-scope-form">
+<div class="developer-create-field"><label for="developer-out-of-scope-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-out-of-scope-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+<div class="developer-create-field"><label for="developer-out-of-scope-requester-id">Requester</label><select class="developer-input" id="developer-out-of-scope-requester-id"></select></div>
+<label class="developer-create-checkbox developer-mode-checkbox" for="developer-out-of-scope-value"><input checked="" id="developer-out-of-scope-value" type="checkbox"/><span>outOfScope — attivo imposta “Out Of Scope”; disattivo imposta “Non Avviata”</span></label>
+<p class="developer-create-help">Azione record-level: non richiede Ticket ID e non modifica metadata AMP, ticket, note ticket o lock.</p>
 </div>
 <div class="developer-lock-form" hidden="" id="developer-lock-form">
 <div class="developer-create-field"><label for="developer-lock-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-lock-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
