@@ -1,4 +1,4 @@
-/* Test-Plugin file version: 0.3-taskpane.css-devtools-22 */
+/* Test-Plugin file version: 0.4-initial */
 :root {
   color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -589,7 +589,7 @@ footer {
 }
 
 
-/* Developer Tools 0.3: azioni raggruppate, form ticket/lock/Graph. */
+/* Developer Tools: azioni raggruppate e form tecnici. */
 #developer-action-select optgroup{font-weight:700;color:#005a9e}
 #developer-action-select option{font-weight:400;color:#323130}
 .developer-readonly-input[readonly]{background:#edebe9;color:#605e5c;cursor:not-allowed}
@@ -597,19 +597,27 @@ footer {
 @media(prefers-color-scheme:dark){#developer-action-select optgroup{color:#6cb8f6}#developer-action-select option{color:#f3f2f1}.developer-readonly-input[readonly]{background:#323130;color:#c8c6c4}}
 
 
-/* Developer Tools devtools-19: messageId immutabile e SearchTicketRecords. */
-.developer-mode-checkbox{margin-top:2px;padding:8px;border:1px solid #8a8886;border-radius:6px;background:#fff}
-.developer-external-refresh-options{display:grid;gap:8px;padding:9px;border:1px dashed #8a8886;border-radius:6px;background:#fff}
-.developer-external-refresh-options.is-disabled{opacity:.7}
-.developer-external-refresh-options .developer-create-help{min-height:0}
-@media(prefers-color-scheme:dark){.developer-mode-checkbox,.developer-external-refresh-options{border-color:#8a8886;background:#201f1e}}
 
-
-/* Developer Tools devtools-21: categorie Office.js/Graph con multiselezioni dinamiche. */
+/* Categorie Office.js/Graph con multiselezioni dinamiche. */
 .developer-category-refresh{justify-self:start}
 .developer-category-summary{white-space:pre-wrap;overflow-wrap:anywhere}
 .developer-category-summary.status-warning{padding:8px;border:1px solid #d83b01;border-radius:6px;background:#fff4ce;color:#323130}
 .developer-multiselect option.category-not-configured{font-weight:700;color:#a4262c}
 @media(prefers-color-scheme:dark){.developer-category-summary.status-warning{border-color:#f7630c;background:#3b2f00;color:#f3f2f1}.developer-multiselect option.category-not-configured{color:#ff99a4}}
 
-/* Developer Tools devtools-22: azione record-level confirmReviewed. */
+
+
+/* Test-Plugin 0.4-initial: TicketList, forwarding e form contratti backend. */
+.developer-long-text,.developer-filter-list{min-height:82px;resize:vertical;font:inherit}
+.developer-editable-field{display:grid;gap:5px;padding:8px;border:1px solid #e1dfdd;border-radius:6px;background:#fff}
+.developer-field-heading{display:flex;align-items:center;gap:8px;color:#323130!important;font-size:12px!important;cursor:pointer}
+.developer-field-heading input{width:17px;height:17px;margin:0}
+.developer-forward-form{display:grid;gap:9px;padding:10px;border:1px solid #e1dfdd;border-radius:6px;background:#faf9f8}
+.developer-search-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.developer-field-card strong{white-space:normal}
+.developer-log-field strong{white-space:pre-wrap}
+@media(prefers-color-scheme:dark){
+  .developer-editable-field{border-color:#484644;background:#201f1e}
+  .developer-field-heading{color:#f3f2f1!important}
+  .developer-forward-form{border-color:#484644;background:#252423}
+}

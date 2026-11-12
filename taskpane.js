@@ -1,18 +1,18 @@
-// Test-Plugin file version: 0.3-taskpane.js-devtools-22
+// Test-Plugin file version: 0.4-initial
 const TEST_PLUGIN_BUILD = Object.freeze({
-  application: '0.3',
-  release: '0.3-devtools-22',
+  application: '0.4-initial',
+  release: '0.4-initial',
   files: Object.freeze({
-    'taskpane.html': '0.3-taskpane.html-devtools-22',
-    'taskpane.js': '0.3-taskpane.js-devtools-22',
-    'taskpane.css': '0.3-taskpane.css-devtools-22',
+    'taskpane.html': '0.4-initial',
+    'taskpane.js': '0.4-initial',
+    'taskpane.css': '0.4-initial',
     'auth-src.js': '0.2-auth-src.js-3',
     'auth-dialog.html': '0.2-auth-dialog.html-2',
     'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
     'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
     'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
   }),
-  database: Object.freeze({ schemaVersion: 4, requiredDataVersion: 7 }),
+  database: Object.freeze({ schemaVersion: 5, requiredDataVersion: 8 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
 });
 window.TestPluginBuild = TEST_PLUGIN_BUILD;
@@ -1125,7 +1125,7 @@ function registerHealthButton() {
   function collectConfiguredCategories(payload) {
     const candidates = [
       ...Object.values(payload?.operators || {}).map((operator) => operator?.tag),
-      ...Object.values(payload?.groups || {}).map((group) => group?.tag),
+      ...Object.values(payload?.forwardingTargets || {}).map((target) => target?.tag),
       ...(Array.isArray(payload?.categories?.generic)
         ? payload.categories.generic.map((category) => category?.tag)
         : [])
@@ -1138,6 +1138,7 @@ function registerHealthButton() {
     });
     return Array.from(unique.values());
   }
+
   function refreshOperationalConfigDiagnostics(cache = readOperationalConfigCache(), status = null) {
     const payload = cache?.payload;
     const lines = [
@@ -1149,25 +1150,29 @@ function registerHealthButton() {
       `Scaricata: ${cache?.downloadedAt || "-"}`,
       `Agenzie: ${Object.keys(payload?.agencies || {}).length}`,
       `Operatori: ${Object.keys(payload?.operators || {}).length}`,
-      `Gruppi: ${Object.keys(payload?.groups || {}).length}`,
+      `Destinazioni forwarding: ${Object.keys(payload?.forwardingTargets || {}).length}`,
+      `Stati ticket: ${Array.isArray(payload?.ticketing?.statuses) ? payload.ticketing.statuses.length : 0}`,
       `Categorie configurate: ${collectConfiguredCategories(payload).length}`,
-      `Stati AMP: ${Array.isArray(payload?.ticketing?.ampStatuses) ? payload.ticketing.ampStatuses.length : 0}`,
-      `Stati SharePoint: ${Array.isArray(payload?.ticketing?.sharePointStatuses) ? payload.ticketing.sharePointStatuses.length : 0}`,
-      `Workflow: ${Array.isArray(payload?.ticketing?.workflows) ? payload.ticketing.workflows.length : 0}`
+      `Mailbox categorie: ${String(payload?.ticketing?.email || "").trim() || "-"}`
     ];
     setText("diagnostic-database", lines.join("\n"));
   }
+
   function validateTicketingConfig(payload) {
-    const ticketing = payload?.ticketing;
-    const requiredCollections = ["ampStatuses", "sharePointStatuses", "workflows"];
-    const missing = requiredCollections.filter((name) =>
-      !Array.isArray(ticketing?.[name]) || !ticketing[name].some((value) => String(value || "").trim())
-    );
-    if (missing.length) {
-      throw new Error(`PluginConfig incompleta: ticketing.${missing.join(", ticketing.")} mancante o vuoto.`);
+    if (!payload || typeof payload !== "object") {
+      throw new Error("PluginConfig mancante o non valida.");
+    }
+    const statuses = payload?.ticketing?.statuses;
+    if (!Array.isArray(statuses) || !statuses.some((value) => String(value || "").trim())) {
+      throw new Error("PluginConfig incompleta: ticketing.statuses mancante o vuoto.");
+    }
+    for (const name of ["operators", "roles", "forwardingTargets"]) {
+      if (!payload[name] || typeof payload[name] !== "object" || !Object.keys(payload[name]).length) {
+        throw new Error(`PluginConfig incompleta: ${name} mancante o vuoto.`);
+      }
     }
     if (!collectConfiguredCategories(payload).length) {
-      throw new Error("PluginConfig incompleta: nessun tag presente in operators[*].tag, groups[*].tag o categories.generic[*].tag.");
+      throw new Error("PluginConfig incompleta: nessun tag in operators, forwardingTargets o categories.generic.");
     }
     return payload;
   }
@@ -1175,41 +1180,43 @@ function registerHealthButton() {
   async function ensureOperationalConfig(accessToken) {
     const required = TEST_PLUGIN_BUILD.database;
     const cached = readOperationalConfigCache();
-    window.WorkflowHealth?.recordDiagnostic?.("config_cache_read", { schemaVersion: cached?.schemaVersion ?? null, dataVersion: cached?.dataVersion ?? null });
-    if (cached?.schemaVersion === required.schemaVersion && cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
+    window.WorkflowHealth?.recordDiagnostic?.("config_cache_read", {
+      schemaVersion: cached?.schemaVersion ?? null,
+      dataVersion: cached?.dataVersion ?? null
+    });
+    if (cached?.schemaVersion === required.schemaVersion &&
+        cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
       try {
         validateTicketingConfig(cached.payload);
-        window.WorkflowHealth?.recordDiagnostic?.("config_cache_valid", { dataVersion: cached.dataVersion });
         refreshOperationalConfigDiagnostics(cached, "cache valida");
         developerConfig = cached.payload;
         return cached.payload;
       } catch (error) {
         window.WorkflowHealth?.recordDiagnostic?.("config_cache_invalid", { message: error?.message || String(error) });
-        refreshOperationalConfigDiagnostics(cached, "cache incompleta: nuovo download necessario");
       }
     }
-    window.WorkflowHealth?.recordDiagnostic?.("config_version_mismatch", { requiredSchemaVersion: required.schemaVersion, requiredDataVersion: required.requiredDataVersion, cachedSchemaVersion: cached?.schemaVersion ?? null, cachedDataVersion: cached?.dataVersion ?? null });
+
     refreshOperationalConfigDiagnostics(cached, "aggiornamento necessario");
-    window.WorkflowHealth?.recordDiagnostic?.("config_download_start");
-    try {
-      const response = await fetch(OPERATIONAL_CONFIG_URL, { method: "GET", headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
-      if (!response.ok) throw new Error(`PluginConfig HTTP ${response.status} ${response.statusText || ""}`.trim());
-      const payload = await response.json();
-      if (payload?.schemaVersion !== required.schemaVersion || payload?.dataVersion !== required.requiredDataVersion) {
-        throw new Error(`PluginConfig incompatibile: schema ${payload?.schemaVersion}, dati ${payload?.dataVersion}.`);
-      }
-      validateTicketingConfig(payload);
-      const stored = { schemaVersion: payload.schemaVersion, dataVersion: payload.dataVersion, downloadedAt: new Date().toISOString(), payload };
-      localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
-      window.WorkflowHealth?.recordDiagnostic?.("config_cache_saved", { schemaVersion: stored.schemaVersion, dataVersion: stored.dataVersion, agencies: Object.keys(payload.agencies || {}).length, operators: Object.keys(payload.operators || {}).length, groups: Object.keys(payload.groups || {}).length });
-      refreshOperationalConfigDiagnostics(stored, "scaricata");
-      developerConfig = payload;
-      return payload;
-    } catch (error) {
-      window.WorkflowHealth?.recordDiagnostic?.("config_download_error", { message: error?.message || String(error) });
-      refreshOperationalConfigDiagnostics(cached, `errore: ${error?.message || String(error)}`);
-      throw error;
+    const response = await fetch(OPERATIONAL_CONFIG_URL, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" }
+    });
+    if (!response.ok) throw new Error(`PluginConfig HTTP ${response.status} ${response.statusText || ""}`.trim());
+    const payload = await response.json();
+    if (payload?.schemaVersion !== required.schemaVersion || payload?.dataVersion !== required.requiredDataVersion) {
+      throw new Error(`PluginConfig incompatibile: schema ${payload?.schemaVersion}, dati ${payload?.dataVersion}.`);
     }
+    validateTicketingConfig(payload);
+    const stored = {
+      schemaVersion: payload.schemaVersion,
+      dataVersion: payload.dataVersion,
+      downloadedAt: new Date().toISOString(),
+      payload
+    };
+    localStorage.setItem(OPERATIONAL_CONFIG_KEY, JSON.stringify(stored));
+    refreshOperationalConfigDiagnostics(stored, "scaricata");
+    developerConfig = payload;
+    return payload;
   }
 
   function normalizeEmail(value) {
@@ -1218,19 +1225,18 @@ function registerHealthButton() {
 
   function evaluateDeveloperToolsAccess(config) {
     const outlookEmail = normalizeEmail(Office.context?.mailbox?.userProfile?.emailAddress);
-    const operators = Object.values(config?.operators || {});
-    const roles = Object.values(config?.roles || {});
-    const operator = operators.find((candidate) =>
+    const operatorEntry = Object.entries(config?.operators || {}).find(([, candidate]) =>
       candidate?.enabled !== false && normalizeEmail(candidate?.email) === outlookEmail
     );
-    const role = roles.find((candidate) =>
+    const operator = operatorEntry?.[1] || null;
+    const role = Object.values(config?.roles || {}).find((candidate) =>
       String(candidate?.role || "").trim().toLowerCase() === String(operator?.role || "").trim().toLowerCase()
     );
     const priority = Number(role?.priority);
-
     return {
       allowed: Boolean(operator && Number.isFinite(priority) && priority <= 1),
       operator,
+      operatorId: operatorEntry?.[0] || "",
       role,
       outlookEmail
     };
@@ -1240,7 +1246,7 @@ function registerHealthButton() {
     const access = evaluateDeveloperToolsAccess(config);
     developerConfig = config || null;
     developerToolsAllowed = access.allowed;
-    developerCurrentOperatorId = Object.entries(config?.operators || {}).find(([, candidate]) => candidate === access.operator)?.[0] || "";
+    developerCurrentOperatorId = access.operatorId;
     const toggle = byId("email-details-toggle");
     const panel = byId("email-details-panel");
     if (toggle) toggle.hidden = !developerToolsAllowed;
@@ -1248,12 +1254,9 @@ function registerHealthButton() {
       panel.hidden = true;
       toggle?.setAttribute("aria-expanded", "false");
     }
-    populateCreateTicketForm(config, developerCurrentOperatorId);
-    populateTicketAndLockForms(config, developerCurrentOperatorId);
-    populateSearchTicketRecordsForm(config);
+    populateDeveloperForms(config, access.operator?.email || "");
     if (getDeveloperAction() === "ManageCategories") void refreshOfficeCategoryForm({ preserveSelection: true });
     populateGraphCategoryForm(config);
-
     window.WorkflowHealth?.recordDiagnostic?.("developer_tools_access_evaluated", {
       allowed: developerToolsAllowed,
       operatorId: developerCurrentOperatorId || null,
@@ -1267,48 +1270,30 @@ function registerHealthButton() {
   async function initializeOperationalConfig() {
     const required = TEST_PLUGIN_BUILD.database;
     const cached = readOperationalConfigCache();
-    let cacheIsValid = Boolean(
-      cached?.schemaVersion === required.schemaVersion &&
-      cached?.dataVersion === required.requiredDataVersion &&
-      cached?.payload
-    );
-
-    if (cacheIsValid) {
-      try { validateTicketingConfig(cached.payload); }
-      catch { cacheIsValid = false; }
-    }
-
-    if (cacheIsValid) {
-      refreshOperationalConfigDiagnostics(cached, "cache valida");
-      refreshDeveloperToolsAccess(cached.payload);
-      return cached.payload;
+    try {
+      if (cached?.schemaVersion === required.schemaVersion &&
+          cached?.dataVersion === required.requiredDataVersion && cached?.payload) {
+        validateTicketingConfig(cached.payload);
+        refreshOperationalConfigDiagnostics(cached, "cache valida");
+        refreshDeveloperToolsAccess(cached.payload);
+        return cached.payload;
+      }
+    } catch (error) {
+      window.WorkflowHealth?.recordDiagnostic?.("config_cache_invalid", { message: error?.message || String(error) });
     }
 
     refreshDeveloperToolsAccess(null);
-    if (!window.WorkflowHealth?.getAccessTokenSilently) {
-      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_skipped", { reason: "silent_auth_api_unavailable" });
-      return null;
-    }
-
+    if (!window.WorkflowHealth?.getAccessTokenSilently) return null;
     try {
-      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_start");
       const authentication = await window.WorkflowHealth.getAccessTokenSilently();
-      if (!authentication?.accessToken) {
-        throw new Error("Token di accesso non disponibile per inizializzare PluginConfig.");
-      }
+      if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile per inizializzare PluginConfig.");
       const config = await ensureOperationalConfig(authentication.accessToken);
       refreshDeveloperToolsAccess(config);
-      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_complete", {
-        authenticationMode: authentication.acquisitionMode || null
-      });
       return config;
     } catch (error) {
       refreshDeveloperToolsAccess(null);
-      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_error", {
-        name: error?.name || "Error",
-        errorCode: error?.errorCode || null,
-        message: error?.message || String(error)
-      });
+      refreshOperationalConfigDiagnostics(cached, `errore: ${error?.message || String(error)}`);
+      window.WorkflowHealth?.recordDiagnostic?.("config_initialize_error", { message: error?.message || String(error) });
       console.error("Inizializzazione PluginConfig non riuscita:", error);
       return null;
     } finally {
@@ -1320,19 +1305,35 @@ function registerHealthButton() {
     GetRecordByConversationId: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordByConversationId",
     GetRecordById: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetRecordById",
     SearchTicketRecords: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SearchTicketRecords",
-    createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
-    editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
-    setOutOfScope: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
-    confirmReviewed: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
-    acquireLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
-    releaseLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicketMetadata",
+    createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
+    editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
+    acquireLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
+    releaseLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
+    ForwardConversation: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ForwardConversation",
     SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
   });
-  const TICKET_NOTES_MAX_LENGTH = 255;
-  function getConfiguredSharePointStatuses(config = developerConfig) {
-    return Array.from(new Set((config?.ticketing?.sharePointStatuses || [])
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)));
+  const TICKET_NOTES_MAX_LENGTH = 2000;
+  const TICKET_FIELDS = [
+    ["id", "ID item ticket"], ["parentItemId", "Parent Item ID"], ["ticketId", "Ticket ID"],
+    ["ampReference", "Riferimento AMP"], ["messageId", "Message ID"], ["operator", "Operatore"],
+    ["status", "Stato"], ["agency", "Agenzia"], ["shortDescription", "Descrizione breve"],
+    ["description", "Descrizione"], ["notes", "Note"], ["resolutionNotes", "Note di risoluzione"],
+    ["elapsedTime", "Tempo trascorso"], ["lock", "Lock"], ["created", "Creato"], ["modified", "Modificato"]
+  ];
+  const EDIT_FIELDS = [
+    { key: "operator", id: "operator", nullable: false },
+    { key: "status", id: "status", nullable: false },
+    { key: "ampReference", id: "amp-reference", nullable: true },
+    { key: "agency", id: "agency", nullable: true },
+    { key: "shortDescription", id: "short-description", nullable: true },
+    { key: "description", id: "description", nullable: true },
+    { key: "notes", id: "notes", nullable: true },
+    { key: "resolutionNotes", id: "resolution-notes", nullable: true },
+    { key: "elapsedTime", id: "elapsed-time", nullable: true }
+  ];
+
+  function getDeveloperAction() {
+    return byId("developer-action-select")?.value || "GetRecordByConversationId";
   }
 
   function resetTicketResult() {
@@ -1343,13 +1344,9 @@ function registerHealthButton() {
     byId("developer-ticket-fields")?.replaceChildren();
   }
 
-  function getDeveloperAction() {
-    return byId("developer-action-select")?.value || "GetRecordByConversationId";
-  }
-
-  function setSelectOptions(select, options, preferredValue = "") {
+  function setSelectOptions(select, options, preferredValue = "", preserve = false) {
     if (!select) return;
-    const previous = String(select.value || "");
+    const previous = preserve ? String(select.value || "") : "";
     select.replaceChildren();
     options.forEach(({ value, label }) => {
       const option = document.createElement("option");
@@ -1357,20 +1354,8 @@ function registerHealthButton() {
       option.textContent = String(label);
       select.appendChild(option);
     });
-    const wanted = String(previous || preferredValue || "");
+    const wanted = previous || String(preferredValue || "");
     if (wanted && options.some((entry) => String(entry.value) === wanted)) select.value = wanted;
-  }
-
-  function getEnabledGroupOptions(config = developerConfig) {
-    return Object.entries(config?.groups || {})
-      .filter(([, group]) => group?.enabled !== false)
-      .map(([id, group]) => ({ value: group?.displayName || id, label: `${group?.displayName || id} · ${id}` }));
-  }
-
-  function getEnabledGroupIdOptions(config = developerConfig) {
-    return Object.entries(config?.groups || {})
-      .filter(([, group]) => group?.enabled !== false)
-      .map(([id, group]) => ({ value: id, label: `${group?.displayName || id} · ${id}` }));
   }
 
   function setMultiSelectOptions(select, options, preserveSelection = true) {
@@ -1389,372 +1374,136 @@ function registerHealthButton() {
     });
   }
 
-  function populateSearchTicketRecordsForm(config = developerConfig) {
-    setMultiSelectOptions(byId("developer-search-operator-ids"), getEnabledOperatorOptions(config));
-    setMultiSelectOptions(byId("developer-search-group-ids"), getEnabledGroupIdOptions(config));
-    const statuses = getConfiguredSharePointStatuses(config).map((status) => ({ value: status, label: status }));
-    setMultiSelectOptions(byId("developer-search-statuses"), statuses);
-  }
-
-  function populateCreateTicketForm(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
-    const status = byId("developer-create-config-status");
-    const operators = Object.entries(config?.operators || {})
-      .filter(([, operator]) => operator?.enabled !== false)
-      .map(([id, operator]) => ({ value: id, label: `${operator?.displayName || id} · ${id}` }));
-    const groups = getEnabledGroupOptions(config);
-    const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
-
-    setSelectOptions(byId("developer-create-operator-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-create-requester-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-create-group-name"), groups);
-    setSelectOptions(byId("developer-create-amp-status"), ampStatuses);
-    updateCreateForwardedTicketControls();
-
-    const itemInput = byId("developer-create-item-id");
-    if (itemInput && !itemInput.value && developerLastItemId) itemInput.value = developerLastItemId;
-    const messageInput = byId("developer-create-message-id");
-    if (messageInput && !messageInput.value) messageInput.value = currentMessageContext?.itemId || "";
-    if (status) {
-      const workflowsOk = Array.isArray(config?.ticketing?.workflows) && config.ticketing.workflows.includes("CreateTicket");
-      status.textContent = config
-        ? (workflowsOk ? "Valori caricati da PluginConfig." : "PluginConfig non abilita il workflow CreateTicket.")
-        : "Configurazione operativa non disponibile.";
-      status.className = `developer-create-help${config && !workflowsOk ? " status-error" : ""}`;
-    }
-  }
-
-  function getEnabledOperatorOptions(config = developerConfig) {
+  function getOperatorOptions(config = developerConfig) {
     return Object.entries(config?.operators || {})
-      .filter(([, operator]) => operator?.enabled !== false)
-      .map(([id, operator]) => ({ value: id, label: `${operator?.displayName || id} · ${id}` }));
+      .filter(([, operator]) => operator?.enabled !== false && String(operator?.email || "").trim())
+      .map(([id, operator]) => ({
+        value: String(operator.email).trim(),
+        label: `${operator?.displayName || id} · ${operator.email} · ${id}`
+      }));
   }
 
-  function populateTicketAndLockForms(config = developerConfig, currentOperatorId = developerCurrentOperatorId) {
-    const operators = getEnabledOperatorOptions(config);
-    const groups = getEnabledGroupOptions(config);
-    const ampStatuses = (config?.ticketing?.ampStatuses || []).map((value) => ({ value, label: value }));
-    const optionalAmpStatuses = [{ value: "", label: "— non modificare —" }, ...ampStatuses];
-    const workflows = (config?.ticketing?.workflows || []).map((value) => ({ value, label: value }));
-    setSelectOptions(byId("developer-edit-requester-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-out-of-scope-requester-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-reviewed-requester-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-edit-group-name"), groups);
-    setSelectOptions(byId("developer-edit-amp-status"), optionalAmpStatuses, "");
-    setSelectOptions(byId("developer-lock-requester-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-lock-operator-id"), operators, currentOperatorId);
-    setSelectOptions(byId("developer-lock-workflow"), workflows, workflows.some((entry) => entry.value === "TakeOwnership") ? "TakeOwnership" : "");
-    ["developer-edit-item-id", "developer-out-of-scope-item-id", "developer-reviewed-item-id", "developer-lock-item-id"].forEach((id) => {
-      const input = byId(id);
-      if (input && !input.value && developerLastItemId) input.value = developerLastItemId;
+  function getAgencyOptions(config = developerConfig, includeEmpty = false) {
+    const options = Object.entries(config?.agencies || {})
+      .filter(([, agency]) => agency?.enabled !== false)
+      .map(([id, agency]) => ({
+        value: id,
+        label: `${agency?.displayName || id}${agency?.shortName ? ` · ${agency.shortName}` : ""} · ${id}`
+      }));
+    return includeEmpty ? [{ value: "", label: "— nessuna / rimuovi —" }, ...options] : options;
+  }
+
+  function getStatusOptions(config = developerConfig) {
+    return (config?.ticketing?.statuses || [])
+      .map((status) => String(status || "").trim()).filter(Boolean)
+      .map((status) => ({ value: status, label: status }));
+  }
+
+  function getForwardTargetOptions(config = developerConfig) {
+    return Object.entries(config?.forwardingTargets || {}).map(([id, target]) => ({
+      value: id,
+      label: `${target?.name || id}${target?.code ? ` · ${target.code}` : ""}`
+    }));
+  }
+
+  function populateOperatorDatalist(config = developerConfig) {
+    const datalist = byId("developer-operator-emails");
+    if (!datalist) return;
+    datalist.replaceChildren();
+    getOperatorOptions(config).forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.label = label;
+      datalist.appendChild(option);
     });
-    updateEditExternalAssignmentControls();
+  }
+
+  function populateDeveloperForms(config = developerConfig, currentOperatorEmail = "") {
+    populateOperatorDatalist(config);
+    const statuses = getStatusOptions(config);
+    const agencies = getAgencyOptions(config, true);
+    setSelectOptions(byId("developer-create-status"), statuses, statuses[0]?.value || "", true);
+    setSelectOptions(byId("developer-edit-status"), statuses, statuses[0]?.value || "", true);
+    setSelectOptions(byId("developer-create-agency"), agencies, "", true);
+    setSelectOptions(byId("developer-edit-agency"), agencies, "", true);
+    setMultiSelectOptions(byId("developer-search-operators"), getOperatorOptions(config), true);
+    setMultiSelectOptions(byId("developer-search-statuses"), statuses, true);
+    setMultiSelectOptions(byId("developer-search-agencies"), getAgencyOptions(config), true);
+    setSelectOptions(byId("developer-forward-target"), getForwardTargetOptions(config), "", true);
+
+    const email = currentOperatorEmail || getCurrentOperatorEmail(config);
+    ["developer-create-operator", "developer-edit-caller", "developer-edit-operator", "developer-lock-caller"].forEach((id) => {
+      const input = byId(id);
+      if (input && !input.value) input.value = email;
+    });
+    const status = byId("developer-create-config-status");
+    if (status) {
+      status.textContent = config ? "Valori caricati dalla PluginConfig." : "Configurazione operativa non disponibile.";
+      status.className = `developer-create-help${config ? "" : " status-error"}`;
+    }
+    populateGraphCategoryForm(config);
+  }
+
+  function getCurrentOperatorEmail(config = developerConfig) {
+    const id = developerCurrentOperatorId;
+    return String(config?.operators?.[id]?.email || Office.context?.mailbox?.userProfile?.emailAddress || "").trim();
   }
 
   function getM365AdminCenterMailbox(config = developerConfig) {
-    return String(config?.groups?.["GRP-01"]?.email || "").trim();
+    return String(config?.ticketing?.email || "").trim();
   }
 
-  function graphCategoryStateMatches(mail, messageId) {
-    return developerGraphCategoryState.mail === String(mail || "")
-      && developerGraphCategoryState.messageId === String(messageId || "");
-  }
-
-  function resetGraphCategoryState() {
-    graphCategoryLoadSequence += 1;
-    developerGraphCategoryState = {
-      mail: String(byId("developer-graph-mail")?.value || "").trim(),
-      messageId: String(byId("developer-graph-message-id")?.value || "").trim(),
-      categories: [],
-      loaded: false,
-      loading: false,
-      error: ""
+  function prefillCreateFromMessage() {
+    const values = {
+      "developer-create-message-id": currentMessageContext?.itemId || "",
+      "developer-create-short-description": currentMessageContext?.subject || "",
+      "developer-create-description": currentMessageContext?.bodyText || "",
+      "developer-forward-conversation-id": currentMessageContext?.normalizedConversationId || "",
+      "developer-graph-message-id": currentMessageContext?.itemId || ""
     };
-  }
-
-  function renderGraphCategoryStatus(config = developerConfig) {
-    const status = byId("developer-graph-status");
-    if (!status) return;
-    const mail = String(byId("developer-graph-mail")?.value || "").trim();
-    const action = String(byId("developer-graph-action")?.value || "get");
-    const configured = collectConfiguredCategories(config);
-    if (!mail) {
-      status.textContent = "PluginConfig.groups[\"GRP-01\"].email è mancante o vuota.";
-      status.className = "developer-create-help developer-category-summary status-error";
-      return;
-    }
-    if (action === "add") {
-      status.textContent = configured.length
-        ? `Mail Function caricata da PluginConfig. Categorie add disponibili dalla PluginConfig: ${configured.length}.`
-        : "Nessuna categoria disponibile nella PluginConfig.";
-      status.className = `developer-create-help developer-category-summary${configured.length ? "" : " status-error"}`;
-      return;
-    }
-    if (action === "get") {
-      status.textContent = "get esegue una lettura Graph senza modificare lo stato Office.js mostrato nel messaggio.";
-      status.className = "developer-create-help developer-category-summary";
-      return;
-    }
-    if (developerGraphCategoryState.loading) {
-      status.textContent = "Lettura Graph delle categorie applicate in corso…";
-      status.className = "developer-create-help developer-category-summary";
-      return;
-    }
-    if (developerGraphCategoryState.error) {
-      status.textContent = `Lettura Graph non riuscita: ${developerGraphCategoryState.error}`;
-      status.className = "developer-create-help developer-category-summary status-error";
-      return;
-    }
-    if (!developerGraphCategoryState.loaded) {
-      status.textContent = "Per remove vengono lette da Graph le categorie effettivamente applicate al messaggio.";
-      status.className = "developer-create-help developer-category-summary";
-      return;
-    }
-    const configuredKeys = new Set(configured.map(categoryKey));
-    const unconfigured = developerGraphCategoryState.categories.filter((category) => !configuredKeys.has(categoryKey(category)));
-    status.textContent = [
-      `Categorie applicate lette da Graph: ${developerGraphCategoryState.categories.length}.`,
-      unconfigured.length
-        ? `Non presenti in PluginConfig ma rimovibili: ${unconfigured.join(", ")}.`
-        : "Tutte le categorie Graph applicate sono presenti nella PluginConfig."
-    ].join("\n");
-    status.className = `developer-create-help developer-category-summary${unconfigured.length ? " status-warning" : ""}`;
-  }
-
-  function populateGraphAddCategories(config = developerConfig, preserveSelection = true) {
-    const configured = collectConfiguredCategories(config);
-    setMultiSelectOptions(
-      byId("developer-graph-categories"),
-      configured.map((category) => ({ value: category, label: category })),
-      preserveSelection
-    );
-  }
-
-  function populateGraphRemoveCategories(config = developerConfig, preserveSelection = true) {
-    const configuredKeys = new Set(collectConfiguredCategories(config).map(categoryKey));
-    setMultiSelectOptions(
-      byId("developer-graph-categories"),
-      developerGraphCategoryState.categories.map((category) => {
-        const known = configuredKeys.has(categoryKey(category));
-        return {
-          value: category,
-          label: `${category} · ${known ? "PluginConfig" : "non presente in PluginConfig"}`,
-          className: known ? "" : "category-not-configured"
-        };
-      }),
-      preserveSelection
-    );
-  }
-
-  async function loadGraphCategoriesForRemove({ force = false } = {}) {
-    const mail = requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig");
-    const messageId = requiredFormValue("developer-graph-message-id", "Message ID");
-    if (!force && developerGraphCategoryState.loaded && graphCategoryStateMatches(mail, messageId)) {
-      populateGraphRemoveCategories();
-      renderGraphCategoryStatus();
-      return developerGraphCategoryState.categories;
-    }
-    const sequence = ++graphCategoryLoadSequence;
-    developerGraphCategoryState = { mail, messageId, categories: [], loaded: false, loading: true, error: "" };
-    setMultiSelectOptions(byId("developer-graph-categories"), [], false);
-    renderGraphCategoryStatus();
-    try {
-      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
-      if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile.");
-      const config = await ensureOperationalConfig(authentication.accessToken);
-      refreshDeveloperToolsAccess(config);
-      const response = await fetch(DEVELOPER_ENDPOINTS.SetMessageCategories, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authentication.accessToken}`,
-          Accept: "application/json",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ mail, messageId, action: "get" })
-      });
-      const responseText = await response.text();
-      let parsed = null;
-      try { parsed = JSON.parse(responseText || "{}"); } catch {}
-      if (!response.ok) throw new Error(parsed?.message || `Graph get HTTP ${response.status} ${response.statusText || ""}`.trim());
-      if (sequence !== graphCategoryLoadSequence) return [];
-      const categories = uniqueCategoryNames(parsed?.categories);
-      developerGraphCategoryState = { mail, messageId, categories, loaded: true, loading: false, error: "" };
-      populateGraphRemoveCategories(config);
-      renderGraphCategoryStatus(config);
-      return categories;
-    } catch (error) {
-      if (sequence !== graphCategoryLoadSequence) return [];
-      developerGraphCategoryState = {
-        mail,
-        messageId,
-        categories: [],
-        loaded: false,
-        loading: false,
-        error: error?.message || String(error)
-      };
-      setMultiSelectOptions(byId("developer-graph-categories"), [], false);
-      renderGraphCategoryStatus();
-      throw error;
-    }
-  }
-
-  function populateGraphCategoryForm(config = developerConfig) {
-    const mail = getM365AdminCenterMailbox(config);
-    const input = byId("developer-graph-mail");
-    if (input) input.value = mail;
-    const messageId = byId("developer-graph-message-id");
-    if (messageId && !messageId.value) messageId.value = currentMessageContext?.itemId || "";
-    updateGraphCategoryControls();
-  }
-
-  function updateOfficeCategoryControls() {
-    const action = String(byId("developer-category-action")?.value || "get");
-    const isAdd = action === "add";
-    const isRemove = action === "remove";
-    const categoriesRow = byId("developer-category-categories-row");
-    const categories = byId("developer-category-categories");
-    const label = byId("developer-category-categories-label");
-    const help = byId("developer-category-selection-help");
-    const replaceRow = byId("developer-category-replace-row");
-    const clearRow = byId("developer-category-clear-row");
-    const clear = byId("developer-category-clear");
-    if (categoriesRow) categoriesRow.hidden = action === "get";
-    if (replaceRow) replaceRow.hidden = !isAdd;
-    if (clearRow) clearRow.hidden = !isRemove;
-    if (!isAdd) {
-      const replace = byId("developer-category-replace");
-      if (replace) replace.checked = false;
-    }
-    if (!isRemove && clear) clear.checked = false;
-    const clearAll = isRemove && Boolean(clear?.checked);
-    if (categories) categories.disabled = action === "get" || clearAll;
-    if (label) label.textContent = isAdd ? "Categorie da aggiungere (Master Category List)" : "Categorie da rimuovere (applicate al messaggio)";
-    if (help) help.textContent = isAdd
-      ? "La selezione è popolata esclusivamente dalla Master Category List di Outlook."
-      : "La selezione contiene esclusivamente le categorie Office.js applicate al messaggio corrente.";
-  }
-
-  async function refreshOfficeCategoryForm({ preserveSelection = false } = {}) {
-    const sequence = ++officeCategoryLoadSequence;
-    const status = byId("developer-category-available");
-    const select = byId("developer-category-categories");
-    if (status) {
-      status.textContent = "Lettura categorie Office.js e Master Category List in corso…";
-      status.className = "developer-create-help developer-category-summary";
-    }
-    try {
-      const item = Office.context?.mailbox?.item;
-      if (!item || !currentMessageContext) throw new Error("Seleziona un messaggio Outlook e attendi il completamento della lettura automatica.");
-      const [appliedRaw, masterRaw] = await Promise.all([getCategories(item), getMasterCategories()]);
-      if (sequence !== officeCategoryLoadSequence) return;
-      const applied = uniqueCategoryNames(appliedRaw);
-      const master = uniqueCategoryNames(masterRaw);
-      const masterByKey = new Map(master.map((category) => [categoryKey(category), category]));
-      const configured = collectConfiguredCategories(developerConfig || readOperationalConfigCache()?.payload);
-      const missingConfigured = configured.filter((category) => !masterByKey.has(categoryKey(category)));
-      const action = String(byId("developer-category-action")?.value || "get");
-      const options = action === "add"
-        ? masterRaw.map((category) => ({
-            value: String(category?.displayName || category || "").trim(),
-            label: `${String(category?.displayName || category || "").trim()}${category?.color ? ` · ${category.color}` : ""}`
-          })).filter((entry) => entry.value)
-        : action === "remove"
-          ? applied.map((category) => ({ value: category, label: category }))
-          : [];
-      setMultiSelectOptions(select, options, preserveSelection);
-      updateOfficeCategoryControls();
-      if (status) {
-        status.textContent = [
-          `Categorie applicate al messaggio: ${applied.length ? applied.join(", ") : "nessuna"}.`,
-          `Master Category List: ${master.length ? master.join(", ") : "nessuna"}.`,
-          missingConfigured.length
-            ? `PluginConfig non presenti nella Master Category List: ${missingConfigured.join(", ")}.`
-            : "Tutte le categorie PluginConfig sono presenti nella Master Category List."
-        ].join("\n");
-        status.className = `developer-create-help developer-category-summary${missingConfigured.length ? " status-warning" : ""}`;
-      }
-    } catch (error) {
-      if (sequence !== officeCategoryLoadSequence) return;
-      setMultiSelectOptions(select, [], false);
-      if (status) {
-        status.textContent = `Lettura Office.js non riuscita: ${error?.message || String(error)}`;
-        status.className = "developer-create-help developer-category-summary status-error";
-      }
-    }
+    Object.entries(values).forEach(([id, value]) => {
+      const input = byId(id);
+      if (input && !input.value) input.value = value;
+    });
   }
 
   function updateDeveloperActionUi() {
     const action = getDeveloperAction();
-    const isCreate = action === "createTicket";
-    const isEdit = action === "editTicket";
-    const isSearch = action === "SearchTicketRecords";
-    const isSetOutOfScope = action === "setOutOfScope";
-    const isConfirmReviewed = action === "confirmReviewed";
-    const isLock = action === "acquireLock" || action === "releaseLock";
-    const isAcquireLock = action === "acquireLock";
-    const isOfficeCategory = action === "ManageCategories";
-    const isGraphCategory = action === "SetMessageCategories";
-    const isConversationLookup = action === "GetRecordByConversationId";
-    const isRecordLookup = isRecordDeveloperAction(action);
-
     const visibility = {
-      "developer-get-form": isRecordLookup,
-      "developer-create-form": isCreate,
-      "developer-edit-form": isEdit,
-      "developer-search-form": isSearch,
-      "developer-out-of-scope-form": isSetOutOfScope,
-      "developer-reviewed-form": isConfirmReviewed,
-      "developer-lock-form": isLock,
-      "developer-category-form": isOfficeCategory,
-      "developer-graph-category-form": isGraphCategory
+      "developer-get-form": action === "GetRecordByConversationId" || action === "GetRecordById",
+      "developer-create-form": action === "createTicket",
+      "developer-edit-form": action === "editTicket",
+      "developer-search-form": action === "SearchTicketRecords",
+      "developer-lock-form": action === "acquireLock" || action === "releaseLock",
+      "developer-forward-form": action === "ForwardConversation",
+      "developer-category-form": action === "ManageCategories",
+      "developer-graph-category-form": action === "SetMessageCategories"
     };
     Object.entries(visibility).forEach(([id, visible]) => {
       const element = byId(id);
       if (element) element.hidden = !visible;
     });
 
-    const conversationModeRow = byId("developer-conversation-mode-row");
-    if (conversationModeRow) conversationModeRow.hidden = !isConversationLookup;
-    const operatorRow = byId("developer-lock-operator-row");
-    const workflowRow = byId("developer-lock-workflow-row");
-    if (operatorRow) operatorRow.hidden = !isAcquireLock;
-    if (workflowRow) workflowRow.hidden = !isAcquireLock;
-
-    if (isCreate) {
-      populateCreateTicketForm();
-      const itemInput = byId("developer-create-item-id");
-      if (itemInput && developerLastItemId) itemInput.value = developerLastItemId;
-      return;
-    }
-    if (isSearch) {
-      populateSearchTicketRecordsForm();
-      return;
-    }
-    if (isEdit || isSetOutOfScope || isConfirmReviewed || isLock) {
-      populateTicketAndLockForms();
-      return;
-    }
-    if (isOfficeCategory) {
-      updateOfficeCategoryControls();
-      void refreshOfficeCategoryForm();
-      return;
-    }
-    if (isGraphCategory) {
-      populateGraphCategoryForm();
-      return;
-    }
-
     const label = byId("developer-action-input-label");
     const input = byId("developer-action-input");
-    if (!label || !input) return;
-    if (action === "GetRecordById") {
-      label.textContent = "Item ID";
-      input.placeholder = "es. 9840";
-      input.value = developerLastItemId || "";
-    } else {
-      label.textContent = "Conversation ID";
-      input.placeholder = "Conversation ID del messaggio";
-      input.value = currentMessageContext?.normalizedConversationId || "";
+    const modeRow = byId("developer-conversation-mode-row");
+    if (modeRow) modeRow.hidden = action !== "GetRecordByConversationId";
+    if (label && input) {
+      if (action === "GetRecordById") {
+        label.textContent = "Item ID";
+        input.placeholder = "es. 9840";
+        input.value = developerLastItemId || input.value || "";
+      } else if (action === "GetRecordByConversationId") {
+        label.textContent = "Conversation ID";
+        input.placeholder = "Conversation ID del messaggio";
+        input.value = currentMessageContext?.normalizedConversationId || input.value || "";
+      }
     }
+
+    prefillCreateFromMessage();
+    populateDeveloperForms(developerConfig, getCurrentOperatorEmail());
+    if (action === "ManageCategories") void refreshOfficeCategoryForm();
+    if (action === "SetMessageCategories") populateGraphCategoryForm();
   }
 
   function setTicketButtonLoading(value) {
@@ -1765,230 +1514,52 @@ function registerHealthButton() {
     }
   }
 
-  function parseAmpMetadata(value) {
-    if (!value) return { tickets: [], error: null };
-    try {
-      const parsed = typeof value === "string" ? JSON.parse(value) : value;
-      return { tickets: Array.isArray(parsed?.tickets) ? parsed.tickets : [], error: null };
-    } catch (error) {
-      return { tickets: [], error: error?.message || String(error) };
-    }
-  }
-
-  function findOperatorByLookupId(id) {
-    const config = developerConfig || readOperationalConfigCache()?.payload;
-    return Object.entries(config?.operators || {}).find(([, operator]) => String(operator?.lookupId) === String(id)) || null;
-  }
-
   function addDeveloperField(container, label, value) {
     const card = document.createElement("div");
     card.className = "developer-field-card";
-    if (label === "Note ticket") card.classList.add("developer-note-field");
-    if (label === "Log") card.classList.add("developer-log-field");
-    if (label === "Filtri applicati") card.classList.add("developer-log-field");
+    if (["Descrizione", "Note", "Note di risoluzione", "Campi", "Filtri applicati"].includes(label)) {
+      card.classList.add("developer-log-field");
+    }
     const name = document.createElement("span");
     name.textContent = label;
     const content = document.createElement("strong");
-    content.textContent = value == null || value === "" ? "Non disponibile" : String(value);
+    let displayed = value;
+    if (value && typeof value === "object") displayed = JSON.stringify(value, null, 2);
+    content.textContent = displayed === undefined || displayed === null || displayed === "" ? "Non disponibile" : String(displayed);
     card.append(name, content);
     container.appendChild(card);
   }
 
-  function normalizeRecordFieldName(value) {
-    return String(value || "")
-      .replace(/_x[0-9a-f]{4}_/gi, "")
-      .replace(/[^a-z]/gi, "")
-      .toLowerCase();
-  }
-
-  function removeRecordLogs(value) {
-    if (Array.isArray(value)) return value.map(removeRecordLogs);
-    if (!value || typeof value !== "object") return value;
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) => {
-          const normalizedKey = normalizeRecordFieldName(key);
-          return !["log", "logs", "logentry", "logentries", "ticketlog", "ticketlogs"].includes(normalizedKey);
-        })
-        .map(([key, entry]) => [key, removeRecordLogs(entry)])
-    );
-  }
-
   function getRecordResultEntries(parsed) {
     if (Array.isArray(parsed)) return parsed;
-    const collections = [
-      parsed?.records,
-      parsed?.items,
-      parsed?.results,
-      parsed?.value,
-      parsed?.data,
-      parsed?.data?.records,
-      parsed?.data?.items
-    ];
-    const collection = collections.find(Array.isArray);
-    if (collection) return collection;
-    if (parsed?.record && typeof parsed.record === "object") return [parsed.record];
-    return parsed?.fields && typeof parsed.fields === "object" ? [parsed] : [];
-  }
-
-  function hasRecordResultShape(parsed) {
-    return Array.isArray(parsed) || Boolean(
-      parsed?.record ||
-      parsed?.fields ||
-      [parsed?.records, parsed?.items, parsed?.results, parsed?.value, parsed?.data, parsed?.data?.records, parsed?.data?.items].some(Array.isArray)
-    );
-  }
-
-  function getRecordFields(record) {
-    return record?.fields && typeof record.fields === "object" ? record.fields : {};
+    if (Array.isArray(parsed?.items)) return parsed.items;
+    if (Array.isArray(parsed?.records)) return parsed.records;
+    if (parsed?.item && typeof parsed.item === "object") return [parsed.item];
+    if (parsed?.fields && typeof parsed.fields === "object") return [{ itemId: parsed.itemId, fields: parsed.fields }];
+    return [];
   }
 
   function getRecordItemId(record) {
-    const fields = getRecordFields(record);
-    return record?.itemId || record?.id || fields?.id || fields?.Id || fields?.ID || "";
+    return record?.itemId ?? record?.id ?? record?.fields?.id ?? record?.fields?.ID ?? "";
   }
 
-  function getSharePointAuditLog(fields) {
-    return fields?.AvanadeLog;
-  }
-
-  function formatSharePointAuditLog(value) {
-    if (Array.isArray(value)) return value.map(formatSharePointAuditLog).filter(Boolean).join("\n\n");
-    if (value && typeof value === "object") return JSON.stringify(removeRecordLogs(value), null, 2);
-    const source = value == null ? "" : String(value);
-    if (!source || !/<[a-z][\s\S]*>/i.test(source)) return source;
-    if (typeof DOMParser !== "undefined") {
-      const document = new DOMParser().parseFromString(source, "text/html");
-      return String(document.body?.textContent || "").trim();
-    }
-    return source
-      .replace(/<br\s*\/?\s*>/gi, "\n")
-      .replace(/<\/div\s*>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
-
-  function formatTicketNotes(notes) {
-    if (Array.isArray(notes)) {
-      return notes.map(formatTicketNotes).filter(Boolean).join("\n\n");
-    }
-    if (notes && typeof notes === "object") {
-      const text = notes.text ?? notes.body ?? notes.content ?? notes.note ?? notes.value;
-      if (text !== undefined && text !== null && text !== "") return String(text);
-      return JSON.stringify(removeRecordLogs(notes), null, 2);
-    }
-    return notes == null ? "" : String(notes);
-  }
-
-  function renderSelectedAmpTicket(container, ticket) {
-    const details = document.createElement("div");
-    details.className = "developer-fields";
-    addDeveloperField(details, "Ticket interno", ticket?.ticketId);
-    addDeveloperField(details, "Message ID", ticket?.messageId);
-    addDeveloperField(details, "Riferimento AMP", ticket?.ampRequestId);
-    addDeveloperField(details, "Stato AMP", ticket?.status || ticket?.ampStatus);
-    addDeveloperField(details, "Lock operatore", ticket?.lock?.operatorId || "Nessun lock");
-    addDeveloperField(details, "Lock richiesto da", ticket?.lock?.requesterId);
-    addDeveloperField(details, "Workflow lock", ticket?.lock?.workflow);
-    addDeveloperField(details, "Lock acquisito", ticket?.lock?.acquiredAt);
-    addDeveloperField(details, "Creato", ticket?.createdAt);
-    addDeveloperField(details, "Ultima attività", ticket?.lastActivityAt);
-    addDeveloperField(details, "Note ticket", formatTicketNotes(ticket?.notes));
-    container.appendChild(details);
-  }
-
-  function appendTicketSelector(container, tickets, labelText = "Ticket AMP") {
-    if (!tickets.length) return;
-    const selectorBox = document.createElement("div");
-    selectorBox.className = "developer-ticket-selector";
-    const label = document.createElement("label");
-    label.textContent = labelText;
-    const selector = document.createElement("select");
-    tickets.forEach((ticket, index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = ticket?.ticketId || `Ticket ${index + 1}`;
-      selector.appendChild(option);
+  function renderRecord(container, record) {
+    const fields = record?.fields && typeof record.fields === "object" ? record.fields : {};
+    addDeveloperField(container, "Item ID", getRecordItemId(record));
+    const preferred = [
+      "Subject", "From", "To", "CC", "BCC", "ReceivedDate", "MessageId",
+      "Conversation_x0020_ID", "ConversationId", "ParentItemId", "HasAttachment",
+      "Importance", "Status", "Created", "Modified"
+    ];
+    const rendered = new Set();
+    preferred.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(fields, key)) {
+        addDeveloperField(container, key, fields[key]);
+        rendered.add(key);
+      }
     });
-    const host = document.createElement("div");
-    const redraw = () => {
-      host.replaceChildren();
-      renderSelectedAmpTicket(host, tickets[Number(selector.value) || 0]);
-    };
-    selector.addEventListener("change", redraw);
-    selectorBox.append(label, selector);
-    container.append(selectorBox, host);
-    redraw();
-  }
-
-  function renderRecordFields(container, record) {
-    const fields = getRecordFields(record);
-    const itemId = getRecordItemId(record);
-    const lookupId = fields?.AssegnataaLookupId;
-    const operator = findOperatorByLookupId(lookupId);
-    addDeveloperField(container, "Item ID", itemId);
-    addDeveloperField(container, "Gruppo", fields?.Gruppo);
-    addDeveloperField(container, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${lookupId})` : (lookupId ? `LookupId ${lookupId}` : null));
-    addDeveloperField(container, "Stato SharePoint", fields?._Status);
-    addDeveloperField(container, "Data fine", fields?.Data_x0020_Fine);
-    const auditLog = getSharePointAuditLog(fields);
-    addDeveloperField(container, "Log", formatSharePointAuditLog(auditLog));
-    const metadata = parseAmpMetadata(fields?.AMP_x002d_AVANADE);
-    if (metadata.error) {
-      const error = document.createElement("div");
-      error.className = "developer-ticket-empty status-error";
-      error.textContent = `Metadata AMP non valido: ${metadata.error}`;
-      container.appendChild(error);
-      return;
-    }
-    if (!metadata.tickets.length) {
-      const empty = document.createElement("div");
-      empty.className = "developer-ticket-empty";
-      empty.textContent = "Nessun ticket AMP presente.";
-      container.appendChild(empty);
-      return;
-    }
-    appendTicketSelector(container, metadata.tickets);
-  }
-
-  function appendRecordSelector(container, records) {
-    addDeveloperField(container, "Record restituiti", records.length);
-    if (!records.length) {
-      const empty = document.createElement("div");
-      empty.className = "developer-ticket-empty";
-      empty.textContent = "Nessun record restituito.";
-      container.appendChild(empty);
-      return;
-    }
-
-    if (records.length === 1) {
-      renderRecordFields(container, records[0]);
-      return;
-    }
-
-    const selectorBox = document.createElement("div");
-    selectorBox.className = "developer-ticket-selector";
-    const label = document.createElement("label");
-    label.textContent = "Record SharePoint";
-    const selector = document.createElement("select");
-    records.forEach((record, index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      const itemId = getRecordItemId(record);
-      option.textContent = itemId ? `Item ${itemId}` : `Record ${index + 1}`;
-      selector.appendChild(option);
-    });
-    const host = document.createElement("div");
-    const redraw = () => {
-      host.replaceChildren();
-      host.className = "developer-fields";
-      renderRecordFields(host, records[Number(selector.value) || 0]);
-    };
-    selector.addEventListener("change", redraw);
-    selectorBox.append(label, selector);
-    container.append(selectorBox, host);
-    redraw();
+    Object.keys(fields).filter((key) => !rendered.has(key)).sort((a, b) => a.localeCompare(b, "it"))
+      .forEach((key) => addDeveloperField(container, key, fields[key]));
   }
 
   function renderRecordResultFields(parsed) {
@@ -1996,37 +1567,55 @@ function registerHealthButton() {
     if (!container) return;
     container.replaceChildren();
     container.className = "developer-fields";
-    appendRecordSelector(container, getRecordResultEntries(parsed));
+    addDeveloperField(container, "Esito", parsed?.status);
+    addDeveloperField(container, "Trovato", parsed?.found === false ? "No" : "Sì");
+    const records = getRecordResultEntries(parsed);
+    addDeveloperField(container, "Record restituiti", records.length);
+    if (!records.length) return;
+    if (records.length === 1) {
+      renderRecord(container, records[0]);
+      return;
+    }
+    const selectorBox = document.createElement("div");
+    selectorBox.className = "developer-ticket-selector";
+    const label = document.createElement("label");
+    label.textContent = "Record SharePoint";
+    const select = document.createElement("select");
+    records.forEach((record, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = getRecordItemId(record) ? `Item ${getRecordItemId(record)}` : `Record ${index + 1}`;
+      select.appendChild(option);
+    });
+    const host = document.createElement("div");
+    const redraw = () => {
+      host.replaceChildren();
+      host.className = "developer-fields";
+      renderRecord(host, records[Number(select.value) || 0]);
+    };
+    select.addEventListener("change", redraw);
+    selectorBox.append(label, select);
+    container.append(selectorBox, host);
+    redraw();
   }
 
-  function renderSearchTicketRecord(container, record) {
-    const card = document.createElement("div");
-    card.className = "developer-search-record";
-    const heading = document.createElement("h4");
-    heading.textContent = record?.title || (record?.itemId ? `Item ${record.itemId}` : "Record SharePoint");
-    card.appendChild(heading);
-    const summary = document.createElement("div");
-    summary.className = "developer-search-summary";
-    const operator = findOperatorByLookupId(record?.assignedLookupId);
-    addDeveloperField(summary, "Item ID", record?.itemId);
-    addDeveloperField(summary, "Conversation ID", record?.conversationId);
-    addDeveloperField(summary, "Gruppo", record?.groupName);
-    addDeveloperField(summary, "Assegnatario", operator ? `${operator[1].displayName} (${operator[0]} · LookupId ${record?.assignedLookupId})` : (record?.assignedLookupId ? `LookupId ${record.assignedLookupId}` : null));
-    addDeveloperField(summary, "Stato SharePoint", record?.sharePointStatus);
-    addDeveloperField(summary, "Created", record?.created);
-    addDeveloperField(summary, "Modified", record?.modified);
-    addDeveloperField(summary, "Data fine", record?.completionDate);
-    addDeveloperField(summary, "Ticket", record?.ticketsCount ?? (Array.isArray(record?.tickets) ? record.tickets.length : 0));
-    card.appendChild(summary);
-    const tickets = Array.isArray(record?.tickets) ? record.tickets : [];
-    if (tickets.length) appendTicketSelector(card, tickets, "Ticket annidati");
-    else {
-      const empty = document.createElement("div");
-      empty.className = "developer-ticket-empty";
-      empty.textContent = "Nessun ticket AMP presente (ticketsCount=0).";
-      card.appendChild(empty);
-    }
-    container.appendChild(card);
+  function renderTicket(container, ticket) {
+    if (!ticket || typeof ticket !== "object") return;
+    TICKET_FIELDS.forEach(([key, label]) => addDeveloperField(container, label, ticket[key]));
+  }
+
+  function renderTicketResultFields(parsed, action) {
+    const container = byId("developer-ticket-fields");
+    if (!container) return;
+    container.replaceChildren();
+    container.className = "developer-fields";
+    addDeveloperField(container, "Operazione", parsed?.action || action);
+    addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
+    if (parsed?.reason) addDeveloperField(container, "Motivo", parsed.reason);
+    if (parsed?.currentLock !== undefined) addDeveloperField(container, "Lock corrente", parsed.currentLock);
+    if (parsed?.operator !== undefined) addDeveloperField(container, "Operatore ticket", parsed.operator);
+    renderTicket(container, parsed?.ticket);
+    if (parsed?.message && parsed?.status !== "ok") addDeveloperField(container, "Errore", parsed.message);
   }
 
   function renderSearchTicketRecordsFields(parsed) {
@@ -2035,167 +1624,47 @@ function registerHealthButton() {
     container.replaceChildren();
     container.className = "developer-fields";
     addDeveloperField(container, "Esito", parsed?.status);
-    addDeveloperField(container, "Totale record", parsed?.totalCount ?? 0);
-    addDeveloperField(container, "Record restituiti", parsed?.returnedCount ?? 0);
+    addDeveloperField(container, "Totale ticket", parsed?.totalCount ?? 0);
+    addDeveloperField(container, "Ticket restituiti", parsed?.returnedCount ?? 0);
     addDeveloperField(container, "Troncato", parsed?.truncated ? "Sì" : "No");
     addDeveloperField(container, "Tempo", parsed?.elapsedMs == null ? null : `${parsed.elapsedMs} ms`);
-    addDeveloperField(container, "Filtri applicati (operatorIds, groupNames, sharePointStatuses)", JSON.stringify(parsed?.filters || {}, null, 2));
-
+    addDeveloperField(container, "Filtri applicati", parsed?.filters || {});
     const records = Array.isArray(parsed?.records) ? parsed.records : [];
-    if (!records.length) {
-      const empty = document.createElement("div");
-      empty.className = "developer-ticket-empty";
-      empty.textContent = "Nessun record SharePoint corrispondente.";
-      container.appendChild(empty);
-      return;
-    }
-
+    if (!records.length) return;
     const selectorBox = document.createElement("div");
     selectorBox.className = "developer-ticket-selector";
     const label = document.createElement("label");
-    label.textContent = "Record SharePoint";
-    const selector = document.createElement("select");
-    records.forEach((record, index) => {
+    label.textContent = "Ticket";
+    const select = document.createElement("select");
+    records.forEach((ticket, index) => {
       const option = document.createElement("option");
       option.value = String(index);
-      option.textContent = `${record?.itemId ? `Item ${record.itemId}` : `Record ${index + 1}`}${record?.title ? ` · ${record.title}` : ""} · ${record?.ticketsCount ?? 0} ticket`;
-      selector.appendChild(option);
+      option.textContent = [ticket?.ticketId || `Ticket ${index + 1}`, ticket?.status, ticket?.operator].filter(Boolean).join(" · ");
+      select.appendChild(option);
     });
     const host = document.createElement("div");
     const redraw = () => {
       host.replaceChildren();
-      renderSearchTicketRecord(host, records[Number(selector.value) || 0]);
+      host.className = "developer-fields";
+      renderTicket(host, records[Number(select.value) || 0]);
     };
-    selector.addEventListener("change", redraw);
-    selectorBox.append(label, selector);
+    select.addEventListener("change", redraw);
+    selectorBox.append(label, select);
     container.append(selectorBox, host);
     redraw();
   }
 
-  function ticketSummaryValue(ticket) {
-    return [
-      ticket?.ticketId,
-      ticket?.ampRequestId ? `AMP ${ticket.ampRequestId}` : null,
-      ticket?.status || ticket?.ampStatus
-    ].filter(Boolean).join(" · ");
-  }
-
-  function appendExistingTickets(container, tickets) {
-    const list = document.createElement("div");
-    list.className = "developer-existing-tickets";
-    tickets.forEach((ticket, index) => {
-      const card = document.createElement("div");
-      card.className = "developer-existing-ticket";
-      const heading = document.createElement("h4");
-      heading.textContent = ticketSummaryValue(ticket) || `Lavorazione ${index + 1}`;
-      const details = document.createElement("dl");
-      [
-        ["Ticket interno", ticket?.ticketId],
-        ["Message ID", ticket?.messageId],
-        ["Riferimento AMP", ticket?.ampRequestId],
-        ["Stato AMP", ticket?.status || ticket?.ampStatus],
-        ["Operatore", ticket?.lock?.operatorId],
-        ["Workflow", ticket?.lock?.workflow],
-        ["Note ticket", formatTicketNotes(ticket?.notes)]
-      ].forEach(([label, value]) => {
-        const term = document.createElement("dt");
-        const description = document.createElement("dd");
-        term.textContent = label;
-        description.textContent = value == null || value === "" ? "Non disponibile" : String(value);
-        details.append(term, description);
-      });
-      card.append(heading, details);
-      list.appendChild(card);
-    });
-    container.appendChild(list);
-  }
-
-  function getCreateResponseTickets(parsed) {
-    if (Array.isArray(parsed?.metadata?.tickets)) return parsed.metadata.tickets;
-    if (Array.isArray(parsed?.tickets)) return parsed.tickets;
-    if (Array.isArray(parsed?.existingTickets)) return parsed.existingTickets;
-    return [];
-  }
-
-  function renderCreateTicketFields(parsed) {
+  function renderForwardResultFields(parsed) {
     const container = byId("developer-ticket-fields");
     if (!container) return;
     container.replaceChildren();
     container.className = "developer-fields";
-    const body = developerLastCreateBody || {};
-    const tickets = getCreateResponseTickets(parsed);
-    const createdTicketId = parsed?.ticketId || parsed?.createdTicket?.ticketId;
-    const createdTicket = parsed?.createdTicket || tickets.find((ticket) => ticket?.ticketId === createdTicketId) || tickets.at(-1) || null;
-    const reason = String(parsed?.reason || parsed?.code || parsed?.status || "");
-
-    addDeveloperField(container, "Operazione", parsed?.action || "createTicket");
-    addDeveloperField(container, "Item ID", parsed?.itemId || body.itemId);
-
-    if (reason === "existing_tickets_found") {
-      const conflict = document.createElement("div");
-      conflict.className = "developer-conflict";
-      const heading = document.createElement("h4");
-      heading.textContent = "Creazione non eseguita";
-      const explanation = document.createElement("p");
-      explanation.textContent = "Esistono già lavorazioni associate all'elemento SharePoint.";
-      conflict.append(heading, explanation);
-      const existingTickets = Array.isArray(parsed?.existingTickets)
-        ? parsed.existingTickets
-        : (Array.isArray(parsed?.existing_tickets) ? parsed.existing_tickets : tickets);
-      if (existingTickets.length) appendExistingTickets(conflict, existingTickets);
-      addDeveloperField(conflict, "AMP prenotato", parsed?.reservedAmpRequestId || parsed?.reserved_amp_request_id || body.ampRequestId);
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "primary-button developer-force-create";
-      retry.textContent = "Crea comunque nuova lavorazione";
-      retry.addEventListener("click", () => {
-        if (!developerLastCreateBody) return;
-        void executeDeveloperAction({ ...developerLastCreateBody, createAdditionalTicket: true });
-      });
-      conflict.appendChild(retry);
-      container.appendChild(conflict);
-      return;
-    }
-
     addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
-    addDeveloperField(container, "Ticket creato", createdTicketId || createdTicket?.ticketId);
-    addDeveloperField(container, "Message ID", parsed?.messageId || createdTicket?.messageId || body.messageId);
-    addDeveloperField(container, "Riferimento AMP", parsed?.ampRequestId || createdTicket?.ampRequestId || body.ampRequestId);
-    addDeveloperField(container, "Stato AMP", createdTicket?.status || createdTicket?.ampStatus || body.ampStatus);
-    addDeveloperField(container, "Ticket inoltrato", (createdTicket?.isForwardedTicket ?? body.isForwardedTicket) ? "Sì — lifecycle AMP disaccoppiato" : "No — lifecycle AMP collegato");
-    const createdTicketNotes = formatTicketNotes(createdTicket?.notes ?? body.notes);
-    if (!tickets.length) addDeveloperField(container, "Note ticket", createdTicketNotes);
-    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus);
-    addDeveloperField(container, "Data fine", parsed?.Data_x0020_Fine);
-    addDeveloperField(container, "Gruppo", parsed?.groupName || body.groupName);
-    addDeveloperField(container, "Lock", createdTicket?.lock ? `${createdTicket.lock.operatorId || body.operatorId} · ${createdTicket.lock.workflow || "CreateTicket"}` : `${body.operatorId || "-"} · CreateTicket`);
-    addDeveloperField(container, "Totale lavorazioni", Array.isArray(parsed?.metadata?.tickets) ? parsed.metadata.tickets.length : (parsed?.totalTickets ?? (tickets.length || null)));
-    if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
-    if (tickets.length) appendTicketSelector(container, tickets, "Lavorazioni aggiornate");
-  }
-
-  function isCategoryDeveloperAction(action) {
-    return action === "ManageCategories" || action === "SetMessageCategories";
-  }
-
-  function isOfficeCategoryDeveloperAction(action) {
-    return action === "ManageCategories";
-  }
-
-  function isTicketDeveloperAction(action) {
-    return action === "createTicket" || action === "editTicket" || action === "setOutOfScope" || action === "confirmReviewed" || action === "SearchTicketRecords";
-  }
-
-  function isSearchTicketRecordsAction(action) {
-    return action === "SearchTicketRecords";
-  }
-
-  function isLockDeveloperAction(action) {
-    return action === "acquireLock" || action === "releaseLock";
-  }
-
-  function isRecordDeveloperAction(action) {
-    return action === "GetRecordByConversationId" || action === "GetRecordById";
+    addDeveloperField(container, "Conversation ID", parsed?.conversationId);
+    addDeveloperField(container, "Destinazione", parsed?.groupName);
+    addDeveloperField(container, "Item ID", parsed?.itemId);
+    addDeveloperField(container, "Campi", parsed?.fields);
+    if (parsed?.message && parsed?.status !== "ok") addDeveloperField(container, "Errore", parsed.message);
   }
 
   function formatCategoryNameList(value) {
@@ -2208,88 +1677,27 @@ function registerHealthButton() {
     if (!container) return;
     container.replaceChildren();
     container.className = "developer-fields";
-    const graphAction = action === "SetMessageCategories";
-    const semanticAction = String(parsed?.action || "");
     addDeveloperField(container, "Operazione", action);
-
-    if (graphAction) {
-      addDeveloperField(container, "Action Graph", semanticAction);
-      addDeveloperField(container, "Mail", parsed?.mail);
-      addDeveloperField(container, "Message ID", parsed?.messageId);
-    }
-
-    if (semanticAction === "get") {
-      addDeveloperField(container, "Modalità", graphAction ? "Lettura Graph" : "Lettura Office.js");
-      if (graphAction) {
-        addDeveloperField(container, "Aggiornato", parsed?.updated === false ? "false" : String(parsed?.updated ?? "Non disponibile"));
-        addDeveloperField(container, "GET Graph", parsed?.initialGetPerformed ? "Eseguito" : "Non eseguito");
-        addDeveloperField(container, "PATCH", "Non eseguito");
-        addDeveloperField(container, "Categorie Graph", formatCategoryNameList(parsed?.categories));
-      } else {
-        addDeveloperField(container, "Categorie sul messaggio", formatCategoryNameList(parsed?.messageCategories));
-        addDeveloperField(container, "Master Category List", formatCategoryNameList(parsed?.masterCategories));
-        addDeveloperField(container, "PluginConfig mancanti dalla Master", formatCategoryNameList(parsed?.configuredCategoriesMissingFromMaster));
-      }
-      if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
-      return;
-    }
-
-    const isAdd = semanticAction === "add";
-    const mode = isAdd
-      ? (parsed?.replace ? "Sostituzione completa" : "Aggiunta")
-      : (parsed?.clear ? "Rimozione completa" : "Rimozione selettiva");
-    if (graphAction) addDeveloperField(container, "GET finale", parsed?.finalGetSkipped || parsed?.skipFinalGet ? "Saltato" : "Eseguito");
-    addDeveloperField(container, "Modalità", mode);
-    addDeveloperField(container, "Categorie richieste", formatCategoryNameList(parsed?.requestedCategories || parsed?.categoriesRequested || parsed?.categories));
-    addDeveloperField(container, "Categorie before", formatCategoryNameList(parsed?.categoriesBefore));
-    addDeveloperField(container, "Categorie after", formatCategoryNameList(parsed?.categoriesAfter || (graphAction && !parsed?.finalGetSkipped ? parsed?.categories : null)));
-    if (!graphAction) {
-      addDeveloperField(container, "Master Category List", formatCategoryNameList(parsed?.masterCategories));
-      addDeveloperField(container, "PluginConfig mancanti dalla Master", formatCategoryNameList(parsed?.configuredCategoriesMissingFromMaster));
-    }
-    if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
+    addDeveloperField(container, "Action", parsed?.action);
+    addDeveloperField(container, "Modalità", parsed?.mode);
+    addDeveloperField(container, "Aggiornato", parsed?.updated);
+    addDeveloperField(container, "Mail", parsed?.mail);
+    addDeveloperField(container, "Message ID", parsed?.messageId);
+    addDeveloperField(container, "Categorie", formatCategoryNameList(parsed?.categories));
+    addDeveloperField(container, "Categorie prima", formatCategoryNameList(parsed?.categoriesBefore));
+    addDeveloperField(container, "Categorie dopo", formatCategoryNameList(parsed?.categoriesAfter));
+    addDeveloperField(container, "Master Category List", formatCategoryNameList(parsed?.masterCategories));
+    if (parsed?.message && parsed?.status !== "ok") addDeveloperField(container, "Errore", parsed.message);
   }
 
-  function renderTicketOrLockFields(parsed, action) {
-    const container = byId("developer-ticket-fields");
-    if (!container) return;
-    container.replaceChildren();
-    container.className = "developer-fields";
-    addDeveloperField(container, "Operazione", parsed?.action || action);
-    addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
-    addDeveloperField(container, "Item ID", parsed?.itemId);
-    addDeveloperField(container, "Ticket ID", parsed?.ticketId);
-    addDeveloperField(container, "Stato AMP", parsed?.ampStatus || parsed?.ticket?.status);
-    addDeveloperField(container, "Stato SharePoint", parsed?.sharePointStatus || parsed?.currentStatus);
-    addDeveloperField(container, "Data fine", parsed?.Data_x0020_Fine);
-    if (action === "setOutOfScope") {
-      addDeveloperField(container, "outOfScope", String(Boolean(parsed?.outOfScope)));
-      addDeveloperField(container, "Stato precedente", parsed?.previousStatus);
-      addDeveloperField(container, "Nuovo stato", parsed?.newStatus);
-    }
-    if (action === "confirmReviewed") {
-      addDeveloperField(container, "reviewed richiesto", String(parsed?.reviewed ?? parsed?.requestedReviewed));
-      addDeveloperField(container, "Stato precedente", parsed?.previousStatus || parsed?.currentStatus);
-      addDeveloperField(container, "Nuovo stato", parsed?.newStatus);
-    }
-    if (parsed?.mode === "refreshExternalAssignment" || parsed?.refreshExternalAssignment) {
-      addDeveloperField(container, "Modalità", "refreshExternalAssignment");
-      addDeveloperField(container, "Gruppo precedente", parsed?.previousGroup);
-      addDeveloperField(container, "Nuovo gruppo", parsed?.newGroup);
-      addDeveloperField(container, "Requester refresh", parsed?.requesterId);
-      addDeveloperField(container, "Timestamp refresh", parsed?.timestamp);
-      addDeveloperField(container, "Forzature", `forceRefresh=${Boolean(parsed?.forceRefresh)}, forceChangeGroup=${Boolean(parsed?.forceChangeGroup)}`);
-    }
-    if (parsed?.lastRefresh) {
-      addDeveloperField(container, "Ultimo refresh requester", parsed.lastRefresh.requesterId);
-      addDeveloperField(container, "Ultimo refresh timestamp", parsed.lastRefresh.timestamp);
-    }
-    if (parsed?.reason) addDeveloperField(container, "Motivo", parsed.reason);
-    const lock = parsed?.currentLock || parsed?.lock || parsed?.ticket?.lock;
-    if (lock) addDeveloperField(container, "Lock", `${lock.operatorId || "-"} · ${lock.workflow || "-"}`);
-    if (parsed?.message && parsed?.status === "error") addDeveloperField(container, "Errore", parsed.message);
-    const tickets = getCreateResponseTickets(parsed);
-    if (tickets.length) appendTicketSelector(container, tickets, "Lavorazioni aggiornate");
+  function isRecordDeveloperAction(action) {
+    return action === "GetRecordByConversationId" || action === "GetRecordById";
+  }
+  function isTicketDeveloperAction(action) {
+    return action === "createTicket" || action === "editTicket" || action === "acquireLock" || action === "releaseLock";
+  }
+  function isCategoryDeveloperAction(action) {
+    return action === "ManageCategories" || action === "SetMessageCategories";
   }
 
   function applyDeveloperResultView() {
@@ -2316,33 +1724,26 @@ function registerHealthButton() {
     let parsed = null;
     try {
       parsed = JSON.parse(result.body || "{}");
-      if (isRecordDeveloperAction(action)) parsed = removeRecordLogs(parsed);
       response.textContent = JSON.stringify(parsed, null, 2);
     } catch {
       response.textContent = result.body || "(Risposta vuota)";
     }
 
     const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
-    const returnedItemId = returnedRecord ? getRecordItemId(returnedRecord) : (parsed?.itemId || parsed?.fields?.id);
-    if (action !== "createTicket" && returnedItemId) {
-      developerLastItemId = String(returnedItemId);
-      ["developer-create-item-id", "developer-edit-item-id", "developer-out-of-scope-item-id", "developer-reviewed-item-id", "developer-lock-item-id"].forEach((id) => {
-        const input = byId(id);
-        if (input) input.value = developerLastItemId;
-      });
+    const returnedItemId = returnedRecord ? getRecordItemId(returnedRecord) : parsed?.itemId;
+    if (returnedItemId) developerLastItemId = String(returnedItemId);
+    if (action === "GetRecordByConversationId" && getConversationRecordMode() === "first" && returnedItemId) {
+      const parent = byId("developer-create-parent-item-id");
+      if (parent) parent.value = String(returnedItemId);
     }
 
-    const hasFieldView = isRecordDeveloperAction(action)
-      ? hasRecordResultShape(parsed)
-      : (isTicketDeveloperAction(action) || isLockDeveloperAction(action) || isCategoryDeveloperAction(action)
-        ? Boolean(parsed && typeof parsed === "object")
-        : Boolean(parsed?.fields));
-    developerResultView = hasFieldView ? "fields" : "json";
-    if (action === "createTicket" && parsed) renderCreateTicketFields(parsed);
-    else if (isSearchTicketRecordsAction(action) && parsed) renderSearchTicketRecordsFields(parsed);
-    else if ((action === "editTicket" || action === "setOutOfScope" || action === "confirmReviewed" || isLockDeveloperAction(action)) && parsed) renderTicketOrLockFields(parsed, action);
+    const hasFields = Boolean(parsed && typeof parsed === "object");
+    developerResultView = hasFields ? "fields" : "json";
+    if (isRecordDeveloperAction(action) && parsed) renderRecordResultFields(parsed);
+    else if (action === "SearchTicketRecords" && parsed) renderSearchTicketRecordsFields(parsed);
+    else if (isTicketDeveloperAction(action) && parsed) renderTicketResultFields(parsed, action);
+    else if (action === "ForwardConversation" && parsed) renderForwardResultFields(parsed);
     else if (isCategoryDeveloperAction(action) && parsed) renderCategoryFields(parsed, action);
-    else if (isRecordDeveloperAction(action) && hasRecordResultShape(parsed)) renderRecordResultFields(parsed);
     else byId("developer-ticket-fields")?.replaceChildren();
     applyDeveloperResultView();
   }
@@ -2353,111 +1754,77 @@ function registerHealthButton() {
     return value;
   }
 
-  function canonicalizeConfiguredCategories(values, config = developerConfig) {
-    const configured = collectConfiguredCategories(config);
-    const byKey = new Map(configured.map((category) => [categoryKey(category), category]));
-    const unknown = values.filter((category) => !byKey.has(categoryKey(category)));
-    if (unknown.length) {
-      throw new Error(`Categorie non presenti in PluginConfig: ${unknown.join(", ")}.`);
-    }
-    return values.map((category) => byKey.get(categoryKey(category)));
+  function optionalTextValue(id) {
+    const value = String(byId(id)?.value || "").trim();
+    return value || null;
   }
 
-  function normalizeOfficeCategoryRequest(action, categoriesValue, { replace = false, clear = false } = {}) {
-    if (!["get", "add", "remove"].includes(action)) throw new Error("Action Office.js non valida: usa get, add oppure remove.");
-    const categories = uniqueCategoryNames(categoriesValue);
-    if (action === "get") return { action, categories: [], replace: false, clear: false };
-    if (action === "add") {
-      if (!categories.length) throw new Error("Seleziona almeno una categoria della Master Category List da aggiungere.");
-      return { action, categories, replace: Boolean(replace), clear: false };
-    }
-    if (clear) return { action, categories: [], replace: false, clear: true };
-    if (!categories.length) throw new Error("Seleziona almeno una categoria applicata da rimuovere oppure attiva clear.");
-    return { action, categories, replace: false, clear: false };
+  function assertPositiveInteger(value, label) {
+    if (!/^\d+$/.test(String(value)) || Number(value) <= 0) throw new Error(`${label} deve essere un intero positivo.`);
+    return Number(value);
   }
 
-  async function executeOfficeCategoryAction(request) {
-    const item = Office.context?.mailbox?.item;
-    if (!item || !currentMessageContext) {
-      throw new Error("Seleziona un messaggio Outlook e attendi il completamento della lettura automatica.");
+  function collectCreateTicketBody() {
+    validateTicketingConfig(developerConfig);
+    const parentItemId = requiredFormValue("developer-create-parent-item-id", "Parent Item ID");
+    assertPositiveInteger(parentItemId, "Parent Item ID");
+    const status = requiredFormValue("developer-create-status", "Stato");
+    if (!developerConfig.ticketing.statuses.includes(status)) throw new Error(`Stato non ammesso: ${status}.`);
+    const notes = String(byId("developer-create-notes")?.value || "");
+    const resolutionNotes = String(byId("developer-create-resolution-notes")?.value || "");
+    if (notes.length > TICKET_NOTES_MAX_LENGTH || resolutionNotes.length > TICKET_NOTES_MAX_LENGTH) {
+      throw new Error(`Note e note di risoluzione non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
     }
-
-    let categoriesBefore = null;
-    let categoriesAfter = null;
-    let masterCategories = null;
-    let missingConfiguredCategories = null;
-    let operationError = null;
-
-    try {
-      const [beforeRaw, masterRaw] = await Promise.all([getCategories(item), getMasterCategories()]);
-      categoriesBefore = uniqueCategoryNames(beforeRaw);
-      masterCategories = uniqueCategoryNames(masterRaw);
-      const beforeByKey = new Map(categoriesBefore.map((category) => [categoryKey(category), category]));
-      const masterByKey = new Map(masterCategories.map((category) => [categoryKey(category), category]));
-      const configured = collectConfiguredCategories(developerConfig || readOperationalConfigCache()?.payload);
-      missingConfiguredCategories = configured.filter((category) => !masterByKey.has(categoryKey(category)));
-
-      if (request.action === "add") {
-        const invalid = request.categories.filter((category) => !masterByKey.has(categoryKey(category)));
-        if (invalid.length) throw new Error(`Categorie non presenti nella Master Category List: ${invalid.join(", ")}.`);
-        const canonical = request.categories.map((category) => masterByKey.get(categoryKey(category)));
-        if (request.replace) {
-          await removeCategories(item, categoriesBefore);
-          await addCategories(item, canonical);
-        } else {
-          const missing = canonical.filter((category) => !beforeByKey.has(categoryKey(category)));
-          await addCategories(item, missing);
-        }
-      } else if (request.action === "remove") {
-        const namesToRemove = request.clear
-          ? categoriesBefore
-          : request.categories.map((category) => beforeByKey.get(categoryKey(category))).filter(Boolean);
-        await removeCategories(item, namesToRemove);
-      }
-    } catch (error) {
-      operationError = error;
-    }
-
-    try {
-      const after = await getCategories(item);
-      categoriesAfter = uniqueCategoryNames(after);
-      updateCurrentMessageCategories(after);
-    } catch (error) {
-      operationError ||= error;
-    }
-
-    const payload = request.action === "get"
-      ? {
-          status: operationError ? "error" : "ok",
-          action: "get",
-          messageCategories: categoriesBefore,
-          masterCategories,
-          configuredCategoriesMissingFromMaster: missingConfiguredCategories,
-          ...(operationError ? { message: operationError?.message || String(operationError) } : {})
-        }
-      : {
-          status: operationError ? "error" : "ok",
-          action: request.action,
-          categories: request.categories,
-          ...(request.action === "add" ? { replace: request.replace } : { clear: request.clear }),
-          categoriesBefore,
-          categoriesAfter,
-          masterCategories,
-          configuredCategoriesMissingFromMaster: missingConfiguredCategories,
-          ...(operationError ? { message: operationError?.message || String(operationError) } : {})
-        };
-    return {
-      ok: !operationError,
-      status: operationError ? "Errore" : 200,
-      statusText: operationError ? "" : "OK",
-      authenticationMode: "Office.js",
-      body: JSON.stringify(payload)
+    const body = {
+      action: "createTicket",
+      parentItemId,
+      messageId: requiredFormValue("developer-create-message-id", "Message ID"),
+      operator: requiredFormValue("developer-create-operator", "Operatore"),
+      status
     };
+    const optional = [
+      ["ampReference", "developer-create-amp-reference"],
+      ["agency", "developer-create-agency"],
+      ["shortDescription", "developer-create-short-description"],
+      ["description", "developer-create-description"],
+      ["notes", "developer-create-notes"],
+      ["resolutionNotes", "developer-create-resolution-notes"],
+      ["elapsedTime", "developer-create-elapsed-time"]
+    ];
+    optional.forEach(([key, id]) => {
+      const value = String(byId(id)?.value || "").trim();
+      if (value) body[key] = value;
+    });
+    return body;
   }
 
-  async function ManageCategories(action, categories, options = {}) {
-    const request = normalizeOfficeCategoryRequest(action, categories, options);
-    return executeOfficeCategoryAction(request);
+  function collectEditTicketBody() {
+    validateTicketingConfig(developerConfig);
+    const body = {
+      action: "editTicket",
+      ticketId: requiredFormValue("developer-edit-ticket-id", "Ticket ID"),
+      caller: requiredFormValue("developer-edit-caller", "Caller")
+    };
+    let changed = 0;
+    EDIT_FIELDS.forEach(({ key, id, nullable }) => {
+      if (!byId(`developer-edit-use-${id}`)?.checked) return;
+      const value = String(byId(`developer-edit-${id}`)?.value || "").trim();
+      if (!nullable && !value) throw new Error(`${key} non può essere vuoto.`);
+      if (key === "status" && !developerConfig.ticketing.statuses.includes(value)) throw new Error(`Stato non ammesso: ${value}.`);
+      if ((key === "notes" || key === "resolutionNotes") && value.length > TICKET_NOTES_MAX_LENGTH) {
+        throw new Error(`${key} non può superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
+      }
+      body[key] = value || null;
+      changed += 1;
+    });
+    if (!changed) throw new Error("Attiva Aggiorna per almeno un campo modificabile.");
+    return body;
+  }
+
+  function parseListInput(id) {
+    const values = String(byId(id)?.value || "")
+      .split(/[\n,]+/).map((value) => value.trim()).filter(Boolean);
+    return Array.from(new Set(values));
   }
 
   function getSelectedValues(id) {
@@ -2474,431 +1841,352 @@ function registerHealthButton() {
 
   function collectSearchTicketRecordsBody() {
     validateTicketingConfig(developerConfig);
-    const operatorIds = getSelectedValues("developer-search-operator-ids");
-    const groupIds = getSelectedValues("developer-search-group-ids");
-    const groupNames = groupIds.map((groupId) => {
-      const group = developerConfig?.groups?.[groupId];
-      if (!group || group.enabled === false) {
-        throw new Error(`Gruppo non disponibile in PluginConfig: ${groupId}.`);
-      }
-      const groupName = String(group.displayName || "").trim();
-      if (!groupName) {
-        throw new Error(`PluginConfig groups.${groupId}.displayName mancante.`);
-      }
-      return groupName;
+    const body = {};
+    const families = [
+      ["ticketIds", parseListInput("developer-search-ticket-ids")],
+      ["ampReferences", parseListInput("developer-search-amp-references")],
+      ["messageIds", parseListInput("developer-search-message-ids")],
+      ["operators", getSelectedValues("developer-search-operators")],
+      ["statuses", getSelectedValues("developer-search-statuses")],
+      ["agencies", getSelectedValues("developer-search-agencies")]
+    ];
+    families.forEach(([key, values]) => { if (values.length) body[key] = values; });
+    const parent = String(byId("developer-search-parent-item-id")?.value || "").trim();
+    if (parent) body.parentItemId = assertPositiveInteger(parent, "Parent Item ID");
+    const dates = [
+      ["createdFrom", "developer-search-created-from", "Created da"],
+      ["createdTo", "developer-search-created-to", "Created a"],
+      ["modifiedFrom", "developer-search-modified-from", "Modified da"],
+      ["modifiedTo", "developer-search-modified-to", "Modified a"]
+    ];
+    dates.forEach(([key, id, label]) => {
+      const value = optionalDateTimeToIso(id, label);
+      if (value) body[key] = value;
     });
-    const sharePointStatuses = getSelectedValues("developer-search-statuses");
-    const configuredStatuses = getConfiguredSharePointStatuses(developerConfig);
-    const invalidStatuses = sharePointStatuses.filter((status) => !configuredStatuses.includes(status));
-    if (invalidStatuses.length) throw new Error(`Stati SharePoint non ammessi: ${invalidStatuses.join(", ")}.`);
-
-    const createdFrom = optionalDateTimeToIso("developer-search-created-from", "Created da");
-    const createdTo = optionalDateTimeToIso("developer-search-created-to", "Created a");
-    if (createdFrom && createdTo && Date.parse(createdFrom) > Date.parse(createdTo)) {
-      throw new Error("Created da non può essere successivo a Created a.");
-    }
-
-    const resultSizeText = String(byId("developer-search-result-size")?.value || "").trim();
-    let resultSize = null;
-    if (resultSizeText) {
-      if (!/^\d+$/.test(resultSizeText)) throw new Error("Result size deve essere un intero da 1 a 1000.");
-      resultSize = Number(resultSizeText);
-      if (!Number.isInteger(resultSize) || resultSize < 1 || resultSize > 1000) {
-        throw new Error("Result size deve essere un intero da 1 a 1000.");
-      }
-    }
-
-    return {
-      ...(operatorIds.length ? { operatorIds } : {}),
-      ...(groupNames.length ? { groupNames } : {}),
-      ...(sharePointStatuses.length ? { sharePointStatuses } : {}),
-      ...(createdFrom ? { createdFrom } : {}),
-      ...(createdTo ? { createdTo } : {}),
-      ...(resultSize == null ? {} : { resultSize })
-    };
-  }
-
-  function collectCreateTicketBody() {
-    validateTicketingConfig(developerConfig);
-    if (!developerConfig.ticketing.workflows.includes("CreateTicket")) {
-      throw new Error("Il workflow CreateTicket non è disponibile in PluginConfig.");
-    }
-    const notes = String(byId("developer-create-notes")?.value || "").trim();
-    const isForwardedTicket = Boolean(byId("developer-create-forwarded")?.checked);
-    const ampStatus = requiredFormValue("developer-create-amp-status", "Stato AMP");
-    if (isForwardedTicket && ampStatus !== "Resolved") {
-      throw new Error("Per isForwardedTicket=true lo Stato AMP deve essere Resolved.");
-    }
-    if (notes.length > TICKET_NOTES_MAX_LENGTH) {
-      throw new Error(`Le note del ticket non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
-    }
-    return {
-      itemId: requiredFormValue("developer-create-item-id", "Item ID"),
-      action: "createTicket",
-      messageId: requiredFormValue("developer-create-message-id", "Message ID"),
-      ampRequestId: requiredFormValue("developer-create-amp-request-id", "Riferimento AMP"),
-      ampStatus,
-      isForwardedTicket,
-      operatorId: requiredFormValue("developer-create-operator-id", "Operatore"),
-      requesterId: requiredFormValue("developer-create-requester-id", "Requester"),
-      groupName: requiredFormValue("developer-create-group-name", "Gruppo"),
-      createAdditionalTicket: Boolean(byId("developer-create-additional")?.checked),
-      ...(notes ? { notes } : {})
-    };
-  }
-
-  function collectEditTicketBody() {
-    validateTicketingConfig(developerConfig);
-    const common = {
-      itemId: requiredFormValue("developer-edit-item-id", "Item ID"),
-      action: "editTicket",
-      ticketId: requiredFormValue("developer-edit-ticket-id", "Ticket ID"),
-      requesterId: requiredFormValue("developer-edit-requester-id", "Requester")
-    };
-    const refreshExternalAssignment = Boolean(byId("developer-edit-refresh-external")?.checked);
-    if (refreshExternalAssignment) {
-      return {
-        ...common,
-        refreshExternalAssignment: true,
-        groupName: requiredFormValue("developer-edit-group-name", "Gruppo esterno"),
-        forceChangeGroup: Boolean(byId("developer-edit-force-change-group")?.checked),
-        forceRefresh: Boolean(byId("developer-edit-force-refresh")?.checked)
-      };
-    }
-
-    const ampStatus = String(byId("developer-edit-amp-status")?.value || "").trim();
-    const removeNotes = Boolean(byId("developer-edit-remove-notes")?.checked);
-    const notes = String(byId("developer-edit-notes")?.value || "").trim();
-    if (notes.length > TICKET_NOTES_MAX_LENGTH) throw new Error(`Le note del ticket non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
-    if (!ampStatus && !removeNotes && !notes) throw new Error("Indica almeno uno tra Stato AMP e Note ticket.");
-    return {
-      ...common,
-      ...(ampStatus ? { ampStatus } : {}),
-      ...(removeNotes ? { notes: null } : (notes ? { notes } : {})),
-      force: Boolean(byId("developer-edit-force")?.checked)
-    };
-  }
-
-  function collectSetOutOfScopeBody() {
-    return {
-      itemId: requiredFormValue("developer-out-of-scope-item-id", "Item ID"),
-      action: "setOutOfScope",
-      requesterId: requiredFormValue("developer-out-of-scope-requester-id", "Requester"),
-      outOfScope: Boolean(byId("developer-out-of-scope-value")?.checked)
-    };
-  }
-
-  function collectConfirmReviewedBody() {
-    return {
-      itemId: requiredFormValue("developer-reviewed-item-id", "Item ID"),
-      action: "confirmReviewed",
-      requesterId: requiredFormValue("developer-reviewed-requester-id", "Requester"),
-      reviewed: Boolean(byId("developer-reviewed-value")?.checked)
-    };
-  }
-
-  function collectLockBody(action) {
-    const body = {
-      itemId: requiredFormValue("developer-lock-item-id", "Item ID"),
-      action,
-      ticketId: requiredFormValue("developer-lock-ticket-id", "Ticket ID"),
-      requesterId: requiredFormValue("developer-lock-requester-id", "Requester"),
-      force: Boolean(byId("developer-lock-force")?.checked)
-    };
-    if (action === "acquireLock") {
-      body.operatorId = requiredFormValue("developer-lock-operator-id", "Operatore");
-      body.workflow = requiredFormValue("developer-lock-workflow", "Workflow");
+    if (body.createdFrom && body.createdTo && Date.parse(body.createdFrom) > Date.parse(body.createdTo)) throw new Error("Created da non può essere successivo a Created a.");
+    if (body.modifiedFrom && body.modifiedTo && Date.parse(body.modifiedFrom) > Date.parse(body.modifiedTo)) throw new Error("Modified da non può essere successivo a Modified a.");
+    const resultSize = String(byId("developer-search-result-size")?.value || "").trim();
+    if (resultSize) {
+      const parsed = Number(resultSize);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1000) throw new Error("Result size deve essere un intero da 1 a 1000.");
+      body.resultSize = parsed;
     }
     return body;
   }
 
-  function collectGraphCategoryBody() {
-    const semanticAction = String(byId("developer-graph-action")?.value || "").trim();
-    if (!["add", "remove", "get"].includes(semanticAction)) throw new Error("Action Graph non valida: usa get, add oppure remove.");
-
-    const baseBody = {
-      mail: requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig"),
-      messageId: requiredFormValue("developer-graph-message-id", "Message ID"),
-      action: semanticAction
-    };
-    if (semanticAction === "get") return baseBody;
-
-    const replace = Boolean(byId("developer-graph-replace")?.checked);
-    const clear = Boolean(byId("developer-graph-clear")?.checked);
-    if (semanticAction === "add" && clear) throw new Error("clear richiede action remove.");
-    if (semanticAction === "remove" && replace) throw new Error("replace richiede action add.");
-    const selectedCategories = uniqueCategoryNames(getSelectedValues("developer-graph-categories"));
-    let categories;
-    if (semanticAction === "add") {
-      categories = canonicalizeConfiguredCategories(selectedCategories);
-    } else if (clear) {
-      categories = [];
-    } else {
-      if (!developerGraphCategoryState.loaded || !graphCategoryStateMatches(baseBody.mail, baseBody.messageId)) {
-        throw new Error("Le categorie applicate devono essere lette da Graph prima di eseguire remove.");
-      }
-      const appliedByKey = new Map(developerGraphCategoryState.categories.map((category) => [categoryKey(category), category]));
-      const invalid = selectedCategories.filter((category) => !appliedByKey.has(categoryKey(category)));
-      if (invalid.length) throw new Error(`Categorie non applicate secondo l’ultima lettura Graph: ${invalid.join(", ")}.`);
-      categories = selectedCategories.map((category) => appliedByKey.get(categoryKey(category)));
-    }
-    if (!(semanticAction === "remove" && clear) && !categories.length) throw new Error("Seleziona almeno una categoria oppure usa clear con action remove.");
+  function collectLockBody(action) {
     return {
-      ...baseBody,
-      categories,
-      ...(semanticAction === "add" ? { replace } : { clear }),
-      skipFinalGet: Boolean(byId("developer-graph-skip-final-get")?.checked)
+      action,
+      ticketId: requiredFormValue("developer-lock-ticket-id", "Ticket ID"),
+      caller: requiredFormValue("developer-lock-caller", "Caller"),
+      force: Boolean(byId("developer-lock-force")?.checked)
     };
   }
 
-  function updateCreateForwardedTicketControls() {
-    const forwarded = Boolean(byId("developer-create-forwarded")?.checked);
-    const ampStatus = byId("developer-create-amp-status");
-    const help = byId("developer-create-forwarded-help");
-    if (ampStatus) {
-      if (forwarded) {
-        if (ampStatus.value !== "Resolved") ampStatus.dataset.previousNormalValue = ampStatus.value;
-        ampStatus.value = "Resolved";
-        ampStatus.disabled = true;
+  function collectForwardConversationBody() {
+    validateTicketingConfig(developerConfig);
+    const targetId = requiredFormValue("developer-forward-target", "Destinazione");
+    const target = developerConfig?.forwardingTargets?.[targetId];
+    const groupName = String(target?.name || "").trim();
+    if (!groupName) throw new Error(`Destinazione forwarding non valida: ${targetId}.`);
+    return {
+      conversationId: requiredFormValue("developer-forward-conversation-id", "Conversation ID"),
+      groupName
+    };
+  }
+
+  function getConversationRecordMode() {
+    const mode = String(byId("developer-conversation-mode")?.value || "all").trim().toLowerCase();
+    if (!["all", "first", "last"].includes(mode)) throw new Error("Mode non valido: usa all, first oppure last.");
+    return mode;
+  }
+
+  function updateCharacterCount(inputId, counterId) {
+    const length = String(byId(inputId)?.value || "").length;
+    const counter = byId(counterId);
+    if (counter) {
+      counter.textContent = `${length}/${TICKET_NOTES_MAX_LENGTH}`;
+      counter.className = length > TICKET_NOTES_MAX_LENGTH ? "status-error" : "";
+    }
+  }
+
+  function updateEditFieldControl(id) {
+    const checkbox = byId(`developer-edit-use-${id}`);
+    const control = byId(`developer-edit-${id}`);
+    if (control) control.disabled = !checkbox?.checked;
+  }
+
+  async function executeOfficeCategoryAction() {
+    const action = String(byId("developer-category-action")?.value || "get");
+    const item = Office.context?.mailbox?.item;
+    if (!item || !currentMessageContext) throw new Error("Seleziona un messaggio Outlook.");
+    const categories = uniqueCategoryNames(getSelectedValues("developer-category-categories"));
+    const replace = Boolean(byId("developer-category-replace")?.checked);
+    const clear = Boolean(byId("developer-category-clear")?.checked);
+    const beforeRaw = await getCategories(item);
+    const masterRaw = await getMasterCategories();
+    const before = uniqueCategoryNames(beforeRaw);
+    const master = uniqueCategoryNames(masterRaw);
+    const beforeMap = new Map(before.map((value) => [categoryKey(value), value]));
+    const masterMap = new Map(master.map((value) => [categoryKey(value), value]));
+    if (action === "add") {
+      if (!categories.length) throw new Error("Seleziona almeno una categoria da aggiungere.");
+      const invalid = categories.filter((value) => !masterMap.has(categoryKey(value)));
+      if (invalid.length) throw new Error(`Categorie non presenti nella Master Category List: ${invalid.join(", ")}.`);
+      const canonical = categories.map((value) => masterMap.get(categoryKey(value)));
+      if (replace) {
+        if (before.length) await removeCategories(item, before);
+        if (canonical.length) await addCategories(item, canonical);
       } else {
-        ampStatus.disabled = false;
-        const previous = ampStatus.dataset.previousNormalValue;
-        if (previous && Array.from(ampStatus.options).some((option) => option.value === previous)) ampStatus.value = previous;
-        delete ampStatus.dataset.previousNormalValue;
+        await addCategories(item, canonical.filter((value) => !beforeMap.has(categoryKey(value))));
+      }
+    } else if (action === "remove") {
+      const selected = clear ? before : categories.map((value) => beforeMap.get(categoryKey(value))).filter(Boolean);
+      if (!clear && !selected.length) throw new Error("Seleziona almeno una categoria da rimuovere oppure attiva clear.");
+      if (selected.length) await removeCategories(item, selected);
+    } else if (action !== "get") {
+      throw new Error("Action Office.js non valida.");
+    }
+    const afterRaw = await getCategories(item);
+    const after = uniqueCategoryNames(afterRaw);
+    updateCurrentMessageCategories(afterRaw);
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      authenticationMode: "Office.js",
+      body: JSON.stringify({ status: "ok", action, categoriesBefore: before, categoriesAfter: after, masterCategories: master })
+    };
+  }
+
+  function updateOfficeCategoryControls() {
+    const action = String(byId("developer-category-action")?.value || "get");
+    const row = byId("developer-category-categories-row");
+    const replaceRow = byId("developer-category-replace-row");
+    const clearRow = byId("developer-category-clear-row");
+    if (row) row.hidden = action === "get";
+    if (replaceRow) replaceRow.hidden = action !== "add";
+    if (clearRow) clearRow.hidden = action !== "remove";
+    const select = byId("developer-category-categories");
+    if (select) select.disabled = action === "get" || (action === "remove" && Boolean(byId("developer-category-clear")?.checked));
+  }
+
+  async function refreshOfficeCategoryForm({ preserveSelection = false } = {}) {
+    const sequence = ++officeCategoryLoadSequence;
+    const status = byId("developer-category-available");
+    try {
+      const item = Office.context?.mailbox?.item;
+      if (!item) throw new Error("Seleziona un messaggio Outlook.");
+      const [appliedRaw, masterRaw] = await Promise.all([getCategories(item), getMasterCategories()]);
+      if (sequence !== officeCategoryLoadSequence) return;
+      const applied = uniqueCategoryNames(appliedRaw);
+      const master = uniqueCategoryNames(masterRaw);
+      const action = String(byId("developer-category-action")?.value || "get");
+      const options = action === "add"
+        ? masterRaw.map((category) => ({ value: String(category?.displayName || category), label: `${category?.displayName || category}${category?.color ? ` · ${category.color}` : ""}` }))
+        : action === "remove" ? applied.map((value) => ({ value, label: value })) : [];
+      setMultiSelectOptions(byId("developer-category-categories"), options, preserveSelection);
+      updateOfficeCategoryControls();
+      if (status) status.textContent = `Applicate: ${applied.length ? applied.join(", ") : "nessuna"}. Master: ${master.length}.`;
+    } catch (error) {
+      if (sequence !== officeCategoryLoadSequence) return;
+      if (status) {
+        status.textContent = `Lettura Office.js non riuscita: ${error?.message || String(error)}`;
+        status.className = "developer-create-help developer-category-summary status-error";
       }
     }
-    if (help) help.className = `developer-create-help${forwarded ? " status-warning" : ""}`;
   }
 
-  function updateEditExternalAssignmentControls() {
-    const refresh = Boolean(byId("developer-edit-refresh-external")?.checked);
-    const normalIds = ["developer-edit-amp-status", "developer-edit-notes", "developer-edit-remove-notes", "developer-edit-force"];
-    normalIds.forEach((id) => {
-      const control = byId(id);
-      if (control) control.disabled = refresh;
-    });
-    ["developer-edit-group-name", "developer-edit-force-change-group", "developer-edit-force-refresh"].forEach((id) => {
-      const control = byId(id);
-      if (control) control.disabled = !refresh;
-    });
+  function graphCategoryStateMatches(mail, messageId) {
+    return developerGraphCategoryState.mail === String(mail || "") && developerGraphCategoryState.messageId === String(messageId || "");
+  }
 
-    if (refresh) {
-      const ampStatus = byId("developer-edit-amp-status");
-      const notes = byId("developer-edit-notes");
-      const removeNotes = byId("developer-edit-remove-notes");
-      const force = byId("developer-edit-force");
-      if (ampStatus) ampStatus.value = "";
-      if (notes) notes.value = "";
-      if (removeNotes) removeNotes.checked = false;
-      if (force) force.checked = false;
-    } else {
-      const forceChangeGroup = byId("developer-edit-force-change-group");
-      const forceRefresh = byId("developer-edit-force-refresh");
-      if (forceChangeGroup) forceChangeGroup.checked = false;
-      if (forceRefresh) forceRefresh.checked = false;
+  function resetGraphCategoryState() {
+    graphCategoryLoadSequence += 1;
+    developerGraphCategoryState = {
+      mail: String(byId("developer-graph-mail")?.value || "").trim(),
+      messageId: String(byId("developer-graph-message-id")?.value || "").trim(),
+      categories: [], loaded: false, loading: false, error: ""
+    };
+  }
+
+  function renderGraphCategoryStatus(config = developerConfig) {
+    const status = byId("developer-graph-status");
+    if (!status) return;
+    const mail = String(byId("developer-graph-mail")?.value || "").trim();
+    if (!mail) {
+      status.textContent = "PluginConfig.ticketing.email è mancante o vuota.";
+      status.className = "developer-create-help developer-category-summary status-error";
+      return;
     }
-
-    const options = byId("developer-edit-external-options");
-    if (options) options.classList.toggle("is-disabled", !refresh);
-    const help = byId("developer-edit-mode-help");
-    if (help) help.textContent = refresh
-      ? "Modalità refresh esterno attiva: groupName è l’unico dato di assegnazione inviato; metadata AMP, note ticket e lock restano invariati."
-      : "Modalità normale: è richiesto almeno uno tra Stato AMP e Note ticket; groupName non viene inviato.";
-    updateEditTicketNotesCount();
-    updateEditNotesControls();
+    if (developerGraphCategoryState.loading) status.textContent = "Lettura Graph in corso…";
+    else if (developerGraphCategoryState.error) status.textContent = `Lettura Graph non riuscita: ${developerGraphCategoryState.error}`;
+    else if (developerGraphCategoryState.loaded) status.textContent = `Categorie lette da Graph: ${developerGraphCategoryState.categories.length}.`;
+    else status.textContent = `Mailbox caricata. Categorie configurate: ${collectConfiguredCategories(config).length}.`;
+    status.className = `developer-create-help developer-category-summary${developerGraphCategoryState.error ? " status-error" : ""}`;
   }
 
-  function updateEditTicketNotesCount() {
-    const input = byId("developer-edit-notes");
-    const counter = byId("developer-edit-notes-count");
-    if (!counter) return;
-    const length = String(input?.value || "").length;
-    counter.textContent = `${length}/${TICKET_NOTES_MAX_LENGTH}`;
-    counter.className = length > TICKET_NOTES_MAX_LENGTH ? "status-error" : "";
+  function populateGraphCategoryForm(config = developerConfig) {
+    const mail = byId("developer-graph-mail");
+    if (mail) mail.value = getM365AdminCenterMailbox(config);
+    const message = byId("developer-graph-message-id");
+    if (message && !message.value) message.value = currentMessageContext?.itemId || "";
+    updateGraphCategoryControls();
   }
 
-  function updateEditNotesControls() {
-    const refresh = Boolean(byId("developer-edit-refresh-external")?.checked);
-    const remove = Boolean(byId("developer-edit-remove-notes")?.checked);
-    const input = byId("developer-edit-notes");
-    if (input) input.disabled = refresh || remove;
+  function populateGraphAddCategories(config = developerConfig, preserveSelection = true) {
+    setMultiSelectOptions(byId("developer-graph-categories"), collectConfiguredCategories(config).map((value) => ({ value, label: value })), preserveSelection);
+  }
+
+  function populateGraphRemoveCategories(config = developerConfig, preserveSelection = true) {
+    const configured = new Set(collectConfiguredCategories(config).map(categoryKey));
+    setMultiSelectOptions(byId("developer-graph-categories"), developerGraphCategoryState.categories.map((value) => ({
+      value,
+      label: `${value} · ${configured.has(categoryKey(value)) ? "PluginConfig" : "non presente in PluginConfig"}`,
+      className: configured.has(categoryKey(value)) ? "" : "category-not-configured"
+    })), preserveSelection);
+  }
+
+  async function loadGraphCategoriesForRemove({ force = false } = {}) {
+    const mail = requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig");
+    const messageId = requiredFormValue("developer-graph-message-id", "Message ID");
+    if (!force && developerGraphCategoryState.loaded && graphCategoryStateMatches(mail, messageId)) return developerGraphCategoryState.categories;
+    const sequence = ++graphCategoryLoadSequence;
+    developerGraphCategoryState = { mail, messageId, categories: [], loaded: false, loading: true, error: "" };
+    renderGraphCategoryStatus();
+    try {
+      const authentication = await window.WorkflowHealth.getAccessTokenSilently();
+      if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile.");
+      const response = await fetch(DEVELOPER_ENDPOINTS.SetMessageCategories, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ mail, messageId, action: "get" })
+      });
+      const text = await response.text();
+      let parsed = {};
+      try { parsed = JSON.parse(text || "{}"); } catch {}
+      if (!response.ok) throw new Error(parsed?.message || `Graph get HTTP ${response.status}`);
+      if (sequence !== graphCategoryLoadSequence) return [];
+      developerGraphCategoryState = { mail, messageId, categories: uniqueCategoryNames(parsed?.categories), loaded: true, loading: false, error: "" };
+      populateGraphRemoveCategories();
+      renderGraphCategoryStatus();
+      return developerGraphCategoryState.categories;
+    } catch (error) {
+      if (sequence !== graphCategoryLoadSequence) return [];
+      developerGraphCategoryState = { mail, messageId, categories: [], loaded: false, loading: false, error: error?.message || String(error) };
+      renderGraphCategoryStatus();
+      throw error;
+    }
   }
 
   function updateGraphCategoryControls() {
     const action = String(byId("developer-graph-action")?.value || "get");
     const isAdd = action === "add";
     const isRemove = action === "remove";
-    const isGet = action === "get";
-    const categoriesRow = byId("developer-graph-categories-row");
-    const categories = byId("developer-graph-categories");
-    const categoriesLabel = byId("developer-graph-categories-label");
-    const selectionHelp = byId("developer-graph-selection-help");
+    const row = byId("developer-graph-categories-row");
     const replaceRow = byId("developer-graph-replace-row");
     const clearRow = byId("developer-graph-clear-row");
-    const skipFinalGetRow = byId("developer-graph-skip-final-get-row");
+    const skipRow = byId("developer-graph-skip-final-get-row");
     const refresh = byId("developer-graph-refresh");
-    const replace = byId("developer-graph-replace");
-    const clear = byId("developer-graph-clear");
-    const skipFinalGet = byId("developer-graph-skip-final-get");
-
-    if (categoriesRow) categoriesRow.hidden = isGet;
+    if (row) row.hidden = action === "get";
     if (replaceRow) replaceRow.hidden = !isAdd;
     if (clearRow) clearRow.hidden = !isRemove;
-    if (skipFinalGetRow) skipFinalGetRow.hidden = isGet;
+    if (skipRow) skipRow.hidden = action === "get";
     if (refresh) refresh.hidden = !isRemove;
-
-    if (!isAdd && replace) replace.checked = false;
-    if (!isRemove && clear) clear.checked = false;
-    if (isGet && skipFinalGet) skipFinalGet.checked = false;
-
-    if (isAdd) {
-      populateGraphAddCategories();
-      if (categoriesLabel) categoriesLabel.textContent = "Categorie da aggiungere (PluginConfig)";
-      if (selectionHelp) selectionHelp.textContent = "La selezione è caricata dinamicamente da operators[*].tag, groups[*].tag e categories.generic[*].tag.";
-    } else if (isRemove) {
-      if (developerGraphCategoryState.loaded) populateGraphRemoveCategories();
-      else setMultiSelectOptions(categories, [], false);
-      if (categoriesLabel) categoriesLabel.textContent = "Categorie da rimuovere (applicate secondo Graph)";
-      if (selectionHelp) selectionHelp.textContent = "Le voci non presenti nella PluginConfig restano selezionabili e sono evidenziate.";
-    } else {
-      setMultiSelectOptions(categories, [], false);
-    }
-
-    const clearAll = isRemove && Boolean(clear?.checked);
-    if (categories) categories.disabled = isGet || clearAll || (isRemove && developerGraphCategoryState.loading);
-    if (replace) replace.disabled = !isAdd;
-    if (clear) clear.disabled = !isRemove;
-    if (skipFinalGet) skipFinalGet.disabled = isGet;
+    if (isAdd) populateGraphAddCategories();
+    else if (isRemove && developerGraphCategoryState.loaded) populateGraphRemoveCategories();
+    else setMultiSelectOptions(byId("developer-graph-categories"), [], false);
+    const select = byId("developer-graph-categories");
+    if (select) select.disabled = action === "get" || (isRemove && Boolean(byId("developer-graph-clear")?.checked));
     renderGraphCategoryStatus();
   }
 
-  async function handleGraphCategoryActionChange() {
-    resetGraphCategoryState();
-    setMultiSelectOptions(byId("developer-graph-categories"), [], false);
-    updateGraphCategoryControls();
-    if (String(byId("developer-graph-action")?.value || "get") === "remove") {
-      try { await loadGraphCategoriesForRemove({ force: true }); } catch {}
-      updateGraphCategoryControls();
+  function collectGraphCategoryBody() {
+    const action = String(byId("developer-graph-action")?.value || "get");
+    if (!["get", "add", "remove"].includes(action)) throw new Error("Action Graph non valida.");
+    const body = {
+      mail: requiredFormValue("developer-graph-mail", "Mail Function da PluginConfig"),
+      messageId: requiredFormValue("developer-graph-message-id", "Message ID"),
+      action
+    };
+    if (action === "get") return body;
+    const clear = Boolean(byId("developer-graph-clear")?.checked);
+    const replace = Boolean(byId("developer-graph-replace")?.checked);
+    const categories = uniqueCategoryNames(getSelectedValues("developer-graph-categories"));
+    if (action === "add") {
+      if (!categories.length) throw new Error("Seleziona almeno una categoria.");
+      body.categories = categories;
+      body.replace = replace;
+    } else {
+      if (!clear && !categories.length) throw new Error("Seleziona almeno una categoria oppure attiva clear.");
+      body.categories = clear ? [] : categories;
+      body.clear = clear;
     }
+    body.skipFinalGet = Boolean(byId("developer-graph-skip-final-get")?.checked);
+    return body;
   }
 
   function updateGraphCategoryStateFromResponse(parsed, requestBody) {
-    if (!parsed || !requestBody || requestBody.action == null) return;
-    const mail = String(requestBody.mail || "");
-    const messageId = String(requestBody.messageId || "");
-    let categories = null;
-    if (requestBody.action === "get") categories = parsed.categories;
-    else if (!(parsed.finalGetSkipped || requestBody.skipFinalGet)) categories = parsed.categoriesAfter || parsed.categories;
+    if (!parsed || !requestBody) return;
+    const categories = parsed?.categories;
     if (!Array.isArray(categories)) {
       resetGraphCategoryState();
       renderGraphCategoryStatus();
       return;
     }
     developerGraphCategoryState = {
-      mail,
-      messageId,
-      categories: uniqueCategoryNames(categories),
-      loaded: true,
-      loading: false,
-      error: ""
+      mail: String(requestBody.mail || ""), messageId: String(requestBody.messageId || ""),
+      categories: uniqueCategoryNames(categories), loaded: true, loading: false, error: ""
     };
-    if (String(byId("developer-graph-action")?.value || "get") === "remove") populateGraphRemoveCategories();
     renderGraphCategoryStatus();
   }
 
-  function updateCreateTicketNotesCount() {
-    const input = byId("developer-create-notes");
-    const counter = byId("developer-create-notes-count");
-    if (!counter) return;
-    const length = String(input?.value || "").length;
-    counter.textContent = `${length}/${TICKET_NOTES_MAX_LENGTH}`;
-    counter.className = length > TICKET_NOTES_MAX_LENGTH ? "status-error" : "";
-  }
-
-  function getConversationRecordMode() {
-    const mode = String(byId("developer-conversation-mode")?.value || "all").trim().toLowerCase();
-    if (!["all", "first", "last"].includes(mode)) {
-      throw new Error("Mode non valido: usa all, first oppure last.");
-    }
-    return mode;
-  }
-
-  async function executeDeveloperAction(createBodyOverride = null) {
-    const action = createBodyOverride ? "createTicket" : getDeveloperAction();
-    const value = String(byId("developer-action-input")?.value || "").trim();
-    if (action === "createTicket" && !createBodyOverride) developerLastCreateBody = null;
+  async function executeDeveloperAction() {
+    const action = getDeveloperAction();
+    const lookupValue = String(byId("developer-action-input")?.value || "").trim();
     resetTicketResult();
     setTicketButtonLoading(true);
     try {
-      if (isOfficeCategoryDeveloperAction(action)) {
-        developerConfig ||= readOperationalConfigCache()?.payload || null;
-        const semanticAction = String(byId("developer-category-action")?.value || "get");
-        const categories = getSelectedValues("developer-category-categories");
-        const categoryResult = await ManageCategories(semanticAction, categories, {
-          replace: Boolean(byId("developer-category-replace")?.checked),
-          clear: Boolean(byId("developer-category-clear")?.checked)
-        });
-        showTicketResult(categoryResult, action);
+      if (action === "ManageCategories") {
+        const result = await executeOfficeCategoryAction();
+        showTicketResult(result, action);
         await refreshOfficeCategoryForm();
         return;
       }
-      if (isRecordDeveloperAction(action) && !value) {
-        throw new Error(action === "GetRecordById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
-      }
+      if (isRecordDeveloperAction(action) && !lookupValue) throw new Error(action === "GetRecordById" ? "Inserisci un Item ID." : "Inserisci un Conversation ID.");
       const authentication = await window.WorkflowHealth.getAccessTokenSilently();
       if (!authentication?.accessToken) throw new Error("Token di accesso non disponibile.");
       const config = await ensureOperationalConfig(authentication.accessToken);
       refreshDeveloperToolsAccess(config);
 
-      let url;
+      let url = DEVELOPER_ENDPOINTS[action];
       let request;
       let requestContext;
-      if (isTicketDeveloperAction(action) || isLockDeveloperAction(action) || action === "SetMessageCategories") {
+      if (isRecordDeveloperAction(action)) {
+        const parameter = action === "GetRecordById" ? "itemId" : "conversationId";
+        const query = new URLSearchParams({ [parameter]: lookupValue });
+        if (action === "GetRecordByConversationId") query.set("mode", getConversationRecordMode());
+        url = `${url}?${query.toString()}`;
+        request = { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } };
+        requestContext = Object.fromEntries(query.entries());
+      } else {
         let body;
-        if (action === "createTicket") {
-          body = createBodyOverride ? { ...createBodyOverride } : collectCreateTicketBody();
-          body.action = "createTicket";
-          body.createAdditionalTicket = Boolean(body.createAdditionalTicket);
-          developerLastCreateBody = { ...body };
-        } else if (action === "SearchTicketRecords") {
-          body = collectSearchTicketRecordsBody();
-        } else if (action === "editTicket") {
-          body = collectEditTicketBody();
-        } else if (action === "setOutOfScope") {
-          body = collectSetOutOfScopeBody();
-        } else if (action === "confirmReviewed") {
-          body = collectConfirmReviewedBody();
-        } else if (isLockDeveloperAction(action)) {
-          body = collectLockBody(action);
-        } else {
+        if (action === "createTicket") body = collectCreateTicketBody();
+        else if (action === "editTicket") body = collectEditTicketBody();
+        else if (action === "SearchTicketRecords") body = collectSearchTicketRecordsBody();
+        else if (action === "acquireLock" || action === "releaseLock") body = collectLockBody(action);
+        else if (action === "ForwardConversation") body = collectForwardConversationBody();
+        else if (action === "SetMessageCategories") {
           populateGraphCategoryForm(config);
-          if (String(byId("developer-graph-action")?.value || "get") === "remove") {
-            await loadGraphCategoriesForRemove();
-          }
+          if (String(byId("developer-graph-action")?.value || "get") === "remove") await loadGraphCategoriesForRemove();
           body = collectGraphCategoryBody();
-        }
-        url = DEVELOPER_ENDPOINTS[action];
+        } else throw new Error(`Azione non supportata: ${action}.`);
+        requestContext = body;
         request = {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${authentication.accessToken}`,
-            Accept: "application/json",
-            "Content-Type": "application/json"
-          },
+          headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json", "Content-Type": "application/json" },
           body: JSON.stringify(body)
         };
-        requestContext = body;
-      } else {
-        const parameter = action === "GetRecordById" ? "itemId" : "conversationId";
-        const query = new URLSearchParams({ [parameter]: value });
-        const mode = action === "GetRecordByConversationId" ? getConversationRecordMode() : null;
-        if (mode) query.set("mode", mode);
-        url = `${DEVELOPER_ENDPOINTS[action]}?${query.toString()}`;
-        request = {
-          method: "GET",
-          headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" }
-        };
-        requestContext = { [parameter]: value, ...(mode ? { mode } : {}) };
       }
 
       const fetchResponse = await fetch(url, request);
@@ -2914,13 +2202,12 @@ function registerHealthButton() {
       let parsed = null;
       try { parsed = JSON.parse(responseBody || "{}"); } catch {}
       if (action === "SetMessageCategories") updateGraphCategoryStateFromResponse(parsed, requestContext);
-      if (parsed && isRecordDeveloperAction(action)) parsed = removeRecordLogs(parsed);
-      const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
       if (action !== "SetMessageCategories") {
+        const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
         currentSharePointData = {
           operation: action,
-          conversationId: action === "GetRecordByConversationId" ? value : (parsed?.conversationId || returnedRecord?.conversationId || null),
-          itemId: isTicketDeveloperAction(action) || isLockDeveloperAction(action) ? requestContext.itemId : (returnedRecord ? getRecordItemId(returnedRecord) : (parsed?.itemId || parsed?.fields?.id || null)),
+          conversationId: requestContext?.conversationId || parsed?.conversationId || null,
+          itemId: getRecordItemId(returnedRecord) || parsed?.itemId || parsed?.ticket?.parentItemId || null,
           ok: result.ok,
           status: result.status,
           statusText: result.statusText,
@@ -2953,32 +2240,33 @@ function registerHealthButton() {
       applyDeveloperResultView();
     });
     byId("close-developer-ticket-result")?.addEventListener("click", resetTicketResult);
-    byId("developer-create-notes")?.addEventListener("input", updateCreateTicketNotesCount);
-    byId("developer-create-forwarded")?.addEventListener("change", updateCreateForwardedTicketControls);
-    byId("developer-edit-notes")?.addEventListener("input", updateEditTicketNotesCount);
-    byId("developer-edit-remove-notes")?.addEventListener("change", updateEditNotesControls);
-    byId("developer-edit-refresh-external")?.addEventListener("change", updateEditExternalAssignmentControls);
-    byId("developer-category-action")?.addEventListener("change", () => {
-      updateOfficeCategoryControls();
-      void refreshOfficeCategoryForm();
-    });
+    [
+      ["developer-create-notes", "developer-create-notes-count"],
+      ["developer-create-resolution-notes", "developer-create-resolution-notes-count"],
+      ["developer-edit-notes", "developer-edit-notes-count"],
+      ["developer-edit-resolution-notes", "developer-edit-resolution-notes-count"]
+    ].forEach(([inputId, counterId]) => byId(inputId)?.addEventListener("input", () => updateCharacterCount(inputId, counterId)));
+    EDIT_FIELDS.forEach(({ id }) => byId(`developer-edit-use-${id}`)?.addEventListener("change", () => updateEditFieldControl(id)));
+    byId("developer-category-action")?.addEventListener("change", () => { updateOfficeCategoryControls(); void refreshOfficeCategoryForm(); });
     byId("developer-category-clear")?.addEventListener("change", updateOfficeCategoryControls);
     byId("developer-category-refresh")?.addEventListener("click", () => { void refreshOfficeCategoryForm({ preserveSelection: true }); });
-    byId("developer-graph-action")?.addEventListener("change", () => { void handleGraphCategoryActionChange(); });
+    byId("developer-graph-action")?.addEventListener("change", () => {
+      resetGraphCategoryState();
+      updateGraphCategoryControls();
+      if (String(byId("developer-graph-action")?.value || "get") === "remove") void loadGraphCategoriesForRemove({ force: true }).catch(() => {});
+    });
     byId("developer-graph-clear")?.addEventListener("change", updateGraphCategoryControls);
     byId("developer-graph-refresh")?.addEventListener("click", () => { void loadGraphCategoriesForRemove({ force: true }).catch(() => {}); });
-    byId("developer-graph-message-id")?.addEventListener("change", () => {
-      resetGraphCategoryState();
-      if (String(byId("developer-graph-action")?.value || "get") === "remove") void loadGraphCategoriesForRemove({ force: true }).catch(() => {});
-      else updateGraphCategoryControls();
-    });
+    byId("developer-graph-message-id")?.addEventListener("change", resetGraphCategoryState);
     byId(elementIds.idToggle)?.addEventListener("click", () => toggleIdentifierView("itemId"));
     byId(elementIds.conversationIdToggle)?.addEventListener("click", () => toggleIdentifierView("conversationId"));
-    updateCreateTicketNotesCount();
-    updateCreateForwardedTicketControls();
-    updateEditTicketNotesCount();
-    updateEditExternalAssignmentControls();
-    updateEditNotesControls();
+    EDIT_FIELDS.forEach(({ id }) => updateEditFieldControl(id));
+    [
+      ["developer-create-notes", "developer-create-notes-count"],
+      ["developer-create-resolution-notes", "developer-create-resolution-notes-count"],
+      ["developer-edit-notes", "developer-edit-notes-count"],
+      ["developer-edit-resolution-notes", "developer-edit-resolution-notes-count"]
+    ].forEach(([inputId, counterId]) => updateCharacterCount(inputId, counterId));
     updateOfficeCategoryControls();
     updateGraphCategoryControls();
     updateDeveloperActionUi();
@@ -3082,10 +2370,18 @@ function registerHealthButton() {
       showData();
       publishMessageContext();
       syncDeveloperConversationId();
-      const createMessageId = byId("developer-create-message-id");
-      if (createMessageId) createMessageId.value = currentMessageContext?.itemId || "";
-      const graphMessageId = byId("developer-graph-message-id");
-      if (graphMessageId) graphMessageId.value = currentMessageContext?.itemId || "";
+      const messageDefaults = {
+        "developer-create-parent-item-id": "",
+        "developer-create-message-id": currentMessageContext?.itemId || "",
+        "developer-create-short-description": currentMessageContext?.subject || "",
+        "developer-create-description": currentMessageContext?.bodyText || "",
+        "developer-forward-conversation-id": currentMessageContext?.normalizedConversationId || "",
+        "developer-graph-message-id": currentMessageContext?.itemId || ""
+      };
+      Object.entries(messageDefaults).forEach(([id, value]) => {
+        const input = byId(id);
+        if (input) input.value = value;
+      });
       resetGraphCategoryState();
       updateGraphCategoryControls();
     } catch (error) {
