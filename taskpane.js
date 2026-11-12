@@ -1307,8 +1307,6 @@ function registerHealthButton() {
     SearchTicketRecords: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SearchTicketRecords",
     createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
     editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
-    acquireLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
-    releaseLock: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
     ForwardConversation: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ForwardConversation",
     SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
   });
@@ -1318,7 +1316,7 @@ function registerHealthButton() {
     ["ampReference", "Riferimento AMP"], ["messageId", "Message ID"], ["operator", "Operatore"],
     ["status", "Stato"], ["agency", "Agenzia"], ["shortDescription", "Descrizione breve"],
     ["description", "Descrizione"], ["notes", "Note"], ["resolutionNotes", "Note di risoluzione"],
-    ["elapsedTime", "Tempo trascorso"], ["lock", "Lock"], ["created", "Creato"], ["modified", "Modificato"]
+    ["elapsedTime", "Tempo trascorso"], ["created", "Creato"], ["modified", "Modificato"]
   ];
   const EDIT_FIELDS = [
     { key: "operator", id: "operator", nullable: false },
@@ -1387,7 +1385,7 @@ function registerHealthButton() {
     const options = Object.entries(config?.agencies || {})
       .filter(([, agency]) => agency?.enabled !== false)
       .map(([id, agency]) => ({
-        value: id,
+        value: String(agency?.displayName || id).trim(),
         label: `${agency?.displayName || id}${agency?.shortName ? ` · ${agency.shortName}` : ""} · ${id}`
       }));
     return includeEmpty ? [{ value: "", label: "— nessuna / rimuovi —" }, ...options] : options;
@@ -1406,22 +1404,19 @@ function registerHealthButton() {
     }));
   }
 
-  function populateOperatorDatalist(config = developerConfig) {
-    const datalist = byId("developer-operator-emails");
-    if (!datalist) return;
-    datalist.replaceChildren();
-    getOperatorOptions(config).forEach(({ value, label }) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.label = label;
-      datalist.appendChild(option);
-    });
-  }
-
   function populateDeveloperForms(config = developerConfig, currentOperatorEmail = "") {
-    populateOperatorDatalist(config);
+    const operators = getOperatorOptions(config);
     const statuses = getStatusOptions(config);
     const agencies = getAgencyOptions(config, true);
+    const email = currentOperatorEmail || getCurrentOperatorEmail(config);
+    setSelectOptions(byId("developer-create-operator"), operators, email, true);
+    setSelectOptions(byId("developer-edit-caller"), operators, email, true);
+    setSelectOptions(
+      byId("developer-edit-operator"),
+      [{ value: "", label: "— seleziona un operatore —" }, ...operators],
+      "",
+      true
+    );
     setSelectOptions(byId("developer-create-status"), statuses, statuses[0]?.value || "", true);
     setSelectOptions(byId("developer-edit-status"), statuses, statuses[0]?.value || "", true);
     setSelectOptions(byId("developer-create-agency"), agencies, "", true);
@@ -1431,11 +1426,6 @@ function registerHealthButton() {
     setMultiSelectOptions(byId("developer-search-agencies"), getAgencyOptions(config), true);
     setSelectOptions(byId("developer-forward-target"), getForwardTargetOptions(config), "", true);
 
-    const email = currentOperatorEmail || getCurrentOperatorEmail(config);
-    ["developer-create-operator", "developer-edit-caller", "developer-edit-operator", "developer-lock-caller"].forEach((id) => {
-      const input = byId(id);
-      if (input && !input.value) input.value = email;
-    });
     const status = byId("developer-create-config-status");
     if (status) {
       status.textContent = config ? "Valori caricati dalla PluginConfig." : "Configurazione operativa non disponibile.";
@@ -1457,7 +1447,6 @@ function registerHealthButton() {
     const values = {
       "developer-create-message-id": currentMessageContext?.itemId || "",
       "developer-create-short-description": currentMessageContext?.subject || "",
-      "developer-create-description": currentMessageContext?.bodyText || "",
       "developer-forward-conversation-id": currentMessageContext?.normalizedConversationId || "",
       "developer-graph-message-id": currentMessageContext?.itemId || ""
     };
@@ -1474,7 +1463,6 @@ function registerHealthButton() {
       "developer-create-form": action === "createTicket",
       "developer-edit-form": action === "editTicket",
       "developer-search-form": action === "SearchTicketRecords",
-      "developer-lock-form": action === "acquireLock" || action === "releaseLock",
       "developer-forward-form": action === "ForwardConversation",
       "developer-category-form": action === "ManageCategories",
       "developer-graph-category-form": action === "SetMessageCategories"
@@ -1498,6 +1486,11 @@ function registerHealthButton() {
         input.placeholder = "Conversation ID del messaggio";
         input.value = currentMessageContext?.normalizedConversationId || input.value || "";
       }
+    }
+
+    if (action === "editTicket" && developerLastItemId) {
+      const ticketId = byId("developer-edit-ticket-id");
+      if (ticketId && !ticketId.value) ticketId.value = `SHP-${developerLastItemId}-1`;
     }
 
     prefillCreateFromMessage();
@@ -1612,7 +1605,6 @@ function registerHealthButton() {
     addDeveloperField(container, "Operazione", parsed?.action || action);
     addDeveloperField(container, "Esito", parsed?.status || parsed?.message);
     if (parsed?.reason) addDeveloperField(container, "Motivo", parsed.reason);
-    if (parsed?.currentLock !== undefined) addDeveloperField(container, "Lock corrente", parsed.currentLock);
     if (parsed?.operator !== undefined) addDeveloperField(container, "Operatore ticket", parsed.operator);
     renderTicket(container, parsed?.ticket);
     if (parsed?.message && parsed?.status !== "ok") addDeveloperField(container, "Errore", parsed.message);
@@ -1694,7 +1686,7 @@ function registerHealthButton() {
     return action === "GetRecordByConversationId" || action === "GetRecordById";
   }
   function isTicketDeveloperAction(action) {
-    return action === "createTicket" || action === "editTicket" || action === "acquireLock" || action === "releaseLock";
+    return action === "createTicket" || action === "editTicket";
   }
   function isCategoryDeveloperAction(action) {
     return action === "ManageCategories" || action === "SetMessageCategories";
@@ -1731,7 +1723,11 @@ function registerHealthButton() {
 
     const returnedRecord = isRecordDeveloperAction(action) ? getRecordResultEntries(parsed)[0] : null;
     const returnedItemId = returnedRecord ? getRecordItemId(returnedRecord) : parsed?.itemId;
-    if (returnedItemId) developerLastItemId = String(returnedItemId);
+    if (returnedItemId) {
+      developerLastItemId = String(returnedItemId);
+      const ticketId = byId("developer-edit-ticket-id");
+      if (ticketId && !ticketId.value) ticketId.value = `SHP-${developerLastItemId}-1`;
+    }
     if (action === "GetRecordByConversationId" && getConversationRecordMode() === "first" && returnedItemId) {
       const parent = byId("developer-create-parent-item-id");
       if (parent) parent.value = String(returnedItemId);
@@ -1803,7 +1799,8 @@ function registerHealthButton() {
     const body = {
       action: "editTicket",
       ticketId: requiredFormValue("developer-edit-ticket-id", "Ticket ID"),
-      caller: requiredFormValue("developer-edit-caller", "Caller")
+      caller: requiredFormValue("developer-edit-caller", "Caller"),
+      force: Boolean(byId("developer-edit-force")?.checked)
     };
     let changed = 0;
     EDIT_FIELDS.forEach(({ key, id, nullable }) => {
@@ -1843,14 +1840,17 @@ function registerHealthButton() {
     validateTicketingConfig(developerConfig);
     const body = {};
     const families = [
-      ["ticketIds", parseListInput("developer-search-ticket-ids")],
-      ["ampReferences", parseListInput("developer-search-amp-references")],
-      ["messageIds", parseListInput("developer-search-message-ids")],
-      ["operators", getSelectedValues("developer-search-operators")],
-      ["statuses", getSelectedValues("developer-search-statuses")],
-      ["agencies", getSelectedValues("developer-search-agencies")]
+      ["ticketId", "ticketIds", parseListInput("developer-search-ticket-ids")],
+      ["ampReference", "ampReferences", parseListInput("developer-search-amp-references")],
+      ["messageId", "messageIds", parseListInput("developer-search-message-ids")],
+      ["operator", "operators", getSelectedValues("developer-search-operators")],
+      ["status", "statuses", getSelectedValues("developer-search-statuses")],
+      ["agency", "agencies", getSelectedValues("developer-search-agencies")]
     ];
-    families.forEach(([key, values]) => { if (values.length) body[key] = values; });
+    families.forEach(([singular, plural, values]) => {
+      if (values.length === 1) body[singular] = values[0];
+      else if (values.length > 1) body[plural] = values;
+    });
     const parent = String(byId("developer-search-parent-item-id")?.value || "").trim();
     if (parent) body.parentItemId = assertPositiveInteger(parent, "Parent Item ID");
     const dates = [
@@ -1874,15 +1874,6 @@ function registerHealthButton() {
     return body;
   }
 
-  function collectLockBody(action) {
-    return {
-      action,
-      ticketId: requiredFormValue("developer-lock-ticket-id", "Ticket ID"),
-      caller: requiredFormValue("developer-lock-caller", "Caller"),
-      force: Boolean(byId("developer-lock-force")?.checked)
-    };
-  }
-
   function collectForwardConversationBody() {
     validateTicketingConfig(developerConfig);
     const targetId = requiredFormValue("developer-forward-target", "Destinazione");
@@ -1896,7 +1887,7 @@ function registerHealthButton() {
   }
 
   function getConversationRecordMode() {
-    const mode = String(byId("developer-conversation-mode")?.value || "all").trim().toLowerCase();
+    const mode = String(byId("developer-conversation-mode")?.value || "first").trim().toLowerCase();
     if (!["all", "first", "last"].includes(mode)) throw new Error("Mode non valido: usa all, first oppure last.");
     return mode;
   }
@@ -2174,7 +2165,6 @@ function registerHealthButton() {
         if (action === "createTicket") body = collectCreateTicketBody();
         else if (action === "editTicket") body = collectEditTicketBody();
         else if (action === "SearchTicketRecords") body = collectSearchTicketRecordsBody();
-        else if (action === "acquireLock" || action === "releaseLock") body = collectLockBody(action);
         else if (action === "ForwardConversation") body = collectForwardConversationBody();
         else if (action === "SetMessageCategories") {
           populateGraphCategoryForm(config);
@@ -2276,6 +2266,7 @@ function registerHealthButton() {
     const sequence = ++loadSequence;
 
     currentMessageIdentifiers = null;
+    developerLastItemId = "";
     resetIdentifierViews();
     currentHeaderText = "";
     resetSectionsIfNeeded();
@@ -2374,7 +2365,8 @@ function registerHealthButton() {
         "developer-create-parent-item-id": "",
         "developer-create-message-id": currentMessageContext?.itemId || "",
         "developer-create-short-description": currentMessageContext?.subject || "",
-        "developer-create-description": currentMessageContext?.bodyText || "",
+        "developer-create-description": "",
+        "developer-edit-ticket-id": "",
         "developer-forward-conversation-id": currentMessageContext?.normalizedConversationId || "",
         "developer-graph-message-id": currentMessageContext?.itemId || ""
       };

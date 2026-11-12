@@ -27,10 +27,6 @@
     <option value="editTicket">editTicket</option>
     <option value="SearchTicketRecords">SearchTicketRecords</option>
   </optgroup>
-  <optgroup label="Lock">
-    <option value="acquireLock">acquireLock</option>
-    <option value="releaseLock">releaseLock</option>
-  </optgroup>
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
   </optgroup>
@@ -46,9 +42,9 @@
   <div class="developer-record-mode" id="developer-conversation-mode-row">
     <label for="developer-conversation-mode">Mode</label>
     <select class="developer-input" id="developer-conversation-mode">
-      <option value="all">all — tutti i record</option>
-      <option value="first">first — record New canonico</option>
-      <option value="last">last — ultimo per ReceivedDate</option>
+      <option selected="" value="first">first — primo record (ID più basso)</option>
+      <option value="last">last — ultimo record (ID più alto)</option>
+      <option value="all">all — tutti i record (ordinati per ID)</option>
     </select>
     <p class="developer-create-help">Il mode viene inviato a GetRecordByConversationId.</p>
   </div>
@@ -57,12 +53,12 @@
 <div class="developer-create-form" hidden="" id="developer-create-form">
   <div class="developer-create-field"><label for="developer-create-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dal record canonico recuperato con mode=first, quando disponibile; modificabile.</p></div>
   <div class="developer-create-field"><label for="developer-create-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-message-id" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dall'ID Outlook normalizzato; modificabile.</p></div>
-  <div class="developer-create-field"><label for="developer-create-operator">Operatore (email)</label><input autocomplete="off" class="developer-input" id="developer-create-operator" list="developer-operator-emails" spellcheck="false" type="email"/><p class="developer-create-help">Precompilato dall'operatore corrente; modificabile.</p></div>
+  <div class="developer-create-field"><label for="developer-create-operator">Operatore</label><select class="developer-input" id="developer-create-operator"></select><p class="developer-create-help">Operatori caricati dalla PluginConfig; il payload contiene l'email selezionata.</p></div>
   <div class="developer-create-field"><label for="developer-create-status">Stato</label><select class="developer-input" id="developer-create-status"></select></div>
   <div class="developer-create-field"><label for="developer-create-amp-reference">Riferimento AMP (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-create-amp-reference" spellcheck="false" type="text"/></div>
   <div class="developer-create-field"><label for="developer-create-agency">Agenzia (opzionale)</label><select class="developer-input" id="developer-create-agency"></select></div>
   <div class="developer-create-field"><label for="developer-create-short-description">Descrizione breve (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-create-short-description" type="text"/><p class="developer-create-help">Precompilata dall'oggetto del messaggio; modificabile.</p></div>
-  <div class="developer-create-field"><label for="developer-create-description">Descrizione (opzionale)</label><textarea class="developer-input developer-long-text" id="developer-create-description" rows="5"></textarea><p class="developer-create-help">Precompilata dal corpo testuale del messaggio; modificabile.</p></div>
+  <div class="developer-create-field"><label for="developer-create-description">Descrizione (opzionale)</label><textarea class="developer-input developer-long-text" id="developer-create-description" rows="5"></textarea><p class="developer-create-help">Vuota per impostazione predefinita; compilazione manuale.</p></div>
   <div class="developer-create-field"><label for="developer-create-notes">Note (opzionali)</label><textarea aria-describedby="developer-create-notes-help" class="developer-input developer-long-text" id="developer-create-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help" id="developer-create-notes-help"><span>Massimo 2000 caratteri.</span><span id="developer-create-notes-count">0/2000</span></p></div>
   <div class="developer-create-field"><label for="developer-create-resolution-notes">Note di risoluzione (opzionali)</label><textarea aria-describedby="developer-create-resolution-notes-help" class="developer-input developer-long-text" id="developer-create-resolution-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help" id="developer-create-resolution-notes-help"><span>Massimo 2000 caratteri.</span><span id="developer-create-resolution-notes-count">0/2000</span></p></div>
   <div class="developer-create-field"><label for="developer-create-elapsed-time">Tempo trascorso (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-create-elapsed-time" type="text"/></div>
@@ -70,10 +66,11 @@
 </div>
 
 <div class="developer-edit-form" hidden="" id="developer-edit-form">
-  <div class="developer-create-field"><label for="developer-edit-ticket-id">Ticket ID</label><input autocomplete="off" class="developer-input monospace" id="developer-edit-ticket-id" placeholder="es. SHP-10243-1" spellcheck="false" type="text"/></div>
-  <div class="developer-create-field"><label for="developer-edit-caller">Caller (email proprietario del lock)</label><input autocomplete="off" class="developer-input" id="developer-edit-caller" list="developer-operator-emails" spellcheck="false" type="email"/></div>
+  <div class="developer-create-field"><label for="developer-edit-ticket-id">Ticket ID</label><input autocomplete="off" class="developer-input monospace" id="developer-edit-ticket-id" placeholder="es. SHP-10243-1" spellcheck="false" type="text"/><p class="developer-create-help">Quando è disponibile un Item ID, viene proposto SHP-[ID]-1; modificabile.</p></div>
+  <div class="developer-create-field"><label for="developer-edit-caller">Caller</label><select class="developer-input" id="developer-edit-caller"></select><p class="developer-create-help">Operatori caricati dalla PluginConfig; il payload contiene l'email selezionata.</p></div>
+  <label class="developer-create-checkbox" for="developer-edit-force"><input id="developer-edit-force" type="checkbox"/><span>force — consenti la modifica anche se il Caller non è l'operatore assegnato</span></label>
   <p class="developer-create-help">Attiva “Aggiorna” solo per i campi da inviare. Per i campi opzionali, un valore vuoto viene inviato come null e cancella il valore.</p>
-  <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-operator"><input id="developer-edit-use-operator" type="checkbox"/>Aggiorna operatore</label><input class="developer-input" disabled="" id="developer-edit-operator" list="developer-operator-emails" type="email"/></div>
+  <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-operator"><input id="developer-edit-use-operator" type="checkbox"/>Aggiorna operatore</label><select class="developer-input" disabled="" id="developer-edit-operator"></select></div>
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-status"><input id="developer-edit-use-status" type="checkbox"/>Aggiorna stato</label><select class="developer-input" disabled="" id="developer-edit-status"></select></div>
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-amp-reference"><input id="developer-edit-use-amp-reference" type="checkbox"/>Aggiorna riferimento AMP</label><input class="developer-input" disabled="" id="developer-edit-amp-reference" type="text"/></div>
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-agency"><input id="developer-edit-use-agency" type="checkbox"/>Aggiorna agenzia</label><select class="developer-input" disabled="" id="developer-edit-agency"></select></div>
@@ -104,12 +101,6 @@
   <div class="developer-create-field"><label for="developer-search-result-size">Result size (opzionale)</label><input class="developer-input" id="developer-search-result-size" inputmode="numeric" max="1000" min="1" placeholder="Vuoto = tutti" step="1" type="number"/></div>
 </div>
 
-<div class="developer-lock-form" hidden="" id="developer-lock-form">
-  <div class="developer-create-field"><label for="developer-lock-ticket-id">Ticket ID</label><input autocomplete="off" class="developer-input monospace" id="developer-lock-ticket-id" placeholder="es. SHP-10243-1" spellcheck="false" type="text"/></div>
-  <div class="developer-create-field"><label for="developer-lock-caller">Caller (email)</label><input autocomplete="off" class="developer-input" id="developer-lock-caller" list="developer-operator-emails" spellcheck="false" type="email"/></div>
-  <label class="developer-create-checkbox" for="developer-lock-force"><input id="developer-lock-force" type="checkbox"/><span>force — forza acquisizione o rilascio del lock</span></label>
-</div>
-
 <div class="developer-forward-form" hidden="" id="developer-forward-form">
   <div class="developer-create-field"><label for="developer-forward-conversation-id">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-forward-conversation-id" spellcheck="false" type="text"/></div>
   <div class="developer-create-field"><label for="developer-forward-target">Destinazione</label><select class="developer-input" id="developer-forward-target"></select><p class="developer-create-help">Al backend viene inviato esclusivamente il name della destinazione come groupName.</p></div>
@@ -136,7 +127,6 @@
   <p class="developer-create-help developer-category-summary" id="developer-graph-status" role="status"></p>
 </div>
 
-<datalist id="developer-operator-emails"></datalist>
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button>
 <div class="function-result" hidden="" id="developer-ticket-result">
   <div class="function-result-toolbar"><button class="result-view-toggle" id="developer-result-view-toggle" type="button">Mostra JSON</button><button aria-label="Chiudi risultato" class="result-close-button" id="close-developer-ticket-result" type="button">×</button></div>
