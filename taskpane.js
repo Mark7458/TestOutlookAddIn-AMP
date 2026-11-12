@@ -1,16 +1,16 @@
 // Test-Plugin file version: 0.4-initial
 const TEST_PLUGIN_BUILD = Object.freeze({
-  application: '0.4-initial',
-  release: '0.4-initial',
+  application: '0.4',
+  release: '0.41',
   files: Object.freeze({
-    'taskpane.html': '0.4-initial',
-    'taskpane.js': '0.4-initial',
-    'taskpane.css': '0.4-initial',
-    'auth-src.js': '0.2-auth-src.js-3',
-    'auth-dialog.html': '0.2-auth-dialog.html-2',
-    'auth-dialog-src.js': '0.2-auth-dialog-src.js-3',
-    'auth-popup-redirect.html': '0.2-auth-popup-redirect.html-1',
-    'auth-popup-redirect-src.js': '0.2-auth-popup-redirect-src.js-1',
+    'taskpane.html': '0.41',
+    'taskpane.js': '0.41',
+    'taskpane.css': '0.41',
+    'auth-src.js': '0.2',
+    'auth-dialog.html': '0.2',
+    'auth-dialog-src.js': '0.2',
+    'auth-popup-redirect.html': '0.2',
+    'auth-popup-redirect-src.js': '0.2',
   }),
   database: Object.freeze({ schemaVersion: 5, requiredDataVersion: 8 }),
   generated: Object.freeze(["auth.bundle.js", "auth-dialog.bundle.js", "auth-popup-redirect.bundle.js"])
