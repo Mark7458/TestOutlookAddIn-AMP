@@ -395,18 +395,19 @@
 })();
 </script>
 <script>
-  // ?prod nell'indirizzo: anteprima della versione di produzione (amp-prod.js) invece di quella di sviluppo (amp.js).
+  // ?prod nell'indirizzo: anteprima del pannello come in produzione (scheda Debug al posto delle Impostazioni).
   (function () {
     const prod = /[?&]prod\b/.test(location.search);
-    // Configurazione operativa di esempio (in Outlook la scarica il core dell'add-in): solo i gruppi, niente dati reali.
+    // Configurazione operativa di esempio (in Outlook la scarica il core dell'add-in): solo le destinazioni
+    // dell'inoltro, niente dati reali.
     try {
-      if (!localStorage.getItem('test-plugin-operational-config')) localStorage.setItem('test-plugin-operational-config', JSON.stringify({
-        schemaVersion: 1, dataVersion: 1, downloadedAt: new Date().toISOString(),
-        payload: { schemaVersion: 1, dataVersion: 1, agencies: {}, operators: {}, groups: {
-          'GRP-01': { displayName: 'Competence Center', shortName: 'AMPCoE', type: 'internal', enabled: true },
-          'GRP-02': { displayName: 'Post Office', shortName: 'PO', type: 'external', enabled: true },
-          'GRP-03': { displayName: 'Amministratori PEL', shortName: 'PEL', type: 'external', enabled: true },
-          'GRP-04': { displayName: 'Email Security', shortName: 'ES', type: 'external', enabled: true }
+      const stored = JSON.parse(localStorage.getItem('test-plugin-operational-config') || 'null');
+      if (!stored?.payload?.forwardingTargets) localStorage.setItem('test-plugin-operational-config', JSON.stringify({
+        schemaVersion: 5, dataVersion: 8, downloadedAt: new Date().toISOString(),
+        payload: { schemaVersion: 5, dataVersion: 8, agencies: {}, operators: {}, forwardingTargets: {
+          po: { name: 'Post Office', code: 'PO' },
+          pel: { name: 'Amministratori PEL', code: 'PEL' },
+          es: { name: 'Email Security', code: 'ES' }
         } }
       }));
     } catch (error) { console.error(error); }
@@ -424,8 +425,9 @@
       button.classList.toggle('on', isProd === prod);
       button.addEventListener('click', () => { if (isProd !== prod) location.search = isProd ? '?prod' : ''; });
     });
+    if (prod) window.AmpPanelMode = 'production';
     const script = document.createElement('script');
-    script.src = prod ? 'amp-prod.js' : 'amp.js';
+    script.src = 'amp.js';
     script.onload = () => window.AmpModule?.show();
     document.head.append(script);
   })();

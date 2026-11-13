@@ -331,7 +331,7 @@
             synced: when => `Allineato ${when}`,
             syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
         },
-        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Debug' },
         common: {
             back: view => `← ${view}`,
             loading: 'Caricamento…',
@@ -562,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-13 18:30';
+    const BUILD = '2026-11-13 18:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -825,12 +825,17 @@
     // 5. INTERFACCIA: STRUTTURA E NAVIGAZIONE
     // ======================================================================
 
-    // Gruppi a cui si inoltra da In coda (il tag va davanti all'oggetto della mail: [ES], [PEL], [PO]).
-    const FORWARD_GROUPS = [
-        { id: 'ES', name: 'Email Security' },
-        { id: 'PEL', name: 'Amministratori PEL' },
-        { id: 'PO', name: 'Post Office' }
-    ];
+    // Gruppi a cui si inoltra da In coda: le destinazioni della configurazione operativa scaricata dal core dell'add-in
+    // (localStorage test-plugin-operational-config, forwardingTargets). La sigla va davanti all'oggetto: [ES], [PEL], [PO].
+    function forwardGroups() {
+        let targets = {};
+        try { targets = JSON.parse(localStorage.getItem('test-plugin-operational-config') || 'null')?.payload?.forwardingTargets || {}; }
+        catch { targets = {}; }
+        return Object.entries(targets)
+            .filter(([, target]) => target && target.enabled !== false)
+            .map(([id, target]) => ({ id, tag: target.code || target.tag || id, name: target.name || '' }))
+            .sort((a, b) => a.tag.localeCompare(b.tag, 'it'));
+    }
     const SEARCH_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>';
     const FILTER_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>';
     // Con i filtri o la ricerca aperti il loro pulsante cambia icona: ricliccandolo si richiudono.
@@ -1233,7 +1238,7 @@
         const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
         state.target = { kind: 'mail', mail };
         if (!sameConversation) state.result = null;
-        const entering = state.view !== 'settings' && state.view !== 'mail';
+        const entering = !['settings', 'debug', 'mail'].includes(state.view);
         if (entering) {
             state.backTo ||= state.view;
             state.view = 'mail';
@@ -1495,7 +1500,11 @@
             { opacity: 1, transform: 'none' }
         ], { duration: 280, easing: 'cubic-bezier(.2, .8, .2, 1)' }));
     }
-    const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings'];
+    const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings', 'debug'];
+    // Produzione (add-in di jak con amp-backend.js): al posto delle Impostazioni la scheda Debug con le sue sezioni.
+    const PRODUCTION = window.AmpPanelMode === 'production' || window.AmpBackend?.mode === 'functions';
+    const TABS = PRODUCTION ? ['queue', 'tickets', 'debug'] : ['queue', 'tickets', 'settings'];
+    let debugHost = null; // scheda Debug: #main-view e #header-view dell'add-in di jak, spostati così come sono
     function slideInView(direction) {
         // Si anima il contenitore fisso (.ao-body): il contenuto può ridisegnarsi durante l'animazione.
         const body = root?.querySelector('.ao-body');
@@ -1512,18 +1521,22 @@
     }
 
     function buildShell(container) {
-        // Una sola barra: freccia per tornare all'add-in e tre schede a posto fisso (In coda, Ticket, Impostazioni).
-        // La scheda scelta mostra icona, nome e contatore; le altre solo l'icona (il nome passandoci sopra).
+        // Una sola barra con tre schede a posto fisso (In coda, Ticket, Impostazioni; in produzione Debug al posto delle
+        // Impostazioni e niente freccia per tornare all'add-in). La scheda scelta mostra icona, nome e contatore; le altre
+        // solo l'icona (il nome passandoci sopra). Le sezioni di jak restano sempre nella pagina: il suo codice le cerca per id.
+        debugHost = PRODUCTION ? h('div', { class: 'ao-debug', hidden: true },
+            ['main-view', 'header-view'].map(id => document.getElementById(id)).filter(Boolean)) : null;
         root = h('div', { id: 'ao-root' },
             h('nav', { class: 'ao-tabs', role: 'tablist' },
-                h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
+                PRODUCTION ? null : h('button', { type: 'button', class: 'ao-icon-button ao-back', title: TEXTS.back, 'aria-label': TEXTS.back, onclick: () => window.TestPluginAPI?.showMainView?.() }, '←'),
                 // La vista di lavoro del ticket non è una scheda: si apre da sola (mail o ticket) e ha il suo "←".
-                ['queue', 'tickets', 'settings'].map(view => h('button', {
+                TABS.map(view => h('button', {
                     type: 'button', role: 'tab', class: 'ao-tab', dataset: { view }, 'aria-label': TEXTS.tabs[view],
                     onclick: () => openPage(view)
                 }, tabIcon(view), h('span', { class: 'ao-tab-label' }, TEXTS.tabs[view]), counter(0))),
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
+            debugHost,
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
@@ -1543,7 +1556,7 @@
         root.addEventListener('click', event => {
             if (!state.queueExpanded || state.holdRender) return;
             const target = event.target;
-            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar')) return;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar, .ao-debug')) return;
             const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
             if (!form) return;
             event.preventDefault();
@@ -1663,8 +1676,11 @@
         });
         placeTabIndicator(); // dopo i contatori: la sottolineatura comprende il numero della scheda aperta
         renderStatusBar();
-        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         const body = root.querySelector('.ao-body');
+        body.hidden = state.view === 'debug';
+        if (debugHost) debugHost.hidden = state.view !== 'debug';
+        if (state.view === 'debug') return;
+        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator.join(',')}|${state.ticketSearchOpen}|${state.settingsTab}`;
@@ -2089,9 +2105,10 @@
         const card = button => button.closest('.ao-queue-item');
         if (choice.action === 'take') return [ticketForm(mail, config, { compact: true, zone: true }), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
         if (choice.action === 'forward') {
-            const group = FORWARD_GROUPS.find(entry => entry.id === choice.group);
+            const groups = forwardGroups();
+            const group = groups.find(entry => entry.id === choice.group);
             return [
-                choiceBar(`group:${item.conversationId}`, FORWARD_GROUPS.map(entry => ({ value: entry.id, label: entry.id, sub: entry.name, tone: 'forward' })),
+                choiceBar(`group:${item.conversationId}`, groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name, tone: 'forward' })),
                     choice.group, value => { choice.group = value; render(); }),
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group, onclick: event => forwardFromQueue(card(event.currentTarget), mail, group) }, TEXTS.queue.forward))
@@ -3297,7 +3314,7 @@
         outcomeStart(card, 'forward', `${SPINNER}<span>${TEXTS.queue.forwardWorking}</span>`);
         const ok = await run(() => Services.forwardMail(mail.conversationId, group.id, currentUser()));
         if (ok) {
-            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.id)}</span>`);
+            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.tag)}</span>`);
             await outcomeEnd(card);
         } else outcomeCancel(card);
         if (ok) {
@@ -4110,6 +4127,7 @@
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#ao-root .ao-debug { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; } /* scheda Debug: le sezioni dell'add-in di jak */
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
@@ -4604,8 +4622,14 @@
     // AmpModule.initialize().catch(...) all'avvio dell'add-in.
     async function initialize() {
         if (initialized) return;
-        const container = document.getElementById('amp-view');
+        let container = document.getElementById('amp-view');
+        // In produzione l'area AMP può mancare nella pagina di jak: il pannello la crea in cima a <main> e si apre da solo.
+        if (!container && PRODUCTION) {
+            container = h('section', { class: 'amp-view', id: 'amp-view' });
+            (document.querySelector('main') || document.body).prepend(container);
+        }
         if (!container) return;
+        if (PRODUCTION) container.hidden = false;
         initialized = true;
         injectStyles();
         buildShell(container);
@@ -4655,11 +4679,12 @@
     function show() {
         initialize();
         fillPane();
+        // Sviluppo: l'area AMP prende il posto della schermata di jak. Produzione: la sua schermata sta nella scheda Debug.
         const mainView = document.getElementById('main-view');
         const headerView = document.getElementById('header-view');
         const ampView = document.getElementById('amp-view');
-        if (mainView) mainView.hidden = true;
-        if (headerView) headerView.hidden = true;
+        if (mainView && !PRODUCTION) mainView.hidden = true;
+        if (headerView && !PRODUCTION) headerView.hidden = true;
         if (ampView) ampView.hidden = false;
         render();
         fitHeight();
