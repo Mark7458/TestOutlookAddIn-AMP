@@ -222,16 +222,32 @@
                 } : {});
             });
         },
+        // Mail selezionata in Outlook: stato del thread su MailEvents (ultima riga) e i suoi ticket.
         async findTicketForMail(mail) {
-            const parentItemId = await parentOf(mail.conversationId);
+            const result = await call('GetRecordByConversationId', { conversationId: normalize(mail.conversationId), mode: 'all' }, 'GET');
+            const rows = (result?.items || []).slice().sort((a, b) => Number(a.itemId) - Number(b.itemId));
+            if (!result?.found || !rows.length) return { tickets: [], previous: null, candidates: [], discarded: false, thread: { status: 'none' } };
+            const parentItemId = Number(rows[0].fields?.ParentItemId || rows[0].itemId);
+            remember(mail.conversationId, parentItemId);
+            const last = rows[rows.length - 1].fields || {};
             const records = await searchTickets({ parentItemId });
             const open = records.filter(record => OPEN_STATUSES.includes(record.status));
             const closed = records.filter(record => !OPEN_STATUSES.includes(record.status));
             return {
-                tickets: open.map(record => ({ ...toTicket(record), via: 'link' })),
-                previous: closed.length ? toTicket(closed[0]) : null,
+                tickets: records.map(record => ({ ...toTicket(record), via: 'link' })),
+                previous: closed.length && !open.length ? toTicket(closed[0]) : null,
                 candidates: [],
-                discarded: false
+                discarded: false,
+                thread: {
+                    status: last.Status || 'New',
+                    assignedTo: last.AssignedTo || null,
+                    assignedToName: last.AssignedTo ? operatorName(last.AssignedTo) : null,
+                    statusBy: last.StatusBy || null,
+                    statusByName: last.StatusBy ? operatorName(last.StatusBy) : null,
+                    statusAt: last.StatusAt || null,
+                    messageCount: rows.length,
+                    parentItemId
+                }
             };
         },
         async getTicket(number) {

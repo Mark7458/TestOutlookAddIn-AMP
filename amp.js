@@ -415,6 +415,13 @@
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
             openFirst: 'Apri la mail in Outlook per prenderla in carico o ignorarla.',
+            // Mail selezionata: come è stata gestita (SharePoint)
+            noOperator: 'Nessun operatore',
+            since: when => `dal ${when}`,
+            notShared: 'non dalla casella condivisa',
+            threadStates: { New: 'In coda', Acquired: 'In carico', Ignored: 'Ignorata', Forwarded: group => `Inoltrata a ${group}`, none: 'Non in coda' },
+            openInQueue: 'Apri in In coda',
+            openInIgnored: 'Apri in Ignorate',
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
             addTicket: 'Ticket',
@@ -562,7 +569,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-13 18:45';
+    const BUILD = '2026-11-13 19:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2851,20 +2858,11 @@
         const mail = target.mail;
         const isCurrentMail = state.mail?.conversationId === mail.conversationId;
         const result = state.result;
+        if (result?.thread) return renderMailState(mail, result, config, user, notice);
         const content = [];
         if (!result) content.push(h('p', { class: 'ao-muted' }, Services.available() ? TEXTS.mail.searching : ''));
-        else if (result.tickets?.length) {
-            // Ogni ticket aperto è un contenitore (aperto se è l'unico); i chiusi in fondo, in una sezione da aprire.
-            const all = result.tickets.map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }));
-            const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
-            const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
-            const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
-            // Un altro ticket sulla stessa richiesta (dalla pillola "Ticket" della testata): il modulo si apre in cima alla pila,
-            // dove poi comparirà il ticket nuovo (il collegato più recente).
-            if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
-            ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
-            if (closed.length) content.push(closedTickets(mail.conversationId, closed));
-        } else if (!isCurrentMail) {
+        else if (result.tickets?.length) content.push(...ticketStack(mail, result, config, user));
+        else if (!isCurrentMail) {
             // Prendere in carico (o ignorare) si fa solo guardando la mail: finché Outlook non la mostra, niente azioni.
             if (result.discarded) content.push(h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(result.discarded.by || TEXTS.common.none, formatWhen(result.discarded.at))));
             content.push(h('div', { class: 'ao-open-first' },
@@ -2884,9 +2882,65 @@
             notice,
             content);
     }
+    // Ticket del thread: ogni ticket aperto è un contenitore (aperto se è l'unico); i chiusi in fondo, in una sezione da aprire.
+    function ticketStack(mail, result, config, user) {
+        const content = [];
+        const all = (result.tickets || []).map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }));
+        const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
+        const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
+        const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
+        // Un altro ticket sulla stessa richiesta (dalla pillola "Ticket" della testata): il modulo si apre in cima alla pila,
+        // dove poi comparirà il ticket nuovo (il collegato più recente).
+        if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
+        ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
+        if (closed.length) content.push(closedTickets(mail.conversationId, closed));
+        return content;
+    }
+    // Mail selezionata in Outlook, con lo stato del thread su SharePoint: stessa pagina del ticket. Sotto la testata una barra
+    // uguale per tutti gli stati: a sinistra l'operatore e quando, a destra il tag dello stato (con il gruppo, se inoltrata).
+    // In carico: i ticket del thread; negli altri casi il testo della mail e, se serve, il pulsante per gestirla.
+    function renderMailState(mail, result, config, user, notice) {
+        const thread = result.thread;
+        const texts = TEXTS.mail;
+        const when = thread.statusAt ? formatWhen(thread.statusAt) : formatWhen(mail.receivedAt);
+        const groupTag = name => forwardGroups().find(group => group.name === name || group.id === name)?.tag || name;
+        const operator = {
+            New: texts.noOperator,
+            Acquired: surname(thread.assignedToName || thread.assignedTo),
+            Ignored: surname(thread.statusByName || thread.assignedToName || thread.assignedTo),
+            Forwarded: surname(thread.statusByName || thread.statusBy) || texts.noOperator
+        }[thread.status] || texts.noOperator;
+        const detail = { New: texts.since(when), Acquired: texts.since(when), none: texts.notShared }[thread.status] || when;
+        const label = thread.status === 'Forwarded' ? texts.threadStates.Forwarded(groupTag(thread.assignedTo)) : texts.threadStates[thread.status] || texts.threadStates.none;
+        const tone = { New: 'accent', Acquired: 'success', Forwarded: 'forward' }[thread.status] || 'neutral';
+        const bar = h('div', { class: 'ao-thread-bar' },
+            h('span', { class: 'ao-thread-count' }, `${operator} · ${detail}`),
+            h('span', { class: `ao-chip ao-tone-${tone}` }, label));
+        const content = [];
+        if (thread.status === 'Acquired' && result.tickets?.length) content.push(...ticketStack(mail, result, config, user));
+        else {
+            const action = {
+                New: [texts.openInQueue, () => openFromMailState('active', mail)],
+                Ignored: [texts.openInIgnored, () => openFromMailState('ignored', mail)]
+            }[thread.status];
+            content.push(h('div', { class: 'ao-item ao-mail-state' },
+                h('div', { class: 'ao-ticket-description' }, clipText(mail.body || '', PREVIEW_MAX_CHARS)),
+                action ? h('div', { class: 'ao-actions' }, h('span', { class: 'ao-spacer' }),
+                    h('button', { type: 'button', class: 'ao-button', onclick: action[1] }, action[0])) : null));
+        }
+        return h('div', { class: 'ao-view' }, threadHead(mail, { showOpen: false, count: 0, bar }), notice, content);
+    }
+    // Dalla mail selezionata alla sua scheda in In coda (Attive o Ignorate), già aperta.
+    async function openFromMailState(tab, mail) {
+        state.queueTab = tab;
+        setView('queue');
+        const item = (tab === 'ignored' ? state.ignored : state.queue).find(entry => entry.conversationId === mail.conversationId);
+        if (item) await openTakeCharge(item);
+    }
     // Testata del thread, sempre visibile: "‹" per tornare, oggetto e mittente (scorrendo resta solo l'oggetto, su una
-    // riga); sotto, con dei ticket, quanti sono e la pillola "Ticket" per aprirne un altro sulla stessa richiesta.
-    function threadHead(mail, { showOpen, count }) {
+    // riga); sotto, con dei ticket, quanti sono e la pillola "Ticket" per aprirne un altro sulla stessa richiesta
+    // (oppure la barra passata da chi chiama).
+    function threadHead(mail, { showOpen, count, bar = null }) {
         const target = state.backTo || 'tickets';
         const adding = state.extraTicketFor === mail.conversationId;
         const back = TEXTS.common.back(TEXTS.tabs[target]);
@@ -2899,12 +2953,12 @@
                         h('span', {}, `${mail.sender?.name || ''}${mail.sender?.email ? ` <${mail.sender.email}>` : ''}`),
                         h('span', { class: 'ao-item-time' }, formatWhen(mail.receivedAt))),
                     showOpen ? h('button', { type: 'button', class: 'ao-link ao-mail-open', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook) : null)),
-            count ? h('div', { class: 'ao-thread-bar' },
+            bar || (count ? h('div', { class: 'ao-thread-bar' },
                 h('span', { class: 'ao-thread-count' }, TEXTS.mail.threadCount(count)),
                 h('button', {
                     type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), // aperto: è diventato il modulo
                     onclick: () => openExtraTicket(mail)
-                }, svgIcon(SEGMENT_ICONS.none), TEXTS.mail.addTicket)) : null);
+                }, svgIcon(SEGMENT_ICONS.none), TEXTS.mail.addTicket)) : null));
     }
     // Modulo per un altro ticket del thread: lo stesso di "Nuovo ticket" in Senza mail (si solleva e si apre;
     // gli altri ticket si sfocano), con Agenzia e Attività.
@@ -4306,6 +4360,7 @@
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-chip.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 #ao-root .ao-chip.ao-tone-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
+#ao-root .ao-chip.ao-tone-forward { background: var(--ao-choice-forward-bg); color: var(--ao-choice-forward-text); }
 /* Etichetta dell'operatore: un colore a testa (--ao-tag-color), fondo e scritta ricavati secondo lo stile */
 #ao-root .ao-user-tag { display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 9px; border: 0; border-radius: var(--ao-radius-pill); background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-base)); color: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); box-shadow: inset 0 0 0 1px var(--ao-tag-line); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); line-height: 1; white-space: nowrap; }
 #ao-root button.ao-user-tag { cursor: pointer; }
