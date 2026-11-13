@@ -1,3 +1,4 @@
+<!-- Test-Plugin file version: 0.2-auth-dialog.html-2 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -19,6 +20,9 @@
     h1 { margin: 0 0 12px; font-size: 20px; }
     p { margin: 0; color: #605e5c; line-height: 1.5; }
     .spinner { width: 24px; height: 24px; margin-top: 20px; border: 3px solid #c7e0f4; border-top-color: #0078d4; border-radius: 50%; animation: rotate 0.8s linear infinite; }
+      .auth-button { width: 100%; margin-top: 18px; padding: 10px 14px; border: 0; border-radius: 6px; background: #0078d4; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer; }
+      .auth-button:hover { background: #106ebe; }
+      .auth-button:disabled { background: #a19f9d; cursor: wait; }
     @keyframes rotate { to { transform: rotate(360deg); } }
     .diagnostics { display: none; margin-top: 20px; padding-top: 16px; border-top: 1px solid #edebe9; }
     .diagnostics-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -28,16 +32,15 @@
   </style>
 </head>
 <body>
-  <main class="auth-card">
+  <main class="auth-card" id="auth-card" hidden>
     <h1 id="auth-title">Accesso al servizio</h1>
     <p id="auth-message">
       Seleziona l'account SOGEI e completa
       l'eventuale verifica MFA.
     </p>
-    <div
-      class="spinner"
-      aria-label="Autenticazione in corso">
-    </div>
+      <button id="start-popup-auth" class="auth-button" type="button" hidden>Accedi a SOGEI</button>
+      <button id="cancel-popup-auth" class="auth-cancel-button" type="button" hidden>Annulla accesso</button>
+      <div id="auth-spinner" class="spinner" aria-label="Autenticazione in corso"></div>
     <section
       class="diagnostics"
       aria-label="Diagnostica autenticazione">

@@ -1,8 +1,17 @@
+// Test-Plugin file version: 0.2-auth-dialog-src.js-3
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
 
-const DIALOG_MODE = new URL(window.location.href).searchParams.get("mode") || "connect";
+const INITIAL_DIALOG_URL = new URL(window.location.href);
+const DIALOG_OPERATION_ID_KEY = "outlook-sogei-dialog-operation-id";
+const DIALOG_MODE_KEY = "outlook-sogei-dialog-operation-mode";
+const operationIdFromUrl = INITIAL_DIALOG_URL.searchParams.get("operationId");
+const modeFromUrl = INITIAL_DIALOG_URL.searchParams.get("mode");
+if (operationIdFromUrl) sessionStorage.setItem(DIALOG_OPERATION_ID_KEY, operationIdFromUrl);
+if (modeFromUrl) sessionStorage.setItem(DIALOG_MODE_KEY, modeFromUrl);
+const DIALOG_OPERATION_ID = operationIdFromUrl || sessionStorage.getItem(DIALOG_OPERATION_ID_KEY) || null;
+const DIALOG_MODE = modeFromUrl || sessionStorage.getItem(DIALOG_MODE_KEY) || "connect";
 const AUTH_CONFIG = {
   clientId:
     "17be48ae-1d05-4233-ba98-654102bf76e0",
@@ -11,18 +20,22 @@ const AUTH_CONFIG = {
   scope:
     "api://17be48ae-1d05-4233-ba98-654102bf76e0/Workflow.Access",
   redirectUri:
-    "https://jakdrizzt.github.io/TestOutlookAddIn/auth-dialog.html"
+    "https://jakdrizzt.github.io/TestOutlookAddIn/auth-dialog.html",
+  popupRedirectUri:
+    "https://jakdrizzt.github.io/TestOutlookAddIn/auth-popup-redirect.html"
 };
 
 const DIAGNOSTIC_KEY =
   "outlook-sogei-auth-diagnostics";
-const MAX_DIAGNOSTIC_EVENTS = 500;
+const MAX_DIAGNOSTIC_EVENTS = 150;
 const MESSAGE_PARENT_TIMEOUT_MS = 15000;
 const MESSAGE_PARENT_POLL_MS = 100;
 const PENDING_AUTH_KEY = "outlook-sogei-pending-auth-result";
 const OFFICE_DIALOG_URL_KEY = "outlook-sogei-office-dialog-url";
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
+const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
+function isDiagnosticsEnabled() { try { return Boolean(JSON.parse(localStorage.getItem(UI_PREFERENCES_KEY) || "{}").diagnosticsEnabled); } catch { return false; } }
 
 let msalInstance = null;
 
@@ -95,6 +108,7 @@ function recordDiagnostic(
   event,
   details = null
 ) {
+  if (!isDiagnosticsEnabled()) return;
   const events =
     readDiagnosticEvents();
 
@@ -105,7 +119,7 @@ function recordDiagnostic(
         { hour12: false }
       ),
     event,
-    details
+    details: { operationId: DIALOG_OPERATION_ID, dialogMode: DIALOG_MODE, ...(details || {}) }
   });
 
   writeDiagnosticEvents(events);
@@ -158,6 +172,26 @@ function runDialogStorageProbe() {
     origin: window.location.origin,
     mode: DIALOG_MODE
   });
+}
+
+async function resetDialogAuthenticationStorage() {
+  const keys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key) keys.push(key);
+  }
+  const removed = [];
+  for (const key of keys) {
+    const normalized = key.toLowerCase();
+    const isKnownAuthKey = key === PENDING_AUTH_KEY || key === OFFICE_DIALOG_URL_KEY;
+    const isMsalKey = normalized.startsWith("msal.") || normalized.includes(AUTH_CONFIG.clientId.toLowerCase());
+    if (isKnownAuthKey || isMsalKey) {
+      localStorage.removeItem(key);
+      removed.push(key);
+    }
+  }
+  recordDiagnostic("dialog_auth_storage_reset", { removedCount: removed.length });
+  await sendMessageToParent({ type: "auth-reset-complete", removedCount: removed.length });
 }
 
 function getSafeErrorDetails(error) {
@@ -389,7 +423,9 @@ async function sendMessageToParent(message) {
   Office.context.ui.messageParent(
     JSON.stringify({
       ...message,
-      dialogDiagnostics: readDiagnosticEvents().slice(-500)
+      dialogOperationId: DIALOG_OPERATION_ID,
+      dialogMode: DIALOG_MODE,
+      dialogDiagnostics: readDiagnosticEvents().slice(-12)
     })
   );
 
@@ -549,7 +585,67 @@ async function runPersistentRecovery(client) {
   throw error;
 }
 
+function setPopupUi(state, message = null) {
+  const card = document.getElementById("auth-card");
+  if (card) card.hidden = false;
+  const button = document.getElementById("start-popup-auth");
+  const cancelButton = document.getElementById("cancel-popup-auth");
+  const spinner = document.getElementById("auth-spinner");
+  const messageElement = document.getElementById("auth-message");
+  const waiting = state === "waiting"; const running = state === "running";
+  if (button) { button.hidden = !waiting; button.disabled = false; button.textContent = "Accedi a SOGEI"; }
+  if (cancelButton) cancelButton.hidden = !running;
+  if (spinner) spinner.hidden = !running;
+  if (messageElement && message) messageElement.textContent = message;
+}
+function waitForPopupUserGesture(client) {
+  setPopupUi("waiting", "Premi Accedi a SOGEI, quindi seleziona l'account e completa l'eventuale verifica MFA.");
+  recordDiagnostic("popup_user_gesture_required", { redirectUri: AUTH_CONFIG.popupRedirectUri, bridgeMode: true });
+  const button = document.getElementById("start-popup-auth");
+  if (!button) return Promise.reject(new Error("Pulsante di accesso popup non disponibile."));
+  return new Promise((resolve, reject) => {
+    const cancelButton = document.getElementById("cancel-popup-auth");
+    let popupStarted = false;
+    let settled = false;
+    if (cancelButton) cancelButton.addEventListener("click", async () => {
+      if (!popupStarted || settled) return;
+      settled = true;
+      const cancelError = new Error("Accesso annullato dall'utente.");
+      cancelError.name = "PopupAuthenticationCancelled";
+      cancelError.errorCode = "user_cancelled";
+      recordDiagnostic("popup_cancel_button_clicked");
+      try {
+        await sendErrorToParent(cancelError, "popupUserCancellation");
+        recordDiagnostic("popup_cancel_sent_to_parent");
+      } catch (messageError) {
+        recordDiagnostic("popup_cancel_parent_error", getSafeErrorDetails(messageError));
+      }
+      reject(cancelError);
+    });
+    button.addEventListener("click", async () => {
+      if (popupStarted || settled) return;
+      popupStarted = true;
+      setPopupUi("running", "Completa l'accesso nella finestra Microsoft aperta.");
+      recordDiagnostic("acquire_token_popup_start", { redirectUri: AUTH_CONFIG.popupRedirectUri, scope: AUTH_CONFIG.scope, bridgeMode: true });
+      try {
+        const result = await client.acquireTokenPopup({ scopes: [AUTH_CONFIG.scope], redirectUri: AUTH_CONFIG.popupRedirectUri, prompt: "select_account" });
+        recordDiagnostic("acquire_token_popup_complete", { tokenPresent: Boolean(result?.accessToken), username: result?.account?.username || null });
+        if (settled) { recordDiagnostic("acquire_token_popup_late_result_ignored"); return; }
+        settled = true;
+        resolve(result);
+      } catch (error) {
+        recordDiagnostic("acquire_token_popup_error", getSafeErrorDetails(error));
+        if (settled) { recordDiagnostic("acquire_token_popup_late_error_ignored", getSafeErrorDetails(error)); return; }
+        settled = true;
+        setPopupUi("waiting", "Accesso non completato. Chiudi la finestra e riprova dal plugin.");
+        reject(error);
+      }
+    }, { once: true });
+  });
+}
+
 async function startAuthentication() {
+  recordDiagnostic("dialog_instance_start", { operationId: DIALOG_OPERATION_ID, dialogMode: DIALOG_MODE, pageHasHash: Boolean(window.location.hash), pageHasHostInfo: hasOfficeHostInfo() });
   const officeContextPage = hasOfficeHostInfo();
   if (officeContextPage) rememberOfficeDialogUrl();
 
@@ -569,6 +665,10 @@ async function startAuthentication() {
           .has("_host_Info")
     }
   );
+  if (DIALOG_MODE === "reset") {
+    await resetDialogAuthenticationStorage();
+    return;
+  }
   if (officeContextPage) {
     const pendingResult = readPendingAuthenticationResult();
     if (pendingResult?.accessToken) {
@@ -628,6 +728,16 @@ async function startAuthentication() {
   }
 
   if (redirectResult?.accessToken) {
+    recordDiagnostic("interactive_redirect_token_context", {
+      mode: DIALOG_MODE,
+      officeContextPage,
+      hasMessageParent: typeof globalThis.Office?.context?.ui?.messageParent === "function",
+      hasContext: Boolean(globalThis.Office?.context),
+      hasUi: Boolean(globalThis.Office?.context?.ui),
+      hostInfo: hasOfficeHostInfo(),
+      username: redirectResult.account?.username || null,
+      tokenLength: redirectResult.accessToken.length
+    });
     if (!officeContextPage) {
       recordDiagnostic("bootstrap_interactive_complete", { username: redirectResult.account?.username || null });
       savePendingAuthenticationResult(redirectResult, "interactive");
@@ -721,28 +831,12 @@ async function startAuthentication() {
     recordDiagnostic("recovery_silent_not_ready");
     throw error;
   }
-  recordDiagnostic(
-    "acquire_token_redirect_start",
-    {
-      redirectUri:
-        AUTH_CONFIG.redirectUri,
-      scope:
-        AUTH_CONFIG.scope
-    }
-  );
-
-  recordOfficeState("before_acquire_token_redirect");
-  probeOfficeReady("before_acquire_token_redirect");
-
-  await client.acquireTokenRedirect({
-    scopes: [
-      AUTH_CONFIG.scope
-    ],
-    redirectUri:
-      AUTH_CONFIG.redirectUri,
-    prompt:
-      "select_account"
-  });
+  recordDiagnostic("popup_auth_selected", { redirectUri: AUTH_CONFIG.popupRedirectUri, scope: AUTH_CONFIG.scope, bridgeMode: true });
+  recordOfficeState("before_acquire_token_popup");
+  probeOfficeReady("before_acquire_token_popup");
+  const popupResult = await waitForPopupUserGesture(client);
+  if (!popupResult?.accessToken) throw new Error("MSAL popup non ha restituito un access token.");
+  await sendTokenToParent(popupResult, "interactive-popup");
 }
 
 if (document.readyState === "loading") {
@@ -760,6 +854,12 @@ recordDiagnostic(
 );
 runDialogStorageProbe();
 
+if (DIALOG_MODE === "reset") {
+  const title = document.getElementById("auth-title");
+  const message = document.getElementById("auth-message");
+  if (title) title.textContent = "Reset autenticazione";
+  if (message) message.textContent = "Pulizia della cache di autenticazione del dialog in corso.";
+}
 if (DIALOG_MODE === "recovery") {
   const title = document.getElementById("auth-title");
   const message = document.getElementById("auth-message");

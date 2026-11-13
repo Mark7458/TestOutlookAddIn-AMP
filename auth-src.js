@@ -1,3 +1,4 @@
+// Test-Plugin file version: 0.2-auth-src.js-3
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -20,13 +21,16 @@ const AUTH_CONFIG = {
 let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
+let persistedBridgeRejectedThisRun = false;
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
-const MAX_AUTH_DIAGNOSTIC_EVENTS = 500;
+const MAX_AUTH_DIAGNOSTIC_EVENTS = 150;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
 const STORAGE_PROBE_DIALOG_KEY = "outlook-sogei-storage-probe-dialog";
 
-const AUTH_EXPERIMENT = "v0.1.18-mfa5-token-bridge";
+const AUTH_FLOW = "popup-redirect-bridge";
 const AUTH_BRIDGE_KEY = "outlook-sogei-taskpane-auth-bridge";
+const UI_PREFERENCES_KEY = "test-plugin-ui-preferences";
+function isDiagnosticsEnabled() { try { return Boolean(JSON.parse(localStorage.getItem(UI_PREFERENCES_KEY) || "{}").diagnosticsEnabled); } catch { return false; } }
 
 function readAuthDiagnostics() {
   try {
@@ -47,6 +51,7 @@ function writeAuthDiagnostics(events) {
 }
 
 function recordAuthDiagnostic(event, details = null, source = "TASKPANE") {
+  if (!isDiagnosticsEnabled()) return;
   const events = readAuthDiagnostics();
   events.push({
     time: new Date().toLocaleTimeString("it-IT", { hour12: false }),
@@ -131,13 +136,75 @@ function clearPersistedAuthentication(reason = "unknown") {
   try { localStorage.removeItem(AUTH_BRIDGE_KEY); recordAuthDiagnostic("persisted_auth_cleared", { reason }); }
   catch (error) { recordAuthDiagnostic("persisted_auth_clear_error", { reason, name: error?.name || "Error", message: error?.message || String(error) }); }
 }
+function clearAuthenticationCache() {
+  currentAuthentication = null;
+  persistedBridgeRejectedThisRun = false;
+  clearPersistedAuthentication("manualDiagnosticAction");
+  recordAuthDiagnostic("manual_auth_cache_clear");
+}
+function resetDialogAuthenticationCache() {
+  recordAuthDiagnostic("full_auth_reset_dialog_start");
+  return new Promise((resolve, reject) => {
+    if (!window.Office?.context?.ui || typeof Office.context.ui.displayDialogAsync !== "function") {
+      reject(createDialogError("Office Dialog API non disponibile.", { errorCode: "office_dialog_not_available" }));
+      return;
+    }
+    Office.context.ui.displayDialogAsync(
+      `${AUTH_CONFIG.dialogUrl}?mode=reset`,
+      { height: 10, width: 10, displayInIframe: false, promptBeforeOpen: false },
+      (result) => {
+        if (result.status === Office.AsyncResultStatus.Failed) {
+          reject(createDialogError(result.error?.message || "Impossibile aprire il dialog reset.", { errorCode: result.error?.code || "dialog_reset_open_failed" }));
+          return;
+        }
+        const dialog = result.value;
+        let completed = false;
+        const finish = (callback) => {
+          if (completed) return;
+          completed = true;
+          try { dialog.close(); } catch {}
+          callback();
+        };
+        dialog.addEventHandler(Office.EventType.DialogMessageReceived, (event) => {
+          try {
+            const message = JSON.parse(event.message);
+            importDialogDiagnostics(message?.dialogDiagnostics);
+            if (message?.type === "auth-reset-complete") {
+              recordAuthDiagnostic("full_auth_reset_dialog_complete", { removedCount: message.removedCount || 0 });
+              finish(() => resolve(message));
+              return;
+            }
+            finish(() => reject(createDialogError(message?.message || "Reset dialog non completato.", { errorCode: message?.errorCode || "dialog_reset_failed" })));
+          } catch (error) { finish(() => reject(error)); }
+        });
+        dialog.addEventHandler(Office.EventType.DialogEventReceived, (event) => {
+          if (!completed) recordAuthDiagnostic("full_auth_reset_dialog_event", { error: event?.error || null });
+        });
+      }
+    );
+  });
+}
+
+async function resetAuthenticationCompletely() {
+  clearAuthenticationCache();
+  recordAuthDiagnostic("full_auth_reset_start");
+  const result = await resetDialogAuthenticationCache();
+  recordAuthDiagnostic("full_auth_reset_complete", { removedCount: result?.removedCount || 0 });
+  return result;
+}
+
 function importDialogDiagnostics(entries) {
   if (!Array.isArray(entries)) return;
 
-  entries.slice(-60).forEach((entry) => {
+  entries.slice(-12).forEach((entry) => {
+    const details = {
+      operationId: entry?.details?.operationId ?? null,
+      dialogMode: entry?.details?.dialogMode || null,
+      ...(entry?.details || {})
+    };
     recordAuthDiagnostic(
       entry.event || "dialog_event",
-      entry.details || null,
+      details,
       "DIALOG"
     );
   });
@@ -178,7 +245,7 @@ async function initializeMsal() {
 
   runTaskpaneStorageProbe();
   recordAuthDiagnostic("auth_experiment_loaded", {
-    experiment: AUTH_EXPERIMENT
+    flow: AUTH_FLOW
   });
   recordAuthDiagnostic("msal_initialize_start");
 
@@ -248,8 +315,8 @@ async function acquireTokenSilently() {
 
   if (accounts.length === 0) {
     recordAuthDiagnostic("silent_accounts_empty", {
-      experiment: AUTH_EXPERIMENT,
-      nextStep: "officeDialogRecovery"
+      flow: AUTH_FLOW,
+      nextStep: "interactiveConnectPlugin"
     });
     return null;
   }
@@ -320,7 +387,8 @@ function acquireTokenWithOfficeDialog(options = {}) {
   const operationId = ++dialogOperationSequence;
   const mode = options.mode === "recovery" ? "recovery" : "connect";
   const forceCloseAfterMs = Number(options.forceCloseAfterMs || 0);
-  const dialogUrl = mode === "recovery" ? `${AUTH_CONFIG.dialogUrl}?mode=recovery` : AUTH_CONFIG.dialogUrl;
+  const dialogUrlBase = mode === "recovery" ? `${AUTH_CONFIG.dialogUrl}?mode=recovery` : AUTH_CONFIG.dialogUrl;
+  const dialogUrl = `${dialogUrlBase}${dialogUrlBase.includes("?") ? "&" : "?"}operationId=${encodeURIComponent(operationId)}`;
   const dialogHeight = Number(options.height || (mode === "recovery" ? 10 : 65));
   const dialogWidth = Number(options.width || (mode === "recovery" ? 10 : 45));
   recordAuthDiagnostic("display_dialog_start", { operationId, mode, forceCloseAfterMs, dialogHeight, dialogWidth });
@@ -486,8 +554,13 @@ function acquireTokenWithOfficeDialog(options = {}) {
                 JSON.parse(event.message);
               recordAuthDiagnostic("dialog_message_received", {
                 operationId,
+                dialogOperationId: message?.dialogOperationId ?? null,
+                dialogMode: message?.dialogMode || null,
                 type: message?.type || null
               });
+              if (message?.dialogOperationId != null && String(message.dialogOperationId) !== String(operationId)) {
+                recordAuthDiagnostic("dialog_operation_mismatch", { operationId, dialogOperationId: message.dialogOperationId, dialogMode: message?.dialogMode || null });
+              }
               importDialogDiagnostics(message?.dialogDiagnostics);
             } catch {
               completeWithError(
@@ -634,11 +707,8 @@ function acquireTokenWithOfficeDialog(options = {}) {
 
             if (event?.error === 12006) {
               dialog12006Count += 1;
-              recordAuthDiagnostic("porkaround_12006_observed", {
-                operationId,
-                count: dialog12006Count,
-                elapsedMs: Date.now() - dialogOpenedAt
-              });
+              recordAuthDiagnostic("popup_dialog_closed_by_user", { operationId, count: dialog12006Count, elapsedMs: Date.now() - dialogOpenedAt });
+              completeWithError(createDialogError("Finestra di autenticazione chiusa dall'utente.", { errorCode: "user_cancelled", authenticationPhase: "popupOfficeDialog", dialogEvent: 12006 }));
             }
           }
         );
@@ -647,33 +717,6 @@ function acquireTokenWithOfficeDialog(options = {}) {
   });
 }
 
-function delay(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
-async function runRecoveryLoop(options = {}) {
-  const retryDelayMs = Number(options.retryDelayMs || 1000);
-  const openedRecoveryMaxMs = Number(options.openedRecoveryMaxMs || 20000);
-  const waitForDialogRelease = options.waitForDialogRelease !== false;
-  let recoveryWindowStartedAt = null;
-  let attempt = 0;
-  recordAuthDiagnostic("recovery_watcher_start", { retryDelayMs, openedRecoveryMaxMs, waitForDialogRelease });
-  while (true) {
-    attempt += 1;
-    recordAuthDiagnostic("recovery_attempt", { attempt });
-    try {
-      const authentication = await acquireTokenWithOfficeDialog({ mode: "recovery", forceCloseAfterMs: 3000 });
-      recordAuthDiagnostic("recovery_success", { attempt, acquisitionMode: authentication?.acquisitionMode || null });
-      return authentication;
-    } catch (error) {
-      const dialogBusy = error?.authenticationPhase === "displayDialogAsync";
-      recordAuthDiagnostic("recovery_attempt_failed", { attempt, dialogBusy, errorCode: error?.errorCode || null, message: error?.message || String(error) });
-      if (dialogBusy && waitForDialogRelease) { await delay(retryDelayMs); continue; }
-      if (recoveryWindowStartedAt === null) { recoveryWindowStartedAt = Date.now(); recordAuthDiagnostic("recovery_window_started"); }
-      if (Date.now() - recoveryWindowStartedAt >= openedRecoveryMaxMs) {
-        throw createDialogError("Token non recuperabile entro la finestra di recovery di 20 secondi.", { errorCode: "recovery_timeout", authenticationPhase: "silentRecovery" });
-      }
-      await delay(retryDelayMs);
-    }
-  }
-}
 async function recoverConnection() {
   recordAuthDiagnostic("recover_connection_start", { mode: "persistent-small-dialog" });
   try {
@@ -731,15 +774,48 @@ async function getAccessTokenSilently() {
   }
   const persistedAuthentication = readPersistedAuthentication();
   if (isAuthenticationUsable(persistedAuthentication)) {
+    persistedBridgeRejectedThisRun = false;
     currentAuthentication = persistedAuthentication;
     recordAuthDiagnostic("persisted_auth_reused", { expiresOn: persistedAuthentication.expiresOn || null });
     return currentAuthentication;
   }
-  if (persistedAuthentication) { clearPersistedAuthentication("notUsable"); }
+  if (persistedAuthentication) {
+    persistedBridgeRejectedThisRun = true;
+    recordAuthDiagnostic("persisted_auth_rejected_this_run", {
+      reason: "notUsable",
+      expiresOn: persistedAuthentication.expiresOn || null
+    });
+    clearPersistedAuthentication("notUsable");
+  }
 
   currentAuthentication = null;
   const authentication = await acquireTokenSilently();
-  if (authentication) return authentication;
+  if (authentication) {
+    persistedBridgeRejectedThisRun = false;
+    return authentication;
+  }
+  const silentAccountCount = msalInstance?.getAllAccounts?.().length || 0;
+  if (!persistedAuthentication && silentAccountCount === 0) {
+    recordAuthDiagnostic("zero_auth_state_detected", {
+      persistedAuthAvailable: false,
+      accountCount: silentAccountCount,
+      reason: "emptyStateAfterReset"
+    });
+    recordAuthDiagnostic("initial_recovery_skipped", {
+      flow: AUTH_FLOW,
+      reason: "nothingToRecover"
+    });
+    recordAuthDiagnostic("interactive_auth_selected", {
+      flow: AUTH_FLOW,
+      nextStep: "connectPlugin"
+    });
+    return connectPlugin();
+  }
+  if (persistedBridgeRejectedThisRun) {
+    persistedBridgeRejectedThisRun = false;
+    recordAuthDiagnostic("expired_bridge_delegate_to_connect_dialog", { flow: AUTH_FLOW });
+    return connectPlugin();
+  }
   recordAuthDiagnostic("taskpane_silent_empty_recover_via_dialog");
   return recoverConnection();
 }
@@ -752,14 +828,19 @@ async function connectPlugin() {
     return cached;
   }
 
-  const interactiveWindowMs = 30000;
-  recordAuthDiagnostic("single_interactive_start", { interactiveWindowMs });
+  const interactiveWindowMs = 0;
+  recordAuthDiagnostic("single_interactive_start", { interactiveWindowMs, mode: "popupInsideDialog" });
   try {
     const directResult = await acquireTokenWithOfficeDialog({ mode: "connect", forceCloseAfterMs: interactiveWindowMs });
     recordAuthDiagnostic("single_interactive_direct_success", { acquisitionMode: directResult?.acquisitionMode || null });
     return directResult;
   } catch (error) {
-    recordAuthDiagnostic("single_interactive_released", { errorCode: error?.errorCode || null, message: error?.message || String(error) });
+    const errorCode = error?.errorCode || null;
+    recordAuthDiagnostic("single_interactive_released", { errorCode, message: error?.message || String(error) });
+    if (["user_cancelled", "timed_out"].includes(String(errorCode || ""))) {
+      recordAuthDiagnostic("popup_terminal_error_stop", { errorCode, reason: "noRecoveryForPopupCancellation" });
+      throw error;
+    }
   }
 
   recordAuthDiagnostic("persistent_recovery_start", { maxMs: 20000, height: 10, width: 10 });
@@ -814,4 +895,4 @@ async function callHealth() {
   }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics };
+window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics, recordDiagnostic: (event, details = null) => recordAuthDiagnostic(event, details, "TASKPANE"), resetAuthenticationCompletely };
