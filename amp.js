@@ -3,9 +3,10 @@
  *
  * Nell'add-in i ticket si gestiscono da Outlook, senza aprire ServiceNow:
  *   - Coda         mail della casella condivisa che non hanno un ticket aperto;
- *   - Ticket       ticket aperti su ServiceNow, con l'assegnatario (Assigned to);
- *   - Mail         la mail aperta: ticket collegato (o da collegare / aprire), tempo,
- *                  storico di ServiceNow e azione da eseguire all'invio della risposta;
+ *   - Ticket       ticket aperti su ServiceNow, con l'assegnatario (Assigned to); con la lente anche
+ *                  la ricerca su AMP (chiusi e di altri, in sola lettura);
+ *   - Mail         la mail aperta: ticket collegati (o da collegare / aprire), tempo, risposta da
+ *                  copiare nella mail e azioni subito su ServiceNow (il pannello lavora solo lì);
  *   - Impostazioni profilo, Agenzie (con i domini email), Attività, risposte salvate.
  *
  * Regole:
@@ -90,7 +91,7 @@
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata (in viaggio, al clic)
-            openShadow: 'var(--ao-raised-shadow)', // scheda aperta (In coda, ticket nel thread, Impostazioni): nel vetro bagliore + ombra leggera, come + Nuovo ticket aperto
+            openShadow: 'var(--ao-raised-shadow)', // scheda aperta (In coda, ticket nel thread, Impostazioni): nel vetro bagliore + ombra leggera, come il pulsante di creazione aperto
             itemHover: 'var(--ao-surface)', // scheda al passaggio del mouse: non si schiarisce, si accende il bordo (e nel vetro il bagliore)
             itemHoverEdge: 'color-mix(in srgb, var(--ao-accent) 35%, transparent)', // flat: bordo blu sottile e tenue
             itemHoverGlow: '0 0 transparent',
@@ -106,13 +107,13 @@
             selectionTone: '100%', // quanto colore dell'azione nella voce scelta del selettore delle azioni
             selectionMotion: '.32s cubic-bezier(.3, .8, .2, 1)', // come scivola la voce scelta
             menuBg: 'var(--ao-surface)', // elenchi aperti: sempre pieni, si leggono sopra a tutto
-            // + Nuovo ticket e ＋ Ticket (thread): nel flat bordo blu sottile e tenue, pieno al passaggio del mouse; nel vetro
-            // card come le altre con un bagliore fisso che "chiama": al passaggio del mouse non si schiarisce, il bagliore
-            // dà un impulso breve e misurato e resta un po' più forte; aperto tiene il bagliore
+            // Pulsanti di creazione (Ticket, Agenzia, Attività, Risposta): nel flat bordo blu sottile e tenue, pieno al
+            // passaggio del mouse; nel vetro card come le altre con un bagliore fisso che "chiama": al passaggio del mouse
+            // non si schiarisce, il bagliore si accende e scivola piano avanti e indietro; aperto tiene il bagliore
             callBorder: '1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent)',
             callOpenBorder: 'var(--ao-accent)',
             callGlow: '0 0 transparent',
-            callGlowRest: '0 0 transparent', // + Nuovo ticket e ＋ Ticket a riposo: bagliore tenue (il modulo aperto tiene callGlow)
+            callGlowRest: '0 0 transparent', // pulsanti di creazione a riposo: bagliore tenue (il modulo aperto tiene callGlow)
             callGlowHover: '0 0 transparent',
             callGlowLeft: '0 0 transparent', // al passaggio il bagliore scivola piano tra sinistra e destra (nel flat non c'è)
             callGlowRight: '0 0 transparent',
@@ -332,12 +333,10 @@
         },
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings' },
         common: {
-            me: 'me',
             back: view => `← ${view}`,
             loading: 'Caricamento…',
             cancel: 'Annulla',
             save: 'Salva',
-            edit: 'Modifica',
             delete: 'Elimina',
             confirm: 'Confermi?',
             close: 'Chiudi',
@@ -364,8 +363,6 @@
             ignoredEmpty: 'Nessun thread ignorato.',
             ignoredHint: 'Tornano da sole In coda quando arriva un messaggio nuovo nel thread; intanto puoi prenderle in carico da qui.',
             ignoredBy: (who, when) => `Ignorata da ${who} · ${when}`,
-
-            takeCharge: 'Prendi in carico',
             ignore: 'Ignora',
             messageOf: (index, total, when) => `${index} di ${total} · ${when}`,
             previousMessage: 'Messaggio precedente',
@@ -381,13 +378,13 @@
             missingShort: 'Scrivi la Short description.',
             badTime: "Scrivi l'ora come hh:mm (per esempio 09:30).",
             mine: 'Miei',
-            others: 'Altri',
             fromMail: 'Da mail',
             withoutMail: 'Senza mail',
-            allOperators: 'Tutti',
             status: 'Stato',
             operator: 'Operatore',
-            statuses: { all: 'Tutti', open: 'Aperti', hold: 'In attesa' },
+            statuses: { open: 'Aperti', hold: 'In attesa' },
+            allValues: 'Tutti',
+            apply: 'Applica',
             defaultFilter: 'predefinito',
             clearFilter: 'Togli il filtro',
             filters: 'Filtri',
@@ -406,7 +403,6 @@
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
             holdExpired: 'On Hold scaduto',
             groupCount: count => `+${count} ticket`, // ticket collegati al thread oltre al principale
-            holdUntil: date => `fino al ${date}`,
             dueOn: date => `Scade il ${date}`,
             dueToday: time => `Scade oggi alle ${time}`,
             expired: 'Scaduto',
@@ -433,9 +429,6 @@
             closedAt: date => `chiuso ${date}`,
             discardedBy: (who, when) => `Scartata da ${who} · ${when}`,
             restore: 'Rimetti in coda',
-            // Presa in carico = Assigned to su ServiceNow
-            assignedToMe: name => `Assegnato a ${name} (me)`,
-            notAssigned: 'Non assegnato',
             taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
             newTicket: 'Presa in carico',
@@ -464,8 +457,7 @@
             timeWorked: 'Tempo lavorato',
             minutes: n => `${n} min`,
             closed: state => `Ticket ${state}: nessuna azione disponibile.`,
-            noLinkedMail: 'Nessuna mail collegata: la risposta non è disponibile da qui.',
-            // Azione all'invio
+            // Attività del ticket: risposta da copiare e azione su ServiceNow
             reply: 'Attività',
             updateText: 'Testo',
             responses: 'Risposte',
@@ -570,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-10 12:15';
+    const BUILD = '2026-11-13 18:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -828,9 +820,6 @@
         const date = ticket?.state === '3' ? parseDate(ticket.holdExpiration) : null;
         return Boolean(date && date < new Date());
     }
-    function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-    }
 
     // ======================================================================
     // 5. INTERFACCIA: STRUTTURA E NAVIGAZIONE
@@ -921,10 +910,11 @@
         loading: false,
         serviceError: '',
         ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
-        ticketOperator: 'mine', // Ticket: mine (vista iniziale) | nome del collega | all
-        ticketStatus: 'all', // Ticket: all (vista iniziale) | open (In Progress) | hold (On Hold)
+        ticketOperator: ['mine'], // Ticket: operatori scelti, in OR: mine (vista iniziale) e/o nomi dei colleghi; [] = tutti
+        ticketStatus: [], // Ticket: stati scelti, in OR: open (In Progress), hold (On Hold); [] = tutti (vista iniziale)
         ticketFilterOpen: false, // imbuto: la barra mostra i filtri al posto di Da mail | Senza mail
         filterMenu: null, // elenco aperto dei filtri: status | operator
+        filterDraft: [], // voci spuntate nell'elenco aperto: valgono solo con Applica
         ticketSearchOpen: false, // ricerca (lente) aperta
         ticketQuery: '', // testo cercato: numero INC o oggetto
         ticketSearchShown: '', // testo dei risultati mostrati
@@ -937,11 +927,11 @@
         searching: false,
         ticketCache: {}, // ultimo Ticket letto per numero (anche chiusi o non in elenco)
         newTicketOpen: false, // modulo "Nuovo ticket" (senza mail) aperto in Ticket
-        newTicketShape: null, // forma del pulsante "+ Nuovo ticket" (il modulo ci torna con Annulla)
+        newTicketShape: null, // forma del pulsante "Ticket" di Senza mail (il modulo ci torna con Annulla)
         newItemShape: null, // lo stesso per i pulsanti Agenzia, Attività e Risposta in Impostazioni
         liftConfig: null, // voce di Impostazioni appena aperta: si disegna ancora a terra, poi si solleva
         ticketDrafts: {}, // per conversazione: Agenzia, Attività, Short description
-        actionDrafts: {}, // per ticket: azione all'invio
+        actionDrafts: {}, // per ticket: testo e azione in preparazione
         groupOpen: {}, // per thread: righe dei ticket aperte sotto la scheda della lista
         namingResponse: null, // ticket su cui si sta dando il nome a una nuova Risposta salvata
         timeDrafts: {}, // per ticket: tempo lavorato impostato nel timer, che parte insieme all'azione (non da solo)
@@ -1252,16 +1242,6 @@
         if (entering) slideInView(1);
         refreshTarget(sameConversation);
     }
-    // Dalla Coda: mostra la richiesta e apre la mail in Outlook.
-    function openQueueItem(item) {
-        state.backTo = 'queue';
-        showMailTarget({
-            conversationId: item.conversationId, itemId: item.messageId, subject: item.subject, sender: item.sender,
-            receivedAt: item.receivedAt, body: item.preview, incNumbers: []
-        });
-        scrollToTop();
-        Outlook.openMessage(item.messageId);
-    }
     // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
     // Solo questo clic segna come lette le risposte nuove (aprire la mail in Outlook non basta).
     function openTicketItem(ticket, { slide = true } = {}) {
@@ -1276,7 +1256,7 @@
         if (entering && slide) slideInView(1);
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
-    // Dall'elenco alla pagina del ticket e ritorno: un viaggio della scheda (o del mazzo).
+    // Dall'elenco alla pagina del ticket e ritorno: un viaggio della scheda.
     // Andata: la scheda si stacca (si solleva, il resto si sfoca), viaggia fino al posto della scheda del ticket
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
@@ -1473,7 +1453,7 @@
     }
     // Filtri della barra Ticket: valgono solo finché sono aperti (chiudendoli o aprendo un ticket si azzerano).
     function resetTicketFilters() {
-        Object.assign(state, { ticketFilterOpen: false, ticketStatus: 'all', ticketOperator: 'mine', filterMenu: null });
+        Object.assign(state, { ticketFilterOpen: false, ticketStatus: [], ticketOperator: ['mine'], filterMenu: null });
     }
     // backTo: vista a cui tornare con il pulsante ← (le schede lo azzerano).
     function setView(view, backTo = null, { slide = true } = {}) {
@@ -1556,12 +1536,6 @@
         root.addEventListener('click', event => {
             if (!state.labelArmed || event.target.closest('.ao-tag-swap')) return;
             state.labelArmed = null;
-            render();
-        }, true);
-        // Menu degli operatori (Ticket): un clic fuori lo chiude.
-        root.addEventListener('click', event => {
-            if (!state.filterMenu || event.target.closest('.ao-menu, .ao-filter-dd')) return;
-            state.filterMenu = null;
             render();
         }, true);
         // Anteprima aperta in In coda: un clic fuori dalla scheda prima la richiude (con l'animazione)
@@ -1693,7 +1667,7 @@
         const body = root.querySelector('.ao-body');
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
-        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator}|${state.ticketSearchOpen}|${state.settingsTab}`;
+        const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator.join(',')}|${state.ticketSearchOpen}|${state.settingsTab}`;
         const previousScroll = body.dataset.scrollKey === scrollKey ? body.querySelector('.ao-scroll')?.scrollTop || 0 : 0;
         const view = views[state.view](config, user);
         const children = [...view.children];
@@ -2053,7 +2027,8 @@
             shown ? messagePicker(item, messages, shown) : null,
             // Testo limitato a PREVIEW_MAX_CHARS; la barra di scorrimento compare solo a scheda aperta del tutto.
             h('div', { class: `ao-mail-preview${state.previewScroll === item.conversationId ? ' ao-scrollable' : ''}` },
-                clipText(body ?? shown?.preview ?? item.preview ?? '', PREVIEW_MAX_CHARS), body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null),
+                h('span', { class: 'ao-mail-text' }, clipText(body ?? shown?.preview ?? item.preview ?? '', PREVIEW_MAX_CHARS),
+                    body === undefined ? h('span', { class: 'ao-hint' }, ` ${TEXTS.common.loading}`) : null)),
             iconBar(actions.map(action => ({ ...action, icon: ACTION_ICONS[action.value] })), choice.action, value => pickQueueAction(item, value), { key: `action:${item.conversationId}`, tones: true, slide: false }),
             choiceZone(`queue:${item.conversationId}`, choice.action ? queueActionContent(item, mail, config, choice) : null),
             h('button', {
@@ -2080,7 +2055,8 @@
             h('span', { class: 'ao-message-where' }, TEXTS.queue.messageOf(at + 1, messages.length, formatWhen(shown.receivedAt))),
             step(1, TEXTS.queue.nextMessage));
     }
-    // Un altro messaggio del thread: il testo svanisce, la tendina si adatta al nuovo e questo compare (come nei ticket).
+    // Un altro messaggio del thread: il riquadro grigio resta al suo posto; svanisce solo il testo, il riquadro si adatta
+    // all'altezza del nuovo e questo compare.
     async function showQueueMessage(item, index) {
         if (state.holdRender) return;
         const id = item.conversationId;
@@ -2089,7 +2065,8 @@
         if (!message || !choice) return;
         const form = queueDetailsOf(id);
         const before = form?.offsetHeight || 0;
-        const changing = () => [...(queueDetailsOf(id)?.querySelectorAll('.ao-message-where, .ao-mail-preview') || [])];
+        const boxBefore = form?.querySelector('.ao-mail-preview')?.offsetHeight || 0;
+        const changing = () => [...(queueDetailsOf(id)?.querySelectorAll('.ao-message-where, .ao-mail-text') || [])];
         const body = state.mailBodies[message.messageId] === undefined
             ? Services.getMailBody(message.messageId).then(text => text || message.preview || '').catch(() => message.preview || '') : null;
         await holdingRender(async () => {
@@ -2099,9 +2076,14 @@
         });
         render();
         const next = queueDetailsOf(id);
+        const box = next?.querySelector('.ao-mail-preview');
         changing().forEach(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }));
-        if (next && before && next.scrollHeight !== before) await holdingRender(() => playOn(next, [{ maxHeight: `${before}px` }, { maxHeight: `${next.scrollHeight}px` }], MOTION.swap)
-            .then(result => { if (result) { result.animation.cancel(); next.style.overflow = result.overflow; } }));
+        const settle = result => { if (result) { result.animation.cancel(); box.style.overflow = result.overflow; } };
+        await holdingRender(() => Promise.all([
+            box && boxBefore && box.offsetHeight !== boxBefore ? playOn(box, [{ height: `${boxBefore}px` }, { height: `${box.offsetHeight}px` }], MOTION.swap).then(settle) : null,
+            next && before && next.scrollHeight !== before ? playOn(next, [{ maxHeight: `${before}px` }, { maxHeight: `${next.scrollHeight}px` }], MOTION.swap)
+                .then(result => { if (result) { result.animation.cancel(); next.style.overflow = result.overflow; } }) : null
+        ]));
     }
     function queueActionContent(item, mail, config, choice) {
         const card = button => button.closest('.ao-queue-item');
@@ -2276,13 +2258,14 @@
     // I ticket dello stesso thread stanno insieme; in cima i thread con messaggi nuovi.
     // Ticket: in alto il selettore Da mail | Senza mail (centrato). Ricliccando la voce scelta si apre il menu
     // degli operatori: Tutti (vista generale), Miei, poi un collega alla volta. Il filtro scelto si legge nella voce.
-    // "+ Nuovo ticket" apre un ticket senza mail, quindi sta solo in Senza mail.
+    // "Ticket" apre un ticket senza mail, quindi sta solo in Senza mail.
     function renderTickets(config, user) {
         const notice = serviceNotice();
         const open = state.tickets.slice();
-        const operator = state.ticketOperator;
-        const byOperator = ticket => operator === 'all' || (operator === 'mine' ? isMine(ticket, user)
-            : !isMine(ticket, user) && (ticket.assignedTo?.name || TEXTS.common.unassigned) === operator);
+        // Filtri in OR: basta una delle voci spuntate; nessuna voce = tutti.
+        const operators = state.ticketOperator;
+        const byOperator = ticket => !operators.length || operators.some(operator => (operator === 'mine' ? isMine(ticket, user)
+            : !isMine(ticket, user) && (ticket.assignedTo?.name || TEXTS.common.unassigned) === operator));
         const fromMail = ticket => Boolean(ticket.messageId);
         // Ricerca (lente) "super partes": numero INC o oggetto su tutti i ticket aperti, di qualunque sezione e operatore.
         // Mentre si cerca, sezione e filtro non contano (e non si vedono); chiudendo la ricerca si torna dove si era.
@@ -2290,7 +2273,7 @@
         const searching = state.ticketSearchOpen;
         const query = searching ? state.ticketSearchShown : '';
         const matches = ticket => `${ticket.number} ${ticket.shortDescription || ''}`.toLowerCase().includes(query);
-        const byStatus = ticket => state.ticketStatus === 'all' || (state.ticketStatus === 'hold' ? ticket.state === '3' : ticket.state !== '3');
+        const byStatus = ticket => !state.ticketStatus.length || state.ticketStatus.includes(ticket.state === '3' ? 'hold' : 'open');
         const visible = open.filter(ticket => byOperator(ticket) && byStatus(ticket));
         const items = searching ? (query && !state.ticketSearchPending ? open.filter(matches) : [])
             : visible.filter(ticket => (state.ticketSource === 'none' ? !fromMail(ticket) : fromMail(ticket)));
@@ -2334,10 +2317,9 @@
     // La lente trasforma la barra nel campo di ricerca (stessa misura) e resta al suo posto, a destra:
     // apre e chiude la ricerca (come un interruttore). Si cerca su tutti i ticket, mentre si scrive.
     function ticketSourceBar(open, user, counts) {
-        const operator = state.ticketOperator;
         const colleagues = [...new Set(open.filter(ticket => !isMine(ticket, user)).map(ticket => ticket.assignedTo?.name || TEXTS.common.unassigned))]
             .sort((a, b) => a.localeCompare(b, 'it'));
-        const filtered = operator !== 'mine' || state.ticketStatus !== 'all';
+        const filtered = state.ticketOperator.join() !== 'mine' || state.ticketStatus.length > 0;
         // Imbuto: apre e chiude i filtri al posto di Da mail | Senza mail (il puntino dice che un filtro è attivo).
         const filterButton = h('button', {
             type: 'button', class: `ao-bar-btn ao-bar-filter${filtered ? ' ao-active' : ''}${state.ticketFilterOpen ? ' ao-open' : ''}`,
@@ -2368,10 +2350,10 @@
                 searchButton));
         }
         const middle = state.ticketFilterOpen ? h('div', { class: 'ao-segmented ao-filter-bar' },
-            filterField('status', TEXTS.tickets.status, state.ticketStatus, 'all',
+            filterField('status', TEXTS.tickets.status, state.ticketStatus, [],
                 Object.entries(TEXTS.tickets.statuses).map(([value, label]) => ({ value, label })), value => { state.ticketStatus = value; }),
-            filterField('operator', TEXTS.tickets.operator, operator, 'mine',
-                [{ value: 'mine', label: TEXTS.tickets.mine }, ...colleagues.map(name => ({ value: name, label: name })), { value: 'all', label: TEXTS.tickets.allOperators, separated: true }],
+            filterField('operator', TEXTS.tickets.operator, state.ticketOperator, ['mine'],
+                [{ value: 'mine', label: TEXTS.tickets.mine }, ...colleagues.map(name => ({ value: name, label: name }))],
                 value => { state.ticketOperator = value; }))
             : iconBar([
                 { value: 'mail', icon: SEGMENT_ICONS.mail, label: TEXTS.tickets.fromMail, count: counts.mail, notify: counts.mailUpdates, notifyTitle: TEXTS.tickets.newMessagesTitle(counts.mailUpdates) },
@@ -2386,23 +2368,46 @@
     }
     // Un filtro nella barra: vuoto mostra il suo nome (vale la voce predefinita, segnata nell'elenco);
     // scelto mostra il valore con la × per toglierlo. La scelta si applica subito.
+    // Filtro a scelta multipla (voci in OR): value e fallback sono elenchi, [] = tutti. Nell'elenco le voci si spuntano;
+    // valgono solo con Applica, Annulla lo chiude lasciando i filtri di prima (un clic fuori non lo chiude).
+    // Spuntate tutte le voci, è come "Tutti". La voce del filtro mostra le scelte (es. "Miei +1").
     function filterField(key, name, value, fallback, options, apply) {
-        const set = value !== fallback;
-        const pick = next => { apply(next); state.filterMenu = null; render(); };
+        const same = (a, b) => a.length === b.length && a.every(item => b.includes(item));
+        const set = !same(value, fallback);
+        const open = state.filterMenu === key;
+        const labelOf = item => options.find(option => option.value === item)?.label || item;
+        const summary = value.length ? `${labelOf(value[0])}${value.length > 1 ? ` +${value.length - 1}` : ''}` : TEXTS.tickets.allValues;
+        const draft = state.filterDraft;
+        const toggle = item => {
+            state.filterDraft = item === null ? [] : draft.includes(item) ? draft.filter(entry => entry !== item) : [...draft, item];
+            render();
+        };
+        const close = next => {
+            if (next) apply(next.length === options.length ? [] : next);
+            state.filterMenu = null;
+            render();
+        };
+        const entry = (item, label, isDefault) => {
+            const on = item === null ? !draft.length : draft.includes(item);
+            return h('button', { type: 'button', role: 'option', 'aria-selected': String(on), class: `ao-menu-item${on ? ' ao-active' : ''}`, onclick: () => toggle(item) },
+                h('span', { class: 'ao-menu-check', 'aria-hidden': 'true' }, on ? '✓' : ''), h('span', {}, label),
+                isDefault ? h('span', { class: 'ao-menu-default' }, TEXTS.tickets.defaultFilter) : null);
+        };
         return h('div', {
-            class: `ao-filter-dd${set ? ' ao-set' : ''}`, role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-expanded': String(state.filterMenu === key),
-            onclick: () => { state.filterMenu = state.filterMenu === key ? null : key; render(); },
-            onkeydown: event => { if (event.key === 'Enter') { state.filterMenu = state.filterMenu === key ? null : key; render(); } }
+            class: `ao-filter-dd${set ? ' ao-set' : ''}`, role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-expanded': String(open),
+            onclick: () => { if (state.filterMenu) return; state.filterMenu = key; state.filterDraft = [...value]; render(); },
+            onkeydown: event => { if (event.key === 'Enter' && !state.filterMenu) { state.filterMenu = key; state.filterDraft = [...value]; render(); } }
         },
-            h('span', { class: 'ao-filter-value' }, set ? options.find(option => option.value === value)?.label || value : name),
-            set ? h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.tickets.clearFilter, title: TEXTS.tickets.clearFilter, onclick: event => { event.stopPropagation(); pick(fallback); } }, '×')
+            h('span', { class: 'ao-filter-value' }, set ? summary : name),
+            set ? h('button', { type: 'button', class: 'ao-chip-clear', 'aria-label': TEXTS.tickets.clearFilter, title: TEXTS.tickets.clearFilter, onclick: event => { event.stopPropagation(); apply([...fallback]); state.filterMenu = null; render(); } }, '×')
                 : h('span', { class: 'ao-filter-caret', 'aria-hidden': 'true' }, '▾'),
-            state.filterMenu === key ? h('div', { class: `ao-menu ao-filter-menu ao-filter-menu-${key}`, role: 'listbox', onclick: event => event.stopPropagation() },
-                options.map(option => [
-                    option.separated ? h('hr', { class: 'ao-menu-sep' }) : null,
-                    h('button', { type: 'button', role: 'option', 'aria-selected': String(option.value === value), class: `ao-menu-item${option.value === value ? ' ao-active' : ''}`, onclick: () => pick(option.value) },
-                        h('span', {}, option.label), option.value === fallback ? h('span', { class: 'ao-menu-default' }, TEXTS.tickets.defaultFilter) : null)
-                ])) : null);
+            open ? h('div', { class: `ao-menu ao-filter-menu ao-filter-menu-${key}`, role: 'listbox', 'aria-multiselectable': 'true', onclick: event => event.stopPropagation() },
+                options.map(option => entry(option.value, option.label, same([option.value], fallback))),
+                h('hr', { class: 'ao-menu-sep' }),
+                entry(null, TEXTS.tickets.allValues, !fallback.length),
+                h('div', { class: 'ao-filter-actions' },
+                    h('button', { type: 'button', class: 'ao-button', onclick: () => close(null) }, TEXTS.common.cancel),
+                    h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => close(draft) }, TEXTS.tickets.apply))) : null);
     }
     // Cambio della barra secondaria (filtri, ricerca): dura BAR_TIME, in due metà uguali. Le scritte svaniscono, poi
     // compaiono quelle nuove; nella seconda metà le due parti dei filtri prendono la loro larghezza e il pulsante
@@ -2656,7 +2661,7 @@
                     h('span', { class: 'ao-spacer' }),
                     h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: event => closeNewTicket(event.currentTarget.closest('.ao-inline-form')) }, TEXTS.common.cancel))));
     }
-    // "+ Nuovo ticket" si allarga al suo posto fino a diventare il modulo, poi compare il contenuto; Annulla fa
+    // "Ticket" si allarga al suo posto fino a diventare il modulo, poi compare il contenuto; Annulla fa
     // l'inverso (il contenuto svanisce e il modulo torna pulsante, con i suoi angoli).
     async function openNewTicket() {
         await whenIdle();
@@ -2837,7 +2842,7 @@
             const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
             const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
             const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
-            // Un altro ticket sulla stessa richiesta (dal "＋ Ticket" della testata): il modulo si apre in cima alla pila,
+            // Un altro ticket sulla stessa richiesta (dalla pillola "Ticket" della testata): il modulo si apre in cima alla pila,
             // dove poi comparirà il ticket nuovo (il collegato più recente).
             if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
             ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
@@ -2863,7 +2868,7 @@
             content);
     }
     // Testata del thread, sempre visibile: "‹" per tornare, oggetto e mittente (scorrendo resta solo l'oggetto, su una
-    // riga); sotto, con dei ticket, quanti sono e "＋ Ticket" per aprirne un altro sulla stessa richiesta.
+    // riga); sotto, con dei ticket, quanti sono e la pillola "Ticket" per aprirne un altro sulla stessa richiesta.
     function threadHead(mail, { showOpen, count }) {
         const target = state.backTo || 'tickets';
         const adding = state.extraTicketFor === mail.conversationId;
@@ -2895,7 +2900,7 @@
                     h('span', { class: 'ao-spacer' }),
                     h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => closeExtraTicket(mail) }, TEXTS.common.cancel))));
     }
-    // "＋ Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
+    // La pillola "Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
     // alla pila; lì compare il contenuto. Annulla fa l'inverso (il modulo torna pillola). Intanto la pillola non c'è.
     // Aperto il ticket, il modulo compilato diventa la sua scheda (stesso posto) e la pillola ricompare.
     async function openExtraTicket(mail) {
@@ -3837,7 +3842,7 @@
     }
     // Agenzie, Attività e Risposte: le stesse schede del resto del pannello. Chiuse si leggono (nome, riassunto o testo
     // intero della risposta); un clic le apre come in In coda (si sollevano, le altre si sfocano) e il contenuto diventa
-    // direttamente il modulo da modificare; la freccia le richiude. "+ Nuova …" ha lo stile di "+ Nuovo ticket".
+    // direttamente il modulo da modificare; la freccia le richiude. "Agenzia", "Attività" e "Risposta" hanno lo stile di "Ticket".
     function collectionSection(tab, config) {
         const editor = EDITORS[tab];
         const items = Object.entries(config[collectionOf(tab)]).sort(byName);
@@ -3957,7 +3962,7 @@
             saveConfig(config);
             showStatus(TEXTS.settings.saved);
             if (id) return collapseConfigItem(event.currentTarget.closest('.ao-config-item'));
-            // voce nuova: il modulo compilato diventa la sua scheda, poi "+ Nuova …" torna al suo posto
+            // voce nuova: il modulo compilato diventa la sua scheda, poi il pulsante di creazione torna al suo posto
             const form = root.querySelector('.ao-config-new');
             const from = form && !reducedMotion() ? shape(form) : null;
             if (from) await holdingRender(() => fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
@@ -4146,7 +4151,6 @@
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
 /* Prendi in carico (righe di In coda): azzurro leggero al passaggio del mouse */
-#ao-root .ao-take:hover { color: var(--ao-text-accent); background: var(--ao-accent-bg); border-color: var(--ao-accent-border); }
 /* Ignora: solo la scritta diventa rossa (niente sfondo né bordo), anche quando chiede conferma */
 #ao-root .ao-ignore:hover { color: var(--ao-danger); background: transparent; border-color: transparent; }
 #ao-root .ao-ignore.ao-armed, #ao-root .ao-ignore.ao-armed:hover { background: transparent !important; border-color: transparent !important; }
@@ -4198,6 +4202,10 @@
 #ao-root .ao-filter-caret { flex: none; font-size: var(--ao-fs-xs); }
 #ao-root .ao-filter-menu { left: 0; top: calc(100% + 6px); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-filter-menu-operator { left: auto; right: 0; }
+#ao-root .ao-menu-check { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid var(--ao-line-strong); border-radius: 4px; font-size: 10px; line-height: 1; }
+#ao-root .ao-menu-item.ao-active .ao-menu-check { border-color: var(--ao-accent); background: var(--ao-accent); color: var(--ao-white); }
+#ao-root .ao-filter-actions { display: flex; gap: 6px; padding: 6px 2px 2px; }
+#ao-root .ao-filter-actions .ao-button { flex: 1; }
 #ao-root .ao-menu-default { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
 #ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
@@ -4243,7 +4251,6 @@
 #ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; cursor: pointer; transition: background-color .35s ease, box-shadow .4s ease, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); } /* stessa struttura d'ombra del passaggio del mouse: sfuma invece di scattare */
 /* Ticket che si apre o si richiude: sollevato come la scheda aperta di In coda (openFromCard, closeToList) */
-#ao-root .ao-item.ao-opening { position: relative; z-index: 1; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-raised-shadow); }
 /* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
    (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
 #ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); } /* aperta: niente schiarimento al passaggio del mouse */
@@ -4326,9 +4333,9 @@
 #ao-root .ao-scrolled .ao-thread-head :is(.ao-mail-from, .ao-mail-open) { max-height: 0; opacity: 0; }
 #ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come + Nuovo ticket */
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come il pulsante Ticket di Senza mail */
 #ao-root .ao-pill.ao-away { visibility: hidden; }
-#ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* "＋ Ticket" che diventa il modulo */
+#ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* pillola "Ticket" che diventa il modulo */
 #ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
 #ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 
@@ -4385,7 +4392,6 @@
 #ao-root .ao-open-first { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); color: var(--ao-text-muted); }
 #ao-root .ao-open-first p { margin: 0; }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
-#ao-root .ao-item-left { display: grid; gap: 3px; align-content: start; min-width: 0; }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 /* Scheda di In coda aperta: testo della mail */
 #ao-root .ao-mail-preview { max-height: 230px; overflow: hidden; padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; } /* come la description nel thread */
@@ -4466,7 +4472,6 @@
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
 
 /* Impostazioni */
-#ao-root .ao-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* Category: spazio per due righe, etichetta centrata in altezza */
 
 /* Risposte nuove e più ticket sullo stesso thread */
@@ -4524,11 +4529,10 @@
 #ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
 #ao-root .ao-closed-item { display: grid; gap: 2px; padding: 7px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); opacity: .8; }
 
-/* Archivio ignorate, gruppi di ticket, anteprima dei messaggi nuovi */
-/* Mazzo: thread con più ticket. In alto le fasce dei ticket dietro (con il numero), sotto la scheda davanti */
+/* Viaggio della scheda tra lista e thread, anteprima dei messaggi nuovi */
 #ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
 #ao-root .ao-journey-shadow { position: absolute; inset: 0; z-index: -1; border-radius: inherit; box-shadow: 0 12px 28px rgba(0, 0, 0, .18); opacity: 0; pointer-events: none; will-change: opacity; } /* ombra della scheda sollevata: compare e svanisce */
-#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* sfocatura preparata in anticipo */ /* copia ferma della lista durante l'andata */
+#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* copia ferma della lista durante l'andata, sfocatura preparata in anticipo */
 #ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
