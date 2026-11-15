@@ -423,7 +423,12 @@
             openInQueue: 'Apri in In coda',
             openInIgnored: 'Apri in Ignorate',
             goToTicket: 'Apri il ticket',
-            holdUntil: when => `fino al ${when}`,
+            // mini player: la riga sotto l'oggetto
+            bar: {
+                since: when => (/^\d{2}:/.test(when) ? `dalle ${when}` : /^\d/.test(when) ? `dal ${when}` : `da ${when}`),
+                until: when => `fino ${when}`,
+                expired: when => `scaduto ${when}`
+            },
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
             addTicket: 'Ticket',
@@ -571,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-15 23:50';
+    const BUILD = '2026-11-16 00:06';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -833,6 +838,15 @@
         if (dayDiff === 1) return `ieri ${time}`;
         if (dayDiff === -1) return `domani ${time}`;
         return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
+    }
+    // Quando, corto: oggi l'ora, ieri "ieri 16:02", prima solo il giorno; until: "alle 23:16", "a domani", "al 17/11".
+    function shortWhen(value, until = false) {
+        const text = formatWhen(value);
+        const [, day, time] = text.match(/^(?:(\S+) )?(\d{2}:\d{2})$/) || [];
+        if (!time) return text;
+        if (!day) return until ? `alle ${time}` : time;
+        if (!/^\d/.test(day)) return until ? `a ${day}` : `${day} ${time}`;
+        return until ? `al ${day}` : day;
     }
     function isHoldExpired(ticket) {
         const date = ticket?.state === '3' ? parseDate(ticket.holdExpiration) : null;
@@ -1500,9 +1514,9 @@
         await unfolding;
         page.classList.remove('ao-unlifted');
     }
-    // Barra della mail selezionata (mini player): oggetto; sotto, a seconda dello stato, mittente e ora (in coda) oppure
-    // chi l'ha gestita, il ticket e da quando (in carico; On Hold: fino a quando), chi e quando (ignorata, inoltrata);
-    // a destra il tag e la freccia verso il ticket o la sezione. Le righe vanno a capo: si legge tutto.
+    // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
+    // sopra l'oggetto e il tag dello stato; sotto mittente e ora (in carico: il ticket e da quando, On Hold fino a quando)
+    // e il tag dell'operatore, come nelle schede. Un clic porta al ticket o alla sezione di In coda.
     // Cambiando mail il contenuto si dissolve e torna con la mail nuova. Non c'è nella scheda Debug.
     function renderMailBar() {
         const bar = root?.querySelector('.ao-mailbar');
@@ -1516,28 +1530,39 @@
             .filter(ticket => OPEN_STATES.includes(ticket.state)));
         const main = tickets[tickets.length - 1]; // il principale
         const onHold = main?.state === '3';
-        const { operator, when } = thread ? threadPeople(mail, thread) : {};
-        const sender = [mail.sender?.name || mail.sender?.email, formatWhen(mail.receivedAt)];
-        const detail = {
-            Working: [...sender, operator],
-            Acquired: main ? [operator, `${main.ampReference || main.number}${tickets.length > 1 ? ` +${tickets.length - 1}` : ''}`,
-                onHold && main.holdExpiration ? TEXTS.mail.holdUntil(formatWhen(main.holdExpiration)) : TEXTS.mail.since(when)] : [operator, when],
-            Solved: [operator, when],
-            Ignored: [operator, when],
-            Forwarded: [operator, when]
-        }[thread?.status] || sender;
+        const texts = TEXTS.mail.bar;
+        const person = thread && surname(['Solved', 'Ignored', 'Forwarded'].includes(thread.status)
+            ? thread.statusByName || thread.statusBy || thread.assignedToName || thread.assignedTo
+            : thread.assignedToName || thread.assignedTo);
+        const sender = mail.sender?.name || mail.sender?.email;
+        const hold = onHold && main.holdExpiration
+            ? (isHoldExpired(main) ? texts.expired(shortWhen(main.holdExpiration)) : texts.until(shortWhen(main.holdExpiration, true))) : null;
+        // a sinistra la mail (o il ticket, se in carico), a destra l'operatore: ognuno al suo posto
+        const detail = thread?.status === 'Acquired' && main
+            ? [main.ampReference || main.number, hold || texts.since(shortWhen(thread.statusAt || mail.receivedAt))]
+            : [sender, shortWhen(['Solved', 'Ignored', 'Forwarded'].includes(thread?.status) && thread.statusAt ? thread.statusAt : mail.receivedAt)];
+        const config = loadConfig();
+        const me = currentUser(config).displayValue;
+        const operatorTag = main && thread?.status === 'Acquired' ? ownerTag(main, currentUser(config), false)
+            : person ? labelChip({ name: person, color: me && surname(me) === person ? config.profile.label : 'grafite' }) : null;
         const action = main && thread?.status === 'Acquired' ? { label: TEXTS.mail.goToTicket, go: () => openTicketItem(main) } : thread ? threadAction(mail, thread) : null;
-        const key = [mail.itemId, thread?.status, ...detail, action?.label].join('|');
+        // un clic apre la sezione dove si gestisce (o il ticket)
+        bar.onclick = action ? action.go : null;
+        bar.classList.toggle('ao-clickable', Boolean(action));
+        bar.title = action?.label || '';
+        const key = [mail.itemId, thread?.status, person, ...detail].join('|');
         if (bar.dataset.key === key) return;
         const changed = Boolean(bar.dataset.key) && !bar.dataset.key.startsWith(`${mail.itemId}|`);
         bar.dataset.key = key;
         const fill = () => bar.replaceChildren(...[
             h('span', { class: 'ao-mailbar-icon', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)),
             h('span', { class: 'ao-mailbar-text' },
-                h('span', { class: 'ao-mailbar-subject' }, mail.subject || '(senza oggetto)'),
-                h('span', { class: 'ao-mailbar-detail' }, detail.filter(Boolean).join(' · '))),
-            onHold && thread?.status === 'Acquired' ? stateChip(main) : thread ? threadChip(thread) : null,
-            action ? h('button', { type: 'button', class: 'ao-mailbar-go', title: action.label, 'aria-label': action.label, onclick: action.go }, svgIcon(CHEVRON_RIGHT_ICON)) : null
+                h('span', { class: 'ao-mailbar-row' },
+                    h('span', { class: 'ao-mailbar-subject' }, mail.subject || '(senza oggetto)'),
+                    onHold && thread?.status === 'Acquired' ? stateChip(main) : thread ? threadChip(thread) : null),
+                h('span', { class: 'ao-mailbar-row' },
+                    h('span', { class: 'ao-mailbar-detail' }, detail.filter(Boolean).join(' · ')),
+                    operatorTag))
         ].filter(Boolean));
         if (!changed || reducedMotion()) return fill();
         fadeAll([...bar.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' })
@@ -1692,7 +1717,7 @@
         root.addEventListener('click', event => {
             if (!state.queueExpanded || state.holdRender) return;
             const target = event.target;
-            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar, .ao-debug')) return;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-mailbar, .ao-statusbar, .ao-debug')) return;
             const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
             if (!form) return;
             event.preventDefault();
@@ -4767,14 +4792,17 @@
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-mailbar { flex: none; display: flex; align-items: center; gap: 8px; min-width: 0; margin: 6px 12px; padding: 9px 6px 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
-#ao-root .ao-mailbar[hidden] { display: none; }
+#ao-root .ao-mailbar { flex: none; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; margin: 6px 12px; padding: 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
-#ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; overflow-wrap: anywhere; }
+#ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#ao-root .ao-mailbar-row { display: flex; align-items: center; gap: 6px; min-width: 0; height: 20px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { flex: 1; min-width: 0; }
 #ao-root .ao-mailbar-subject { font-weight: var(--ao-fw-medium); }
+#ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
 #ao-root .ao-mailbar-detail { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-mailbar-go { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-accent); cursor: pointer; transition: background-color .25s; }
-#ao-root .ao-mailbar-go:hover { background: var(--ao-hover); }
+#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s; }
+#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-line-strong); }
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
