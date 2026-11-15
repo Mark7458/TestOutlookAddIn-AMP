@@ -21,6 +21,9 @@
     const NOTES_MAX = 2000;
     const STATE_CODES = { 'In Progress': '2', 'On Hold': '3', Resolved: '6', Canceled: '8' };
     const OPEN_STATUSES = ['In Progress', 'On Hold'];
+    // Ticket su AMP (ServiceNow) dal numero INC: niente sys_id, l'istanza apre l'incident con quel numero.
+    const ampUrl = number => (/^INC\d+$/i.test(String(number || '').trim())
+        ? `https://amp.service-now.com/nav_to.do?uri=${encodeURIComponent(`incident.do?sysparm_query=number=${String(number).trim().toUpperCase()}`)}` : '');
 
     const threadOf = new Map(); // conversationId → ParentItemId
     const conversationOf = new Map(); // ParentItemId → conversationId
@@ -108,7 +111,7 @@
         return {
             number: record.ticketId,
             sysId: record.id,
-            url: '',
+            url: ampUrl(record.ampReference),
             state: STATE_CODES[record.status] || '',
             assignedTo: { name: operatorName(record.operator), sysId: record.operator || '' },
             companyName: record.agency || '',
