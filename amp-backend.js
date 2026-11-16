@@ -2,15 +2,17 @@
  * AMP - collegamento del pannello (amp.js) alla Function App di jak.
  *
  * Espone window.AmpBackend con i metodi del contratto di amp.js (blocco 3), tradotti nelle chiamate alle function:
- *   ListQueue, ListThreadMessages, GetMailBody, ManageThread  → coda, ignorate, messaggi, presa in carico, visto
+ *   ListQueue, ListThreadMessages, GetMailBody, ManageThread  → coda, ignorate, messaggi, etichetta (tag), presa in carico, visto
  *   ManageTicket, SearchTicketRecords                          → ticket (lista Ticket su SharePoint)
  *   ForwardConversation                                        → inoltro ai gruppi esterni
  * Token: window.WorkflowHealth.getAccessTokenSilently() (add-in di jak). Operatore = utente di Outlook.
  * Il thread si identifica con ParentItemId (MailEvents); il pannello usa conversationId: la corrispondenza
  * si tiene qui. I ticket di un thread non ancora visto in coda usano la chiave "parent:<ParentItemId>".
  *
+ * L'etichetta di chi gestisce un thread in coda è lo stato Working su MailEvents (ManageThread tag / untag):
+ * presa in carico, inoltro e ignora la richiedono.
  * Non ancora disponibili (nessuna function): ServiceNow (numero INC, storico, ricerca su AMP), collegamento manuale
- * di un ticket a una mail. Le etichette restano solo in questo pannello.
+ * di un ticket a una mail.
  */
 (function () {
     'use strict';
@@ -21,10 +23,13 @@
     const NOTES_MAX = 2000;
     const STATE_CODES = { 'In Progress': '2', 'On Hold': '3', Resolved: '6', Canceled: '8' };
     const OPEN_STATUSES = ['In Progress', 'On Hold'];
+    // Ticket su AMP (ServiceNow) dal numero INC: niente sys_id, l'istanza apre l'incident con quel numero.
+    const ampUrl = number => (/^INC\d+$/i.test(String(number || '').trim())
+        ? `https://amp.service-now.com/nav_to.do?uri=${encodeURIComponent(`incident.do?sysparm_query=number=${String(number).trim().toUpperCase()}`)}` : '');
 
     const threadOf = new Map(); // conversationId → ParentItemId
     const conversationOf = new Map(); // ParentItemId → conversationId
-    const labels = new Map(); // conversationId → { name, color, at } (solo locale)
+    const messageCounts = new Map(); // conversationId → mail del thread nell'ultima lettura della coda (presa in carico)
 
     // ------------------------------------------------------------------
     // Chiamate
@@ -64,6 +69,12 @@
             || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userEmailAddress || '';
         if (!email) throw new Error('Utente di Outlook non disponibile.');
         return email;
+    }
+    const sameEmail = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    // Etichetta di un thread in coda: chi ha il tag (Working). I colleghi in grigio; la propria la colora il pannello.
+    function threadLabel(thread) {
+        if (thread?.status !== 'Working' || !thread.assignedTo) return null;
+        return { name: operatorName(thread.assignedTo), color: 'grafite', mine: sameEmail(thread.assignedTo, me()), at: thread.statusAt || null };
     }
     function operatorName(email) {
         const entry = Object.values(pluginConfig().operators || {})
@@ -108,7 +119,7 @@
         return {
             number: record.ticketId,
             sysId: record.id,
-            url: '',
+            url: ampUrl(record.ampReference),
             state: STATE_CODES[record.status] || '',
             assignedTo: { name: operatorName(record.operator), sysId: record.operator || '' },
             companyName: record.agency || '',
@@ -161,6 +172,7 @@
 
     function queueItem(thread) {
         remember(thread.conversationId, thread.parentItemId);
+        messageCounts.set(thread.conversationId, Number(thread.messageCount) || 0);
         const last = thread.lastMessage || {};
         return {
             conversationId: thread.conversationId,
@@ -173,7 +185,7 @@
             preview: '',
             previous: null,
             candidates: [],
-            label: labels.get(thread.conversationId) || null,
+            label: threadLabel(thread.thread),
             history: thread.previous || null
         };
     }
@@ -222,16 +234,32 @@
                 } : {});
             });
         },
+        // Mail selezionata in Outlook: stato del thread su MailEvents (ultima riga) e i suoi ticket.
         async findTicketForMail(mail) {
-            const parentItemId = await parentOf(mail.conversationId);
+            const result = await call('GetRecordByConversationId', { conversationId: normalize(mail.conversationId), mode: 'all' }, 'GET');
+            const rows = (result?.items || []).slice().sort((a, b) => Number(a.itemId) - Number(b.itemId));
+            if (!result?.found || !rows.length) return { tickets: [], previous: null, candidates: [], discarded: false, thread: { status: 'none' } };
+            const parentItemId = Number(rows[0].fields?.ParentItemId || rows[0].itemId);
+            remember(mail.conversationId, parentItemId);
+            const last = rows[rows.length - 1].fields || {};
             const records = await searchTickets({ parentItemId });
             const open = records.filter(record => OPEN_STATUSES.includes(record.status));
             const closed = records.filter(record => !OPEN_STATUSES.includes(record.status));
             return {
-                tickets: open.map(record => ({ ...toTicket(record), via: 'link' })),
-                previous: closed.length ? toTicket(closed[0]) : null,
+                tickets: records.map(record => ({ ...toTicket(record), via: 'link' })),
+                previous: closed.length && !open.length ? toTicket(closed[0]) : null,
                 candidates: [],
-                discarded: false
+                discarded: false,
+                thread: {
+                    status: last.Status || 'New',
+                    assignedTo: last.AssignedTo || null,
+                    assignedToName: last.AssignedTo ? operatorName(last.AssignedTo) : null,
+                    statusBy: last.StatusBy || null,
+                    statusByName: last.StatusBy ? operatorName(last.StatusBy) : null,
+                    statusAt: last.StatusAt || null,
+                    messageCount: rows.length,
+                    parentItemId
+                }
             };
         },
         async getTicket(number) {
@@ -240,11 +268,13 @@
         async linkTicket() {
             throw new Error('Collegamento manuale non ancora disponibile.');
         },
-        // Presa in carico del thread, poi il ticket dalla mail scelta.
+        // Presa in carico del thread, poi il ticket dalla mail scelta. knownCount: le mail viste in coda; se nel
+        // frattempo ne è arrivata un'altra la presa in carico non riesce (thread_changed) e la coda si rilegge.
         async createTicket(mail, payload) {
             if (!mail) throw new Error('Ticket senza mail non ancora disponibile.');
             const parentItemId = await parentOf(mail.conversationId);
-            await call('ManageThread', { action: 'acquire', parentItemId, caller: me() });
+            const known = messageCounts.get(mail.conversationId);
+            await call('ManageThread', { action: 'acquire', parentItemId, caller: me(), ...(known ? { knownCount: known } : {}) });
             const fields = payload?.fields || {};
             const result = await call('ManageTicket', {
                 action: 'createTicket',
@@ -273,7 +303,6 @@
         },
         async discardMail(conversationId) {
             await threadAction(conversationId, 'ignore');
-            labels.delete(conversationId);
         },
         async restoreMail(conversationId) {
             await threadAction(conversationId, 'restore');
@@ -281,7 +310,6 @@
         async forwardMail(conversationId, group) {
             const parentItemId = await parentOf(conversationId);
             await call('ForwardConversation', { conversationId: normalize(conversationId), parentItemId, groupName: group, caller: me() });
-            labels.delete(conversationId);
         },
         // Testo e azione sul ticket (lista Ticket; ServiceNow non ancora collegato).
         async updateTicket(number, action, text, user) {
@@ -318,14 +346,19 @@
                 preview: message.subject || ''
             }));
         },
-        // Etichette: solo in questo pannello (nessuna function).
-        async labelMail(conversationId, by, color) {
-            const label = { name: by?.displayValue || operatorName(me()), color, at: new Date().toISOString() };
-            labels.set(conversationId, label);
-            return { ok: true, label };
+        // Etichetta = tag sul thread (Working). Se c'è già quella di un collega non si scrive niente e si restituisce la sua;
+        // force la sostituisce (subentro esplicito).
+        async labelMail(conversationId, by, color, { force = false } = {}) {
+            try {
+                const result = await threadAction(conversationId, 'tag', force ? { force: true } : {});
+                return { ok: true, label: { ...threadLabel(result.thread), name: by?.displayValue || operatorName(me()), color, mine: true } };
+            } catch (error) {
+                if (error.reason !== 'tagged_by_other') throw error;
+                return { ok: false, label: threadLabel(error.data?.thread) };
+            }
         },
         async unlabelMail(conversationId) {
-            labels.delete(conversationId);
+            await threadAction(conversationId, 'untag');
             return { ok: true };
         },
         // Aggiornamento: ogni minuto e quando il pannello torna in primo piano.

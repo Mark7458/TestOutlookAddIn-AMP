@@ -415,6 +415,20 @@
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
             openFirst: 'Apri la mail in Outlook per prenderla in carico o ignorarla.',
+            // Mail selezionata: come è stata gestita (SharePoint)
+            noOperator: 'Nessun operatore',
+            since: when => `dal ${when}`,
+            notShared: 'non dalla casella condivisa',
+            threadStates: { New: 'In coda', Working: 'In coda', Acquired: 'In carico', Solved: 'Risolta', Ignored: 'Ignorata', Forwarded: group => `Inoltrata a ${group}`, none: 'Non in coda' },
+            openInQueue: 'Apri in In coda',
+            openInIgnored: 'Apri in Ignorate',
+            goToTicket: 'Apri il ticket',
+            // mini player: la riga sotto l'oggetto
+            bar: {
+                since: when => (/^\d{2}:/.test(when) ? `dalle ${when}` : /^\d/.test(when) ? `dal ${when}` : `da ${when}`),
+                until: when => `fino ${when}`,
+                expired: when => `scaduto ${when}`
+            },
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
             addTicket: 'Ticket',
@@ -562,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-13 18:45';
+    const BUILD = '2026-11-16 11:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -720,6 +734,14 @@
         };
     });
 
+    const isAmpUrl = value => {
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && url.origin === 'https://amp.service-now.com' && !url.username && !url.password;
+        } catch {
+            return false;
+        }
+    };
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
         currentMail() {
@@ -751,8 +773,9 @@
             }
             return false;
         },
-        // Apre un link (il ticket su AMP) in una finestra del browser.
+        // Apre un link (il ticket su AMP) in una finestra del browser: solo verso l'istanza AMP, come in Tampermonkey.
         openLink(url) {
+            if (!isAmpUrl(url)) return;
             if (typeof window.Office?.context?.ui?.openBrowserWindow === 'function') window.Office.context.ui.openBrowserWindow(url);
             else window.open(url, '_blank', 'noopener');
         }
@@ -815,6 +838,15 @@
         if (dayDiff === 1) return `ieri ${time}`;
         if (dayDiff === -1) return `domani ${time}`;
         return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
+    }
+    // Quando, corto: oggi l'ora, ieri "ieri 16:02", prima solo il giorno; until: "alle 23:16", "a domani", "al 17/11".
+    function shortWhen(value, until = false) {
+        const text = formatWhen(value);
+        const [, day, time] = text.match(/^(?:(\S+) )?(\d{2}:\d{2})$/) || [];
+        if (!time) return text;
+        if (!day) return until ? `alle ${time}` : time;
+        if (!/^\d/.test(day)) return until ? `a ${day}` : `${day} ${time}`;
+        return until ? `al ${day}` : day;
     }
     function isHoldExpired(ticket) {
         const date = ticket?.state === '3' ? parseDate(ticket.holdExpiration) : null;
@@ -927,6 +959,7 @@
         ampSearch: null, // "Cerca su AMP": { query, loading, results } per il testo cercato
         ampOpen: null, // ticket trovato su AMP aperto (sola lettura)
         mail: null, // mail aperta in Outlook
+        mailBar: null, // barra della mail selezionata: { id: conversationId, result } (stato del thread)
         target: null, // cosa mostra la vista Mail: { kind: 'mail', mail } | { kind: 'ticket', number }
         result: null, // triangolazione della mail mostrata
         searching: false,
@@ -1218,6 +1251,7 @@
             const result = await (Services.pendingThread(state.target.mail.conversationId) || Services.findTicketForMail(state.target.mail));
             if (sequence !== searchSequence) return;
             state.result = result;
+            if (state.mail?.conversationId === state.target.mail.conversationId) state.mailBar = { id: state.mail.conversationId, result };
             [...(result.tickets || []), result.previous, ...(result.candidates || [])].forEach(ticket => { if (ticket) state.ticketCache[ticket.number] = ticket; });
         } catch (error) {
             if (sequence !== searchSequence) return;
@@ -1228,24 +1262,42 @@
         render();
     }
 
-    // Mail aperta in Outlook: la vista Mail cerca il suo ticket.
+    // Mail selezionata in Outlook: il pannello resta dov'è e la barra in fondo la mostra. La pagina della mail segue la
+    // selezione solo se è la mail del ticket appena aperto (il pannello stesso la apre in Outlook).
     function handleMailChanged() {
         state.mail = Outlook.currentMail();
-        if (!state.mail?.conversationId) return render();
-        showMailTarget(state.mail);
+        const id = state.mail?.conversationId;
+        const target = state.target;
+        const shown = target?.kind === 'mail' ? target.mail.conversationId : target?.kind === 'ticket' ? ticketByNumber(target.number)?.conversationId : null;
+        if (id && state.view === 'mail' && shown === id) showMailTarget(state.mail);
+        else render();
+        refreshMailBar();
     }
     function showMailTarget(mail) {
         const sameConversation = state.target?.kind === 'mail' && state.target.mail.conversationId === mail.conversationId;
         state.target = { kind: 'mail', mail };
         if (!sameConversation) state.result = null;
-        const entering = !['settings', 'debug', 'mail'].includes(state.view);
-        if (entering) {
-            state.backTo ||= state.view;
-            state.view = 'mail';
-        }
         render();
-        if (entering) slideInView(1);
         refreshTarget(sameConversation);
+    }
+    // Stato del thread della mail selezionata, per la barra.
+    async function refreshMailBar() {
+        const mail = state.mail;
+        const id = mail?.conversationId;
+        if (!id || !Services.available()) {
+            state.mailBar = null;
+            return renderMailBar();
+        }
+        if (state.mailBar?.id !== id) state.mailBar = { id, result: Services.cachedThread(id) };
+        renderMailBar();
+        try {
+            const result = await (Services.pendingThread(id) || Services.findTicketForMail(mail));
+            if (state.mail?.conversationId !== id) return;
+            state.mailBar = { id, result };
+            renderMailBar();
+        } catch {
+            // senza risposta la barra resta senza stato
+        }
     }
     // Dai Ticket: mostra il ticket e, se ha una mail collegata, la apre.
     // Solo questo clic segna come lette le risposte nuove (aprire la mail in Outlook non basta).
@@ -1266,10 +1318,10 @@
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
     const JOURNEY = {
-        lift: 220, travel: 420, land: 200, build: 280, stagger: 50,
+        lift: 130, travel: 280, land: 140, build: 200, stagger: 30,
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
-        lifted: 'translateY(-3px) scale(1.035)', // l'ombra della scheda sollevata è in .ao-journey-shadow
-        floated: 'translateY(-6px) scale(1.045)', float: 700 // se la pagina tarda: la scheda continua piano a salire, mai ferma
+        lifted: 'translateY(-2px) scale(1.015)', // l'ombra della scheda sollevata è in .ao-journey-shadow
+        floated: 'translateY(-3px) scale(1.02)', float: 400 // se la pagina tarda: la scheda continua piano a salire, mai ferma
     };
     // Scheda del ticket nella pagina (arriva poco dopo, con la ricerca della mail): si aspetta senza bloccare il ridisegno.
     const headOf = number => [...root.querySelectorAll('.ao-scroll .ao-ticket-card .ao-item-number')]
@@ -1319,11 +1371,11 @@
     // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
     // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
     // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
-    function unfoldPage(view, inward, page) {
+    function unfoldPage(view, inward, page, skipAbove = false) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
         const cards = first < 0 ? [] : [parts[first]];
-        const above = parts.slice(0, first < 0 ? parts.length : first);
+        const above = skipAbove ? [] : parts.slice(0, first < 0 ? parts.length : first);
         const after = parts.slice(first + 1);
         const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
@@ -1406,6 +1458,7 @@
         // Da qui alla fine niente ridisegni: la scheda posata si mostra e basta (un ridisegno a metà fermerebbe tutto).
         holdRender();
         try {
+            if (page && cards.indexOf(page) > 0) return await openGroup(copy, ghost, body, page, cards, start, floated);
             const place = page?.getBoundingClientRect();
             await Promise.all([listExtras(copy, true),
                 place ? travelAndLand(copy, { dx: place.left - start.left, dy: place.top - start.top }, 0, floated) : null]).catch(() => {});
@@ -1419,6 +1472,142 @@
         } finally {
             releaseRender();
         }
+    }
+    // Thread con più ticket: la scheda sale in cima come per il ticket singolo mentre la pagina si apre, poi scende
+    // al suo posto e, scendendo, deposita sopra di sé gli altri ticket del thread.
+    async function openGroup(copy, ghost, body, page, cards, start, floated) {
+        const view = page.closest('.ao-scroll');
+        const parts = [...view.children].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)'));
+        const head = parts.slice(0, parts.indexOf(cards[0]));
+        const after = parts.slice(parts.indexOf(page) + 1);
+        const others = cards.filter(card => card !== page);
+        const top = cards[0].getBoundingClientRect(), place = page.getBoundingClientRect();
+        const up = { dx: top.left - start.left, dy: top.top - start.top }, down = { dx: place.left - start.left, dy: place.top - start.top };
+        const hidden = after.map(element => element.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1, fill: 'forwards' }));
+        body.style.opacity = '';
+        head.forEach((element, index) => element.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
+            { duration: JOURNEY.build, delay: index * JOURNEY.stagger, easing: JOURNEY.easing, fill: 'backwards' }));
+        copy.getAnimations().forEach(animation => animation.cancel());
+        shadowOf(copy)?.getAnimations().forEach(animation => animation.cancel());
+        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 1, fill: 'forwards' });
+        await Promise.all([listExtras(copy, true), copy.animate([
+            { transform: floated, easing: JOURNEY.travelEasing },
+            { transform: `translate(${up.dx}px, ${up.dy}px) ${JOURNEY.lifted}` }
+        ], { duration: JOURNEY.travel, fill: 'both' }).finished]).catch(() => {});
+        state.journey = null;
+        others.forEach((card, index) => {
+            card.classList.remove('ao-away');
+            card.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+                { duration: JOURNEY.build, delay: JOURNEY.travel * index / others.length, easing: JOURNEY.easing, fill: 'backwards' });
+        });
+        const total = JOURNEY.travel + JOURNEY.land, share = JOURNEY.travel / total;
+        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 1, offset: share }, { opacity: 0 }], { duration: total, fill: 'forwards' });
+        await copy.animate([
+            { transform: `translate(${up.dx}px, ${up.dy}px) ${JOURNEY.lifted}`, easing: JOURNEY.travelEasing },
+            { transform: `translate(${down.dx}px, ${down.dy}px) ${JOURNEY.lifted}`, offset: share, easing: JOURNEY.easing },
+            { transform: `translate(${down.dx}px, ${down.dy}px)` }
+        ], { duration: total, fill: 'both' }).finished.catch(() => {});
+        page.classList.remove('ao-away');
+        [ghost, copy].forEach(element => element.remove());
+        const unfolding = unfoldPage(view, true, page, true);
+        hidden.forEach(animation => animation.cancel());
+        await unfolding;
+        page.classList.remove('ao-unlifted');
+    }
+    // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
+    // sopra l'oggetto e il tag dello stato; sotto mittente e ora (in carico: il ticket e da quando, On Hold fino a quando)
+    // e il tag dell'operatore, come nelle schede. Un clic porta al ticket o alla sezione di In coda.
+    // Cambiando mail il contenuto si dissolve e torna con la mail nuova. Non c'è nella scheda Debug né quando il pannello
+    // mostra già quella mail (la sua scheda aperta in In coda, la pagina del suo ticket).
+    function renderMailBar() {
+        const bar = root?.querySelector('.ao-mailbar');
+        if (!bar) return;
+        const mail = state.mail;
+        const id = mail?.conversationId;
+        const target = state.target;
+        const shown = target?.kind === 'mail' ? target.mail.conversationId : target?.kind === 'ticket' ? ticketByNumber(target.number)?.conversationId : null;
+        const open = Boolean(id) && ((state.view === 'mail' && shown === id) || (state.view === 'queue' && state.queueExpanded === id));
+        showMailBar(bar, Boolean(id) && state.view !== 'debug' && !open);
+        if (bar.hidden) return;
+        const result = state.mailBar?.id === mail.conversationId ? state.mailBar.result : null;
+        const thread = mailBarThread(mail, result);
+        const tickets = threadOrder((result?.tickets || []).map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }))
+            .filter(ticket => OPEN_STATES.includes(ticket.state)));
+        const main = tickets[tickets.length - 1]; // il principale
+        const onHold = main?.state === '3';
+        const texts = TEXTS.mail.bar;
+        const person = thread && surname(['Solved', 'Ignored', 'Forwarded'].includes(thread.status)
+            ? thread.statusByName || thread.statusBy || thread.assignedToName || thread.assignedTo
+            : thread.assignedToName || thread.assignedTo);
+        const sender = mail.sender?.name || mail.sender?.email;
+        const hold = onHold && main.holdExpiration
+            ? (isHoldExpired(main) ? texts.expired(shortWhen(main.holdExpiration)) : texts.until(shortWhen(main.holdExpiration, true))) : null;
+        // a sinistra la mail (o il ticket, se in carico), a destra l'operatore: ognuno al suo posto
+        const detail = thread?.status === 'Acquired' && main
+            ? [main.ampReference || main.number, hold || texts.since(shortWhen(thread.statusAt || mail.receivedAt))]
+            : [sender, shortWhen(['Solved', 'Ignored', 'Forwarded'].includes(thread?.status) && thread.statusAt ? thread.statusAt : mail.receivedAt)];
+        const config = loadConfig();
+        const me = currentUser(config).displayValue;
+        const operatorTag = main && thread?.status === 'Acquired' ? ownerTag(main, currentUser(config), false)
+            : person ? labelChip({ name: person, color: me && surname(me) === person ? config.profile.label : 'grafite' }) : null;
+        const action = main && thread?.status === 'Acquired' ? { label: TEXTS.mail.goToTicket, go: () => openTicketItem(main) } : thread ? threadAction(mail, thread) : null;
+        // un clic apre la sezione dove si gestisce (o il ticket)
+        bar.onclick = action ? action.go : null;
+        bar.classList.toggle('ao-clickable', Boolean(action));
+        bar.title = action?.label || '';
+        const key = [mail.itemId, thread?.status, person, ...detail].join('|');
+        if (bar.dataset.key === key) return;
+        const changed = Boolean(bar.dataset.key) && !bar.dataset.key.startsWith(`${mail.itemId}|`);
+        bar.dataset.key = key;
+        const fill = () => bar.replaceChildren(...[
+            h('span', { class: 'ao-mailbar-icon', 'aria-hidden': 'true' }, svgIcon(SEGMENT_ICONS.mail)),
+            h('span', { class: 'ao-mailbar-text' },
+                h('span', { class: 'ao-mailbar-row' },
+                    h('span', { class: 'ao-mailbar-subject' }, mail.subject || '(senza oggetto)'),
+                    onHold && thread?.status === 'Acquired' ? stateChip(main) : thread ? threadChip(thread) : null),
+                h('span', { class: 'ao-mailbar-row' },
+                    h('span', { class: 'ao-mailbar-detail' }, detail.filter(Boolean).join(' · ')),
+                    operatorTag))
+        ].filter(Boolean));
+        if (!changed || reducedMotion()) return fill();
+        fadeAll([...bar.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' })
+            .then(() => { fill(); return fadeAll([...bar.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' }); });
+    }
+    // La barra sta sopra il contenuto, in fondo: compare salendo appena e sparisce scendendo. Finché c'è, la lista ha
+    // in fondo lo spazio per scorrere oltre la barra.
+    function showMailBar(bar, visible) {
+        const leaving = bar.dataset.leaving === 'true';
+        if (visible ? !bar.hidden && !leaving : bar.hidden || leaving) return;
+        bar.getAnimations().forEach(animation => animation.cancel());
+        delete bar.dataset.leaving;
+        root.classList.toggle('ao-with-mailbar', visible);
+        const space = [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }];
+        if (visible) {
+            bar.hidden = false;
+            if (!reducedMotion()) bar.animate(space, { duration: JOURNEY.build, easing: JOURNEY.easing });
+            return;
+        }
+        if (reducedMotion()) {
+            bar.hidden = true;
+            return;
+        }
+        bar.dataset.leaving = 'true';
+        bar.animate(space.reverse(), { duration: JOURNEY.build, easing: 'ease-in' }).finished.then(() => {
+            if (bar.dataset.leaving !== 'true') return;
+            delete bar.dataset.leaving;
+            bar.hidden = true;
+        }).catch(() => {});
+    }
+    // Stato del thread della mail selezionata: da SharePoint; senza (anteprima) lo si ricava da coda e ticket.
+    function mailBarThread(mail, result) {
+        if (!result) return null;
+        if (result.thread) return result.thread;
+        const inList = list => list.some(item => item.conversationId === mail.conversationId);
+        const open = (result.tickets || []).map(found => ticketByNumber(found.number) || found).find(ticket => OPEN_STATES.includes(ticket.state));
+        if (open) return { status: 'Acquired', assignedToName: open.assignedTo?.name };
+        if (inList(state.queue)) return { status: 'New' };
+        if (inList(state.ignored)) return { status: 'Ignored' };
+        return { status: 'none' };
     }
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
     // Ritorno: la pagina si richiude nella testata della scheda (gli altri ticket del thread spariscono con lei),
@@ -1537,6 +1726,8 @@
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             debugHost,
+            // Mail selezionata in Outlook, sempre allo stesso posto (come un mini player), con la freccia per andare dove si gestisce.
+            h('div', { class: 'ao-mailbar', hidden: true }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
@@ -1556,7 +1747,7 @@
         root.addEventListener('click', event => {
             if (!state.queueExpanded || state.holdRender) return;
             const target = event.target;
-            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-statusbar, .ao-debug')) return;
+            if (target.closest('.ao-queue-item.ao-expanded, .ao-select-menu, .ao-tabs, .ao-fixed, .ao-status, .ao-mailbar, .ao-statusbar, .ao-debug')) return;
             const form = root.querySelector('.ao-queue-item.ao-expanded .ao-inline-form');
             if (!form) return;
             event.preventDefault();
@@ -1676,6 +1867,7 @@
         });
         placeTabIndicator(); // dopo i contatori: la sottolineatura comprende il numero della scheda aperta
         renderStatusBar();
+        renderMailBar();
         const body = root.querySelector('.ao-body');
         body.hidden = state.view === 'debug';
         if (debugHost) debugHost.hidden = state.view !== 'debug';
@@ -1984,16 +2176,16 @@
                 ]
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
-    // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
+    // Thread ignorato: si può prendere in carico o inoltrare direttamente, senza etichetta (stesso modulo compatto della coda).
     // Scheda di In coda (Attive e Ignorate). Chiusa: oggetto, mittente, ora, etichette; il clic la apre.
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
         // Chi l'ha ignorata si legge solo aprendo la scheda, sopra il testo della mail.
-        return queueCard(item, config, labelSlot(item, config), { allowIgnore: false,
+        return queueCard(item, config, null, { allowIgnore: false, needsLabel: false,
             info: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
     }
-    function queueCard(item, config, chipNode, { allowIgnore = true, info = null } = {}) {
+    function queueCard(item, config, chipNode, { allowIgnore = true, needsLabel = true, info = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
@@ -2020,19 +2212,19 @@
                 h('div', { class: 'ao-queue-row' },
                     h('span', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
                     chipNode)),
-            expanded ? queueDetails(item, config, allowIgnore, info) : null);
+            expanded ? queueDetails(item, config, { allowIgnore, needsLabel, info }) : null);
     }
     // Scheda aperta: testo della mail, poi il selettore dell'azione (nessuna scelta all'inizio: si decide dopo aver letto).
     // Sotto compare il contenuto dell'azione scelta, con il suo pulsante; in fondo la freccia richiude la scheda.
     //  - Prendi in carico: agenzia e attività;  - Inoltra: gruppo (ES, PEL, PO);  - Ignora: "Confermi?".
-    function queueDetails(item, config, allowIgnore, info = null) {
+    function queueDetails(item, config, { allowIgnore, needsLabel, info }) {
         const mail = mailFromQueueItem(item);
         const messages = threadMessagesOf(item);
         const shown = messages.length > 1 ? chosenMessage(item) : null; // con più messaggi: quello che si sta guardando
         const body = state.mailBodies[shown?.messageId || item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
-        // Si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
-        const locked = !isMyLabel(item.label);
+        // In coda si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
+        const locked = needsLabel && !isMyLabel(item.label);
         const actions = [
             { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
             { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
@@ -2205,7 +2397,7 @@
         return queueCard(item, config, labelSlot(item, config));
     }
     const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
-    const isMyLabel = label => Boolean(label) && label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase();
+    const isMyLabel = label => Boolean(label) && (label.mine ?? label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase());
     function labelChip(label, { onclick, title, entering } = {}) {
         const color = THEME.labels[label.color] || THEME.labels.grafite;
         return h(onclick ? 'button' : 'span', {
@@ -2607,7 +2799,7 @@
                 ticket.lastWorkNote ? note(`${ticket.lastWorkNote.author} · ${formatWhen(ticket.lastWorkNote.at)}`, ticket.lastWorkNote.text) : null,
                 ticket.resolutionNotes ? note(TEXTS.tickets.closingNote, ticket.resolutionNotes) : null,
                 h('div', { class: 'ao-actions' },
-                    ticket.url ? h('button', { type: 'button', class: 'ao-button', onclick: () => Outlook.openLink(ticket.url) }, TEXTS.tickets.openOnAmp) : null),
+                    isAmpUrl(ticket.url) ? h('button', { type: 'button', class: 'ao-button', onclick: () => Outlook.openLink(ticket.url) }, TEXTS.tickets.openOnAmp) : null),
                 h('button', { type: 'button', class: 'ao-collapse', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: async event => {
                     const card = event.currentTarget.closest('.ao-amp-ticket');
                     await holdingRender(() => fold(card.querySelector('.ao-ticket-more')));
@@ -2851,20 +3043,11 @@
         const mail = target.mail;
         const isCurrentMail = state.mail?.conversationId === mail.conversationId;
         const result = state.result;
+        if (result?.thread) return renderMailState(mail, result, config, user, notice);
         const content = [];
         if (!result) content.push(h('p', { class: 'ao-muted' }, Services.available() ? TEXTS.mail.searching : ''));
-        else if (result.tickets?.length) {
-            // Ogni ticket aperto è un contenitore (aperto se è l'unico); i chiusi in fondo, in una sezione da aprire.
-            const all = result.tickets.map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }));
-            const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
-            const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
-            const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
-            // Un altro ticket sulla stessa richiesta (dalla pillola "Ticket" della testata): il modulo si apre in cima alla pila,
-            // dove poi comparirà il ticket nuovo (il collegato più recente).
-            if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
-            ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
-            if (closed.length) content.push(closedTickets(mail.conversationId, closed));
-        } else if (!isCurrentMail) {
+        else if (result.tickets?.length) content.push(...ticketStack(mail, result, config, user));
+        else if (!isCurrentMail) {
             // Prendere in carico (o ignorare) si fa solo guardando la mail: finché Outlook non la mostra, niente azioni.
             if (result.discarded) content.push(h('p', { class: 'ao-muted' }, TEXTS.mail.discardedBy(result.discarded.by || TEXTS.common.none, formatWhen(result.discarded.at))));
             content.push(h('div', { class: 'ao-open-first' },
@@ -2884,9 +3067,83 @@
             notice,
             content);
     }
+    // Ticket del thread: ogni ticket aperto è un contenitore (aperto se è l'unico); i chiusi in fondo, in una sezione da aprire.
+    function ticketStack(mail, result, config, user) {
+        const content = [];
+        const all = (result.tickets || []).map(found => ({ ...found, ...(ticketByNumber(found.number) || {}) }));
+        const opened = all.filter(ticket => OPEN_STATES.includes(ticket.state));
+        const closed = all.filter(ticket => !OPEN_STATES.includes(ticket.state));
+        const ordered = threadOrder(opened); // collegati in cima, il principale per ultimo
+        // Un altro ticket sulla stessa richiesta (dalla pillola "Ticket" della testata): il modulo si apre in cima alla pila,
+        // dove poi comparirà il ticket nuovo (il collegato più recente).
+        if (state.extraTicketFor === mail.conversationId) content.push(extraTicketCard(mail, config));
+        ordered.forEach(ticket => content.push(ticketBox(ticket, config, user, { single: ordered.length === 1, primary: ticket === ordered[ordered.length - 1], others: ordered.length - 1 })));
+        if (closed.length) content.push(closedTickets(mail.conversationId, closed));
+        return content;
+    }
+    // Tag dello stato del thread (vista della mail, barra e card della mail selezionata).
+    function threadChip(thread) {
+        const states = TEXTS.mail.threadStates;
+        const groupTag = name => forwardGroups().find(group => group.name === name || group.id === name)?.tag || name;
+        const label = thread.status === 'Forwarded' ? states.Forwarded(groupTag(thread.assignedTo)) : states[thread.status] || states.none;
+        const tone = { New: 'accent', Working: 'accent', Acquired: 'success', Forwarded: 'forward' }[thread.status] || 'neutral';
+        return h('span', { class: `ao-chip ao-tone-${tone}` }, label);
+    }
+    // Chi ha gestito il thread e quando (per lo stato).
+    function threadPeople(mail, thread) {
+        const texts = TEXTS.mail;
+        const when = thread.statusAt ? formatWhen(thread.statusAt) : formatWhen(mail.receivedAt);
+        const operator = {
+            New: texts.noOperator,
+            Working: surname(thread.assignedToName || thread.assignedTo),
+            Acquired: surname(thread.assignedToName || thread.assignedTo),
+            Solved: surname(thread.statusByName || thread.statusBy || thread.assignedToName || thread.assignedTo),
+            Ignored: surname(thread.statusByName || thread.assignedToName || thread.assignedTo),
+            Forwarded: surname(thread.statusByName || thread.statusBy) || texts.noOperator
+        }[thread.status] || texts.noOperator;
+        const detail = { New: texts.since(when), Working: texts.since(when), Acquired: texts.since(when), none: texts.notShared }[thread.status] || when;
+        return { operator, when, detail };
+    }
+    // Barra uguale per tutti gli stati: a sinistra l'operatore e quando, a destra il tag dello stato.
+    function threadStateBar(mail, thread) {
+        const { operator, detail } = threadPeople(mail, thread);
+        return h('div', { class: 'ao-thread-bar' },
+            h('span', { class: 'ao-thread-count' }, `${operator} · ${detail}`),
+            threadChip(thread));
+    }
+    // Dove si gestisce il thread: In coda (Attive o Ignorate).
+    function threadAction(mail, thread) {
+        const tab = { New: 'active', Working: 'active', Ignored: 'ignored' }[thread.status];
+        if (!tab) return null;
+        return { tab, label: tab === 'ignored' ? TEXTS.mail.openInIgnored : TEXTS.mail.openInQueue, go: () => openFromMailState(tab, mail) };
+    }
+    // Mail selezionata in Outlook, con lo stato del thread su SharePoint: stessa pagina del ticket, con la barra dello stato
+    // sotto la testata. In carico: i ticket del thread; negli altri casi il testo della mail e, se serve, il pulsante per gestirla.
+    function renderMailState(mail, result, config, user, notice) {
+        const thread = result.thread;
+        const bar = threadStateBar(mail, thread);
+        const content = [];
+        if (['Acquired', 'Solved'].includes(thread.status) && result.tickets?.length) content.push(...ticketStack(mail, result, config, user));
+        else {
+            const action = threadAction(mail, thread);
+            content.push(h('div', { class: 'ao-item ao-mail-state' },
+                h('div', { class: 'ao-ticket-description' }, clipText(mail.body || '', PREVIEW_MAX_CHARS)),
+                action ? h('div', { class: 'ao-actions' }, h('span', { class: 'ao-spacer' }),
+                    h('button', { type: 'button', class: 'ao-button', onclick: action.go }, action.label)) : null));
+        }
+        return h('div', { class: 'ao-view' }, threadHead(mail, { showOpen: false, count: 0, bar }), notice, content);
+    }
+    // Dalla mail selezionata alla sua scheda in In coda (Attive o Ignorate), già aperta.
+    async function openFromMailState(tab, mail) {
+        state.queueTab = tab;
+        setView('queue');
+        const item = (tab === 'ignored' ? state.ignored : state.queue).find(entry => entry.conversationId === mail.conversationId);
+        if (item) await openTakeCharge(item);
+    }
     // Testata del thread, sempre visibile: "‹" per tornare, oggetto e mittente (scorrendo resta solo l'oggetto, su una
-    // riga); sotto, con dei ticket, quanti sono e la pillola "Ticket" per aprirne un altro sulla stessa richiesta.
-    function threadHead(mail, { showOpen, count }) {
+    // riga); sotto, con dei ticket, quanti sono e la pillola "Ticket" per aprirne un altro sulla stessa richiesta
+    // (oppure la barra passata da chi chiama).
+    function threadHead(mail, { showOpen, count, bar = null }) {
         const target = state.backTo || 'tickets';
         const adding = state.extraTicketFor === mail.conversationId;
         const back = TEXTS.common.back(TEXTS.tabs[target]);
@@ -2899,12 +3156,12 @@
                         h('span', {}, `${mail.sender?.name || ''}${mail.sender?.email ? ` <${mail.sender.email}>` : ''}`),
                         h('span', { class: 'ao-item-time' }, formatWhen(mail.receivedAt))),
                     showOpen ? h('button', { type: 'button', class: 'ao-link ao-mail-open', onclick: () => Outlook.openMessage(mail.itemId) }, TEXTS.mail.openInOutlook) : null)),
-            count ? h('div', { class: 'ao-thread-bar' },
+            bar || (count ? h('div', { class: 'ao-thread-bar' },
                 h('span', { class: 'ao-thread-count' }, TEXTS.mail.threadCount(count)),
                 h('button', {
                     type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), // aperto: è diventato il modulo
                     onclick: () => openExtraTicket(mail)
-                }, svgIcon(SEGMENT_ICONS.none), TEXTS.mail.addTicket)) : null);
+                }, svgIcon(SEGMENT_ICONS.none), TEXTS.mail.addTicket)) : null));
     }
     // Modulo per un altro ticket del thread: lo stesso di "Nuovo ticket" in Senza mail (si solleva e si apre;
     // gli altri ticket si sfocano), con Agenzia e Attività.
@@ -3150,7 +3407,7 @@
         return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: event => openTicket(mail, event.currentTarget.closest('.ao-queue-item')) }, TEXTS.mail.openTicket);
     }
     function ignoreButton(mail, className) {
-        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
+        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async () => {
             // Vista del ticket (in In coda c'è il tasto rosso dal basso: ignoreBar).
             const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
             if (ok) await refreshLists();
@@ -4077,9 +4334,12 @@
     // - una sola regola per elemento e proprietà; i gruppi comuni (sfocatura delle superfici, passaggio del mouse)
     //   sono nel blocco Superfici, in fondo;
     // - classi e variabili che non servono più si tolgono subito.
+    // Outlook non permette all'add-in di fissare la larghezza del riquadro: sotto questa il pannello non si stringe più
+    // e la pagina scorre in orizzontale.
+    const PANEL_MIN_WIDTH = 300;
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
-#ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
+#ao-root { position: relative; display: flex; flex-direction: column; min-width: ${PANEL_MIN_WIDTH}px; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
@@ -4306,6 +4566,7 @@
 #ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-chip.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 #ao-root .ao-chip.ao-tone-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
+#ao-root .ao-chip.ao-tone-forward { background: var(--ao-choice-forward-bg); color: var(--ao-choice-forward-text); }
 /* Etichetta dell'operatore: un colore a testa (--ao-tag-color), fondo e scritta ricavati secondo lo stile */
 #ao-root .ao-user-tag { display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 9px; border: 0; border-radius: var(--ao-radius-pill); background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-base)); color: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); box-shadow: inset 0 0 0 1px var(--ao-tag-line); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); line-height: 1; white-space: nowrap; }
 #ao-root button.ao-user-tag { cursor: pointer; }
@@ -4564,10 +4825,22 @@
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
+#ao-root .ao-mailbar { position: absolute; left: 12px; right: 12px; bottom: 34px; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; padding: 0 10px; overflow: hidden; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-open-shadow); }
+#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 74px; }
+#ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
+#ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#ao-root .ao-mailbar-row { display: flex; align-items: center; gap: 6px; min-width: 0; height: 20px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { flex: 1; min-width: 0; }
+#ao-root .ao-mailbar-subject { font-weight: var(--ao-fw-medium); }
+#ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
+#ao-root .ao-mailbar-detail { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s; }
+#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-line-strong); }
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
-#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-candidate, #ao-root .ao-mailbar, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
 /* non si schiarisce: si accende, poi il bagliore scivola piano avanti e indietro (il pulsante resta fermo) */
 #ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-on .4s ease-out, ao-call-sway 4.8s ease-in-out .4s infinite; }
@@ -4600,6 +4873,7 @@
     // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
     const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
     const OUTSIDE_STYLES = `
+body:has(#amp-view:not([hidden])) { min-width: ${PANEL_MIN_WIDTH}px; }
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
@@ -4644,7 +4918,7 @@
         state.mail = Outlook.currentMail();
         render();
         await refreshLists();
-        if (state.mail?.conversationId) showMailTarget(state.mail);
+        refreshMailBar();
     }
     // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in
     // e prende l'altezza esatta che resta sotto l'intestazione, così la pagina non scorre più:
