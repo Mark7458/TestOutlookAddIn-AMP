@@ -133,7 +133,6 @@
             toneHold: '#d4ac0d', // On Hold: citrino
             // Pulsanti pieni del colore dell'azione (nel vetro appena trasparenti), scritta bianca
             toneFill: '100%', // quanto colore nello sfondo
-            toneSolid: '100%', // quanto colore nella scheda a esito concluso
             toneLine: 'transparent', // bordo dei pulsanti
             toneHoverFilter: 'brightness(.92)',
             btnHighlight: '0 0 transparent', // filo di luce sul bordo alto dei pulsanti
@@ -234,7 +233,6 @@
             toneForward: '#7b3fbf', // ametista
             toneIgnore: '#c4183c', // rubino
             toneFill: '86%', // vetro colorato
-            toneSolid: '0%',
             toneLine: 'rgba(255, 255, 255, .22)',
             toneHoverFilter: 'brightness(1.08)',
             btnHighlight: 'inset 0 1px 0 rgba(255, 255, 255, .22)',
@@ -352,8 +350,12 @@
             labeledBy: name => `Già segnata da ${name}`,
             ignoredDone: 'Ignorata',
             forward: 'Inoltra',
-            forwardWorking: 'Inoltro…',
             forwardDone: group => `Inoltrata a ${group}`,
+            forwardSteps: { ticket: 'Ticket', reply: 'Risposta', forward: 'Inoltro', close: 'Chiusura' },
+            forwardRetry: step => `Riprova: ${step}`,
+            forwardStuck: step => `Bloccato su ${step}`,
+            forwardFailed: 'Inoltro non riuscito',
+            forwardNote: group => `Inoltrato a ${group}`,
             goToTicket: 'Vai al ticket',
             empty: 'Nessuna richiesta in coda.',
             active: 'Attive',
@@ -407,8 +409,6 @@
             expiredOn: date => `il ${date}`
         },
         mail: {
-            outcomeWorking: 'Apro il ticket…',
-            outcomeTaken: number => `${number} preso in carico`,
             noMail: 'Apri una mail in Outlook, oppure scegli una richiesta dalla Coda o un ticket.',
             searching: 'Ricerca del ticket su ServiceNow…',
             openInOutlook: 'Apri la mail',
@@ -574,7 +574,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 12:45';
+    const BUILD = '2026-11-16 15:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -657,7 +657,8 @@
     //   findTicketForMail(mail)             → { tickets: (Ticket & { via: 'inc'|'link'|'confirmed' })[], previous, candidates: Ticket[], discarded }
     //   getTicket(numero)                   → Ticket
     //   linkTicket(conversationId, numero, utente)  → come findTicketForMail (l'operatore conferma il collegamento)
-    //   createTicket(mail, { companyId, companyName, activityId, activityName, fields }) → Ticket
+    //   createTicket(mail, { companyId, companyName, activityId, activityName, fields, forwardGroup }) → Ticket
+    //                                          (forwardGroup: ticket di un inoltro, nome del gruppo)
     //                                          (mail = null: ticket aperto da Ticket senza mail, senza thread)
     //   assignTicket(numero, utente)        → Ticket    (Assigned to = utente)
     //   getTicketActivity(numero, { offset, limit }) → { entries: [{ at, author, kind, text }], total }
@@ -669,6 +670,8 @@
     //                                          (In coda: con più messaggi l'operatore sceglie da quale aprire il ticket)
     //   forwardMail(conversationId, gruppo, utente) → inoltro della richiesta a un gruppo (ES, PEL, PO); il thread lascia In coda
     //                                          (facoltativo: senza, Inoltra avvisa che i servizi non sono collegati)
+    //   replyAll(conversationId, { tag, reference, ticket }) → rispondi a tutti con la presa in carico; tag: sigla del
+    //                                          gruppo in testa all'oggetto; ticket: numero su cui segnare la risposta (repliedAt)
     //   labelMail(conversationId, utente, colore) → { ok, label: { name, color, at } }: etichetta di chi gestisce la mail
     //                                          (una per thread: se c'è già quella di un altro, ok = false e torna quella)
     //   unlabelMail(conversationId, utente)  → toglie la propria etichetta
@@ -686,7 +689,8 @@
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
     //            holdExpiration, conversationId, messageId, owner, newMessages,
-    //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt }
+    //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt,
+    //            forwardGroup, repliedAt }   (ticket di un inoltro: gruppo e ora della risposta con la sigla)
     // ======================================================================
 
     const SERVICE_METHODS = ['listQueue', 'listIgnored', 'markThreadSeen', 'listOpenTickets', 'findTicketForMail', 'getTicket', 'linkTicket', 'createTicket',
@@ -725,7 +729,7 @@
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
     Services.listThreadMessages = async conversationId => (typeof window.AmpBackend?.listThreadMessages === 'function' ? window.AmpBackend.listThreadMessages(conversationId) : null);
-    ['forwardMail', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
+    ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
             return window.AmpBackend[name](...args);
@@ -980,6 +984,7 @@
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
+        forwardJobs: {}, // inoltri fermi a metà, per numero di ticket: striscia dei passi nella pagina del ticket
         ticketExpanded: {}, // ticket aperti o chiusi a mano nella pagina del thread (altrimenti: estesa se è l'unico)
         closedOpen: null, // thread di cui si vedono i ticket chiusi
         barOffset: 0, // di quanti px la barra secondaria è scivolata via (segue lo scorrimento)
@@ -1169,12 +1174,15 @@
         return button;
     }
 
-    function showStatus(message, tone = 'success', action = null) {
+    // Pillola dell'esito. icon: l'icona dell'azione che l'ha prodotto (Inoltra, Ignora, Prendi in carico…).
+    // action: tutta la pillola porta lì (una freccia in fondo lo dice; il nome dell'azione resta nel suggerimento).
+    function showStatus(message, tone = 'success', action = null, icon = null) {
         const status = root?.querySelector('.ao-status');
         if (!status) return;
-        status.replaceChildren(...[h('span', {}, message),
-            action ? h('button', { type: 'button', class: 'ao-status-action', onclick: () => { status.hidden = true; action.onclick(); } }, action.label) : null].filter(Boolean));
-        status.className = `ao-status ao-tone-${tone}`;
+        status.replaceChildren(...[icon ? svgIcon(icon) : null, h('span', {}, message), action ? svgIcon(CHEVRON_RIGHT_ICON) : null].filter(Boolean));
+        status.className = `ao-status ao-tone-${tone}${action ? ' ao-clickable' : ''}`;
+        status.title = action?.label || '';
+        status.onclick = action ? () => { status.hidden = true; action.onclick(); } : null;
         status.hidden = false;
         clearTimeout(statusTimer);
         statusTimer = setTimeout(() => { status.hidden = true; }, tone === 'danger' || action ? 7000 : 4000);
@@ -3418,8 +3426,8 @@
     //  - unfold: prima si apre lo spazio, poi il contenuto compare;
     //  - fold:   prima il contenuto si affievolisce, poi lo spazio si chiude;
     //  - removeCard: una scheda lascia l'elenco e le altre salgono.
-    // Le azioni su una scheda di In coda usano fold e poi la loro uscita (outcome*).
-    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260, collapse: 380 };
+    // Le azioni riuscite su una scheda di In coda la fanno uscire con exitCard.
+    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260 };
     const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const wait = ms => new Promise(next => setTimeout(next, ms));
     function playOn(element, frames, duration, easing = 'ease-in-out') {
@@ -3483,102 +3491,122 @@
         try { return await task(); } finally { releaseRender(); }
     }
 
-    // Esito su una scheda di In coda, in un movimento solo: mentre la tendina si chiude la scheda prende
-    // pian piano il colore dell'esito (banner che affiora), poi esce di lato e infine lo spazio si chiude.
-    // Ignora → rosso, esce a sinistra; Inoltra → viola, esce a destra; Prendi in carico → blu, si richiude verso l'alto.
-    // Se ServiceNow non ha ancora risposto, il banner resta fermo con la rotellina finché non arriva l'esito.
-    const ARCHIVE_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8"/><path d="M8 11h4"/></svg>';
+    // Uscita di una scheda di In coda dopo un'azione riuscita: la scheda svanisce sul fondo ancora sfocato, poi il suo
+    // spazio si chiude mentre la lista torna a fuoco; dopo il ridisegno (lista riordinata) l'esito compare nella pillola.
     const CHECK_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
-    const SPINNER = '<span class="ao-outcome-spinner" aria-hidden="true"></span>';
-    const FORWARD_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 4.5l5 5-5 5"/><path d="M16.5 9.5H8a4.5 4.5 0 0 0-4.5 4.5v1.5"/></svg>';
-    function outcomeStart(card, tone, html) {
-        if (!card || reducedMotion()) return;
-        holdRender(); // rilasciato da outcomeRelease, dopo che gli elenchi sono aggiornati
-        card.classList.add('ao-resolving');
-        stopPreviewScroll(card);
-        card.aoOutcome = { tone, html, cancelled: false, held: true };
-        const banner = h('div', { class: 'ao-outcome', role: 'status' });
-        banner.innerHTML = html;
-        card.append(banner);
-        card.classList.add(`ao-outcome-${tone}`);
-        // il colore affiora piano e diventa pieno solo alla fine, quando la tendina è del tutto chiusa
-        banner.animate([{ opacity: 0 }, { opacity: .12, offset: .5 }, { opacity: .4, offset: .8 }, { opacity: 1 }], { duration: MOTION.fold, easing: 'linear', fill: 'backwards' });
-        // anche l'intestazione (oggetto, mittente, ora, etichetta) si affievolisce e svanisce sotto il colore
-        // (entro metà della chiusura il testo è già svanito del tutto)
-        card.querySelector('.ao-item-main')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.fold * .5, easing: 'ease-out', fill: 'forwards' });
-        card.aoOutcome.ready = fold(card.querySelector('.ao-inline-form')).then(() => { if (!card.aoOutcome.cancelled) card.classList.add('ao-outcome-full'); });
+    async function exitCard(card) {
+        if (!card?.isConnected || reducedMotion()) return;
+        await playOn(card, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.97)' }], MOTION.exit, 'ease-out');
+        card.style.visibility = 'hidden';
+        card.classList.add('ao-resolving'); // la lista torna a fuoco mentre lo spazio si chiude
+        await removeCard(card);
     }
-    function outcomeText(card, html) {
-        if (!card?.aoOutcome) return;
-        card.aoOutcome.html = html;
-        const banner = card.querySelector('.ao-outcome');
-        if (banner) banner.innerHTML = html;
-    }
-    async function outcomeEnd(card) {
-        if (card?.aoOutcome) {
-            await card.aoOutcome.ready;
-            await wait(MOTION.hold); // un attimo per leggere l'esito
-            if (card.aoOutcome.tone === 'accent') {
-                // Prendi in carico: la scheda blu si richiude verso l'alto (la scritta svanisce mentre si chiude)
-                [...(card.querySelector('.ao-outcome')?.children || [])].forEach(child =>
-                    child.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.collapse * .5, easing: 'linear', fill: 'forwards' }));
-                await playOn(card, [
-                    { maxHeight: `${card.offsetHeight}px` },
-                    { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-6px', borderWidth: '0px' }
-                ], MOTION.collapse, 'cubic-bezier(.4, 0, .2, 1)');
-                return;
-            }
-            // Ignora a sinistra, Inoltra a destra: solo scorrimento laterale (la scheda resta intera),
-            // lo spazio si chiude dopo che è uscita
-            const direction = card.aoOutcome.tone === 'danger' ? -1 : 1;
-            await playOn(card, [
-                { transform: 'none' },
-                { transform: `translateX(${direction * 110}%)` }
-            ], MOTION.exit, 'cubic-bezier(.5, 0, .75, 0)');
-            await removeCard(card);
-        }
-    }
-    function outcomeRelease(card) {
-        if (!card?.aoOutcome?.held) return;
-        card.aoOutcome.held = false;
-        releaseRender();
-    }
-    // Errore: niente banner e la scheda torna com'era (al prossimo ridisegno).
-    function outcomeCancel(card) {
-        if (card?.aoOutcome) card.aoOutcome.cancelled = true;
-        card?.querySelector('.ao-outcome')?.remove();
-        card?.classList.remove('ao-resolving', 'ao-outcome-accent', 'ao-outcome-forward', 'ao-outcome-danger', 'ao-outcome-full');
-        card?.querySelector('.ao-item-main')?.getAnimations().forEach(animation => animation.cancel());
-        outcomeRelease(card);
+    // Azione riuscita su una scheda di In coda: uscita, elenchi riletti e ridisegnati, poi la pillola.
+    async function leaveQueue(card, mail, message, { tone = 'success', action = null, icon = null } = {}) {
+        await holdingRender(() => exitCard(card));
+        if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
+        delete state.queueChoice[mail.conversationId];
+        await refreshLists();
+        render();
+        showStatus(message, tone, action, icon);
     }
     async function ignoreFromQueue(card, mail) {
-        outcomeStart(card, 'danger', `${ARCHIVE_ICON}<span>${TEXTS.queue.ignoredDone}</span>`);
-        const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
-        if (ok) await outcomeEnd(card);
-        else outcomeCancel(card);
-        if (ok) {
-            if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
-            delete state.queueChoice[mail.conversationId];
-            await refreshLists();
-        }
-        outcomeRelease(card);
-        render();
+        if (await run(() => Services.discardMail(mail.conversationId, currentUser()))) await leaveQueue(card, mail, TEXTS.queue.ignoredDone, { icon: ACTION_ICONS.ignore });
     }
-    // Inoltro a un gruppo: viola, esce a destra come la presa in carico.
+    // Inoltro a un gruppo: quattro passi in fila, ognuno con la sua function (ticket, risposta con la sigla, inoltro,
+    // chiusura del ticket). La striscia dei passi resta sulla scheda finché non esce: tutto bene → "Inoltrata a PO";
+    // un passo non riuscito → il ticket resta In lavorazione tra quelli dell'operatore, con la striscia, e la pillola
+    // dice dove si è bloccato.
+    const FORWARD_STEPS = ['ticket', 'reply', 'forward', 'close'];
+    const FORWARD_ACTIONS = {
+        ticket: async job => { job.ticket = await Services.createTicket(job.mail, forwardPayload(job.mail, job.group)); },
+        reply: job => Services.replyAll(job.conversationId, { tag: job.group.tag, reference: job.ticket.ampReference || job.ticket.number, ticket: job.ticket.number }),
+        forward: job => Services.forwardMail(job.conversationId, job.group.id, currentUser()),
+        close: async job => { job.ticket = await Services.updateTicket(job.ticket.number, { type: 'resolve' }, TEXTS.queue.forwardNote(job.group.tag), currentUser()); }
+    };
+    function forwardPayload(mail, group) {
+        const config = loadConfig();
+        return {
+            companyName: '', activityName: '', forwardGroup: group.name || group.tag,
+            fields: {
+                assignedTo: config.profile.assignedTo,
+                shortDescription: buildShortDescription(mail.subject),
+                description: String(mail.body || '').slice(0, 4000),
+                reportedOn: mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '',
+                timeWorkedMinutes: 0
+            }
+        };
+    }
+    // Esegue i passi da from in poi; al primo che non riesce si ferma (passo rosso). paint: ridisegna la striscia.
+    async function runForward(job, from, paint) {
+        for (let index = from; index < FORWARD_STEPS.length; index += 1) {
+            job.steps[index] = 'run';
+            paint();
+            try {
+                await FORWARD_ACTIONS[FORWARD_STEPS[index]](job);
+                job.steps[index] = 'ok';
+            } catch (error) {
+                console.error('[AMP]', error);
+                job.steps[index] = 'ko';
+                paint();
+                return false;
+            }
+            paint();
+        }
+        return true;
+    }
+    // Striscia dei passi: fatto (verde), in corso, non riuscito (rosso, anche il tratto che ci arriva), da fare.
+    // retry: un clic sul passo rosso lo rifà e prosegue.
+    function forwardStrip(steps, retry = null) {
+        return h('div', { class: 'ao-steps', role: 'list' }, FORWARD_STEPS.map((step, index) => {
+            const status = steps[index];
+            const label = TEXTS.queue.forwardSteps[step];
+            const mark = status === 'ok' ? svgIcon(CHECK_ICON) : status === 'ko' ? svgIcon(CLOSE_ICON) : status === 'run' ? h('span', { class: 'ao-spinner' }) : null;
+            const dot = status === 'ko' && retry
+                ? h('button', { type: 'button', class: 'ao-step-dot', 'aria-label': TEXTS.queue.forwardRetry(label), title: TEXTS.queue.forwardRetry(label), onclick: event => { event.stopPropagation(); retry(index); } }, mark)
+                : h('span', { class: 'ao-step-dot' }, mark);
+            return h('div', { class: `ao-step ao-step-${status}`, role: 'listitem' }, dot, h('span', { class: 'ao-step-label' }, label));
+        }));
+    }
     async function forwardFromQueue(card, mail, group) {
-        if (!group) return;
-        outcomeStart(card, 'forward', `${SPINNER}<span>${TEXTS.queue.forwardWorking}</span>`);
-        const ok = await run(() => Services.forwardMail(mail.conversationId, group.id, currentUser()));
+        if (!group || !card || state.holdRender) return;
+        const job = { mail, conversationId: mail.conversationId, group, ticket: null, steps: FORWARD_STEPS.map(() => 'wait') };
+        const place = card.querySelector('.ao-inline-form .ao-actions'); // al posto del pulsante Inoltra
+        holdRender(); // fino all'uscita la scheda resta com'è: cambia solo la striscia
+        const ok = await runForward(job, 0, () => place?.replaceChildren(forwardStrip(job.steps)));
+        if (!job.ticket) { // nemmeno il ticket: non è cambiato niente, la scheda torna com'era
+            releaseRender();
+            showStatus(TEXTS.queue.forwardFailed, 'danger');
+            render();
+            return;
+        }
+        await wait(MOTION.exit); // un attimo per leggere la striscia prima che la scheda si chiuda
+        releaseRender();
+        if (ok) return leaveQueue(card, mail, TEXTS.queue.forwardDone(group.tag), { icon: ACTION_ICONS.forward });
+        state.forwardJobs[job.ticket.number] = job;
+        const stuck = TEXTS.queue.forwardSteps[FORWARD_STEPS[job.steps.indexOf('ko')]];
+        const ticket = job.ticket;
+        await leaveQueue(card, mail, TEXTS.queue.forwardStuck(stuck), { tone: 'warning', icon: ACTION_ICONS.forward, action: { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) } });
+    }
+    // Pagina del ticket di un inoltro fermo a metà: la striscia dei passi. Se il pannello non ha seguito l'inoltro
+    // (riaperto dopo, o un collega) i passi si ricavano dal ticket: risposta segnata o no; inoltro e chiusura mancano.
+    function forwardTicketSteps(ticket) {
+        const job = state.forwardJobs[ticket.number] || (state.forwardJobs[ticket.number] = {
+            mail: null, conversationId: ticket.conversationId, ticket,
+            group: forwardGroups().find(group => [group.name, group.id, group.tag].includes(ticket.forwardGroup)) || null,
+            steps: ['ok', ticket.repliedAt ? 'ok' : 'ko', ticket.repliedAt ? 'ko' : 'wait', 'wait']
+        });
+        return h('div', { class: 'ao-ticket-steps' }, forwardStrip(job.steps, job.group ? index => resumeForward(job, index) : null));
+    }
+    async function resumeForward(job, index) {
+        if (job.steps.includes('run')) return;
+        const ok = await runForward(job, index, render);
+        rememberTicket(job.ticket);
         if (ok) {
-            outcomeText(card, `${FORWARD_ICON}<span>${TEXTS.queue.forwardDone(group.tag)}</span>`);
-            await outcomeEnd(card);
-        } else outcomeCancel(card);
-        if (ok) {
-            if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
-            delete state.queueChoice[mail.conversationId];
+            delete state.forwardJobs[job.ticket.number];
+            showStatus(TEXTS.queue.forwardDone(job.group.tag), 'success', null, ACTION_ICONS.forward);
             await refreshLists();
         }
-        outcomeRelease(card);
         render();
     }
     function fieldRow(label, value) {
@@ -3620,18 +3648,12 @@
             description: String(body || '').slice(0, 4000),
             reportedOn
         };
-        outcomeStart(card, 'accent', `${SPINNER}<span>${TEXTS.mail.outcomeWorking}</span>`);
         const ticket = await run(() => Services.createTicket(mail.manual ? null : mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
-        }), result => TEXTS.mail.ticketOpened(result.number));
-        if (!ticket) {
-            outcomeCancel(card);
-            render();
-            return;
-        }
-        outcomeText(card, `${CHECK_ICON}<span>${TEXTS.mail.outcomeTaken(ticket.number)}</span>`);
-        await outcomeEnd(card);
+        }), card ? null : result => TEXTS.mail.ticketOpened(result.number));
+        if (!ticket) return;
+        await holdingRender(() => exitCard(card));
         delete state.ticketDrafts[mail.conversationId];
         state.ticketCache[ticket.number] = ticket;
         if (state.queueExpanded === mail.conversationId) state.queueExpanded = null;
@@ -3655,14 +3677,14 @@
             const item = [...root.querySelectorAll('.ao-scroll .ao-item')].find(element => element.querySelector('.ao-item-number')?.textContent === ticket.number);
             if (from && item) await holdingRender(() => morphInto(item, from));
             appear(button);
-            showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
+            showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) }, ACTION_ICONS.take);
             return;
         }
         render();
         await refreshLists();
-        outcomeRelease(card);
+        render();
         // Da In coda si resta in In coda (si smista la prossima); l'avviso porta al ticket per lavorarlo.
-        if (card || mail.manual) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) });
+        if (card || mail.manual) showStatus(TEXTS.mail.ticketOpened(ticket.number), 'success', { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) }, ACTION_ICONS.take);
     }
 
     // Ticket nella pagina del thread: la stessa scheda della lista (che vi atterra), con in più la description come
@@ -3688,7 +3710,8 @@
             onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
         },
             h('div', { class: 'ao-ticket-face' }, ticketHead(ticket, user, { query, owner: true, takeover: true, primary: primary && others > 0 && Boolean(ticket.messageId) }), // l'icona serve a distinguerlo dai collegati
-                ticketMeta(ticket)), // scadenza dell'On Hold (e azione in attesa) come sulla scheda della lista
+                ticketMeta(ticket), // scadenza dell'On Hold (e azione in attesa) come sulla scheda della lista
+                open && ticket.forwardGroup ? forwardTicketSteps(ticket) : null),
             listed && !expanded ? null : h('div', { class: 'ao-ticket-more' },
                 h('div', { class: 'ao-ticket-dates' }, // prima le date
                     h('span', null, h('b', null, TEXTS.mail.opened), ' ', formatWhen(ticket.openedAt)),
@@ -3950,23 +3973,25 @@
         const config = loadConfig();
         const draft = actionDraft(ticket);
         const user = currentUser(config);
-        const updated = await run(() => Services.updateTicket(ticket.number, buildAction(draft, user.displayValue, ticket), draft.text.trim(), user));
+        const action = buildAction(draft, user.displayValue, ticket);
+        const updated = await run(() => Services.updateTicket(ticket.number, action, draft.text.trim(), user));
+        const icon = ACTION_ICONS[action.type] || null;
         if (!updated) return;
         rememberTicket(updated);
         delete state.actionDrafts[ticket.number];
         delete state.timeDrafts[ticket.number];
         if (OPEN_STATES.includes(updated.state)) {
             render();
-            showStatus(TEXTS.mail.updated(updated.number));
+            showStatus(TEXTS.mail.updated(updated.number), 'success', null, icon);
         } else if (state.view === 'mail' && state.target?.kind === 'mail') {
             // Ticket del thread chiuso: si resta sul thread, dove passa tra i chiusi.
             state.ticketExpanded = {}; // se ne resta uno solo, si mostra aperto
             await refreshTarget(true);
-            showStatus(TEXTS.mail.closedTicket(updated.number));
+            showStatus(TEXTS.mail.closedTicket(updated.number), 'success', null, icon);
         } else {
             // Ticket senza mail chiuso (risolto o annullato): si torna all'elenco, dove non c'è più.
             setView('tickets');
-            showStatus(TEXTS.mail.closedTicket(updated.number));
+            showStatus(TEXTS.mail.closedTicket(updated.number), 'success', null, icon);
         }
     }
     // Campi che dipendono dall'azione scelta (nessuno per Aggiorna).
@@ -4734,20 +4759,25 @@
 #ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
 #ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
 #ao-root .ao-resolving { pointer-events: none; }
-/* Colore dell'esito come quello dei pulsanti (vetro colorato nel vetro), scritta bianca */
-#ao-root .ao-outcome-accent { --ao-outcome: var(--ao-tone-take); }
-#ao-root .ao-outcome-danger { --ao-outcome: var(--ao-tone-ignore); }
-#ao-root .ao-outcome-forward { --ao-outcome: var(--ao-tone-forward); }
-/* sfondo e bordo della scheda prendono il colore solo a tendina chiusa (prima lo dà solo il banner, che affiora) */
-#ao-root .ao-queue-item.ao-outcome-full { background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-surface)); border-color: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-solid), var(--ao-line)); }
-#ao-root .ao-outcome {
-    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 12px;
-    background: color-mix(in srgb, var(--ao-outcome) var(--ao-tone-fill), transparent); color: #fff;
-    font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium);
-}
-#ao-root .ao-outcome-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
+#ao-root .ao-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-outcome { transition: none; animation: none; } }
+/* Passi dell'inoltro: pallini uniti da un tratto, verde se il passo prima è riuscito, rosso fino al passo non riuscito */
+#ao-root .ao-steps { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; padding: 4px 0 2px; }
+#ao-root .ao-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
+#ao-root .ao-step + .ao-step::before { content: ""; position: absolute; top: 8px; left: calc(-50% + 12px); width: calc(100% - 24px); height: 2px; border-radius: 1px; background: var(--ao-line-strong); }
+#ao-root .ao-step-ok::before { background: var(--ao-success); }
+#ao-root .ao-step-ko::before { background: var(--ao-danger); }
+#ao-root .ao-step-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; background: none; color: inherit; }
+#ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
+#ao-root .ao-step-dot .ao-spinner { width: 10px; height: 10px; }
+#ao-root .ao-step-run { color: var(--ao-text); }
+#ao-root .ao-step-ok .ao-step-dot { border-color: var(--ao-success); background: var(--ao-success-bg); color: var(--ao-success); }
+#ao-root .ao-step-ko { color: var(--ao-danger); }
+#ao-root .ao-step-ko .ao-step-dot { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
+#ao-root button.ao-step-dot { cursor: pointer; transition: transform .15s; }
+#ao-root button.ao-step-dot:hover { transform: scale(1.15); }
+#ao-root .ao-ticket-steps { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-spinner { transition: none; animation: none; } }
 
 /* Impostazioni */
 /* Category: spazio per due righe, etichetta centrata in altezza */
@@ -4859,13 +4889,18 @@
 #ao-root .ao-statusbar-sync { flex: none; }
 
 /* Messaggi temporanei, sopra la barra di sistema */
-#ao-root .ao-status:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-#ao-root .ao-status-action { flex: none; padding: 0; border: 0; background: none; color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-bold); cursor: pointer; }
-#ao-root .ao-status-action:hover { text-decoration: underline; }
-#ao-root .ao-status { position: absolute; left: 12px; right: 12px; bottom: 36px; z-index: 3; margin: 0; padding: 8px 10px; border-radius: var(--ao-radius-base); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-#ao-root .ao-status.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
-#ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
-#ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
+#ao-root .ao-status:not([hidden]) { display: flex; align-items: center; gap: 10px; animation: ao-pill-in .25s ease-out; }
+#ao-root .ao-status { position: absolute; left: 50%; bottom: 40px; z-index: 16; max-width: calc(100% - 24px); margin: 0; padding: 7px 14px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); transform: translateX(-50%); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); white-space: nowrap; box-shadow: var(--ao-open-shadow); -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); } /* esito: pillola di vetro in basso, sopra il mini player; solo testo e icona del colore dell'esito */
+#ao-root .ao-status > span:not(.ao-svg-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-status > .ao-svg-icon { flex: none; display: inline-flex; margin-right: -4px; }
+#ao-root .ao-status > .ao-svg-icon:last-child:not(:first-child) { margin: 0 -6px 0 -4px; } /* freccia: la pillola porta altrove */
+#ao-root .ao-status.ao-clickable { cursor: pointer; transition: border-color .25s; }
+#ao-root .ao-status.ao-clickable:hover { border-color: var(--ao-line-strong); }
+#ao-root.ao-with-mailbar .ao-status { bottom: 98px; }
+@keyframes ao-pill-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+#ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
+#ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
+#ao-root .ao-status.ao-tone-danger { color: var(--ao-danger); }
 `;
     // Fuori dall'area AMP, solo mentre è aperta: pagina dell'add-in ferma (scorre solo il pannello) e intestazione
     // più bassa, con logo piccolo e schede più vicine. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza

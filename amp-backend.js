@@ -143,6 +143,8 @@
             lastNewMessage: null,
             lastMessageAt: null,
             syncedAt: record.modified || null,
+            forwardGroup: record.forwardGroup || '',
+            repliedAt: record.repliedAt || '',
             ...extra
         };
     }
@@ -286,7 +288,8 @@
                 shortDescription: fields.shortDescription || mail.subject || '',
                 description: String(fields.description || mail.body || '').slice(0, 4000),
                 agency: payload?.companyName || '',
-                elapsedTime: String(Number(fields.timeWorkedMinutes) || 0)
+                elapsedTime: String(Number(fields.timeWorkedMinutes) || 0),
+                ...(payload?.forwardGroup ? { forwardGroup: payload.forwardGroup } : {})
             });
             remember(mail.conversationId, parentItemId);
             return toTicket(result.ticket);
@@ -310,6 +313,11 @@
         async forwardMail(conversationId, group) {
             const parentItemId = await parentOf(conversationId);
             await call('ForwardConversation', { conversationId: normalize(conversationId), parentItemId, groupName: group, caller: me() });
+        },
+        // Rispondi a tutti con la presa in carico; tag: sigla del gruppo nell'oggetto; ticket: dove segnare la risposta.
+        async replyAll(conversationId, { tag, reference, ticket } = {}) {
+            const parentItemId = await parentOf(conversationId);
+            await call('ReplyAll', { parentItemId, caller: me(), tag, reference, ticketId: ticket });
         },
         // Testo e azione sul ticket (lista Ticket; ServiceNow non ancora collegato).
         async updateTicket(number, action, text, user) {
