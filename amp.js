@@ -576,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 08:35';
+    const BUILD = '2026-11-16 11:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2176,16 +2176,16 @@
                 ]
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
-    // Thread ignorato: si può prendere in carico direttamente (stesso modulo compatto della coda).
+    // Thread ignorato: si può prendere in carico o inoltrare direttamente, senza etichetta (stesso modulo compatto della coda).
     // Scheda di In coda (Attive e Ignorate). Chiusa: oggetto, mittente, ora, etichette; il clic la apre.
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
     function ignoredItem(item, config) {
         // Chi l'ha ignorata si legge solo aprendo la scheda, sopra il testo della mail.
-        return queueCard(item, config, labelSlot(item, config), { allowIgnore: false,
+        return queueCard(item, config, null, { allowIgnore: false, needsLabel: false,
             info: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
     }
-    function queueCard(item, config, chipNode, { allowIgnore = true, info = null } = {}) {
+    function queueCard(item, config, chipNode, { allowIgnore = true, needsLabel = true, info = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
@@ -2212,19 +2212,19 @@
                 h('div', { class: 'ao-queue-row' },
                     h('span', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
                     chipNode)),
-            expanded ? queueDetails(item, config, allowIgnore, info) : null);
+            expanded ? queueDetails(item, config, { allowIgnore, needsLabel, info }) : null);
     }
     // Scheda aperta: testo della mail, poi il selettore dell'azione (nessuna scelta all'inizio: si decide dopo aver letto).
     // Sotto compare il contenuto dell'azione scelta, con il suo pulsante; in fondo la freccia richiude la scheda.
     //  - Prendi in carico: agenzia e attività;  - Inoltra: gruppo (ES, PEL, PO);  - Ignora: "Confermi?".
-    function queueDetails(item, config, allowIgnore, info = null) {
+    function queueDetails(item, config, { allowIgnore, needsLabel, info }) {
         const mail = mailFromQueueItem(item);
         const messages = threadMessagesOf(item);
         const shown = messages.length > 1 ? chosenMessage(item) : null; // con più messaggi: quello che si sta guardando
         const body = state.mailBodies[shown?.messageId || item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
-        // Si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
-        const locked = !isMyLabel(item.label);
+        // In coda si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
+        const locked = needsLabel && !isMyLabel(item.label);
         const actions = [
             { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
             { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
@@ -2397,7 +2397,7 @@
         return queueCard(item, config, labelSlot(item, config));
     }
     const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
-    const isMyLabel = label => Boolean(label) && label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase();
+    const isMyLabel = label => Boolean(label) && (label.mine ?? label.name.trim().toLowerCase() === currentUser().displayValue.trim().toLowerCase());
     function labelChip(label, { onclick, title, entering } = {}) {
         const color = THEME.labels[label.color] || THEME.labels.grafite;
         return h(onclick ? 'button' : 'span', {
@@ -3407,7 +3407,7 @@
         return h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: event => openTicket(mail, event.currentTarget.closest('.ao-queue-item')) }, TEXTS.mail.openTicket);
     }
     function ignoreButton(mail, className) {
-        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async button => {
+        return confirmButton(TEXTS.mail.discard, `${className} ao-ignore`, async () => {
             // Vista del ticket (in In coda c'è il tasto rosso dal basso: ignoreBar).
             const ok = await run(() => Services.discardMail(mail.conversationId, currentUser()));
             if (ok) await refreshLists();
@@ -4334,9 +4334,12 @@
     // - una sola regola per elemento e proprietà; i gruppi comuni (sfocatura delle superfici, passaggio del mouse)
     //   sono nel blocco Superfici, in fondo;
     // - classi e variabili che non servono più si tolgono subito.
+    // Outlook non permette all'add-in di fissare la larghezza del riquadro: sotto questa il pannello non si stringe più
+    // e la pagina scorre in orizzontale.
+    const PANEL_MIN_WIDTH = 300;
     const STYLES = `
 /* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
-#ao-root { position: relative; display: flex; flex-direction: column; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
+#ao-root { position: relative; display: flex; flex-direction: column; min-width: ${PANEL_MIN_WIDTH}px; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
 #ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
 #ao-root [hidden] { display: none !important; }
 #ao-root.ao-busy { cursor: progress; }
@@ -4870,6 +4873,7 @@
     // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
     const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
     const OUTSIDE_STYLES = `
+body:has(#amp-view:not([hidden])) { min-width: ${PANEL_MIN_WIDTH}px; }
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
