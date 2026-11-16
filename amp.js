@@ -576,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 00:06';
+    const BUILD = '2026-11-16 08:35';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1517,12 +1517,17 @@
     // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
     // sopra l'oggetto e il tag dello stato; sotto mittente e ora (in carico: il ticket e da quando, On Hold fino a quando)
     // e il tag dell'operatore, come nelle schede. Un clic porta al ticket o alla sezione di In coda.
-    // Cambiando mail il contenuto si dissolve e torna con la mail nuova. Non c'è nella scheda Debug.
+    // Cambiando mail il contenuto si dissolve e torna con la mail nuova. Non c'è nella scheda Debug né quando il pannello
+    // mostra già quella mail (la sua scheda aperta in In coda, la pagina del suo ticket).
     function renderMailBar() {
         const bar = root?.querySelector('.ao-mailbar');
         if (!bar) return;
         const mail = state.mail;
-        bar.hidden = !mail?.conversationId || state.view === 'debug';
+        const id = mail?.conversationId;
+        const target = state.target;
+        const shown = target?.kind === 'mail' ? target.mail.conversationId : target?.kind === 'ticket' ? ticketByNumber(target.number)?.conversationId : null;
+        const open = Boolean(id) && ((state.view === 'mail' && shown === id) || (state.view === 'queue' && state.queueExpanded === id));
+        showMailBar(bar, Boolean(id) && state.view !== 'debug' && !open);
         if (bar.hidden) return;
         const result = state.mailBar?.id === mail.conversationId ? state.mailBar.result : null;
         const thread = mailBarThread(mail, result);
@@ -1567,6 +1572,31 @@
         if (!changed || reducedMotion()) return fill();
         fadeAll([...bar.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' })
             .then(() => { fill(); return fadeAll([...bar.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' }); });
+    }
+    // La barra sta sopra il contenuto, in fondo: compare salendo appena e sparisce scendendo. Finché c'è, la lista ha
+    // in fondo lo spazio per scorrere oltre la barra.
+    function showMailBar(bar, visible) {
+        const leaving = bar.dataset.leaving === 'true';
+        if (visible ? !bar.hidden && !leaving : bar.hidden || leaving) return;
+        bar.getAnimations().forEach(animation => animation.cancel());
+        delete bar.dataset.leaving;
+        root.classList.toggle('ao-with-mailbar', visible);
+        const space = [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }];
+        if (visible) {
+            bar.hidden = false;
+            if (!reducedMotion()) bar.animate(space, { duration: JOURNEY.build, easing: JOURNEY.easing });
+            return;
+        }
+        if (reducedMotion()) {
+            bar.hidden = true;
+            return;
+        }
+        bar.dataset.leaving = 'true';
+        bar.animate(space.reverse(), { duration: JOURNEY.build, easing: 'ease-in' }).finished.then(() => {
+            if (bar.dataset.leaving !== 'true') return;
+            delete bar.dataset.leaving;
+            bar.hidden = true;
+        }).catch(() => {});
     }
     // Stato del thread della mail selezionata: da SharePoint; senza (anteprima) lo si ricava da coda e ticket.
     function mailBarThread(mail, result) {
@@ -4792,7 +4822,8 @@
 #ao-root .ao-candidate-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-mailbar { flex: none; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; margin: 6px 12px; padding: 0 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-mailbar { position: absolute; left: 12px; right: 12px; bottom: 34px; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; padding: 0 10px; overflow: hidden; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-open-shadow); }
+#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 74px; }
 #ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
 #ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 #ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
