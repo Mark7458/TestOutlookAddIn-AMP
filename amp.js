@@ -84,7 +84,6 @@
             // gli elementi usano solo questi nomi, così flat/vetro e chiaro/scuro cambiano tutto insieme.
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
-            navBlur: 'none', // sfocatura della fascia blu (intestazione e schede)
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
             navInk: '#fff', // scritte e icone dell'intestazione e delle schede
             navInkSoft: 'rgba(255, 255, 255, .72)', // schede non scelte
@@ -198,7 +197,6 @@
             lineLight: 'rgba(0, 0, 0, .07)',
             lineStrong: 'rgba(0, 0, 0, .14)',
             blur: 'blur(14px) saturate(1.2)',
-            navBlur: 'blur(16px) saturate(1.3)',
             hoverFilter: 'brightness(1.06)',
             chipLine: 'rgba(0, 50, 110, .16)',
             notifyInk: '#fff', // vetro: superficie trasparente, il numero va su un colore pieno
@@ -312,7 +310,7 @@
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
-        radius: { base: '8px', pill: '999px', badge: '5px' }, // badge: notifiche, quadrato con gli angoli smussati
+        radius: { base: '12px', pill: '999px', badge: '5px' }, // badge: notifiche, quadrato con gli angoli smussati
         shadow: {
             card: '0 1px 2px rgba(0,0,0,.06)',
             focus: '0 0 0 2px rgba(0,120,212,.25)'
@@ -576,7 +574,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 12:00';
+    const BUILD = '2026-11-16 12:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1781,7 +1779,8 @@
         const nav = root?.querySelector('.ao-tabs');
         const header = document.querySelector('.app-header');
         if (!nav || !header || !nav.offsetWidth) return;
-        const W = header.offsetWidth, H = header.offsetHeight, w = nav.offsetWidth, n = nav.offsetHeight;
+        // Misure esatte (anche frazionarie con lo zoom di Outlook), così le due fasce combaciano al pixel.
+        const { width: W, height: H } = header.getBoundingClientRect(), { width: w, height: n } = nav.getBoundingClientRect();
         // Vetro: intestazione e schede sono un'unica lastra. Sfumatura e riflesso si dipingono sull'altezza di tutte e due
         // e la barra delle schede ne mostra la parte bassa, così l'effetto continua senza giunture.
         if (root.dataset.style === 'glass') {
@@ -4346,7 +4345,7 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: var(--ao-nav-ink); -webkit-backdrop-filter: var(--ao-nav-blur); backdrop-filter: var(--ao-nav-blur); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: var(--ao-nav-ink); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: var(--ao-nav-ink-soft); }
 /* Freccia per tornare all'add-in: invisibile finché non la si raggiunge con il mouse, così le schede hanno tutta la larghezza */
 #ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
