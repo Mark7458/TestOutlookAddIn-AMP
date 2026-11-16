@@ -576,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 11:30';
+    const BUILD = '2026-11-16 12:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4868,17 +4868,19 @@
 #ao-root .ao-status.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
 `;
-    // Fuori dall'area AMP, solo mentre è aperta (pannello di sviluppo): intestazione dell'add-in più bassa, con le schede
-    // più vicine al logo. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza giunture) passa anche dietro
-    // l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
+    // Fuori dall'area AMP, solo mentre è aperta: pagina dell'add-in ferma (scorre solo il pannello) e intestazione
+    // più bassa, con logo piccolo e schede più vicine. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza
+    // giunture) passa anche dietro l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
     const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
     const OUTSIDE_STYLES = `
 body:has(#amp-view:not([hidden])) { min-width: ${PANEL_MIN_WIDTH}px; }
-:has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding-bottom: 6px; }
+body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
+:has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding: 12px 16px 6px; }
+:has(> .app-header):has(#amp-view:not([hidden])) > .app-header img { width: 40px; height: 40px; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { -webkit-backdrop-filter: ${THEME.glassColors.navBlur}; backdrop-filter: ${THEME.glassColors.navBlur}; ${glassHeaderRule(THEME.glassHeader.light)} }
+:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.light)} }
 :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} }
 @media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} } }
 `;
