@@ -277,7 +277,7 @@
     // SharePoint: copia dei ticket, thread, movimenti
     // ------------------------------------------------------------------
     const SNOW_FIELDS = ['number', 'sysId', 'url', 'state', 'assignedTo', 'companyId', 'companyName', 'activityId', 'activityName',
-        'shortDescription', 'description', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode'];
+        'shortDescription', 'description', 'reportedOn', 'openedAt', 'closedAt', 'timeWorkedMinutes', 'holdReason', 'holdExpiration', 'resolutionCode', 'forwardGroup', 'repliedAt'];
     const snowView = incident => Object.fromEntries(SNOW_FIELDS.map(key => [key, incident[key] ?? '']));
     // Copia su SharePoint i valori del ticket letti da ServiceNow.
     function mirror(number) {
@@ -306,7 +306,7 @@
         if (!tickets.length) return;
         const open = tickets.some(ticket => OPEN_STATES.includes(ticket.state));
         if (open) Object.assign(thread, { status: 'managed', freedAt: '' });
-        else if (thread.status !== 'free' && thread.status !== 'discarded') {
+        else if (!['free', 'discarded', 'forwarded'].includes(thread.status)) { // inoltrato: resta fuori da In coda
             const closedAt = tickets.map(ticket => ticket.closedAt).filter(Boolean).sort().slice(-1)[0];
             Object.assign(thread, { status: 'free', freedAt: closedAt || now() });
         }
@@ -606,7 +606,7 @@
                 activityId: payload.activityId, activityName: payload.activityName,
                 shortDescription: payload.fields.shortDescription, description: payload.fields.description || '', reportedOn: payload.fields.reportedOn,
                 openedAt: now(), timeWorkedMinutes: Number(payload.fields.timeWorkedMinutes) || 0,
-                holdReason: '', holdExpiration: '', closedAt: '', resolutionCode: '', fields: payload.fields
+                holdReason: '', holdExpiration: '', closedAt: '', resolutionCode: '', forwardGroup: payload.forwardGroup || '', repliedAt: '', fields: payload.fields
             };
             db.history[number] = [];
             addHistory(number, assignee.displayValue, 'system', `Ticket aperto dall'add-in (${payload.companyName} · ${payload.activityName}).`);
@@ -660,6 +660,16 @@
             db.sp.threads[conversationId] = thread;
             delete db.sp.labels[conversationId];
             record('inoltrata', '', by?.displayValue, group, conversationId);
+            persist();
+            return respond(true);
+        },
+        // Rispondi a tutti con la presa in carico (nella Function App: ReplyAll). Qui si segna solo l'ora sul ticket.
+        replyAll(conversationId, { tag, ticket } = {}) {
+            if (ticket && db.incidents[ticket]) {
+                db.incidents[ticket].repliedAt = now();
+                mirror(ticket);
+            }
+            record('risposta', ticket || '', '', tag ? `[${tag}]` : '', conversationId);
             persist();
             return respond(true);
         },
