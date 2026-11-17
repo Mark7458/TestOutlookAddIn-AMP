@@ -592,7 +592,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 12:20';
+    const BUILD = '2026-11-17 12:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -763,6 +763,26 @@
             return false;
         }
     };
+    // Nuovo incident su AMP già compilato, con un link di ServiceNow (sys_id=-1 + sysparm_query): gli stessi campi che
+    // il pannello Tampermonkey scrive nel form (agenzia, gruppo, assegnatario, categoria, impatto, urgenza, tempo
+    // lavorato, short description e description). L'operatore controlla e salva su AMP. La description si accorcia se il link
+    // diventerebbe troppo lungo.
+    const AMP_LINK_MAX = 6000;
+    function ampNewIncidentUrl(fields) {
+        const value = text => String(text ?? '').replace(/\^/g, '^^'); // "^" separa i campi: nel testo si raddoppia
+        const minutes = Number(fields.timeWorkedMinutes) || 0; // durata come data dal 1970 (formato di ServiceNow)
+        const worked = minutes ? `1970-01-01 ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00` : '';
+        const pairs = [
+            ['company', fields.company?.value], ['assignment_group', fields.assignmentGroup?.value], ['assigned_to', fields.assignedTo?.value],
+            ['x_avana_platform_category_value', fields.category?.value], ['impact', fields.impact], ['urgency', fields.urgency],
+            ['short_description', fields.shortDescription], ['time_worked', worked]
+        ].filter(([, text]) => text);
+        const base = `https://amp.service-now.com/incident.do?sys_id=-1&sysparm_query=${encodeURIComponent(pairs.map(([name, text]) => `${name}=${value(text)}`).join('^'))}`;
+        const description = text => (text ? encodeURIComponent(`^description=${value(text)}`) : '');
+        let text = String(fields.description || '');
+        while (text && (base + description(text)).length > AMP_LINK_MAX) text = text.slice(0, Math.floor(text.length * .8));
+        return base + description(text);
+    }
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
         currentMail() {
@@ -3692,6 +3712,8 @@
             description: String(body || '').slice(0, 4000),
             reportedOn
         };
+        // Su AMP l'incident si crea a mano: si apre già compilato (subito, al clic) mentre qui nasce il ticket.
+        Outlook.openLink(ampNewIncidentUrl(fields));
         const ticket = await run(() => Services.createTicket(mail.manual ? null : mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
