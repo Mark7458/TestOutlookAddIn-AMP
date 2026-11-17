@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 18:15';
+    const BUILD = '2026-11-17 19:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1347,7 +1347,7 @@
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
     const JOURNEY = {
-        lift: 130, travel: 280, land: 140, build: 200, stagger: 30,
+        lift: 130, travel: 280, land: 140, build: 200, unfold: 380, stagger: 30, // unfold: la scheda che si apre in corsa
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
         lifted: 'translateY(-2px) scale(1.015)', // l'ombra della scheda sollevata è in .ao-journey-shadow
         floated: 'translateY(-3px) scale(1.02)', float: 400 // se la pagina tarda: la scheda continua piano a salire, mai ferma
@@ -1400,7 +1400,8 @@
     // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
     // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
     // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
-    function unfoldPage(view, inward, page, skipAbove = false, closedHeight = null, duration = JOURNEY.build) {
+    // In corsa (closedHeight: altezza della scheda in viaggio) la scheda si allunga con una curva morbida, senza attese.
+    function unfoldPage(view, inward, page, { skipAbove = false, closedHeight = null, duration = JOURNEY.build } = {}) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
         const cards = first < 0 ? [] : [parts[first]];
@@ -1416,7 +1417,10 @@
             const cardRect = card.getBoundingClientRect(), faceRect = card.querySelector('.ao-ticket-face').getBoundingClientRect();
             const hidden = closedHeight ? cardRect.height - closedHeight : cardRect.bottom - faceRect.bottom - 8;
             const closed = `inset(0px 0px ${hidden}px 0px round var(--ao-radius-base))`;
-            moves.push(play(card, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, JOURNEY.stagger));
+            const open = { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' };
+            moves.push(closedHeight
+                ? card.animate([{ clipPath: closed }, open], { duration, easing: JOURNEY.travelEasing }).finished
+                : play(card, { clipPath: closed }, open, JOURNEY.stagger));
             const inner = [...more.children];
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' },
                 inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger)));
@@ -1497,7 +1501,7 @@
                 const total = JOURNEY.travel + JOURNEY.land;
                 const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top }, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
-                await openInMotion(copy, page, travel, total, () => travel.currentTime >= total * .6, () => {
+                await openInMotion(copy, page, travel, total, () => travel.currentTime >= total * .4, () => {
                     state.journey = null;
                     body.style.opacity = '';
                     ghost.remove();
@@ -1549,7 +1553,7 @@
         page.classList.remove('ao-away');
         copy.remove();
         page.animate([{ transform: `translate(${now.left - slot.left}px, ${now.top - slot.top}px)` }, { transform: 'none' }], { duration: remaining, easing: JOURNEY.easing });
-        await unfoldPage(page.closest('.ao-scroll'), true, page, skipAbove, now.height, remaining);
+        await unfoldPage(page.closest('.ao-scroll'), true, page, { skipAbove, closedHeight: now.height, duration: Math.max(remaining, JOURNEY.unfold) });
         page.style.zIndex = '';
     }
     // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
