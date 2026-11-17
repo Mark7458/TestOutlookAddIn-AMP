@@ -195,8 +195,6 @@
             sender: sender(last.from || thread.from),
             receivedAt: thread.lastReceived,
             preview: '',
-            previous: null,
-            candidates: [],
             label: threadLabel(thread.thread),
             history: thread.previous || null
         };
@@ -255,18 +253,13 @@
         async findTicketForMail(mail) {
             const result = await call('GetRecordByConversationId', { conversationId: normalize(mail.conversationId), mode: 'all' }, 'GET');
             const rows = (result?.items || []).slice().sort((a, b) => Number(a.itemId) - Number(b.itemId));
-            if (!result?.found || !rows.length) return { tickets: [], previous: null, candidates: [], discarded: false, thread: { status: 'none' } };
+            if (!result?.found || !rows.length) return { tickets: [], thread: { status: 'none' } };
             const parentItemId = Number(rows[0].fields?.ParentItemId || rows[0].itemId);
             remember(mail.conversationId, parentItemId);
             const last = rows[rows.length - 1].fields || {};
             const records = await searchTickets({ parentItemId });
-            const open = records.filter(record => OPEN_STATUSES.includes(record.status));
-            const closed = records.filter(record => !OPEN_STATUSES.includes(record.status));
             return {
-                tickets: records.map(record => ({ ...toTicket(record), via: 'link' })),
-                previous: closed.length && !open.length ? toTicket(closed[0]) : null,
-                candidates: [],
-                discarded: false,
+                tickets: records.map(record => toTicket(record)),
                 thread: {
                     status: last.Status || 'New',
                     assignedTo: last.AssignedTo || null,
@@ -278,12 +271,6 @@
                     parentItemId
                 }
             };
-        },
-        async getTicket(number) {
-            return toTicket(await ticketRecord(number));
-        },
-        async linkTicket() {
-            throw new Error('Collegamento manuale non ancora disponibile.');
         },
         // Presa in carico del thread, poi il ticket dalla mail scelta. knownCount: le mail viste in coda; se nel
         // frattempo ne è arrivata un'altra la presa in carico non riesce (thread_changed) e la coda si rilegge.
@@ -309,13 +296,6 @@
         },
         async assignTicket(number) {
             return editTicket(number, { operator: me() }, true);
-        },
-        // Storico: per ora solo le note del ticket.
-        async getTicketActivity(number, { offset = 0, limit = 5 } = {}) {
-            const record = await ticketRecord(number);
-            const entries = String(record.notes || '').split('\n').filter(Boolean).reverse()
-                .map(line => ({ at: record.modified, author: '', kind: 'comment', text: line }));
-            return { entries: entries.slice(offset, offset + limit), total: entries.length };
         },
         async discardMail(conversationId) {
             await threadAction(conversationId, 'ignore');

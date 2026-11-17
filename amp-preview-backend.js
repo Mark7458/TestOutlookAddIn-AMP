@@ -365,9 +365,9 @@
     }
     // Il thread registra il ticket indicato (un thread può avere più ticket, anche aperti insieme).
     // Chi lo prende in carico per primo ne diventa il proprietario finché resta in gestione.
-    function registerThread(conversationId, number, by, when = now(), confirmed = false) {
+    function registerThread(conversationId, number, by, when = now()) {
         const thread = db.sp.threads[conversationId] || { conversationId, links: [], owner: '', ownerSeenAt: '' };
-        if (!thread.links.some(link => link.number === number)) thread.links.push({ number, linkedAt: when, linkedBy: by || '', confirmedBy: confirmed ? by : '' });
+        if (!thread.links.some(link => link.number === number)) thread.links.push({ number, linkedAt: when, linkedBy: by || '' });
         // Chi prende in carico ha davanti la mail: quello che è arrivato fin qui non è "nuovo".
         if (thread.status !== 'managed' || !thread.owner) Object.assign(thread, { owner: by || '', ownerSeenAt: when });
         Object.assign(thread, { discardedBy: '', discardedAt: '' });
@@ -449,8 +449,25 @@
             return reported && times.some(time => Math.abs(reported - time) <= SIMILAR_MINUTES * MINUTE);
         });
     }
+    // Stato del thread come lo darebbe MailEvents: in carico, chiuso, inoltrato, ignorato, in coda (con o senza tag).
+    function threadState(conversationId, thread, tickets) {
+        const lastIncoming = lastIncomingOf(conversationId);
+        if (!lastIncoming) return { status: 'none' };
+        const open = tickets.find(ticket => OPEN_STATES.includes(ticket.state));
+        if (open) return { status: 'Acquired', assignedToName: thread?.owner || open.assignedTo?.name, statusAt: thread?.ownerSeenAt || open.openedAt };
+        if (thread?.status === 'forwarded' && thread.forwardedAt > lastIncoming.receivedAt) {
+            return { status: 'Forwarded', assignedTo: thread.forwardedTo, statusByName: thread.forwardedBy, statusAt: thread.forwardedAt };
+        }
+        if (thread?.status === 'discarded' && thread.discardedAt > lastIncoming.receivedAt) {
+            return { status: 'Ignored', assignedToName: db.sp.labels[conversationId]?.name || null, statusByName: thread.discardedBy, statusAt: thread.discardedAt };
+        }
+        const closed = tickets[0];
+        if (closed?.closedAt && closed.closedAt > lastIncoming.receivedAt) return { status: 'Solved', statusByName: closed.assignedTo?.name, statusAt: closed.closedAt };
+        const label = db.sp.labels[conversationId];
+        return label ? { status: 'Working', assignedToName: label.name, statusAt: label.at } : { status: 'New', statusAt: lastIncoming.receivedAt };
+    }
     // Risultato per una conversazione: { tickets, previous, candidates, thread }.
-    // tickets: i ticket aperti del thread (anche più di uno), ognuno con il suo "via";
+    // tickets: i ticket aperti del thread (anche più di uno);
     // se non ce ne sono, l'ultimo ticket chiuso (o "previous" se dopo è arrivata una mail nuova).
     function resolveConversation(conversationId, extraNumbers = []) {
         const messages = conversationMessages(conversationId);
@@ -458,13 +475,11 @@
         const lastIncoming = incoming[incoming.length - 1] || null;
         const thread = db.sp.threads[conversationId] || null;
         const evidence = [
-            ...incMentions(messages).map(item => ({ ...item, via: 'inc' })),
-            ...extraNumbers.map(number => ({ number: String(number).toUpperCase(), when: '', via: 'inc' })),
-            ...(thread?.links || []).map(link => ({ number: link.number, when: link.linkedAt, via: link.confirmedBy ? 'confirmed' : 'link' }))
+            ...incMentions(messages),
+            ...extraNumbers.map(number => ({ number: String(number).toUpperCase(), when: '' })),
+            ...(thread?.links || []).map(link => ({ number: link.number, when: link.linkedAt }))
         ].filter(item => db.sp.tickets[item.number]).sort((a, b) => b.when.localeCompare(a.when));
-        const viaOf = {};
-        evidence.forEach(item => { viaOf[item.number] ||= item.via; });
-        const known = Object.keys(viaOf).map(number => db.sp.tickets[number]);
+        const known = [...new Set(evidence.map(item => item.number))].map(number => db.sp.tickets[number]);
         const open = known.filter(ticket => OPEN_STATES.includes(ticket.state)).sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt)));
         const primary = primaryAmong(open, thread);
         let tickets = open;
@@ -480,7 +495,7 @@
             candidates = similarTickets(messages[0].subject, times, previous ? [previous.number] : []);
         }
         return {
-            tickets: tickets.map(ticket => ({ ...decorate(ticket, conversationId), via: viaOf[ticket.number], primary: ticket === primary })),
+            tickets: tickets.map(ticket => ({ ...decorate(ticket, conversationId), primary: ticket === primary })),
             previous: previous ? decorate(previous, conversationId) : null,
             candidates: candidates.map(item => decorate(item)),
             thread
@@ -497,7 +512,7 @@
         return primaryAmong(open, db.sp.threads[conversationId])?.number === ticket.number;
     }
     // Ticket (copia SharePoint) con la mail collegata.
-    // mailUnconfirmed: la mail è stata trovata solo per somiglianza e va confermata dall'operatore.
+    // Senza collegamento, la mail si cerca per somiglianza (stesso oggetto, Reported vicino all'arrivo).
     function decorate(ticket, conversationId) {
         const linked = conversationId || conversationOf(ticket.number);
         const similar = linked ? null : similarConversationOf(ticket);
@@ -510,7 +525,6 @@
             description: ticket.description || (linked && firstIncoming ? firstIncoming.body : ''),
             conversationId: conversation || null,
             messageId: messages.length ? messages[messages.length - 1].id : null,
-            mailUnconfirmed: Boolean(similar),
             primary: linked ? isPrimary(ticket, linked) : false,
             owner: conversation ? db.sp.threads[conversation]?.owner || '' : '',
             // Ticket senza mail: l'etichetta è quella di chi l'ha aperto
@@ -565,7 +579,6 @@
             sender: lastIncoming.from,
             receivedAt: lastIncoming.receivedAt,
             preview: lastIncoming.body.replace(/\s+/g, ' ').slice(0, 160),
-            previous: result.previous ? { number: result.previous.number, state: result.previous.state } : null,
             label: db.sp.labels[conversationId] || null
         };
     }
@@ -642,15 +655,11 @@
         listOpenTickets() {
             return respond(Object.values(db.sp.tickets).filter(item => OPEN_STATES.includes(item.state)).map(item => decorate(item)));
         },
-        // Triangolazione per la mail aperta: { tickets, previous, candidates, discarded }.
+        // Mail aperta: i ticket del thread e lo stato del thread, come su MailEvents
+        // ({ status, assignedToName, statusByName, statusAt }).
         findTicketForMail(mail) {
-            const result = resolveConversation(mail.conversationId, mail.incNumbers || []);
-            const lastIncoming = lastIncomingOf(mail.conversationId);
-            const thread = result.thread;
-            result.discarded = thread?.status === 'discarded' && (!lastIncoming || thread.discardedAt > lastIncoming.receivedAt)
-                ? { by: thread.discardedBy, at: thread.discardedAt } : null;
-            delete result.thread;
-            return respond(result);
+            const { tickets, thread } = resolveConversation(mail.conversationId, mail.incNumbers || []);
+            return respond({ tickets, thread: threadState(mail.conversationId, thread, tickets) });
         },
         // Ricerca su ServiceNow (numero o short description), anche chiusi e di altri: sola lettura,
         // con la nota di chiusura e l'ultima work note.
@@ -667,19 +676,6 @@
                         lastWorkNote: note ? { author: note.author, at: note.at, text: note.text } : null };
                 });
             return new Promise(resolve => setTimeout(() => resolve(copy(found)), 600)); // ServiceNow: un po' più lento
-        },
-        getTicket(number) {
-            return db.sp.tickets[number] ? respond(decoratedTicket(number)) : fail(`Ticket ${number} non trovato.`);
-        },
-        // L'operatore conferma che la mail appartiene a un ticket esistente → SharePoint.
-        linkTicket(conversationId, number, by) {
-            if (!db.sp.tickets[number]) return fail(`Ticket ${number} non trovato.`);
-            registerThread(conversationId, number, by?.displayValue, now(), true);
-            record('collegamento', number, by?.displayValue, 'Mail collegata dall\'operatore', conversationId);
-            persist();
-            const result = resolveConversation(conversationId);
-            delete result.thread;
-            return respond(result);
         },
         // Apre l'Incident su ServiceNow; solo se riesce aggiorna SharePoint (copia, thread, movimento).
         // mail = null: ticket aperto da Ticket senza mail (nessun thread da collegare).
@@ -717,11 +713,6 @@
                 persist();
                 return respond(decoratedTicket(number));
             } catch (error) { return fail(error.message); }
-        },
-        // Storico completo di ServiceNow (commenti di tutti): letto solo su richiesta.
-        getTicketActivity(number, { offset = 0, limit = 5 } = {}) {
-            const all = (db.history[number] || []).slice().reverse();
-            return respond({ entries: all.slice(offset, offset + limit), total: all.length });
         },
         // Testo e azione dal pannello, subito su ServiceNow (poi la copia su SharePoint).
         updateTicket(number, action, text, by) {
