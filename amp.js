@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:50';
+    const BUILD = '2026-11-17 19:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1343,9 +1343,9 @@
         if (ticket.messageId) Outlook.openMessage(ticket.messageId);
     }
     // Dall'elenco alla pagina del ticket e ritorno: un viaggio della scheda.
-    // Andata: la scheda si stacca (si solleva, il resto si sfoca), viaggia fino al posto della scheda del ticket
-    // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
-    // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
+    // Andata: la scheda si stacca (si solleva, il resto si sfoca) e parte subito verso il suo posto nella pagina; arrivata,
+    // con la testata del thread già comparsa, si apre come una scheda di In coda.
+    // Ritorno: la pagina si richiude e la scheda, sollevata, torna nella lista. Si muove una copia, sopra a tutto.
     // Posto previsto della scheda nella pagina (distanza dalla cima dell'area): l'ultimo visto, all'inizio una stima.
     const LANDING_GUESS = 96;
     let landingGuess = null;
@@ -1460,8 +1460,8 @@
         return ghost;
     }
     // card: la scheda nella lista (o il mini player); ticket: quello da aprire (con più ticket sul thread, il principale).
-    // La pagina si prepara nascosta mentre la scheda si stacca; la scheda va al suo posto nella pagina e, posata,
-    // la pagina si apre attorno a lei. Con più ticket sul thread è lo stesso movimento: gli altri compaiono con la pagina.
+    // La pagina si prepara nascosta mentre la scheda è già in viaggio; arrivata al suo posto si apre. Con più ticket sul
+    // thread la scheda scorre fino al suo posto svelando gli altri.
     async function openFromCard(card, ticket) {
         resetTicketFilters();
         if (state.holdRender || !card || reducedMotion()) return openTicketItem(ticket);
@@ -1494,15 +1494,14 @@
         const floated = float ? getComputedStyle(copy).transform : JOURNEY.lifted;
         const cards = page ? [...page.closest('.ao-scroll').querySelectorAll(':scope > .ao-ticket-card')] : [];
         if (cards.length) landingGuess = cards[0].getBoundingClientRect().top - page.closest('.ao-scroll').getBoundingClientRect().top;
-        // Da qui alla fine niente ridisegni: la scheda posata si mostra e basta (un ridisegno a metà fermerebbe tutto).
+        // Da qui alla fine niente ridisegni (un ridisegno a metà fermerebbe tutto).
         holdRender();
         try {
             if (page && cards.indexOf(page) > 0) return await openGroup(copy, ghost, body, page, cards, start, floated, early);
             const place = page?.getBoundingClientRect();
-            // Ticket singolo: un solo movimento fino al suo posto; nell'ultimo tratto la scheda si apre in corsa e arriva già aperta.
+            // Ticket singolo: la scheda, già in viaggio, prosegue fino al suo posto e lì si apre.
             if (place && !outside) {
-                const to = { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') };
-                const travel = early ? retarget(copy, early, to, total) : journeyTo(copy, floated, to, total);
+                const travel = retarget(copy, early, { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') }, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
                 revealHead(body, page);
                 await landAndOpen(copy, page, travel, () => {
@@ -1577,14 +1576,12 @@
         copy.remove();
         await unfold(more, from);
     }
-    // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
-    // stessa durata del ticket singolo.
+    // Thread con più ticket: la scheda scorre fino al suo posto svelando gli altri ticket, poi si apre (early: già in
+    // viaggio verso il posto previsto; dal mini player parte ora e, se deve, passa dalla cima).
     async function openGroup(copy, ghost, body, page, cards, start, floated, early) {
         const top = cards[0].getBoundingClientRect();
         const up = { dx: top.left - start.left, dy: top.top - start.top };
         revealHead(body, cards[0]);
-        // Un solo movimento, lungo quanto quello del ticket singolo: sale in cima e scorre fino al suo posto,
-        // svelando gli altri ticket (già aperti) che intanto compaiono; arrivata, si apre.
         const slot = page.getBoundingClientRect();
         // Passa dalla cima solo se deve salirci (la scheda parte più in basso); se è già sopra va dritta al suo posto,
         // senza fermarsi a metà.
