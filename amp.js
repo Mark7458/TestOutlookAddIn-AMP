@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:15';
+    const BUILD = '2026-11-17 19:25';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1499,14 +1499,13 @@
             // Ticket singolo: un solo movimento fino al suo posto; nell'ultimo tratto la scheda si apre in corsa e arriva già aperta.
             if (place && !outside) {
                 const total = JOURNEY.travel + JOURNEY.land;
-                const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top }, total);
+                const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') }, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
                 await openInMotion(copy, page, travel, total, () => travel.currentTime >= total * .4, () => {
                     state.journey = null;
                     body.style.opacity = '';
                     ghost.remove();
                 }, false);
-                page.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
                 return;
             }
             await Promise.all([listExtras(copy, true),
@@ -1536,11 +1535,12 @@
         return copy.animate([
             { transform: from, easing: JOURNEY.travelEasing },
             ...(via ? [{ transform: `translate(${via.dx}px, ${via.dy}px)`, offset: via.offset, easing: JOURNEY.travelEasing }] : []),
-            { transform: `translate(${to.dx}px, ${to.dy}px)` }
+            { transform: `translate(${to.dx}px, ${to.dy}px)${to.lifted ? ` ${JOURNEY.lifted}` : ''}` } // lifted: arriva ancora sollevata
         ], { duration, fill: 'both' });
     }
     // Quando reached() è vero la copia lascia il posto alla pagina, che riparte dallo stesso punto e con la stessa
-    // altezza e si apre mentre finisce la corsa: arriva al suo posto già aperta. swap: cosa fare nello scambio.
+    // altezza e si apre mentre finisce la corsa. Il ticket singolo è già sollevato quando comincia ad aprirsi (prima si
+    // solleva, poi si apre). swap: cosa fare nello scambio.
     async function openInMotion(copy, page, travel, total, reached, swap, skipAbove) {
         await new Promise(resolve => {
             const watch = () => (travel.playState === 'finished' || reached() ? resolve() : requestAnimationFrame(watch));
@@ -1548,11 +1548,12 @@
         });
         const remaining = Math.max(total - travel.currentTime, JOURNEY.build);
         const now = copy.getBoundingClientRect(), slot = page.getBoundingClientRect();
+        const lifted = page.classList.contains('ao-expanded') ? JOURNEY.lifted : '';
         swap();
         page.style.zIndex = '1';
-        page.classList.remove('ao-away');
+        page.classList.remove('ao-away', 'ao-unlifted');
         copy.remove();
-        page.animate([{ transform: `translate(${now.left - slot.left}px, ${now.top - slot.top}px)` }, { transform: 'none' }], { duration: remaining, easing: JOURNEY.easing });
+        page.animate([{ transform: `translate(${now.left - slot.left}px, ${now.top - slot.top}px) ${lifted}` }, { transform: lifted || 'none' }], { duration: remaining, easing: JOURNEY.easing });
         await unfoldPage(page.closest('.ao-scroll'), true, page, { skipAbove, closedHeight: now.height, duration: Math.max(remaining, JOURNEY.unfold) });
         page.style.zIndex = '';
     }
@@ -1589,7 +1590,6 @@
             state.journey = null;
             ghost.remove();
         }, true);
-        page.classList.remove('ao-unlifted');
     }
     // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
     // sopra l'oggetto e il tag dello stato; sotto mittente e ora (in carico: il ticket e da quando, On Hold fino a quando)
