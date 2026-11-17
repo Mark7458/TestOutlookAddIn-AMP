@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:40';
+    const BUILD = '2026-11-17 19:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1346,6 +1346,9 @@
     // Andata: la scheda si stacca (si solleva, il resto si sfoca), viaggia fino al posto della scheda del ticket
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
+    // Posto previsto della scheda nella pagina (distanza dalla cima dell'area): l'ultimo visto, all'inizio una stima.
+    const LANDING_GUESS = 96;
+    let landingGuess = null;
     const JOURNEY = {
         lift: 130, travel: 280, land: 140, build: 200, stagger: 30,
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
@@ -1478,23 +1481,28 @@
         const ready = pageCardOf(ticket.number);
         let page = null;
         ready.then(found => { page = found; });
-        await lifting;
+        const total = JOURNEY.travel + JOURNEY.land;
+        // La scheda parte subito, senza aspettare la pagina (dati in arrivo): va verso il posto previsto (dove è stata
+        // l'ultima volta, sotto la testata) e lo corregge quando la pagina c'è. Dal mini player si solleva e sale piano.
+        const pageTop = root.querySelector('.ao-scroll')?.getBoundingClientRect().top || start.top;
+        const early = outside ? null : journeyTo(copy, getComputedStyle(copy).transform, { dx: 0, dy: pageTop + (landingGuess ?? LANDING_GUESS) - start.top, lifted: true }, total);
+        if (outside) await lifting;
         await wait(0);
-        // Pagina non ancora pronta (dati in arrivo): la scheda continua piano a salire invece di fermarsi.
-        const float = page ? null : copy.animate([{ transform: JOURNEY.lifted }, { transform: JOURNEY.floated }],
+        const float = early ? null : copy.animate([{ transform: JOURNEY.lifted }, { transform: JOURNEY.floated }],
             { duration: JOURNEY.float, easing: 'cubic-bezier(.2, .6, .3, 1)', fill: 'forwards' });
         page = await ready;
         const floated = float ? getComputedStyle(copy).transform : JOURNEY.lifted;
         const cards = page ? [...page.closest('.ao-scroll').querySelectorAll(':scope > .ao-ticket-card')] : [];
+        if (cards.length) landingGuess = cards[0].getBoundingClientRect().top - page.closest('.ao-scroll').getBoundingClientRect().top;
         // Da qui alla fine niente ridisegni: la scheda posata si mostra e basta (un ridisegno a metà fermerebbe tutto).
         holdRender();
         try {
-            if (page && cards.indexOf(page) > 0) return await openGroup(copy, ghost, body, page, cards, start, floated);
+            if (page && cards.indexOf(page) > 0) return await openGroup(copy, ghost, body, page, cards, start, floated, early);
             const place = page?.getBoundingClientRect();
             // Ticket singolo: un solo movimento fino al suo posto; nell'ultimo tratto la scheda si apre in corsa e arriva già aperta.
             if (place && !outside) {
-                const total = JOURNEY.travel + JOURNEY.land;
-                const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') }, total);
+                const to = { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') };
+                const travel = early ? retarget(copy, early, to, total) : journeyTo(copy, floated, to, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
                 revealHead(body, page);
                 await landAndOpen(copy, page, travel, () => {
@@ -1530,15 +1538,28 @@
     // Viaggio della copia verso il suo posto in un solo movimento (via: punto di passaggio facoltativo, in cima);
     // intanto l'ombra svanisce e le parti che in lista ha in più si richiudono.
     function journeyTo(copy, from, to, duration, via = null) {
+        const shadow = shadowOf(copy);
+        const shade = shadow ? getComputedStyle(shadow).opacity : 0; // l'ombra riparte da com'è (anche a sollevamento in corso)
         copy.getAnimations().forEach(animation => animation.cancel());
-        shadowOf(copy)?.getAnimations().forEach(animation => animation.cancel());
-        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' });
+        shadow?.getAnimations().forEach(animation => animation.cancel());
+        shadow?.animate([{ opacity: shade }, { opacity: 1, offset: .3 }, { opacity: 0 }], { duration, fill: 'forwards' });
         listExtras(copy, true).catch(() => {});
         return copy.animate([
             { transform: from, easing: JOURNEY.travelEasing },
             ...(via ? [{ transform: `translate(${via.dx}px, ${via.dy}px)`, offset: via.offset, easing: JOURNEY.travelEasing }] : []),
             { transform: `translate(${to.dx}px, ${to.dy}px)${to.lifted ? ` ${JOURNEY.lifted}` : ''}` } // lifted: arriva ancora sollevata
         ], { duration, fill: 'both' });
+    }
+    // La copia era partita verso il posto previsto: da dove si trova prosegue verso quello vero, nel tempo che resta
+    // della corsa (mai di colpo).
+    function retarget(copy, travel, to, total) {
+        const now = getComputedStyle(copy).transform;
+        const gap = Math.abs(copy.getBoundingClientRect().top - (copy.getBoundingClientRect().top - new DOMMatrix(now).m42 + to.dy));
+        // il tempo che resta, ma se manca poco (posto previsto giusto) si posa subito
+        const left = Math.min(Math.max(total - (travel.currentTime || 0), JOURNEY.stagger * 2), JOURNEY.stagger * 2 + gap * 2);
+        travel.cancel();
+        return copy.animate([{ transform: now }, { transform: `translate(${to.dx}px, ${to.dy}px)${to.lifted ? ` ${JOURNEY.lifted}` : ''}` }],
+            { duration: left, easing: JOURNEY.easing, fill: 'both' });
     }
     // Arrivata la copia, al suo posto c'è la scheda della pagina, chiusa e sollevata; poi si apre come una scheda di
     // In coda (prima lo spazio, poi il contenuto). swap: cosa fare nello scambio.
@@ -1558,7 +1579,7 @@
     }
     // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
     // stessa durata del ticket singolo.
-    async function openGroup(copy, ghost, body, page, cards, start, floated) {
+    async function openGroup(copy, ghost, body, page, cards, start, floated, early) {
         const top = cards[0].getBoundingClientRect();
         const up = { dx: top.left - start.left, dy: top.top - start.top };
         revealHead(body, cards[0]);
@@ -1575,8 +1596,8 @@
             card.classList.remove('ao-away');
             card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: total * (1 - share), delay: total * share, fill: 'backwards' });
         });
-        const travel = journeyTo(copy, floated, { dx: slot.left - start.left, dy: slot.top - start.top }, total,
-            rise ? { dx: up.dx, dy: up.dy, offset: share } : null);
+        const to = { dx: slot.left - start.left, dy: slot.top - start.top };
+        const travel = early ? retarget(copy, early, to, total) : journeyTo(copy, floated, to, total, rise ? { dx: up.dx, dy: up.dy, offset: share } : null);
         await landAndOpen(copy, page, travel, () => {
             state.journey = null;
             ghost.remove();
