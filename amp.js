@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 17:05';
+    const BUILD = '2026-11-17 17:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1398,13 +1398,13 @@
     // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
     // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
     // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
-    function unfoldPage(view, inward, page, skipAbove = false) {
+    function unfoldPage(view, inward, page, skipAbove = false, closedHeight = null, duration = JOURNEY.build) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
         const cards = first < 0 ? [] : [parts[first]];
         const above = skipAbove ? [] : parts.slice(0, first < 0 ? parts.length : first);
         const after = parts.slice(first + 1);
-        const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
+        const timing = (delay = 0) => ({ duration, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
         above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
@@ -1412,7 +1412,8 @@
             const more = card.querySelector('.ao-ticket-more');
             if (!more) return;
             const cardRect = card.getBoundingClientRect(), faceRect = card.querySelector('.ao-ticket-face').getBoundingClientRect();
-            const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
+            const hidden = closedHeight ? cardRect.height - closedHeight : cardRect.bottom - faceRect.bottom - 8;
+            const closed = `inset(0px 0px ${hidden}px 0px round var(--ao-radius-base))`;
             moves.push(play(card, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, JOURNEY.stagger));
             const inner = [...more.children];
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' },
@@ -1520,7 +1521,9 @@
         // Un solo movimento, lungo quanto quello del ticket singolo: sale in cima e scorre fino al suo posto,
         // svelando gli altri ticket (già aperti) che intanto compaiono; arrivata, si apre.
         const slot = page.getBoundingClientRect();
-        const rise = Math.abs(up.dy), fall = slot.top - top.top;
+        // Passa dalla cima solo se deve salirci (la scheda parte più in basso); se è già sopra va dritta al suo posto,
+        // senza fermarsi a metà.
+        const rise = up.dy < 0 ? -up.dy : 0, fall = slot.top - (rise ? top.top : start.top);
         const total = JOURNEY.travel + JOURNEY.land;
         const share = rise / (rise + fall);
         copy.getAnimations().forEach(animation => animation.cancel());
@@ -1531,16 +1534,27 @@
             card.classList.remove('ao-away');
             card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: total * (1 - share), delay: total * share, fill: 'backwards' });
         });
-        await Promise.all([listExtras(copy, true), copy.animate([
+        const travel = copy.animate([
             { transform: floated, easing: JOURNEY.travelEasing },
-            { transform: `translate(${up.dx}px, ${up.dy}px)`, offset: share, easing: JOURNEY.travelEasing },
+            ...(rise ? [{ transform: `translate(${up.dx}px, ${up.dy}px)`, offset: share, easing: JOURNEY.travelEasing }] : []),
             { transform: `translate(${slot.left - start.left}px, ${slot.top - start.top}px)` }
-        ], { duration: total, fill: 'both' }).finished]).catch(() => {});
+        ], { duration: total, fill: 'both' });
+        listExtras(copy, true).catch(() => {});
+        // Depositato l'ultimo ticket che ha sopra (scoperto per metà), la scheda si apre in corsa: arriva al suo posto già aperta.
+        const last = others.filter(card => cards.indexOf(card) < cards.indexOf(page)).pop();
+        const deposit = last ? last.getBoundingClientRect().top + last.getBoundingClientRect().height / 2 : slot.top;
+        await new Promise(resolve => {
+            const watch = () => (travel.playState === 'finished' || copy.getBoundingClientRect().top >= deposit ? resolve() : requestAnimationFrame(watch));
+            requestAnimationFrame(watch);
+        });
         state.journey = null;
+        const remaining = Math.max(total - travel.currentTime, JOURNEY.build);
+        const now = copy.getBoundingClientRect(); // la pagina riparte esattamente da dove e da quanto è alta la scheda
         page.style.zIndex = '1';
         page.classList.remove('ao-away');
         [ghost, copy].forEach(element => element.remove());
-        await unfoldPage(view, true, page, true);
+        page.animate([{ transform: `translateY(${now.top - slot.top}px)` }, { transform: 'none' }], { duration: remaining, easing: JOURNEY.easing });
+        await unfoldPage(view, true, page, true, now.height, remaining);
         page.style.zIndex = '';
         page.classList.remove('ao-unlifted');
     }
@@ -1868,7 +1882,7 @@
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const expired = state.tickets.filter(ticket => isMine(ticket, user) && isHoldExpired(ticket)).length;
-        const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
+        const counts = { queue: state.queue.length + state.ignored.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length }; // come per i ticket: tutte le sezioni
         root.querySelectorAll('.ao-tab').forEach(tab => {
             // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
             const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
