@@ -84,7 +84,6 @@
             // Stile: valori dello stile flat. Lo stile vetro ridefinisce gli stessi nomi in glassColors e glassDarkColors;
             // gli elementi usano solo questi nomi, così flat/vetro e chiaro/scuro cambiano tutto insieme.
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
-            sheetBg: '#f5f5f5', // centro notifiche: copre il pannello
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
             navInk: '#fff', // scritte e icone dell'intestazione e delle schede
@@ -180,7 +179,6 @@
             choiceHoldBg: 'color-mix(in srgb, #d4ac0d 24%, #2d2c2b)',
             choiceHoldText: '#f0d257',
             backdrop: '#201f1e',
-            sheetBg: '#201f1e',
             tagFill: '30%',
             tagBase: '#2d2c2b',
             tagInk: '45%',
@@ -191,7 +189,6 @@
         // sfondo, bordo, passaggio…): cambiando stile cambiano tutti insieme, impostazioni comprese.
         glassColors: {
             backdrop: 'transparent', // lo sfondo sfumato lo dipinge il contenitore dell'intestazione (glassBackdrop), dietro a tutto
-            sheetBg: 'rgba(236, 241, 250, .8)', // centro notifiche: vetro più pieno, il pannello dietro si intravede appena
             surface: 'rgba(255, 255, 255, .82)',
             hover: 'rgba(255, 255, 255, .9)',
             bg: 'rgba(110, 140, 190, .1)', // zone incassate (campi raggruppati, dettagli)
@@ -247,7 +244,6 @@
             tagLine: 'rgba(0, 50, 110, .16)' // come chipLine: un bordo bianco sparirebbe sulle schede bianche
         },
         glassDarkColors: {
-            sheetBg: 'rgba(18, 20, 26, .8)',
             surface: 'rgba(52, 56, 66, .62)',
             hover: 'rgba(70, 77, 92, .68)',
             bg: 'rgba(0, 0, 0, .2)',
@@ -416,6 +412,7 @@
             closingNote: 'Chiusura',
             empty: 'Nessun ticket aperto.',
             newMessagesTitle: n => (n === 1 ? '1 messaggio nuovo nel thread' : `${n} messaggi nuovi nel thread`),
+            holdExpiredTitle: n => (n === 1 ? '1 On Hold scaduto' : `${n} On Hold scaduti`),
             holdExpired: 'On Hold scaduto',
             groupCount: count => `+${count} ticket`, // ticket collegati al thread oltre al principale
             dueOn: date => `Scade il ${date}`,
@@ -487,16 +484,6 @@
             holdExpiration: 'Scadenza',
             holdDays: days => (days === 1 ? '1 giorno' : `${days} giorni`),
             timeInvalid: 'Scrivi per esempio 2h, 1h30, +2h o 120'
-        },
-        notices: {
-            open: 'Notifiche',
-            title: 'Notifiche',
-            clear: 'Cancella tutte',
-            empty: 'Nessuna notifica',
-            remove: 'Togli',
-            message: number => `${number} · nuovo messaggio`,
-            hold: number => `${number} · On Hold scaduto`,
-            forward: number => `${number} · inoltro bloccato`
         },
         settings: {
             tabs: { profile: 'Profilo', companies: 'Agenzie', activities: 'Attività', responses: 'Risposte' },
@@ -580,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 16:50';
+    const BUILD = '2026-11-17 17:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -900,7 +887,6 @@
     const FILTER_OFF_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/><path d="M2.5 2.5l15 15"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
     const PLUS_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v6M7 10h6"/></svg>'; // nuova voce delle Impostazioni
-    const BELL_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8.5a5 5 0 0 1 10 0c0 4 1.5 5.5 1.5 5.5h-13S5 12.5 5 8.5z"/><path d="M8.5 16.5a1.6 1.6 0 0 0 3 0"/></svg>';
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     const CLOCK_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6.5V10l2.5 1.5"/></svg>';
     const CHEVRON_LEFT_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 5l-5 5 5 5"/></svg>';
@@ -1020,7 +1006,6 @@
         mailBodies: {}, // testo delle mail per l'anteprima in In coda (per messageId)
         threadMessages: {}, // messaggi ricevuti di un thread in In coda (per conversationId): con più di uno si sceglie da quale aprire il ticket
         holdRender: false, // true durante un'animazione: il pannello non si ridisegna (le schede sparirebbero di colpo)
-        noticesOpen: false, // centro notifiche aperto
         busy: false
     };
     let root = null;
@@ -1270,7 +1255,6 @@
             state.ignored = ignored;
             state.tickets = tickets;
             tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
-            checkNotices(tickets);
             state.serviceError = '';
         } catch (error) {
             state.serviceError = error?.message || String(error);
@@ -1766,8 +1750,6 @@
             // Mail selezionata in Outlook, sempre allo stesso posto (come un mini player), con la freccia per andare dove si gestisce.
             h('div', { class: 'ao-mailbar', hidden: true }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
-            h('div', { class: 'ao-notice', role: 'status', 'aria-live': 'polite' }),
-            h('section', { class: 'ao-notices', 'aria-label': TEXTS.notices.title }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
             h('footer', { class: 'ao-statusbar', role: 'status', 'aria-live': 'polite' }));
         // Elenchi a discesa: un clic fuori o lo scorrimento li chiude.
@@ -1885,6 +1867,7 @@
         const user = currentUser(config);
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
+        const expired = state.tickets.filter(ticket => isMine(ticket, user) && isHoldExpired(ticket)).length;
         const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
         root.querySelectorAll('.ao-tab').forEach(tab => {
             // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
@@ -1893,16 +1876,20 @@
             tab.setAttribute('aria-selected', String(active));
             tab.title = active ? '' : TEXTS.tabs[tab.dataset.view];
             // Contatore solo sulla scheda aperta; gli aggiornamenti (Ticket: thread dei miei ticket con messaggi nuovi)
-            // sono un segnalino sull'icona, sempre visibile.
+            // sono un segnalino sull'icona, sempre visibile. Un mio On Hold scaduto ha la precedenza: il segnalino
+            // diventa un "!" che pulsa.
             const count = counts[tab.dataset.view];
             const tabCounter = tab.querySelector('.ao-counter');
             tabCounter.textContent = count || '';
             tabCounter.classList.toggle('ao-counter-off', !count || !active);
             const updates = tab.dataset.view === 'tickets' ? newReplies : 0;
+            const alert = tab.dataset.view === 'tickets' ? expired : 0;
             const badge = tab.querySelector('.ao-notify');
-            badge.firstElementChild.textContent = updates || '';
-            badge.classList.toggle('ao-notify-off', !updates);
-            if (updates) badge.title = TEXTS.tickets.newMessagesTitle(updates);
+            badge.firstElementChild.textContent = alert ? '!' : updates || '';
+            badge.classList.toggle('ao-notify-off', !updates && !alert);
+            badge.classList.toggle('ao-notify-alert', Boolean(alert));
+            if (alert) badge.title = TEXTS.tickets.holdExpiredTitle(alert);
+            else if (updates) badge.title = TEXTS.tickets.newMessagesTitle(updates);
             else badge.removeAttribute('title');
         });
         placeTabIndicator(); // dopo i contatori: la sottolineatura comprende il numero della scheda aperta
@@ -3296,124 +3283,6 @@
         element.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: MOTION.swap, easing: JOURNEY.easing });
     };
     // Apertura del ticket: Agenzia suggerita, Attività, anteprima dei campi.
-    // ---------------------------- Notifiche --------------------------------
-    // Avvisi per chi usa il pannello: un messaggio nuovo su un suo ticket, un On Hold scaduto, un inoltro fermo a metà.
-    // Scendono dall'alto e spariscono da sole (stile iPhone); restano nel centro notifiche (la campanella
-    // nell'intestazione, con il numero di quelle non viste) finché non si tolgono. Solo su questo PC, come i suggerimenti.
-    const NOTICES_KEY = 'amp_panel_notices_v1';
-    const NOTICE_MS = 4000;
-    const NOTICES_MAX = 30;
-    const NOTICE_ICONS = { message: ACTION_ICONS.comment, hold: ACTION_ICONS.hold, forward: ACTION_ICONS.forward };
-    let noticeTimer = null;
-    let noticeBell = null;
-    const Notices = {
-        // items: le notifiche (la più recente prima); seen: chiavi già notificate (ticket + messaggio o scadenza).
-        data: null,
-        load() {
-            if (!Notices.data) {
-                try { Notices.data = JSON.parse(localStorage.getItem(NOTICES_KEY) || 'null'); } catch { Notices.data = null; }
-                Notices.data ||= { items: [], seen: [] };
-            }
-            return Notices.data;
-        },
-        save() {
-            try { localStorage.setItem(NOTICES_KEY, JSON.stringify(Notices.data)); } catch { /* memoria piena o bloccata */ }
-            paintNotices();
-        },
-        unread: () => Notices.load().items.filter(item => !item.read).length,
-        // Una notifica nuova: in cima al centro; banner solo se show.
-        add(item, show = true) {
-            const data = Notices.load();
-            data.items = [{ ...item, at: new Date().toISOString(), read: false }, ...data.items].slice(0, NOTICES_MAX);
-            Notices.save();
-            if (show) showNotice(data.items[0]);
-        }
-    };
-    // Dopo ogni lettura dei ticket: i propri con un messaggio nuovo o con l'On Hold scaduto, una volta sola ciascuno.
-    function checkNotices(tickets) {
-        const data = Notices.load();
-        const found = [];
-        tickets.filter(ticket => isMine(ticket)).forEach(ticket => {
-            // un messaggio nel thread vale per tutti i suoi ticket: una notifica sola
-            const message = ticket.newMessages && ticket.lastNewMessage ? `message:${ticket.conversationId || ticket.number}:${ticket.lastNewMessage.at}` : null;
-            if (message && !found.some(item => item.key === message)) found.push({ key: message, kind: 'message', number: ticket.number,
-                text: [ticket.lastNewMessage.from, ticket.lastNewMessage.preview].filter(Boolean).join(': ') });
-            if (isHoldExpired(ticket)) found.push({ key: `hold:${ticket.number}:${ticket.holdExpiration}`, kind: 'hold', number: ticket.number, text: ticket.shortDescription || '' });
-        });
-        const fresh = found.filter(item => !data.seen.includes(item.key));
-        data.seen = found.map(item => item.key); // basta ricordare quelle ancora valide
-        if (!fresh.length) return Notices.save();
-        fresh.forEach((item, index) => Notices.add(item, index === fresh.length - 1));
-    }
-    function noticeRow(item, extra = null) {
-        return [
-            h('span', { class: `ao-notice-icon ao-notice-${item.kind}` }, svgIcon(NOTICE_ICONS[item.kind])),
-            h('span', { class: 'ao-notice-text' },
-                h('span', { class: 'ao-notice-head' }, h('span', { class: 'ao-notice-title' }, TEXTS.notices[item.kind](item.number)), h('span', { class: 'ao-item-time' }, formatWhen(item.at))),
-                item.text ? h('span', { class: 'ao-notice-sub' }, item.text) : null),
-            extra
-        ].filter(Boolean);
-    }
-    // Banner in alto: scende, resta qualche secondo, risale. Un clic porta al ticket.
-    function showNotice(item) {
-        const banner = root?.querySelector('.ao-notice');
-        if (!banner) return;
-        banner.replaceChildren(...noticeRow(item));
-        banner.onclick = () => openNotice(item);
-        banner.classList.remove('ao-in');
-        void banner.offsetWidth; // riparte anche se un'altra era ancora giù
-        banner.classList.add('ao-in');
-        clearTimeout(noticeTimer);
-        noticeTimer = setTimeout(() => banner.classList.remove('ao-in'), NOTICE_MS);
-    }
-    function openNotice(item) {
-        const found = Notices.load().items.find(entry => entry.key === item.key && entry.at === item.at);
-        if (found) found.read = true;
-        root.querySelector('.ao-notice')?.classList.remove('ao-in');
-        state.noticesOpen = false;
-        Notices.save();
-        const ticket = ticketByNumber(item.number);
-        if (ticket) openTicketItem(ticket);
-    }
-    function toggleNotices(open = !state.noticesOpen) {
-        state.noticesOpen = open;
-        if (open) root.querySelector('.ao-notice')?.classList.remove('ao-in');
-        paintNotices();
-    }
-    // Campanella (numero delle non viste) e centro notifiche: si ridisegnano da soli, fuori da render().
-    function paintNotices() {
-        const unread = Notices.unread();
-        if (noticeBell) {
-            noticeBell.querySelector('.ao-bell-count').textContent = unread ? String(unread) : '';
-            noticeBell.classList.toggle('ao-has-unread', Boolean(unread));
-        }
-        const center = root?.querySelector('.ao-notices');
-        if (!center) return;
-        center.classList.toggle('ao-in', state.noticesOpen);
-        center.inert = !state.noticesOpen;
-        const items = Notices.load().items;
-        center.replaceChildren(
-            h('div', { class: 'ao-notices-head' },
-                h('span', { class: 'ao-notices-title' }, TEXTS.notices.title),
-                items.length ? h('button', { type: 'button', class: 'ao-link', onclick: () => { Notices.load().items = []; Notices.save(); } }, TEXTS.notices.clear) : null,
-                h('button', { type: 'button', class: 'ao-icon-button', 'aria-label': TEXTS.common.close, title: TEXTS.common.close, onclick: () => toggleNotices(false) }, svgIcon(CHEVRON_UP_ICON))),
-            items.length ? h('ul', { class: 'ao-notices-list' }, items.map(item => h('li', {
-                class: `ao-notice-item${item.read ? ' ao-read' : ''}`, onclick: () => openNotice(item)
-            }, ...noticeRow(item, h('button', {
-                type: 'button', class: 'ao-notice-remove', 'aria-label': TEXTS.notices.remove, title: TEXTS.notices.remove,
-                onclick: event => { event.stopPropagation(); Notices.load().items = Notices.load().items.filter(entry => entry !== item); Notices.save(); }
-            }, svgIcon(CLOSE_ICON))))))
-                : h('p', { class: 'ao-empty' }, TEXTS.notices.empty));
-    }
-    // La campanella va nell'intestazione dell'add-in, a destra (si vede solo con l'area AMP aperta).
-    function mountBell() {
-        const header = document.querySelector('.app-header');
-        if (!header || noticeBell) return;
-        noticeBell = h('button', { type: 'button', class: 'ao-bell', 'aria-label': TEXTS.notices.open, title: TEXTS.notices.open, onclick: () => toggleNotices() },
-            svgIcon(BELL_ICON), h('span', { class: 'ao-bell-count' }));
-        header.append(noticeBell);
-    }
-
     // ---------------------------- Suggerimenti --------------------------------
     // Ogni operatore ha i suoi: il pannello conta, senza mostrarlo, le combinazioni agenzia · attività con cui
     // apre i ticket e le parole degli oggetti. Con l'agenzia individuata (dal dominio o scelta a mano) propone
@@ -3662,7 +3531,6 @@
         state.forwardJobs[job.ticket.number] = job;
         const stuck = TEXTS.queue.forwardSteps[FORWARD_STEPS[job.steps.indexOf('ko')]];
         const ticket = job.ticket;
-        Notices.add({ key: `forward:${ticket.number}`, kind: 'forward', number: ticket.number, text: TEXTS.queue.forwardStuck(stuck) }, false); // la pillola lo dice già
 
         await leaveQueue(card, mail, TEXTS.queue.forwardStuck(stuck), { tone: 'warning', icon: ACTION_ICONS.forward, action: { label: TEXTS.queue.goToTicket, onclick: () => openTicketItem(ticket) } });
     }
@@ -4477,10 +4345,13 @@
 #ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; margin-left: 0; transform: scale(.6); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
 /* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
-#ao-root .ao-notify { position: absolute; top: -5px; right: -6px; min-width: 12px; height: 12px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: 8px; font-weight: var(--ao-fw-bold); line-height: 12px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
+#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: 10px; font-weight: var(--ao-fw-bold); line-height: 14px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
 #ao-root .ao-notify-number { color: var(--ao-notify-ink); }
 #ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu dell'intestazione */
 #ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
+#ao-root .ao-notify-alert:not(.ao-notify-off) { animation: ao-pulse 1.6s ease-in-out infinite; } /* On Hold scaduto: pulsa piano */
+@keyframes ao-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-notify-alert:not(.ao-notify-off) { animation: none; } }
 #ao-root .ao-segment:not(.ao-active) .ao-notify:not(.ao-notify-off) { opacity: .5; } /* selettore: sulla voce non scelta il segnalino è più discreto */
 #ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
 /* Card: numero dei messaggi nuovi su sfondo blu. */
@@ -4967,38 +4838,12 @@
 #ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { color: var(--ao-danger); }
-/* Notifiche: banner che scende dall'alto (stile iPhone) e centro notifiche che scende sopra il pannello, in vetro */
-#ao-root .ao-notice, #ao-root .ao-notice-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--ao-line); border-radius: calc(var(--ao-radius-base) + 4px); background: var(--ao-surface); cursor: pointer; -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
-#ao-root .ao-notice { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 19; box-shadow: var(--ao-open-shadow); transform: translateY(calc(-100% - 16px)); transition: transform .45s cubic-bezier(.3, .8, .2, 1); }
-#ao-root .ao-notice.ao-in { transform: none; }
-#ao-root .ao-notice-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: var(--ao-accent-bg); color: var(--ao-text-accent); }
-#ao-root .ao-notice-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
-#ao-root .ao-notice-forward { background: var(--ao-choice-forward-bg); color: var(--ao-choice-forward-text); }
-#ao-root .ao-notice-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
-#ao-root .ao-notice-head { display: flex; justify-content: space-between; gap: 8px; }
-#ao-root .ao-notice-title { font-weight: var(--ao-fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ao-root .ao-notice-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--ao-text-muted); font-size: var(--ao-fs-md); }
-#ao-root .ao-notices { position: absolute; inset: 0; z-index: 18; display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto; background: var(--ao-sheet-bg); -webkit-backdrop-filter: blur(24px) saturate(1.2); backdrop-filter: blur(24px) saturate(1.2); transform: translateY(-100%); transition: transform .45s cubic-bezier(.3, .8, .2, 1); scrollbar-width: thin; }
-#ao-root .ao-notices.ao-in { transform: none; }
-#ao-root .ao-notices-head { display: flex; align-items: center; gap: 8px; }
-#ao-root .ao-notices-title { flex: 1; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-notices-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-#ao-root .ao-notice-item { transition: opacity .25s, border-color .25s; }
-#ao-root .ao-notice-item:hover { border-color: var(--ao-line-strong); }
-#ao-root .ao-notice-item.ao-read { opacity: .6; }
-#ao-root .ao-notice-remove { flex: none; display: inline-flex; padding: 2px; border: 0; background: none; color: var(--ao-text-subtle); cursor: pointer; transition: color .25s; }
-#ao-root .ao-notice-remove:hover { color: var(--ao-text); }
 `;
     // Fuori dall'area AMP, solo mentre è aperta: pagina dell'add-in ferma (scorre solo il pannello) e intestazione
     // più bassa, con logo piccolo e schede più vicine. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza
     // giunture) passa anche dietro l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
     const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
     const OUTSIDE_STYLES = `
-.app-header .ao-bell { display: none; position: relative; margin-left: auto; padding: 6px; border: 0; border-radius: 8px; background: none; color: inherit; cursor: pointer; }
-:has(> .app-header):has(#amp-view:not([hidden])) > .app-header .ao-bell { display: inline-flex; }
-.app-header .ao-bell:hover { background: rgba(255, 255, 255, .14); }
-.app-header .ao-bell-count { position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #d13438; color: #fff; font: 600 10px/16px ${THEME.font.family}; text-align: center; }
-.app-header .ao-bell:not(.ao-has-unread) .ao-bell-count { display: none; }
 body:has(#amp-view:not([hidden])) { min-width: ${PANEL_MIN_WIDTH}px; }
 body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
 :has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding: 12px 16px 6px; }
@@ -5035,8 +4880,6 @@ body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
         initialized = true;
         injectStyles();
         buildShell(container);
-        mountBell();
-        paintNotices();
         applyTheme();
         fillPane();
         // Il riquadro di Outlook si può ridimensionare: l'altezza dell'area si ricalcola.
