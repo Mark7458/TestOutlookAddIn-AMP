@@ -125,6 +125,13 @@
 (function () {
   'use strict';
   const mailbox = window.AmpBackend.mailbox;
+  // Configurazioni importate o salvate dal pannello: i dati di esempio si adattano (agenzie e attività vere).
+  const setItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (key, value) {
+    setItem.call(this, key, value);
+    if (this === localStorage && key === 'snow_ticket_assistant_v1') mailbox.adoptConfig();
+  };
+  mailbox.adoptConfig();
   const OPERATOR = { displayName: 'Marco Rossi', emailAddress: 'marco.rossi@example.com' };
   const CATEGORY_COLORS = { Marco: '#0f6cbd', Giulia: '#107c10', Luca: '#c75000' };
   const byId = id => document.getElementById(id);

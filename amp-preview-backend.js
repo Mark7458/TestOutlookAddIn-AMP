@@ -268,6 +268,82 @@
         try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (error) { /* solo anteprima */ }
         listeners.forEach(listener => { try { listener(); } catch (error) { console.error(error); } });
     }
+    // Configurazioni vere importate nell'anteprima: le agenzie e le attività inventate dei dati di esempio prendono,
+    // in ordine, il posto di quelle del file (con i loro dati anche nei suggerimenti); se il file ne ha meno,
+    // quelle in più restano e si aggiungono alle configurazioni.
+    const CONFIG_KEY = 'snow_ticket_assistant_v1';
+    const USAGE_KEY = 'amp_panel_usage_v1';
+    const SAMPLE_COMPANIES = [
+        { id: 'alfa', name: 'Agenzia Alfa', domain: 'agenziaalfa.it' },
+        { id: 'beta', name: 'Agenzia Beta', domain: 'agenziabeta.it' },
+        { id: 'gamma', name: 'Comune Gamma', domain: 'comune-gamma.it' }
+    ];
+    const SAMPLE_ACTIVITIES = [
+        { id: 'posta', name: 'Posta elettronica' }, { id: 'password', name: 'Reset password' }, { id: 'stampante', name: 'Stampante' },
+        { id: 'vpn', name: 'VPN' }, { id: 'gestionale', name: 'Gestionale' }, { id: 'manutenzione', name: 'Manutenzione' }
+    ];
+    const reference = displayValue => ({ value: '', displayValue });
+    // Coppie esempio → configurazione, solo per quelle ancora da sostituire.
+    function pairs(samples, entries, create) {
+        const free = Object.keys(entries).filter(id => !samples.some(sample => sample.id === id));
+        return samples.filter(sample => !entries[sample.id]).map((sample, index) => {
+            const id = free[index] || sample.id;
+            if (!entries[id]) entries[id] = create(sample);
+            return { ...sample, to: id, toName: entries[id].name };
+        });
+    }
+    function adoptConfig() {
+        let config;
+        try { config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); } catch (error) { return; }
+        if (!config?.companies || !config?.activities) return;
+        const before = JSON.stringify(config);
+        const companies = pairs(SAMPLE_COMPANIES, config.companies, sample => ({
+            name: sample.name, company: reference(sample.name), assignmentGroup: reference(''), domains: [sample.domain]
+        }));
+        const activities = pairs(SAMPLE_ACTIVITIES, config.activities, sample => ({
+            name: sample.name, category: reference(sample.name), impact: '3', urgency: '3', timeWorked: 15, shortDescriptionPrefix: ''
+        }));
+        if (!companies.length && !activities.length) return;
+        // le mail di esempio portano all'agenzia giusta
+        companies.forEach(pair => {
+            const domains = config.companies[pair.to].domains ||= [];
+            if (!domains.includes(pair.domain)) domains.push(pair.domain);
+        });
+        const company = Object.fromEntries(companies.map(pair => [pair.name, pair]));
+        const activity = Object.fromEntries(activities.map(pair => [pair.name, pair]));
+        Object.values(db.incidents).forEach(incident => {
+            const toCompany = company[incident.companyName];
+            const toActivity = activity[incident.activityName];
+            if (toCompany) Object.assign(incident, { companyId: toCompany.to, companyName: toCompany.toName });
+            if (toActivity) Object.assign(incident, { activityId: toActivity.to, activityName: toActivity.toName });
+        });
+        // nei testi (mail, storico, movimenti) il nome dell'agenzia; l'attività dove è scritta come "agenzia · attività"
+        const rename = text => {
+            if (!text) return text;
+            let result = companies.reduce((value, pair) => value.split(pair.name).join(pair.toName), text);
+            activities.forEach(pair => { result = result.split(` · ${pair.name}`).join(` · ${pair.toName}`); });
+            return result;
+        };
+        db.messages.forEach(message => Object.assign(message, { subject: rename(message.subject), body: rename(message.body) }));
+        Object.values(db.history).forEach(entries => entries.forEach(entry => { entry.text = rename(entry.text); }));
+        db.sp.movements.forEach(movement => { movement.details = rename(movement.details); });
+        Object.values(db.incidents).forEach(incident => {
+            Object.assign(incident, { shortDescription: rename(incident.shortDescription), description: rename(incident.description) });
+            if (db.sp.tickets[incident.number]) mirror(incident.number);
+        });
+        try {
+            const usage = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}') || {};
+            const ids = list => Object.fromEntries(list.map(pair => [pair.id, pair.to]));
+            const companyIds = ids(companies), activityIds = ids(activities);
+            const moved = Object.fromEntries(Object.entries(usage).map(([key, entry]) => {
+                const [companyId, activityId] = key.split('|');
+                return [`${companyIds[companyId] || companyId}|${activityIds[activityId] || activityId}`, entry];
+            }));
+            localStorage.setItem(USAGE_KEY, JSON.stringify(moved));
+            if (JSON.stringify(config) !== before) localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        } catch (error) { /* solo anteprima */ }
+        persist();
+    }
     const copy = value => (value == null ? value : JSON.parse(JSON.stringify(value)));
     const respond = value => new Promise(resolve => setTimeout(() => resolve(copy(value)), DELAY_MS));
     const fail = message => new Promise((resolve, reject) => setTimeout(() => reject(new Error(message)), DELAY_MS));
@@ -745,6 +821,7 @@
         // --------------------------------------------------------------
         mailbox: {
             address: SHARED_MAILBOX,
+            adoptConfig,
             operators: OPERATORS,
             listMessages() {
                 return copy(db.messages);

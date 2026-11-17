@@ -99,7 +99,6 @@
             openEdge: 'var(--ao-item-hover-edge)', // scheda aperta: tiene il bordo del passaggio del mouse (flat: blu sottile)
             quoteBg: 'var(--ao-bg)', // description come citazione incassata dentro la scheda
             segmentTrack: 'var(--ao-surface)', // fondo dei selettori a segmenti
-            segmentHover: 'transparent', // voce non scelta di un selettore al passaggio del mouse
             choiceTrack: 'var(--ao-bg)', // fondo del selettore delle azioni (Prendi in carico / Inoltra / Ignora)
             selection: 'var(--ao-accent-bg)', // voce scelta nei selettori a segmenti
             selectionLine: 'transparent', // bordo della voce scelta
@@ -206,7 +205,6 @@
             itemHoverEdge: 'rgba(255, 255, 255, .95)',
             itemHoverGlow: '0 0 16px rgba(110, 165, 255, .38)',
             segmentTrack: 'rgba(214, 224, 240, .6)', // un po' più scuro delle card: la voce scelta si stacca
-            segmentHover: 'rgba(255, 255, 255, .4)',
             choiceTrack: 'var(--ao-segment-track)',
             selection: 'var(--ao-surface)', // voce scelta: come una card a riposo
             selectionLine: 'var(--ao-line)',
@@ -262,7 +260,6 @@
             itemHoverEdge: 'rgba(255, 255, 255, .2)',
             itemHoverGlow: '0 0 16px rgba(90, 150, 255, .3)',
             segmentTrack: 'rgba(28, 31, 38, .62)',
-            segmentHover: 'rgba(255, 255, 255, .06)',
             selectionShadow: '0 1px 2px rgba(0, 0, 0, .3)',
             menuBg: '#2b2e36',
             fieldFocusLine: 'rgba(90, 150, 255, .4)',
@@ -592,7 +589,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 12:50';
+    const BUILD = '2026-11-17 15:50';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1534,8 +1531,8 @@
             releaseRender();
         }
     }
-    // Thread con più ticket: la scheda sale in cima come per il ticket singolo mentre la pagina si apre; lassù i ticket
-    // del thread compaiono sovrapposti e il principale si apre insieme a loro, poi tutti scivolano al loro posto.
+    // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
+    // stessa durata del ticket singolo.
     async function openGroup(copy, ghost, body, page, cards, start, floated) {
         const view = page.closest('.ao-scroll');
         const parts = [...view.children].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)'));
@@ -1545,29 +1542,30 @@
         body.style.opacity = '';
         head.forEach((element, index) => element.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
             { duration: JOURNEY.build, delay: index * JOURNEY.stagger, easing: JOURNEY.easing, fill: 'backwards' }));
+        // Un solo movimento, lungo quanto quello del ticket singolo: sale in cima e scorre fino al suo posto,
+        // svelando gli altri ticket (già aperti) che intanto compaiono; arrivata, si apre.
+        const slot = page.getBoundingClientRect();
+        const rise = Math.abs(up.dy), fall = slot.top - top.top;
+        const total = JOURNEY.travel + JOURNEY.land;
+        const share = rise / (rise + fall);
         copy.getAnimations().forEach(animation => animation.cancel());
         shadowOf(copy)?.getAnimations().forEach(animation => animation.cancel());
-        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: JOURNEY.travel, fill: 'forwards' });
+        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: total * share, fill: 'forwards' });
+        const others = cards.filter(card => card !== page);
+        others.forEach(card => {
+            card.classList.remove('ao-away');
+            card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: total * (1 - share), delay: total * share, fill: 'backwards' });
+        });
         await Promise.all([listExtras(copy, true), copy.animate([
             { transform: floated, easing: JOURNEY.travelEasing },
-            { transform: `translate(${up.dx}px, ${up.dy}px)` }
-        ], { duration: JOURNEY.travel, fill: 'both' }).finished]).catch(() => {});
-        // In cima, sovrapposti (il principale sopra): compaiono gli altri e il principale si apre, tutti insieme.
+            { transform: `translate(${up.dx}px, ${up.dy}px)`, offset: share, easing: JOURNEY.travelEasing },
+            { transform: `translate(${slot.left - start.left}px, ${slot.top - start.top}px)` }
+        ], { duration: total, fill: 'both' }).finished]).catch(() => {});
         state.journey = null;
-        const offsets = cards.map(card => top.top - card.getBoundingClientRect().top);
         page.style.zIndex = '1';
-        const stacked = cards.map((card, index) => card.animate([{ transform: `translateY(${offsets[index]}px)` }, { transform: `translateY(${offsets[index]}px)` }],
-            { duration: JOURNEY.build, fill: 'forwards' }));
-        cards.forEach(card => {
-            card.classList.remove('ao-away');
-            if (card !== page) card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: JOURNEY.build, easing: JOURNEY.easing, fill: 'backwards' });
-        });
+        page.classList.remove('ao-away');
         [ghost, copy].forEach(element => element.remove());
         await unfoldPage(view, true, page, true);
-        // Poi tutti scivolano al loro posto.
-        stacked.forEach(animation => animation.cancel());
-        await Promise.all(cards.map((card, index) => card.animate([{ transform: `translateY(${offsets[index]}px)` }, { transform: 'none' }],
-            { duration: JOURNEY.travel, easing: JOURNEY.easing }).finished)).catch(() => {});
         page.style.zIndex = '';
         page.classList.remove('ao-unlifted');
     }
@@ -4533,10 +4531,9 @@
 
 /* Filtri e scelte a segmenti */
 #ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
-/* Al passaggio del mouse la voce cambia colore (e nel vetro si schiarisce appena); la pillola della voce scelta scivola */
+/* Al passaggio del mouse cambia solo il colore della voce (nessuna forma di pulsante); la pillola della voce scelta scivola */
 #ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
 #ao-root .ao-segment:hover { color: var(--ao-text); }
-#ao-root .ao-segment:not(.ao-active):hover { background: var(--ao-segment-hover); }
 #ao-root .ao-segment.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; }
 #ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
@@ -4724,6 +4721,7 @@
 #ao-root .ao-menu-group:not(:first-child) { margin-top: 2px; border-top: 1px solid var(--ao-line); padding-top: 6px; }
 #ao-root .ao-suggest-mark { color: var(--ao-text-accent); font-size: .85em; }
 #ao-root .ao-select-search { flex: 1; min-width: 0; margin: -2px 0; padding: 0; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-select-search:focus-visible { box-shadow: none; } /* il campo che lo contiene mostra già il fuoco */
 #ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; } /* aperto con il filtro: al posto del valore si scrive */
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
 #ao-root .ao-input:focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
@@ -4767,8 +4765,8 @@
 #ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; } /* testo oltre 230px (scheda di sola lettura grande circa quanto il modulo di Senza mail): solo allora la barra */
 /* Più messaggi nel thread: frecce per scorrerli; quello che si guarda è quello da cui nasce il ticket */
 #ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
-#ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); cursor: pointer; }
-#ao-root .ao-message-step:hover:where(:not(:disabled)) { background: var(--ao-hover); }
+#ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--ao-text-muted); cursor: pointer; transition: color .25s; } /* come le voci dei selettori: al passaggio cambia solo il colore */
+#ao-root .ao-message-step:hover:where(:not(:disabled)) { color: var(--ao-text); }
 #ao-root .ao-message-step:disabled { opacity: .4; cursor: default; }
 #ao-root .ao-message-where { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #ao-root .ao-spacer { flex: 1; }
@@ -4789,7 +4787,6 @@
 #ao-root .ao-choice-option { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 30px; padding: 4px 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; white-space: nowrap; line-height: 1.25; transition: color .25s; }
 #ao-root .ao-choice-sub { font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-choice-option:hover:not(.ao-active) { color: var(--ao-text); }
-#ao-root .ao-choice-option:hover:not(.ao-active):not(:disabled) { background: var(--ao-segment-hover); }
 #ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; transition: background-color .25s; }
 #ao-root .ao-choice-thumb.ao-ready { opacity: 1; }
 #ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
