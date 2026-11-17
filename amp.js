@@ -51,6 +51,7 @@
             textAccent: '#106ebe', // tutte le scritte blu (numeri dei ticket, link, schede attive…)
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
+            progress: '#5e7bd1', // passi riusciti dell'inoltro: il blu del bagliore, smorzato e appena verso il viola
             white: '#fff', // testo su sfondo blu (pulsanti, notifiche)
             surface: '#fff', // sfondo di card, campi, schede, barra di sistema
             text: '#242424',
@@ -148,6 +149,7 @@
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
         darkColors: {
             textAccent: '#6cb8f6',
+            progress: '#8dabfc',
             accentBorder: '#3a6a8f',
             accentBg: '#19344a',
             surface: '#2d2c2b',
@@ -574,7 +576,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 15:40';
+    const BUILD = '2026-11-17 10:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4761,17 +4763,19 @@
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
-/* Passi dell'inoltro: pallini uniti da un tratto, verde se il passo prima è riuscito, rosso fino al passo non riuscito */
+/* Passi dell'inoltro: pallini uniti da un tratto, colorato (progress) fino ai passi riusciti, rosso fino al passo non
+   riuscito; bagliore solo sui pallini riusciti e su quello in corso */
 #ao-root .ao-steps { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; padding: 4px 0 2px; }
 #ao-root .ao-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
 #ao-root .ao-step + .ao-step::before { content: ""; position: absolute; top: 8px; left: calc(-50% + 12px); width: calc(100% - 24px); height: 2px; border-radius: 1px; background: var(--ao-line-strong); }
-#ao-root .ao-step-ok::before { background: var(--ao-success); }
-#ao-root .ao-step-ko::before { background: var(--ao-danger); }
+#ao-root .ao-step + .ao-step-ok::before { background: var(--ao-progress); }
+#ao-root .ao-step + .ao-step-ko::before { background: var(--ao-danger); }
 #ao-root .ao-step-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; background: none; color: inherit; }
 #ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
 #ao-root .ao-step-dot .ao-spinner { width: 10px; height: 10px; }
 #ao-root .ao-step-run { color: var(--ao-text); }
-#ao-root .ao-step-ok .ao-step-dot { border-color: var(--ao-success); background: var(--ao-success-bg); color: var(--ao-success); }
+#ao-root .ao-step-ok .ao-step-dot, #ao-root .ao-step-run .ao-step-dot { border-color: var(--ao-progress); color: var(--ao-progress); box-shadow: 0 0 10px color-mix(in srgb, var(--ao-progress) 70%, transparent); }
+#ao-root .ao-step-ok .ao-step-dot { background: color-mix(in srgb, var(--ao-progress) 18%, transparent); }
 #ao-root .ao-step-ko { color: var(--ao-danger); }
 #ao-root .ao-step-ko .ao-step-dot { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
 #ao-root button.ao-step-dot { cursor: pointer; transition: transform .15s; }
