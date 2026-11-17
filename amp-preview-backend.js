@@ -497,6 +497,16 @@
 
     db = load();
 
+    // Gestione di una mail (nella Function App: la sua riga su MailEvents). Qui si ricava dal thread: le mail arrivate
+    // prima che fosse ignorato, inoltrato o preso in carico hanno quell'esito.
+    function handledOf(thread, message) {
+        if (!thread) return null;
+        if (thread.discardedAt && message.receivedAt <= thread.discardedAt) return { status: 'Ignored', by: thread.discardedBy, at: thread.discardedAt };
+        if (thread.forwardedAt && message.receivedAt <= thread.forwardedAt) return { status: 'Forwarded', by: thread.forwardedTo, at: thread.forwardedAt };
+        if (thread.status === 'managed' && thread.owner) return { status: 'Acquired', by: thread.owner, at: thread.updatedAt || null };
+        return null;
+    }
+
     // ------------------------------------------------------------------
     // Servizi usati dal pannello (contratto: amp.js blocco 3 e amp-servizi.md).
     // Le letture usano solo SharePoint e le mail; le scritture vanno prima su ServiceNow.
@@ -510,8 +520,10 @@
         },
         // Messaggi ricevuti di un thread, dal più vecchio: In coda, con più messaggi, si sceglie da quale aprire il ticket.
         listThreadMessages(conversationId) {
+            const thread = db.sp.threads[conversationId];
             return respond(conversationMessages(conversationId).filter(item => item.direction === 'in').map(item => ({
-                messageId: item.id, sender: item.from, receivedAt: item.receivedAt, preview: item.body.replace(/\s+/g, ' ').slice(0, 160)
+                messageId: item.id, sender: item.from, receivedAt: item.receivedAt, preview: item.body.replace(/\s+/g, ' ').slice(0, 160),
+                handled: handledOf(thread, item)
             })));
         },
         // Testo della mail per l'anteprima in In coda (in produzione: Graph dalla Function App).

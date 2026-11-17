@@ -4,10 +4,11 @@
  * Espone window.AmpBackend con i metodi del contratto di amp.js (blocco 3), tradotti nelle chiamate alle function:
  *   ListQueue, ListThreadMessages, GetMailBody, ManageThread  → coda, ignorate, messaggi, etichetta (tag), presa in carico, visto
  *   ManageTicket, SearchTicketRecords                          → ticket (lista Ticket su SharePoint)
- *   ForwardConversation                                        → inoltro ai gruppi esterni
+ *   ForwardConversation, ReplyAll                              → inoltro ai gruppi esterni, risposta con la sigla
  * Token: window.WorkflowHealth.getAccessTokenSilently() (add-in di jak). Operatore = utente di Outlook.
  * Il thread si identifica con ParentItemId (MailEvents); il pannello usa conversationId: la corrispondenza
- * si tiene qui. I ticket di un thread non ancora visto in coda usano la chiave "parent:<ParentItemId>".
+ * si tiene qui. I ticket di un thread non ancora visto in coda usano la chiave "parent:<ParentItemId>";
+ * i ticket senza mail (SHP-M-<n>) non hanno thread.
  *
  * L'etichetta di chi gestisce un thread in coda è lo stato Working su MailEvents (ManageThread tag / untag):
  * presa in carico, inoltro e ignora la richiedono.
@@ -29,7 +30,7 @@
 
     const threadOf = new Map(); // conversationId → ParentItemId
     const conversationOf = new Map(); // ParentItemId → conversationId
-    const messageCounts = new Map(); // conversationId → mail del thread nell'ultima lettura della coda (presa in carico)
+    const messageCounts = new Map(); // conversationId → mail del thread viste dal pannello (controllo delle azioni sul thread)
 
     // ------------------------------------------------------------------
     // Chiamate
@@ -72,9 +73,17 @@
     }
     const sameEmail = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
     // Etichetta di un thread in coda: chi ha il tag (Working). I colleghi in grigio; la propria la colora il pannello.
+    // Tag = chi ci lavora (AssignedTo) su un thread in coda (Working) o ignorato.
     function threadLabel(thread) {
-        if (thread?.status !== 'Working' || !thread.assignedTo) return null;
+        if (!['Working', 'Ignored'].includes(thread?.status) || !thread.assignedTo) return null;
         return { name: operatorName(thread.assignedTo), color: 'grafite', mine: sameEmail(thread.assignedTo, me()), at: thread.statusAt || null };
+    }
+    // Gestione di una mail (la sua riga su MailEvents), per gli esiti: in carico, ignorata, inoltrata, risolta.
+    // Inoltrata: AssignedTo è il gruppo; in carico: chi ce l'ha; ignorata e risolta: chi l'ha decisa.
+    function handledOf(message) {
+        if (!['Acquired', 'Ignored', 'Forwarded', 'Solved'].includes(message?.status)) return null;
+        const by = message.status === 'Forwarded' ? message.assignedTo || '' : operatorName(message.status === 'Acquired' ? message.assignedTo : message.statusBy);
+        return { status: message.status, by, at: message.statusAt || null };
     }
     function operatorName(email) {
         const entry = Object.values(pluginConfig().operators || {})
@@ -99,7 +108,8 @@
         threadOf.set(conversationId, Number(parentItemId));
         conversationOf.set(Number(parentItemId), conversationId);
     }
-    const keyOf = parentItemId => conversationOf.get(Number(parentItemId)) || `parent:${parentItemId}`;
+    // Ticket senza mail: nessun thread (ParentItemId vuoto), quindi nessuna conversazione.
+    const keyOf = parentItemId => (parentItemId ? conversationOf.get(Number(parentItemId)) || `parent:${parentItemId}` : '');
     async function parentOf(conversationId) {
         if (String(conversationId).startsWith('parent:')) return Number(String(conversationId).slice(7));
         if (threadOf.has(conversationId)) return threadOf.get(conversationId);
@@ -191,8 +201,13 @@
             history: thread.previous || null
         };
     }
-    const threadAction = async (conversationId, action, extra = {}) =>
-        call('ManageThread', { action, parentItemId: await parentOf(conversationId), caller: me(), ...extra });
+    // Con le azioni che cambiano il thread va il numero di mail che il pannello conosce: se nel frattempo ne è arrivata
+    // un'altra, la function si ferma (thread_changed) e il pannello si aggiorna.
+    const COUNTED_ACTIONS = ['tag', 'acquire', 'ignore', 'restore'];
+    const threadAction = async (conversationId, action, extra = {}) => {
+        const known = COUNTED_ACTIONS.includes(action) ? messageCounts.get(conversationId) : null;
+        return call('ManageThread', { action, parentItemId: await parentOf(conversationId), caller: me(), ...(known ? { knownCount: known } : {}), ...extra });
+    };
 
     // ------------------------------------------------------------------
     // Contratto del pannello
@@ -208,7 +223,7 @@
             const result = await call('ListQueue', { section: 'ignored' }, 'GET');
             return (result?.threads || []).map(thread => ({
                 ...queueItem(thread),
-                discardedBy: operatorName(thread.thread?.assignedTo),
+                discardedBy: operatorName(thread.thread?.statusBy),
                 discardedAt: thread.thread?.statusAt || null
             }));
         },
@@ -272,26 +287,24 @@
         },
         // Presa in carico del thread, poi il ticket dalla mail scelta. knownCount: le mail viste in coda; se nel
         // frattempo ne è arrivata un'altra la presa in carico non riesce (thread_changed) e la coda si rilegge.
+        // Senza mail (mail null): ticket SHP-M-<n>, senza thread da prendere in carico.
         async createTicket(mail, payload) {
-            if (!mail) throw new Error('Ticket senza mail non ancora disponibile.');
-            const parentItemId = await parentOf(mail.conversationId);
-            const known = messageCounts.get(mail.conversationId);
-            await call('ManageThread', { action: 'acquire', parentItemId, caller: me(), ...(known ? { knownCount: known } : {}) });
+            const parentItemId = mail ? await parentOf(mail.conversationId) : null;
+            if (mail) await threadAction(mail.conversationId, 'acquire');
             const fields = payload?.fields || {};
             const result = await call('ManageTicket', {
                 action: 'createTicket',
-                parentItemId,
-                messageId: mail.itemId || mail.messageId,
+                ...(mail ? { parentItemId, messageId: mail.itemId || mail.messageId } : {}),
                 operator: me(),
                 caller: me(),
                 status: 'In Progress',
-                shortDescription: fields.shortDescription || mail.subject || '',
-                description: String(fields.description || mail.body || '').slice(0, 4000),
+                shortDescription: fields.shortDescription || mail?.subject || '',
+                description: String(fields.description || mail?.body || '').slice(0, 4000),
                 agency: payload?.companyName || '',
                 elapsedTime: String(Number(fields.timeWorkedMinutes) || 0),
                 ...(payload?.forwardGroup ? { forwardGroup: payload.forwardGroup } : {})
             });
-            remember(mail.conversationId, parentItemId);
+            if (mail) remember(mail.conversationId, parentItemId);
             return toTicket(result.ticket);
         },
         async assignTicket(number) {
@@ -347,11 +360,14 @@
         },
         async listThreadMessages(conversationId) {
             const result = await call('ListThreadMessages', { parentItemId: await parentOf(conversationId) }, 'GET');
-            return (result?.messages || []).map(message => ({
+            const messages = result?.messages || [];
+            messageCounts.set(conversationId, messages.length);
+            return messages.map(message => ({
                 messageId: message.messageId,
                 sender: sender(message.from),
                 receivedAt: message.receivedDate,
-                preview: message.subject || ''
+                preview: message.subject || '',
+                handled: handledOf(message)
             }));
         },
         // Etichetta = tag sul thread (Working). Se c'è già quella di un collega non si scrive niente e si restituisce la sua;
