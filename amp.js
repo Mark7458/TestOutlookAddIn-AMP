@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:25';
+    const BUILD = '2026-11-17 19:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1347,7 +1347,7 @@
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
     const JOURNEY = {
-        lift: 130, travel: 280, land: 140, build: 200, unfold: 380, stagger: 30, // unfold: la scheda che si apre in corsa
+        lift: 130, travel: 280, land: 140, build: 200, unfold: 460, stagger: 30, // unfold: la scheda che si apre in corsa
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
         lifted: 'translateY(-2px) scale(1.015)', // l'ombra della scheda sollevata è in .ao-journey-shadow
         floated: 'translateY(-3px) scale(1.02)', float: 400 // se la pagina tarda: la scheda continua piano a salire, mai ferma
@@ -1501,11 +1501,11 @@
                 const total = JOURNEY.travel + JOURNEY.land;
                 const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') }, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
+                revealHead(body, page);
                 await openInMotion(copy, page, travel, total, () => travel.currentTime >= total * .4, () => {
                     state.journey = null;
-                    body.style.opacity = '';
                     ghost.remove();
-                }, false);
+                }, true);
                 return;
             }
             await Promise.all([listExtras(copy, true),
@@ -1524,6 +1524,13 @@
             if (outside) card.style.visibility = '';
             releaseRender();
         }
+    }
+    // La testata del thread ("‹", oggetto e mittente) compare appena parte la corsa, prima che la scheda si apra.
+    function revealHead(body, first) {
+        const parts = [...first.closest('.ao-scroll').children].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)'));
+        body.style.opacity = '';
+        parts.slice(0, parts.indexOf(first)).forEach((element, index) => element.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
+            { duration: JOURNEY.build, delay: index * JOURNEY.stagger, easing: JOURNEY.easing, fill: 'backwards' }));
     }
     // Viaggio della copia verso il suo posto in un solo movimento (via: punto di passaggio facoltativo, in cima);
     // intanto l'ombra svanisce e le parti che in lista ha in più si richiudono.
@@ -1560,14 +1567,9 @@
     // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
     // stessa durata del ticket singolo.
     async function openGroup(copy, ghost, body, page, cards, start, floated) {
-        const view = page.closest('.ao-scroll');
-        const parts = [...view.children].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)'));
-        const head = parts.slice(0, parts.indexOf(cards[0]));
         const top = cards[0].getBoundingClientRect();
         const up = { dx: top.left - start.left, dy: top.top - start.top };
-        body.style.opacity = '';
-        head.forEach((element, index) => element.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
-            { duration: JOURNEY.build, delay: index * JOURNEY.stagger, easing: JOURNEY.easing, fill: 'backwards' }));
+        revealHead(body, cards[0]);
         // Un solo movimento, lungo quanto quello del ticket singolo: sale in cima e scorre fino al suo posto,
         // svelando gli altri ticket (già aperti) che intanto compaiono; arrivata, si apre.
         const slot = page.getBoundingClientRect();
