@@ -440,7 +440,7 @@
             // Collegamento con il ticket
             closedTickets: n => `Ticket chiusi (${n})`,
             addTicket: 'Ticket',
-            pickOrigin: 'Seleziona in Outlook il messaggio di origine',
+            pickOrigin: 'Seleziona in Outlook il messaggio da cui generare il ticket',
             threadCount: count => `${count} ticket`,
             taken: number => `${number} ora è assegnato a te.`,
             // Apertura del ticket
@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 17:05';
+    const BUILD = '2026-11-17 17:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -975,6 +975,7 @@
         ignored: [], // archivio dei thread ignorati (In coda, in fondo)
         queueTab: 'active', // In coda: active (da prendere) | ignored (archivio)
         extraTicketFor: null, // thread su cui si sta aprendo un ticket in più
+        extraOrigin: null, // messaggio del thread scelto in Outlook dopo aver aperto il modulo: da lì nasce il ticket
         forwardJobs: {}, // inoltri fermi a metà, per numero di ticket: striscia dei passi nella pagina del ticket
         ticketExpanded: {}, // ticket aperti o chiusi a mano nella pagina del thread (altrimenti: estesa se è l'unico)
         closedOpen: null, // thread di cui si vedono i ticket chiusi
@@ -1273,6 +1274,7 @@
     // selezione solo se è la mail del ticket appena aperto (il pannello stesso la apre in Outlook).
     function handleMailChanged() {
         state.mail = Outlook.currentMail();
+        if (state.extraTicketFor && state.mail?.conversationId === state.extraTicketFor) state.extraOrigin = state.mail;
         const id = state.mail?.conversationId;
         const target = state.target;
         const shown = target?.kind === 'mail' ? target.mail.conversationId : target?.kind === 'ticket' ? ticketByNumber(target.number)?.conversationId : null;
@@ -1378,13 +1380,13 @@
     // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
     // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
     // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
-    function unfoldPage(view, inward, page, skipAbove = false) {
+    function unfoldPage(view, inward, page, skipAbove = false, closedHeight = null, duration = JOURNEY.build) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
         const cards = first < 0 ? [] : [parts[first]];
         const above = skipAbove ? [] : parts.slice(0, first < 0 ? parts.length : first);
         const after = parts.slice(first + 1);
-        const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
+        const timing = (delay = 0) => ({ duration, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
         above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
@@ -1392,7 +1394,8 @@
             const more = card.querySelector('.ao-ticket-more');
             if (!more) return;
             const cardRect = card.getBoundingClientRect(), faceRect = card.querySelector('.ao-ticket-face').getBoundingClientRect();
-            const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
+            const hidden = closedHeight ? cardRect.height - closedHeight : cardRect.bottom - faceRect.bottom - 8;
+            const closed = `inset(0px 0px ${hidden}px 0px round var(--ao-radius-base))`;
             moves.push(play(card, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, JOURNEY.stagger));
             const inner = [...more.children];
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' },
@@ -1500,7 +1503,9 @@
         // Un solo movimento, lungo quanto quello del ticket singolo: sale in cima e scorre fino al suo posto,
         // svelando gli altri ticket (già aperti) che intanto compaiono; arrivata, si apre.
         const slot = page.getBoundingClientRect();
-        const rise = Math.abs(up.dy), fall = slot.top - top.top;
+        // Passa dalla cima solo se deve salirci (la scheda parte più in basso); se è già sopra va dritta al suo posto,
+        // senza fermarsi a metà.
+        const rise = up.dy < 0 ? -up.dy : 0, fall = slot.top - (rise ? top.top : start.top);
         const total = JOURNEY.travel + JOURNEY.land;
         const share = rise / (rise + fall);
         copy.getAnimations().forEach(animation => animation.cancel());
@@ -1511,16 +1516,27 @@
             card.classList.remove('ao-away');
             card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: total * (1 - share), delay: total * share, fill: 'backwards' });
         });
-        await Promise.all([listExtras(copy, true), copy.animate([
+        const travel = copy.animate([
             { transform: floated, easing: JOURNEY.travelEasing },
-            { transform: `translate(${up.dx}px, ${up.dy}px)`, offset: share, easing: JOURNEY.travelEasing },
+            ...(rise ? [{ transform: `translate(${up.dx}px, ${up.dy}px)`, offset: share, easing: JOURNEY.travelEasing }] : []),
             { transform: `translate(${slot.left - start.left}px, ${slot.top - start.top}px)` }
-        ], { duration: total, fill: 'both' }).finished]).catch(() => {});
+        ], { duration: total, fill: 'both' });
+        listExtras(copy, true).catch(() => {});
+        // Depositato l'ultimo ticket che ha sopra (scoperto per metà), la scheda si apre in corsa: arriva al suo posto già aperta.
+        const last = others.filter(card => cards.indexOf(card) < cards.indexOf(page)).pop();
+        const deposit = last ? last.getBoundingClientRect().top + last.getBoundingClientRect().height / 2 : slot.top;
+        await new Promise(resolve => {
+            const watch = () => (travel.playState === 'finished' || copy.getBoundingClientRect().top >= deposit ? resolve() : requestAnimationFrame(watch));
+            requestAnimationFrame(watch);
+        });
         state.journey = null;
+        const remaining = Math.max(total - travel.currentTime, JOURNEY.build);
+        const now = copy.getBoundingClientRect(); // la pagina riparte esattamente da dove e da quanto è alta la scheda
         page.style.zIndex = '1';
         page.classList.remove('ao-away');
         [ghost, copy].forEach(element => element.remove());
-        await unfoldPage(view, true, page, true);
+        page.animate([{ transform: `translateY(${now.top - slot.top}px)` }, { transform: 'none' }], { duration: remaining, easing: JOURNEY.easing });
+        await unfoldPage(view, true, page, true, now.height, remaining);
         page.style.zIndex = '';
         page.classList.remove('ao-unlifted');
     }
@@ -1609,8 +1625,8 @@
         }).catch(() => {});
     }
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
-    // Ritorno: la pagina si richiude nella testata della scheda (gli altri ticket del thread spariscono con lei),
-    // poi la scheda torna al suo posto nella lista, mentre la lista ricompare.
+    // Ritorno: la scheda resta sollevata mentre la pagina si richiude nella sua testata (gli altri ticket del thread
+    // spariscono con lei), poi, già sollevata, torna al suo posto nella lista mentre la lista ricompare.
     async function closeToList(target) {
         const number = state.openedTicket;
         state.openedTicket = null;
@@ -1618,7 +1634,8 @@
         const pageCard = await pageCardOf(number);
         if (!pageCard) return setView(target);
         const view = pageCard.closest('.ao-scroll');
-        pageCard.classList.add('ao-unlifted'); // torna a terra mentre la pagina si richiude
+        // a terra (thread con più ticket, o richiusa a mano): si solleva mentre il resto della pagina sparisce
+        if (!pageCard.matches('.ao-expanded:not(.ao-unlifted)')) pageCard.classList.add('ao-raised');
         await holdingRender(() => unfoldPage(view, false, pageCard));
         const head = pageCard.getBoundingClientRect();
         const from = head.top;
@@ -1635,7 +1652,7 @@
         scroll.style.willChange = 'filter, opacity';
         await holdingRender(async () => {
             await Promise.all([
-                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top - from }, 0, 'none'), listExtras(copy, false),
+                travelAndLand(copy, { dx: listed.left - head.left, dy: listed.top - from }), listExtras(copy, false),
                 blurTo([scroll], [5, 0], [3, .55], JOURNEY.travel).then(() => blurTo([scroll], [3, .55], [0, 1], JOURNEY.land))
             ]).catch(() => {});
             scroll.getAnimations().forEach(animation => animation.cancel());
@@ -1848,7 +1865,7 @@
         // Thread dei miei ticket con messaggi nuovi (uno per thread).
         const newReplies = new Set(state.tickets.filter(ticket => ticket.newMessages && isMine(ticket, user)).map(ticket => ticket.conversationId)).size;
         const expired = state.tickets.filter(ticket => isMine(ticket, user) && isHoldExpired(ticket)).length;
-        const counts = { queue: state.queue.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length };
+        const counts = { queue: state.queue.length + state.ignored.length, tickets: state.tickets.filter(ticket => isMine(ticket, user)).length }; // come per i ticket: tutte le sezioni
         root.querySelectorAll('.ao-tab').forEach(tab => {
             // Nella vista di lavoro resta evidenziata la scheda da cui si è arrivati.
             const active = tab.dataset.view === (state.view === 'mail' ? (state.backTo || 'tickets') : state.view);
@@ -3159,7 +3176,7 @@
     // gli altri ticket si sfocano). Il ticket nasce dal messaggio del thread selezionato in Outlook (finché non c'è,
     // il modulo lo chiede): da lì Short description, Description e Reported; poi Agenzia e Attività.
     function extraTicketCard(mail, config) {
-        const origin = state.mail?.conversationId === mail.conversationId ? state.mail : null;
+        const origin = state.extraOrigin; // niente scelta predefinita: vale solo il messaggio selezionato dopo
         if (origin) {
             const draft = ticketDraft(origin, config);
             if (draft.originId !== origin.itemId) Object.assign(draft, { originId: origin.itemId, subject: buildShortDescription(origin.subject, null) });
@@ -3192,7 +3209,7 @@
         if (scroll) scroll.scrollTop = 0;
         const pill = root.querySelector('.ao-thread-bar .ao-pill');
         const from = pill && shape(pill);
-        state.extraTicketFor = mail.conversationId;
+        Object.assign(state, { extraTicketFor: mail.conversationId, extraOrigin: null });
         render();
         const card = root.querySelector('.ao-new-ticket-card');
         if (!from || !card || reducedMotion()) return;
@@ -3207,7 +3224,7 @@
             card.style.visibility = 'hidden';
             await morphShell(shape(card), shape(pill));
         });
-        state.extraTicketFor = null;
+        Object.assign(state, { extraTicketFor: null, extraOrigin: null });
         delete state.ticketDrafts[mail.conversationId];
         render();
         root.querySelector('.ao-thread-bar .ao-pill')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.hold }); // il modulo è tornato pillola
@@ -3224,7 +3241,7 @@
         holdRender();
         if (form && from) await fadeAll([...form.children], 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' });
         await refreshLists().catch(() => {});
-        state.extraTicketFor = null;
+        Object.assign(state, { extraTicketFor: null, extraOrigin: null });
         releaseRender();
         render();
         const pill = aside(root.querySelector('.ao-thread-bar .ao-pill'));
@@ -4709,7 +4726,7 @@
 #ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 /* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
-#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded, #ao-root .ao-ticket-card.ao-raised { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
 /* Appena aperta, ancora a terra: lo stesso aspetto del passaggio del mouse (bagliore e bordo), così sollevandosi il
    bagliore prosegue senza spegnersi; richiudendo torna allo stesso aspetto */
 #ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
