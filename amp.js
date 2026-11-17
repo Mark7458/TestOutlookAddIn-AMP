@@ -51,6 +51,7 @@
             textAccent: '#106ebe', // tutte le scritte blu (numeri dei ticket, link, schede attive…)
             accentBorder: '#c7e0f4',
             accentBg: '#eff6fc',
+            progress: '#5e7bd1', // passi riusciti dell'inoltro: il blu del bagliore, smorzato e appena verso il viola
             white: '#fff', // testo su sfondo blu (pulsanti, notifiche)
             surface: '#fff', // sfondo di card, campi, schede, barra di sistema
             text: '#242424',
@@ -148,6 +149,7 @@
         // Sfondo, riquadri, bordi e testi come l'add-in di jak in tema scuro.
         darkColors: {
             textAccent: '#6cb8f6',
+            progress: '#8dabfc',
             accentBorder: '#3a6a8f',
             accentBg: '#19344a',
             surface: '#2d2c2b',
@@ -362,7 +364,23 @@
             ignoredTab: 'Ignorate',
             ignoredEmpty: 'Nessun thread ignorato.',
             ignoredHint: 'Tornano da sole In coda quando arriva un messaggio nuovo nel thread; intanto puoi prenderle in carico da qui.',
-            ignoredBy: (who, when) => `Ignorata da ${who} · ${when}`,
+            // Gestione di una mail (sotto il messaggio, con l'icona dell'azione)
+            handled: {
+                Ignored: who => `Ignorata da ${who}`,
+                Acquired: who => `In carico a ${who}`,
+                Forwarded: group => `Inoltrata a ${group}`,
+                Solved: who => `Risolta da ${who}`
+            },
+            // Il thread è cambiato nel frattempo: la function si è fermata, il pannello si aggiorna.
+            changed: {
+                thread_changed: 'Nuovo messaggio nel thread: aggiornato',
+                tagged_by_other: 'C’è il tag di un collega: aggiornato',
+                thread_acquired: 'Già in carico a un collega: aggiornato',
+                thread_forwarded: 'Già inoltrata: aggiornato',
+                not_in_queue: 'Non è più in coda: aggiornato',
+                not_ignored: 'Non è più tra le ignorate: aggiornato',
+                not_tagged: 'Metti prima il tuo tag'
+            },
             ignore: 'Ignora',
             messageOf: (index, total, when) => `${index} di ${total} · ${when}`,
             previousMessage: 'Messaggio precedente',
@@ -574,7 +592,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-16 15:40';
+    const BUILD = '2026-11-17 12:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -666,7 +684,8 @@
     //   subscribe(listener)                 → funzione per smettere (facoltativo)
     //   getMailBody(messageId)              → testo della mail (Graph, casella condivisa) per l'anteprima in In coda
     //                                          (facoltativo: senza, il pannello mostra le prime righe di listQueue)
-    //   listThreadMessages(conversationId)  → [{ messageId, sender, receivedAt, preview }]: messaggi ricevuti del thread, dal più vecchio
+    //   listThreadMessages(conversationId)  → [{ messageId, sender, receivedAt, preview, handled }]: messaggi ricevuti del thread,
+    //                                          dal più vecchio; handled: { status, by, at } chi ha gestito quella mail e quando, o null
     //                                          (In coda: con più messaggi l'operatore sceglie da quale aprire il ticket)
     //   forwardMail(conversationId, gruppo, utente) → inoltro della richiesta a un gruppo (ES, PEL, PO); il thread lascia In coda
     //                                          (facoltativo: senza, Inoltra avvisa che i servizi non sono collegati)
@@ -1198,12 +1217,22 @@
             return result ?? true;
         } catch (error) {
             console.error('[AMP]', error);
-            showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
+            if (!stateChanged(error)) showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
             return null;
         } finally {
             state.busy = false;
             root?.classList.remove('ao-busy');
         }
+    }
+    // La function si è fermata perché il thread è cambiato (mail nuova, tag o presa in carico di un collega…): niente
+    // conferme, la pillola lo dice e gli elenchi si rileggono subito (con i messaggi del thread).
+    function stateChanged(error) {
+        const text = TEXTS.queue.changed[error?.reason];
+        if (!text) return false;
+        showStatus(text, 'warning');
+        state.threadMessages = {};
+        refreshLists().then(render);
+        return true;
     }
     // Un Ticket appena letto dai servizi aggiorna elenco, risultato della mail e cache.
     function rememberTicket(ticket) {
@@ -1423,17 +1452,17 @@
         const ghost = scroll.cloneNode(true);
         ghost.classList.add('ao-ghost');
         Object.assign(ghost.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
-        // la scheda che parte non c'è nella copia (stessa posizione nell'albero)
+        // la scheda che parte non c'è nella copia (stessa posizione nell'albero; il mini player sta fuori dalla lista)
         const path = [];
-        for (let node = card; node !== scroll; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
+        if (scroll.contains(card)) for (let node = card; node !== scroll; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
         root.append(ghost);
         ghost.scrollTop = scroll.scrollTop;
         placeAt(ghost, box.top, box.left);
-        const twin = path.reduce((node, index) => node?.children[index], ghost);
+        const twin = path.length ? path.reduce((node, index) => node?.children[index], ghost) : null;
         if (twin) twin.style.visibility = 'hidden';
         return ghost;
     }
-    // card: la scheda nella lista; ticket: quello da aprire (con più ticket sul thread, il principale).
+    // card: la scheda nella lista (o il mini player); ticket: quello da aprire (con più ticket sul thread, il principale).
     // La pagina si prepara nascosta mentre la scheda si stacca; la scheda va al suo posto nella pagina e, posata,
     // la pagina si apre attorno a lei. Con più ticket sul thread è lo stesso movimento: gli altri compaiono con la pagina.
     async function openFromCard(card, ticket) {
@@ -1442,6 +1471,8 @@
         const body = root.querySelector('.ao-body');
         const start = card.getBoundingClientRect();
         const copy = travelCopy(card, card);
+        const outside = !body.contains(card); // mini player: parte la copia, lui sparisce subito
+        if (outside) card.style.visibility = 'hidden';
         // prima parte il movimento (scheda grafica), poi, già in moto, si prepara la pagina (lavoro del processore)
         const lifting = lift(copy).catch(() => {});
         await nextFrame();
@@ -1471,53 +1502,53 @@
             state.journey = null;
             cards.forEach(item => item.classList.remove('ao-away')); // posata: compare (a terra; il ticket aperto si solleva dopo)
             body.style.opacity = '';
-            [ghost, copy].forEach(element => element.remove());
+            ghost.remove();
+            // dal mini player la forma cambia (barra → scheda): la copia svanisce sopra la scheda invece di sparire di colpo
+            if (outside) copy.animate([{ opacity: 1 }, { opacity: 0 }], { duration: JOURNEY.build, easing: JOURNEY.easing, fill: 'forwards' }).finished.then(() => copy.remove(), () => copy.remove());
+            else copy.remove();
             if (!page) return;
             await unfoldPage(page.closest('.ao-scroll'), true, page);
             page.classList.remove('ao-unlifted'); // aperta (ticket singolo): ora si solleva, come in In coda
         } finally {
+            if (outside) card.style.visibility = '';
             releaseRender();
         }
     }
-    // Thread con più ticket: la scheda sale in cima come per il ticket singolo mentre la pagina si apre, poi scende
-    // al suo posto e, scendendo, deposita sopra di sé gli altri ticket del thread.
+    // Thread con più ticket: la scheda sale in cima come per il ticket singolo mentre la pagina si apre; lassù i ticket
+    // del thread compaiono sovrapposti e il principale si apre insieme a loro, poi tutti scivolano al loro posto.
     async function openGroup(copy, ghost, body, page, cards, start, floated) {
         const view = page.closest('.ao-scroll');
         const parts = [...view.children].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)'));
         const head = parts.slice(0, parts.indexOf(cards[0]));
-        const after = parts.slice(parts.indexOf(page) + 1);
-        const others = cards.filter(card => card !== page);
-        const top = cards[0].getBoundingClientRect(), place = page.getBoundingClientRect();
-        const up = { dx: top.left - start.left, dy: top.top - start.top }, down = { dx: place.left - start.left, dy: place.top - start.top };
-        const hidden = after.map(element => element.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1, fill: 'forwards' }));
+        const top = cards[0].getBoundingClientRect();
+        const up = { dx: top.left - start.left, dy: top.top - start.top };
         body.style.opacity = '';
         head.forEach((element, index) => element.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
             { duration: JOURNEY.build, delay: index * JOURNEY.stagger, easing: JOURNEY.easing, fill: 'backwards' }));
         copy.getAnimations().forEach(animation => animation.cancel());
         shadowOf(copy)?.getAnimations().forEach(animation => animation.cancel());
-        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 1, fill: 'forwards' });
+        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: JOURNEY.travel, fill: 'forwards' });
         await Promise.all([listExtras(copy, true), copy.animate([
             { transform: floated, easing: JOURNEY.travelEasing },
-            { transform: `translate(${up.dx}px, ${up.dy}px) ${JOURNEY.lifted}` }
+            { transform: `translate(${up.dx}px, ${up.dy}px)` }
         ], { duration: JOURNEY.travel, fill: 'both' }).finished]).catch(() => {});
+        // In cima, sovrapposti (il principale sopra): compaiono gli altri e il principale si apre, tutti insieme.
         state.journey = null;
-        others.forEach((card, index) => {
+        const offsets = cards.map(card => top.top - card.getBoundingClientRect().top);
+        page.style.zIndex = '1';
+        const stacked = cards.map((card, index) => card.animate([{ transform: `translateY(${offsets[index]}px)` }, { transform: `translateY(${offsets[index]}px)` }],
+            { duration: JOURNEY.build, fill: 'forwards' }));
+        cards.forEach(card => {
             card.classList.remove('ao-away');
-            card.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
-                { duration: JOURNEY.build, delay: JOURNEY.travel * index / others.length, easing: JOURNEY.easing, fill: 'backwards' });
+            if (card !== page) card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: JOURNEY.build, easing: JOURNEY.easing, fill: 'backwards' });
         });
-        const total = JOURNEY.travel + JOURNEY.land, share = JOURNEY.travel / total;
-        shadowOf(copy)?.animate([{ opacity: 1 }, { opacity: 1, offset: share }, { opacity: 0 }], { duration: total, fill: 'forwards' });
-        await copy.animate([
-            { transform: `translate(${up.dx}px, ${up.dy}px) ${JOURNEY.lifted}`, easing: JOURNEY.travelEasing },
-            { transform: `translate(${down.dx}px, ${down.dy}px) ${JOURNEY.lifted}`, offset: share, easing: JOURNEY.easing },
-            { transform: `translate(${down.dx}px, ${down.dy}px)` }
-        ], { duration: total, fill: 'both' }).finished.catch(() => {});
-        page.classList.remove('ao-away');
         [ghost, copy].forEach(element => element.remove());
-        const unfolding = unfoldPage(view, true, page, true);
-        hidden.forEach(animation => animation.cancel());
-        await unfolding;
+        await unfoldPage(view, true, page, true);
+        // Poi tutti scivolano al loro posto.
+        stacked.forEach(animation => animation.cancel());
+        await Promise.all(cards.map((card, index) => card.animate([{ transform: `translateY(${offsets[index]}px)` }, { transform: 'none' }],
+            { duration: JOURNEY.travel, easing: JOURNEY.easing }).finished)).catch(() => {});
+        page.style.zIndex = '';
         page.classList.remove('ao-unlifted');
     }
     // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
@@ -1556,7 +1587,7 @@
         const me = currentUser(config).displayValue;
         const operatorTag = main && thread?.status === 'Acquired' ? ownerTag(main, currentUser(config), false)
             : person ? labelChip({ name: person, color: me && surname(me) === person ? config.profile.label : 'grafite' }) : null;
-        const action = main && thread?.status === 'Acquired' ? { label: TEXTS.mail.goToTicket, go: () => openTicketItem(main) } : thread ? threadAction(mail, thread) : null;
+        const action = main && thread?.status === 'Acquired' ? { label: TEXTS.mail.goToTicket, go: () => openFromCard(bar, main) } : thread ? threadAction(mail, thread) : null;
         // un clic apre la sezione dove si gestisce (o il ticket)
         bar.onclick = action ? action.go : null;
         bar.classList.toggle('ao-clickable', Boolean(action));
@@ -1668,12 +1699,14 @@
         scrollToTop();
         if (slide && from !== view) slideInView(VIEW_ORDER.indexOf(view) >= VIEW_ORDER.indexOf(from) ? 1 : -1);
     }
-    // Cambio di pagina dalle schede o dall'ingranaggio: ricerca e filtri si chiudono e ogni pagina riparte dalla sua
-    // voce predefinita (In coda → Attive, Ticket → Da mail, Impostazioni → Profilo). Il ritorno con ← invece ritrova l'elenco com'era.
+    // Cambio di pagina dalle schede o dall'ingranaggio: ricerca e filtri si chiudono, le azioni lasciate a metà si annullano
+    // (la scheda di In coda aperta si richiude) e ogni pagina riparte dalla sua voce predefinita (In coda → Attive,
+    // Ticket → Da mail, Impostazioni → Profilo). Il ritorno con ← invece ritrova l'elenco com'era.
     function openPage(view, backTo = null) {
         if (view !== state.view) {
             clearTimeout(searchTimer);
             Object.assign(state, {
+                queueExpanded: null, queueChoice: {}, previewScroll: null,
                 queueTab: 'active', ticketSource: 'mail', settingsTab: 'profile', ticketFilterOpen: false,
                 ticketSearchOpen: false, ticketQuery: '', ticketSearchShown: '', ticketSearchPending: false
             });
@@ -2183,16 +2216,16 @@
                 ]
                 : (active.length ? h('ul', { class: 'ao-list' }, active.map(item => queueItem(item, config))) : (servicesBlocked() ? null : h('p', { class: 'ao-empty' }, TEXTS.queue.empty))));
     }
-    // Thread ignorato: si può prendere in carico o inoltrare direttamente, senza etichetta (stesso modulo compatto della coda).
     // Scheda di In coda (Attive e Ignorate). Chiusa: oggetto, mittente, ora, etichette; il clic la apre.
     // Aperta: testo della mail (in coda non si vede altrove), agenzia e attività, Prendi in carico e Ignora.
     // Dopo la presa in carico si resta in In coda; l'avviso offre "Vai al ticket".
+    // Thread ignorato: come in coda si gestisce con il proprio tag (presa in carico, inoltro). Chi l'ha ignorata e quando
+    // si leggono aprendo la scheda, nella riga di gestione del messaggio.
     function ignoredItem(item, config) {
-        // Chi l'ha ignorata si legge solo aprendo la scheda, sopra il testo della mail.
-        return queueCard(item, config, null, { allowIgnore: false, needsLabel: false,
-            info: TEXTS.queue.ignoredBy(item.discardedBy || TEXTS.common.none, formatWhen(item.discardedAt)) });
+        return queueCard(item, config, labelSlot(item, config), { allowIgnore: false,
+            handled: { status: 'Ignored', by: item.discardedBy || TEXTS.common.none, at: item.discardedAt } });
     }
-    function queueCard(item, config, chipNode, { allowIgnore = true, needsLabel = true, info = null } = {}) {
+    function queueCard(item, config, chipNode, { allowIgnore = true, handled = null } = {}) {
         const expanded = state.queueExpanded === item.conversationId;
         // Un secondo clic mentre la scheda si sta ancora aprendo (es. doppio clic) non la richiude.
         const toggle = () => {
@@ -2219,27 +2252,29 @@
                 h('div', { class: 'ao-queue-row' },
                     h('span', { class: 'ao-item-sub' }, item.sender?.name || item.sender?.email || ''),
                     chipNode)),
-            expanded ? queueDetails(item, config, { allowIgnore, needsLabel, info }) : null);
+            expanded ? queueDetails(item, config, { allowIgnore, handled }) : null);
     }
     // Scheda aperta: testo della mail, poi il selettore dell'azione (nessuna scelta all'inizio: si decide dopo aver letto).
     // Sotto compare il contenuto dell'azione scelta, con il suo pulsante; in fondo la freccia richiude la scheda.
     //  - Prendi in carico: agenzia e attività;  - Inoltra: gruppo (ES, PEL, PO);  - Ignora: "Confermi?".
-    function queueDetails(item, config, { allowIgnore, needsLabel, info }) {
+    // handled: gestione della scheda (ignorata), quando il messaggio guardato non ne ha una sua.
+    function queueDetails(item, config, { allowIgnore, handled }) {
         const mail = mailFromQueueItem(item);
         const messages = threadMessagesOf(item);
         const shown = messages.length > 1 ? chosenMessage(item) : null; // con più messaggi: quello che si sta guardando
         const body = state.mailBodies[shown?.messageId || item.messageId];
         const choice = state.queueChoice[item.conversationId] || {};
         // In coda si gestisce solo con la propria etichetta: senza, o con quella di un collega, la mail si legge soltanto.
-        const locked = needsLabel && !isMyLabel(item.label);
+        const locked = !isMyLabel(item.label);
+        const handling = (shown || messages[messages.length - 1])?.handled || handled;
         const actions = [
             { value: 'take', label: TEXTS.mail.openTicket, tone: 'accent', disabled: locked },
             { value: 'forward', label: TEXTS.queue.forward, tone: 'forward', disabled: locked },
             allowIgnore ? { value: 'ignore', label: TEXTS.mail.discard, tone: 'danger', disabled: locked } : null
         ].filter(Boolean);
         return h('div', { class: 'ao-inline-form' },
-            info ? h('p', { class: 'ao-hint ao-queue-info' }, info) : null,
             shown ? messagePicker(item, messages, shown) : null,
+            handling ? handlingLine(handling) : null,
             // Testo limitato a PREVIEW_MAX_CHARS; la barra di scorrimento compare solo a scheda aperta del tutto.
             h('div', { class: `ao-mail-preview${state.previewScroll === item.conversationId ? ' ao-scrollable' : ''}` },
                 h('span', { class: 'ao-mail-text' }, clipText(body ?? shown?.preview ?? item.preview ?? '', PREVIEW_MAX_CHARS),
@@ -2270,6 +2305,14 @@
             h('span', { class: 'ao-message-where' }, TEXTS.queue.messageOf(at + 1, messages.length, formatWhen(shown.receivedAt))),
             step(1, TEXTS.queue.nextMessage));
     }
+    // Chi ha gestito la mail e quando, con l'icona dell'azione: a colpo d'occhio l'ultima cosa fatta.
+    const HANDLED_ICONS = { Ignored: 'ignore', Acquired: 'take', Forwarded: 'forward', Solved: 'resolve' };
+    function handlingLine(handled) {
+        const text = TEXTS.queue.handled[handled.status];
+        if (!text) return null;
+        return h('p', { class: 'ao-handled' }, svgIcon(ACTION_ICONS[HANDLED_ICONS[handled.status]]),
+            h('span', {}, [text(handled.by || TEXTS.common.none), handled.at ? formatWhen(handled.at) : ''].filter(Boolean).join(' · ')));
+    }
     // Un altro messaggio del thread: il riquadro grigio resta al suo posto; svanisce solo il testo, il riquadro si adatta
     // all'altezza del nuovo e questo compare.
     async function showQueueMessage(item, index) {
@@ -2281,7 +2324,7 @@
         const form = queueDetailsOf(id);
         const before = form?.offsetHeight || 0;
         const boxBefore = form?.querySelector('.ao-mail-preview')?.offsetHeight || 0;
-        const changing = () => [...(queueDetailsOf(id)?.querySelectorAll('.ao-message-where, .ao-mail-text') || [])];
+        const changing = () => [...(queueDetailsOf(id)?.querySelectorAll('.ao-message-where, .ao-handled, .ao-mail-text') || [])];
         const body = state.mailBodies[message.messageId] === undefined
             ? Services.getMailBody(message.messageId).then(text => text || message.preview || '').catch(() => message.preview || '') : null;
         await holdingRender(async () => {
@@ -2466,7 +2509,7 @@
             console.error('[AMP]', error);
             item.label = before;
             render();
-            showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
+            if (!stateChanged(error)) showStatus(error instanceof ServicesMissingError ? TEXTS.common.servicesMissing : (error?.message || String(error)), 'danger');
         }
     }
 
@@ -3547,6 +3590,7 @@
                 job.steps[index] = 'ok';
             } catch (error) {
                 console.error('[AMP]', error);
+                job.error = error;
                 job.steps[index] = 'ko';
                 paint();
                 return false;
@@ -3576,7 +3620,7 @@
         const ok = await runForward(job, 0, () => place?.replaceChildren(forwardStrip(job.steps)));
         if (!job.ticket) { // nemmeno il ticket: non è cambiato niente, la scheda torna com'era
             releaseRender();
-            showStatus(TEXTS.queue.forwardFailed, 'danger');
+            if (!stateChanged(job.error)) showStatus(TEXTS.queue.forwardFailed, 'danger');
             render();
             return;
         }
@@ -4712,7 +4756,8 @@
 #ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ao-root .ao-queue-row > :last-child { flex: none; }
 #ao-root .ao-queue-item.ao-expanded .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
-#ao-root .ao-queue-info { margin: 0; }
+#ao-root .ao-handled { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); } /* gestione della mail: icona dell'azione, chi e quando */
+#ao-root .ao-handled .ao-svg-icon svg { width: 13px; height: 13px; }
 /* Prendi in carico: su una riga e largo, occupa lo spazio libero accanto a Ignora e Chiudi */
 #ao-root .ao-queue-item .ao-actions { flex-wrap: nowrap; }
 #ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
@@ -4761,17 +4806,19 @@
 #ao-root .ao-resolving { pointer-events: none; }
 #ao-root .ao-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
-/* Passi dell'inoltro: pallini uniti da un tratto, verde se il passo prima è riuscito, rosso fino al passo non riuscito */
+/* Passi dell'inoltro: pallini uniti da un tratto, colorato (progress) fino ai passi riusciti, rosso fino al passo non
+   riuscito; bagliore solo sui pallini riusciti e su quello in corso */
 #ao-root .ao-steps { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; padding: 4px 0 2px; }
 #ao-root .ao-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
 #ao-root .ao-step + .ao-step::before { content: ""; position: absolute; top: 8px; left: calc(-50% + 12px); width: calc(100% - 24px); height: 2px; border-radius: 1px; background: var(--ao-line-strong); }
-#ao-root .ao-step-ok::before { background: var(--ao-success); }
-#ao-root .ao-step-ko::before { background: var(--ao-danger); }
+#ao-root .ao-step + .ao-step-ok::before { background: var(--ao-progress); }
+#ao-root .ao-step + .ao-step-ko::before { background: var(--ao-danger); }
 #ao-root .ao-step-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; background: none; color: inherit; }
 #ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
 #ao-root .ao-step-dot .ao-spinner { width: 10px; height: 10px; }
 #ao-root .ao-step-run { color: var(--ao-text); }
-#ao-root .ao-step-ok .ao-step-dot { border-color: var(--ao-success); background: var(--ao-success-bg); color: var(--ao-success); }
+#ao-root .ao-step-ok .ao-step-dot, #ao-root .ao-step-run .ao-step-dot { border-color: var(--ao-progress); color: var(--ao-progress); box-shadow: 0 0 10px color-mix(in srgb, var(--ao-progress) 70%, transparent); }
+#ao-root .ao-step-ok .ao-step-dot { background: color-mix(in srgb, var(--ao-progress) 18%, transparent); }
 #ao-root .ao-step-ko { color: var(--ao-danger); }
 #ao-root .ao-step-ko .ao-step-dot { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
 #ao-root button.ao-step-dot { cursor: pointer; transition: transform .15s; }
