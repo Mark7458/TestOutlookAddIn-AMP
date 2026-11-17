@@ -567,7 +567,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:30';
+    const BUILD = '2026-11-17 19:40';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1347,7 +1347,7 @@
     // nella pagina mentre il resto sparisce, si posa; poi la pagina si costruisce intorno (sopra scende, sotto sale).
     // Ritorno: l'esatto inverso. Durante il viaggio si muove una copia della scheda, sopra a tutto.
     const JOURNEY = {
-        lift: 130, travel: 280, land: 140, build: 200, unfold: 460, stagger: 30, // unfold: la scheda che si apre in corsa
+        lift: 130, travel: 280, land: 140, build: 200, stagger: 30,
         easing: 'cubic-bezier(.3, .8, .2, 1)', travelEasing: 'cubic-bezier(.45, 0, .2, 1)',
         lifted: 'translateY(-2px) scale(1.015)', // l'ombra della scheda sollevata è in .ao-journey-shadow
         floated: 'translateY(-3px) scale(1.02)', float: 400 // se la pagina tarda: la scheda continua piano a salire, mai ferma
@@ -1400,14 +1400,13 @@
     // Dopo che la scheda si è posata la pagina si apre: sopra scendono "←" e l'intestazione della mail (e i ticket
     // del thread che stanno sopra), la scheda si allunga da sotto la testata mostrando il resto, poi compare quel che
     // segue (chiusi…). inward = false: l'esatto inverso (tutto si richiude nella testata della scheda).
-    // In corsa (closedHeight: altezza della scheda in viaggio) la scheda si allunga con una curva morbida, senza attese.
-    function unfoldPage(view, inward, page, { skipAbove = false, closedHeight = null, duration = JOURNEY.build } = {}) {
+    function unfoldPage(view, inward, page) {
         const parts = [...(view?.children || [])].filter(child => !child.matches('.ao-fixed:not(.ao-pinned)')); // la testata del thread si apre con la pagina
         const first = page ? parts.indexOf(page) : parts.findIndex(child => child.classList.contains('ao-ticket-card'));
         const cards = first < 0 ? [] : [parts[first]];
-        const above = skipAbove ? [] : parts.slice(0, first < 0 ? parts.length : first);
+        const above = parts.slice(0, first < 0 ? parts.length : first);
         const after = parts.slice(first + 1);
-        const timing = (delay = 0) => ({ duration, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
+        const timing = (delay = 0) => ({ duration: JOURNEY.build, delay, easing: JOURNEY.easing, fill: inward ? 'backwards' : 'forwards' });
         const play = (element, from, to, delay) => element.animate(inward ? [from, to] : [to, from], timing(delay)).finished;
         const moves = [];
         above.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }, (inward ? index : above.length - 1 - index) * JOURNEY.stagger)));
@@ -1415,12 +1414,8 @@
             const more = card.querySelector('.ao-ticket-more');
             if (!more) return;
             const cardRect = card.getBoundingClientRect(), faceRect = card.querySelector('.ao-ticket-face').getBoundingClientRect();
-            const hidden = closedHeight ? cardRect.height - closedHeight : cardRect.bottom - faceRect.bottom - 8;
-            const closed = `inset(0px 0px ${hidden}px 0px round var(--ao-radius-base))`;
-            const open = { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' };
-            moves.push(closedHeight
-                ? card.animate([{ clipPath: closed }, open], { duration, easing: JOURNEY.travelEasing }).finished
-                : play(card, { clipPath: closed }, open, JOURNEY.stagger));
+            const closed = `inset(0px 0px ${cardRect.bottom - faceRect.bottom - 8}px 0px round var(--ao-radius-base))`;
+            moves.push(play(card, { clipPath: closed }, { clipPath: 'inset(0px 0px 0px 0px round var(--ao-radius-base))' }, JOURNEY.stagger));
             const inner = [...more.children];
             inner.forEach((element, index) => moves.push(play(element, { opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' },
                 inward ? JOURNEY.stagger * 2 + index * JOURNEY.stagger : (inner.length - 1 - index) * JOURNEY.stagger)));
@@ -1502,10 +1497,10 @@
                 const travel = journeyTo(copy, floated, { dx: place.left - start.left, dy: place.top - start.top, lifted: page.classList.contains('ao-expanded') }, total);
                 cards.filter(item => item !== page).forEach(item => item.classList.remove('ao-away'));
                 revealHead(body, page);
-                await openInMotion(copy, page, travel, total, () => travel.currentTime >= total * .4, () => {
+                await landAndOpen(copy, page, travel, () => {
                     state.journey = null;
                     ghost.remove();
-                }, true);
+                });
                 return;
             }
             await Promise.all([listExtras(copy, true),
@@ -1545,24 +1540,21 @@
             { transform: `translate(${to.dx}px, ${to.dy}px)${to.lifted ? ` ${JOURNEY.lifted}` : ''}` } // lifted: arriva ancora sollevata
         ], { duration, fill: 'both' });
     }
-    // Quando reached() è vero la copia lascia il posto alla pagina, che riparte dallo stesso punto e con la stessa
-    // altezza e si apre mentre finisce la corsa. Il ticket singolo è già sollevato quando comincia ad aprirsi (prima si
-    // solleva, poi si apre). swap: cosa fare nello scambio.
-    async function openInMotion(copy, page, travel, total, reached, swap, skipAbove) {
-        await new Promise(resolve => {
-            const watch = () => (travel.playState === 'finished' || reached() ? resolve() : requestAnimationFrame(watch));
-            requestAnimationFrame(watch);
-        });
-        const remaining = Math.max(total - travel.currentTime, JOURNEY.build);
-        const now = copy.getBoundingClientRect(), slot = page.getBoundingClientRect();
-        const lifted = page.classList.contains('ao-expanded') ? JOURNEY.lifted : '';
+    // Arrivata la copia, al suo posto c'è la scheda della pagina, chiusa e sollevata; poi si apre come una scheda di
+    // In coda (prima lo spazio, poi il contenuto). swap: cosa fare nello scambio.
+    async function landAndOpen(copy, page, travel, swap) {
+        await travel.finished.catch(() => {});
         swap();
-        page.style.zIndex = '1';
+        const more = page.querySelector('.ao-ticket-more');
+        // già sollevata come la copia (senza transizione) e alta quanto lei: lo scambio non si vede
+        page.style.transition = 'none';
         page.classList.remove('ao-away', 'ao-unlifted');
+        const closed = page.getBoundingClientRect().height - (more?.getBoundingClientRect().height || 0);
+        const from = Math.max(0, copy.getBoundingClientRect().height - closed);
+        page.getBoundingClientRect();
+        page.style.transition = '';
         copy.remove();
-        page.animate([{ transform: `translate(${now.left - slot.left}px, ${now.top - slot.top}px) ${lifted}` }, { transform: lifted || 'none' }], { duration: remaining, easing: JOURNEY.easing });
-        await unfoldPage(page.closest('.ao-scroll'), true, page, { skipAbove, closedHeight: now.height, duration: Math.max(remaining, JOURNEY.unfold) });
-        page.style.zIndex = '';
+        await unfold(more, from);
     }
     // Thread con più ticket: la scheda sale in cima e scorre fino al suo posto svelando gli altri ticket, poi si apre;
     // stessa durata del ticket singolo.
@@ -1585,13 +1577,10 @@
         });
         const travel = journeyTo(copy, floated, { dx: slot.left - start.left, dy: slot.top - start.top }, total,
             rise ? { dx: up.dx, dy: up.dy, offset: share } : null);
-        // Depositato l'ultimo ticket che ha sopra (scoperto per metà), la scheda si apre in corsa: arriva al suo posto già aperta.
-        const last = others.filter(card => cards.indexOf(card) < cards.indexOf(page)).pop();
-        const deposit = last ? last.getBoundingClientRect().top + last.getBoundingClientRect().height / 2 : slot.top;
-        await openInMotion(copy, page, travel, total, () => copy.getBoundingClientRect().top >= deposit, () => {
+        await landAndOpen(copy, page, travel, () => {
             state.journey = null;
             ghost.remove();
-        }, true);
+        });
     }
     // Barra della mail selezionata (mini player), altezza fissa, due righe con un posto fisso per ogni cosa:
     // sopra l'oggetto e il tag dello stato; sotto mittente e ora (in carico: il ticket e da quando, On Hold fino a quando)
@@ -3451,12 +3440,13 @@
         const animation = element.animate(frames, { duration, easing, fill: 'forwards' });
         return animation.finished.catch(() => {}).then(() => ({ animation, overflow }));
     }
-    async function unfold(element) {
+    // from: altezza da cui parte (0: chiusa del tutto).
+    async function unfold(element, from = 0) {
         if (!element) return;
         const height = `${element.scrollHeight}px`;
         const pad = getComputedStyle(element).paddingTop;
         const result = await playOn(element, [
-            { maxHeight: '0px', paddingTop: '0px', opacity: 0 },
+            { maxHeight: `${from}px`, paddingTop: '0px', opacity: 0 },
             { maxHeight: height, paddingTop: pad, opacity: 0, offset: .55 }, // prima lo spazio…
             { maxHeight: height, paddingTop: pad, opacity: 1 } // …poi il contenuto compare
         ], MOTION.unfold);
