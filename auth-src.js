@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-src.js-4
+// Test-Plugin file version: 0.2-auth-src.js-5
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -22,6 +22,7 @@ let msalInstance = null;
 let dialogOperationSequence = 0;
 let currentAuthentication = null;
 let persistedBridgeRejectedThisRun = false;
+let refreshOnNextSilent = false; // token rifiutato dalla Function: il prossimo silent non usa la cache di MSAL
 const AUTH_DIAGNOSTIC_KEY = "outlook-sogei-taskpane-auth-diagnostics";
 const MAX_AUTH_DIAGNOSTIC_EVENTS = 150;
 const STORAGE_PROBE_TASKPANE_KEY = "outlook-sogei-storage-probe-taskpane";
@@ -323,7 +324,9 @@ async function acquireTokenSilently() {
 
 
   try {
-    recordAuthDiagnostic("silent_start");
+    const forceRefresh = refreshOnNextSilent;
+    refreshOnNextSilent = false;
+    recordAuthDiagnostic("silent_start", { forceRefresh });
 
     const result =
       await client.acquireTokenSilent({
@@ -331,7 +334,8 @@ async function acquireTokenSilently() {
           accounts[0],
         scopes: [
           AUTH_CONFIG.scope
-        ]
+        ],
+        forceRefresh
       });
 
     if (!result?.accessToken) {
@@ -863,7 +867,7 @@ async function callHealthOnDemand() {
     });
     authentication = { ...currentAuthentication, acquisitionMode: "memory" };
   } else {
-    authentication = await connectPlugin();
+    authentication = await connectPluginOnce();
   }
   const healthStartedAt = Date.now();
   recordAuthDiagnostic("health_fetch_start", { authenticationMode: authentication.acquisitionMode });
@@ -871,6 +875,7 @@ async function callHealthOnDemand() {
   const body = await response.text();
   recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode, elapsedMs: Date.now() - healthStartedAt });
   if (response.status === 401 || response.status === 403) {
+    invalidateToken("healthResponse");
     throw createDialogError(`La Function ha rifiutato l'autenticazione (${response.status}).`, { errorCode: "interaction_required", authenticationPhase: "healthResponse" });
   }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
@@ -878,13 +883,14 @@ async function callHealthOnDemand() {
 
 async function callHealth() {
   recordAuthDiagnostic("call_health_start");
-  const authentication = await getAccessTokenSilently();
+  const authentication = await getAccessTokenOnce();
   const healthStartedAt = Date.now();
   recordAuthDiagnostic("health_fetch_start", { authenticationMode: authentication.acquisitionMode });
   const response = await fetch(AUTH_CONFIG.healthUrl, { method: "GET", headers: { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" } });
   const body = await response.text();
   recordAuthDiagnostic("function_response", { status: response.status, ok: response.ok, authenticationMode: authentication.acquisitionMode, elapsedMs: Date.now() - healthStartedAt });
   if (response.status === 401 || response.status === 403) {
+    invalidateToken("healthResponse");
     throw createDialogError(
       `La Function ha rifiutato l'autenticazione (${response.status}).`,
       {
@@ -903,4 +909,14 @@ const oneAtATime = (task) => (...args) => {
   if (!pendingAuthentication) pendingAuthentication = task(...args).finally(() => { pendingAuthentication = null; });
   return pendingAuthentication;
 };
-window.WorkflowHealth = { connectPlugin: oneAtATime(connectPlugin), recoverConnection: oneAtATime(recoverConnection), probeCurrentAuthentication: oneAtATime(probeCurrentAuthentication), getAccessTokenSilently: oneAtATime(getAccessTokenSilently), callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics, recordDiagnostic: (event, details = null) => recordAuthDiagnostic(event, details, "TASKPANE"), resetAuthenticationCompletely };
+const connectPluginOnce = oneAtATime(connectPlugin);
+const getAccessTokenOnce = oneAtATime(getAccessTokenSilently);
+// Token rifiutato dalla Function (401/403): si scarta quello in memoria e quello salvato, e il prossimo token si chiede
+// di nuovo a Entra invece di riprendere lo stesso dalla cache di MSAL fino alla scadenza.
+function invalidateToken(reason = "rejected") {
+  currentAuthentication = null;
+  refreshOnNextSilent = true;
+  clearPersistedAuthentication(reason);
+  recordAuthDiagnostic("token_invalidated", { reason });
+}
+window.WorkflowHealth = { connectPlugin: connectPluginOnce, recoverConnection: oneAtATime(recoverConnection), probeCurrentAuthentication: oneAtATime(probeCurrentAuthentication), getAccessTokenSilently: getAccessTokenOnce, invalidateToken, callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics, recordDiagnostic: (event, details = null) => recordAuthDiagnostic(event, details, "TASKPANE"), resetAuthenticationCompletely };
