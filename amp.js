@@ -570,7 +570,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 18:10';
+    const BUILD = '2026-11-18 20:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -691,11 +691,57 @@
 
     class ServicesMissingError extends Error {}
 
+    // Registro delle azioni del pannello (per la diagnostica): ogni chiamata ai servizi con inizio, fine, durata ed
+    // esito, gli aggiornamenti degli elenchi e le chiamate alla Function (da amp-backend). Una chiamata senza fine è
+    // quella rimasta appesa. Ultime ACTION_LOG_MAX righe nel browser dell'operatore; window.AmpActionLog per leggerle.
+    const ACTION_LOG_KEY = 'amp_panel_action_log_v1';
+    const ACTION_LOG_MAX = 400;
+    const ActionLog = (() => {
+        let entries = [];
+        try { entries = JSON.parse(localStorage.getItem(ACTION_LOG_KEY) || '[]'); } catch { entries = []; }
+        let sequence = entries.length ? entries[entries.length - 1].id || 0 : 0;
+        const save = () => { try { localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(entries.slice(-ACTION_LOG_MAX))); } catch { /* spazio pieno */ } };
+        const summary = value => {
+            if (value === undefined || value === null) return null;
+            try { const text = typeof value === 'string' ? value : JSON.stringify(value); return text.length > 300 ? `${text.slice(0, 300)}…` : text; }
+            catch { return String(value); }
+        };
+        function record(kind, name, details = null) {
+            const entry = { id: ++sequence, at: new Date().toISOString(), kind, name, details: summary(details) };
+            entries.push(entry);
+            if (entries.length > ACTION_LOG_MAX) entries = entries.slice(-ACTION_LOG_MAX);
+            save();
+            return entry.id;
+        }
+        // Operazione con inizio e fine: la riga di fine riporta l'id dell'inizio, la durata e l'esito.
+        async function track(kind, name, details, task) {
+            const started = Date.now();
+            const id = record(kind, `${name}:start`, details);
+            try {
+                const result = await task();
+                record(kind, `${name}:ok`, { start: id, ms: Date.now() - started });
+                return result;
+            } catch (error) {
+                record(kind, `${name}:error`, { start: id, ms: Date.now() - started, message: error?.message || String(error), reason: error?.reason || null });
+                throw error;
+            }
+        }
+        // Argomenti dei servizi: solo gli identificativi (niente testi delle mail nel registro).
+        const ids = args => args.map(arg => (arg && typeof arg === 'object'
+            ? Object.fromEntries(['conversationId', 'number', 'itemId', 'action', 'status'].filter(key => arg[key] !== undefined).map(key => [key, arg[key]]))
+            : typeof arg === 'string' ? arg.slice(0, 80) : arg));
+        const read = () => entries.slice();
+        const clear = () => { entries = []; save(); };
+        const text = () => entries.map(entry => `${entry.at} #${entry.id} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n');
+        return { record, track, ids, read, clear, text };
+    })();
+    window.AmpActionLog = ActionLog;
+
     // Oggi: window.AmpBackend (simulato, solo nell'anteprima). Domani: le chiamate alla Function App.
     const Services = Object.fromEntries(SERVICE_METHODS.map(name => [name, async (...args) => {
         const backend = window.AmpBackend;
         if (typeof backend?.[name] !== 'function') throw new ServicesMissingError(name);
-        return backend[name](...args);
+        return ActionLog.track('service', name, ActionLog.ids(args), () => backend[name](...args));
     }]));
     // Pagina del thread precaricata passando sopra una scheda: il risultato resta valido qualche secondo e la pagina,
     // al clic, compare subito (poi si aggiorna comunque in silenzio).
@@ -725,7 +771,7 @@
     ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
-            return window.AmpBackend[name](...args);
+            return ActionLog.track('service', name, ActionLog.ids(args), () => window.AmpBackend[name](...args));
         };
     });
 
@@ -1244,7 +1290,8 @@
     const ticketByNumber = number => state.tickets.find(item => item.number === number) || state.ticketCache[number] || null;
 
     // Elenchi di Coda e Ticket, sempre dai servizi.
-    async function refreshLists() {
+    async function refreshLists(reason = 'action') {
+        ActionLog.record('refresh', 'lists', reason);
         if (!Services.available()) {
             state.loaded = true;
             render();
@@ -1296,6 +1343,7 @@
     // selezione solo se è la mail del ticket appena aperto (il pannello stesso la apre in Outlook).
     function handleMailChanged() {
         state.mail = Outlook.currentMail();
+        ActionLog.record('outlook', 'mailChanged', state.mail?.conversationId || null);
         if (state.extraTicketFor && state.mail?.conversationId === state.extraTicketFor) state.extraOrigin = state.mail;
         const id = state.mail?.conversationId;
         const target = state.target;
@@ -4984,10 +5032,11 @@ body:has(> main #amp-view:not([hidden])) { overflow: hidden; }
         if (window.ResizeObserver) new ResizeObserver(() => fitHeight()).observe(scrollContainer());
         document.getElementById('open-amp-button')?.addEventListener('click', show);
         Outlook.onMailChanged(() => handleMailChanged());
-        Services.subscribe(() => { refreshLists(); });
+        Services.subscribe(() => { refreshLists('poll'); });
         state.mail = Outlook.currentMail();
         render();
-        await refreshLists();
+        ActionLog.record('panel', 'start', BUILD);
+        await refreshLists('start');
         refreshMailBar();
     }
     // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in

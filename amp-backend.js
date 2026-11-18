@@ -38,7 +38,10 @@
 
     // Token rifiutato dalla Function (401): si scarta e si riprova una volta con un token nuovo.
     async function call(name, body, method = 'POST', retried = false) {
+        const log = window.AmpActionLog;
+        const tokenStarted = Date.now();
         const authentication = await window.WorkflowHealth?.getAccessTokenSilently?.();
+        log?.record('function', `${name}:token`, { ms: Date.now() - tokenStarted, mode: authentication?.acquisitionMode || null, ok: Boolean(authentication?.accessToken) });
         if (!authentication?.accessToken) throw new Error('Accesso non disponibile: riaprire il pannello.');
         const headers = { Authorization: `Bearer ${authentication.accessToken}`, Accept: 'application/json' };
         let url = API + name;
@@ -48,7 +51,13 @@
             headers['Content-Type'] = 'application/json';
             request.body = JSON.stringify(body || {});
         }
-        const response = await fetch(url, request);
+        const fetchStarted = Date.now();
+        log?.record('function', `${name}:fetch`, body?.action || null);
+        const response = await fetch(url, request).catch((error) => {
+            log?.record('function', `${name}:network`, { ms: Date.now() - fetchStarted, message: error?.message || String(error) });
+            throw error;
+        });
+        log?.record('function', `${name}:${response.status}`, { ms: Date.now() - fetchStarted });
         if (response.status === 401 && !retried && window.WorkflowHealth?.invalidateToken) {
             window.WorkflowHealth.invalidateToken('functionResponse');
             return call(name, body, method, true);
