@@ -1315,7 +1315,8 @@ function registerHealthButton() {
     ["ampReference", "Riferimento AMP"], ["messageId", "Message ID"], ["operator", "Operatore"],
     ["status", "Stato"], ["agency", "Agenzia"], ["shortDescription", "Descrizione breve"],
     ["description", "Descrizione"], ["notes", "Note"], ["resolutionNotes", "Note di risoluzione"],
-    ["elapsedTime", "Tempo trascorso"], ["created", "Creato"], ["modified", "Modificato"]
+    ["elapsedTime", "Tempo trascorso"], ["forwardGroup", "Gruppo di inoltro"], ["repliedAt", "Risposta inviata il"],
+    ["created", "Creato"], ["modified", "Modificato"]
   ];
   const EDIT_FIELDS = [
     { key: "operator", id: "operator", nullable: false },
@@ -1326,7 +1327,9 @@ function registerHealthButton() {
     { key: "description", id: "description", nullable: true },
     { key: "notes", id: "notes", nullable: true },
     { key: "resolutionNotes", id: "resolution-notes", nullable: true },
-    { key: "elapsedTime", id: "elapsed-time", nullable: true }
+    { key: "elapsedTime", id: "elapsed-time", nullable: true },
+    { key: "forwardGroup", id: "forward-group", nullable: true },
+    { key: "repliedAt", id: "replied-at", nullable: true, dateTime: true }
   ];
 
   function getDeveloperAction() {
@@ -1541,7 +1544,7 @@ function registerHealthButton() {
     const preferred = [
       "Subject", "From", "To", "CC", "BCC", "ReceivedDate", "MessageId",
       "Conversation_x0020_ID", "ConversationId", "ParentItemId", "HasAttachment",
-      "Importance", "Status", "Created", "Modified"
+      "Importance", "Status", "AssignedTo", "StatusBy", "StatusAt", "SeenAt", "Created", "Modified"
     ];
     const rendered = new Set();
     preferred.forEach((key) => {
@@ -1761,8 +1764,8 @@ function registerHealthButton() {
 
   function collectCreateTicketBody() {
     validateTicketingConfig(developerConfig);
-    const parentItemId = requiredFormValue("developer-create-parent-item-id", "Parent Item ID");
-    assertPositiveInteger(parentItemId, "Parent Item ID");
+    const parentItemId = String(byId("developer-create-parent-item-id")?.value || "").trim();
+    if (parentItemId) assertPositiveInteger(parentItemId, "Parent Item ID");
     const status = requiredFormValue("developer-create-status", "Stato");
     if (!developerConfig.ticketing.statuses.includes(status)) throw new Error(`Stato non ammesso: ${status}.`);
     const notes = String(byId("developer-create-notes")?.value || "");
@@ -1770,13 +1773,11 @@ function registerHealthButton() {
     if (notes.length > TICKET_NOTES_MAX_LENGTH || resolutionNotes.length > TICKET_NOTES_MAX_LENGTH) {
       throw new Error(`Note e note di risoluzione non possono superare ${TICKET_NOTES_MAX_LENGTH} caratteri.`);
     }
-    const body = {
-      action: "createTicket",
-      parentItemId,
-      messageId: requiredFormValue("developer-create-message-id", "Message ID"),
-      operator: requiredFormValue("developer-create-operator", "Operatore"),
-      status
-    };
+    const body = { action: "createTicket", operator: requiredFormValue("developer-create-operator", "Operatore"), status };
+    if (parentItemId) {
+      body.parentItemId = parentItemId;
+      body.messageId = requiredFormValue("developer-create-message-id", "Message ID");
+    }
     const optional = [
       ["ampReference", "developer-create-amp-reference"],
       ["agency", "developer-create-agency"],
@@ -1784,7 +1785,8 @@ function registerHealthButton() {
       ["description", "developer-create-description"],
       ["notes", "developer-create-notes"],
       ["resolutionNotes", "developer-create-resolution-notes"],
-      ["elapsedTime", "developer-create-elapsed-time"]
+      ["elapsedTime", "developer-create-elapsed-time"],
+      ["forwardGroup", "developer-create-forward-group"]
     ];
     optional.forEach(([key, id]) => {
       const value = String(byId(id)?.value || "").trim();
@@ -1802,9 +1804,9 @@ function registerHealthButton() {
       force: Boolean(byId("developer-edit-force")?.checked)
     };
     let changed = 0;
-    EDIT_FIELDS.forEach(({ key, id, nullable }) => {
+    EDIT_FIELDS.forEach(({ key, id, nullable, dateTime }) => {
       if (!byId(`developer-edit-use-${id}`)?.checked) return;
-      const value = String(byId(`developer-edit-${id}`)?.value || "").trim();
+      const value = dateTime ? optionalDateTimeToIso(`developer-edit-${id}`, key) || "" : String(byId(`developer-edit-${id}`)?.value || "").trim();
       if (!nullable && !value) throw new Error(`${key} non può essere vuoto.`);
       if (key === "status" && !developerConfig.ticketing.statuses.includes(value)) throw new Error(`Stato non ammesso: ${value}.`);
       if ((key === "notes" || key === "resolutionNotes") && value.length > TICKET_NOTES_MAX_LENGTH) {
@@ -1838,6 +1840,8 @@ function registerHealthButton() {
   function collectSearchTicketRecordsBody() {
     validateTicketingConfig(developerConfig);
     const body = {};
+    const text = String(byId("developer-search-text")?.value || "").trim();
+    if (text) body.text = text;
     const families = [
       ["ticketId", "ticketIds", parseListInput("developer-search-ticket-ids")],
       ["ampReference", "ampReferences", parseListInput("developer-search-amp-references")],
@@ -1879,10 +1883,14 @@ function registerHealthButton() {
     const target = developerConfig?.forwardingTargets?.[targetId];
     const groupName = String(target?.name || "").trim();
     if (!groupName) throw new Error(`Destinazione forwarding non valida: ${targetId}.`);
-    return {
+    const body = {
       conversationId: requiredFormValue("developer-forward-conversation-id", "Conversation ID"),
-      groupName
+      groupName,
+      force: Boolean(byId("developer-forward-force")?.checked)
     };
+    const parentItemId = String(byId("developer-forward-parent-item-id")?.value || "").trim();
+    if (parentItemId) body.parentItemId = assertPositiveInteger(parentItemId, "Parent Item ID");
+    return body;
   }
 
   function getConversationRecordMode() {
