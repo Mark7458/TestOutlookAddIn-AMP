@@ -1,4 +1,4 @@
-// Test-Plugin file version: 0.2-auth-src.js-3
+// Test-Plugin file version: 0.2-auth-src.js-4
 import {
   PublicClientApplication
 } from "@azure/msal-browser";
@@ -895,4 +895,12 @@ async function callHealth() {
   }
   return { ok: response.ok, status: response.status, statusText: response.statusText, authenticationMode: authentication.acquisitionMode, body };
 }
-window.WorkflowHealth = { connectPlugin, recoverConnection, probeCurrentAuthentication, getAccessTokenSilently, callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics, recordDiagnostic: (event, details = null) => recordAuthDiagnostic(event, details, "TASKPANE"), resetAuthenticationCompletely };
+// Una sola richiesta di accesso alla volta: chi chiede il token mentre un'altra richiesta è in corso aspetta quella e
+// riceve lo stesso token (senza, le richieste in parallelo del pannello aprivano più finestre di accesso e la prima,
+// superata dalle altre, non veniva mai completata).
+let pendingAuthentication = null;
+const oneAtATime = (task) => (...args) => {
+  if (!pendingAuthentication) pendingAuthentication = task(...args).finally(() => { pendingAuthentication = null; });
+  return pendingAuthentication;
+};
+window.WorkflowHealth = { connectPlugin: oneAtATime(connectPlugin), recoverConnection: oneAtATime(recoverConnection), probeCurrentAuthentication: oneAtATime(probeCurrentAuthentication), getAccessTokenSilently: oneAtATime(getAccessTokenSilently), callHealth, callHealthOnDemand, getDiagnostics: readAuthDiagnostics, clearDiagnostics: clearAuthDiagnostics, recordDiagnostic: (event, details = null) => recordAuthDiagnostic(event, details, "TASKPANE"), resetAuthenticationCompletely };
