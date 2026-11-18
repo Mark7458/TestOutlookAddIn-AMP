@@ -449,6 +449,15 @@
             byDomain: domain => `dal dominio @${domain}`,
             byText: 'dal testo della mail',
             openTicket: 'Prendi in carico',
+            details: 'Dettagli',
+            detailCompany: 'Company',
+            detailGroup: 'Gruppo',
+            detailAssignedTo: 'Assegnato a',
+            detailCategory: 'Categoria',
+            detailSeverity: 'Impatto / Urgenza',
+            detailShort: 'Short description',
+            ampLink: 'Link AMP',
+            ampLinkCopied: 'Link AMP copiato',
             discard: 'Ignora',
             profileMissing: 'Imposta prima il tuo profilo (Impostazioni → Profilo).',
             selectBoth: 'Scegli Agenzia e Attività.',
@@ -562,7 +571,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 12:15';
+    const BUILD = '2026-11-18 18:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2365,7 +2374,7 @@
     }
     function queueActionContent(item, mail, config, choice) {
         const card = button => button.closest('.ao-queue-item');
-        if (choice.action === 'take') return [ticketForm(mail, config), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
+        if (choice.action === 'take') return [ticketForm(mail, config), ticketDetails(mail, config), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
         if (choice.action === 'forward') {
             const groups = forwardGroups();
             const group = groups.find(entry => entry.id === choice.group);
@@ -2924,17 +2933,19 @@
         const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId] && String(draft.subject || '').trim());
         const refreshButton = () => { const button = root.querySelector('.ao-new-ticket-card .ao-primary'); if (button) button.disabled = !ready(); };
         const zone = ticketForm(mail, config);
+        const details = ticketDetails(mail, config);
         zone.append(
             h('div', { class: 'ao-field-row' },
                 textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
                 textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
-            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshButton(); }, { maxlength: '160' }),
-            textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }));
+            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshButton(); details.update(); }, { maxlength: '160' }),
+            textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; details.update(); }, { multiline: true, rows: '4' }));
         return h('section', { class: 'ao-card ao-new-ticket-card' },
             // Stesso riquadro della presa in carico da In coda: Agenzia, Attività, data e ora di ricezione,
             // poi Short description e Description.
             h('div', { class: 'ao-inline-form' },
                 zone,
+                details,
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready(), onclick: () => openTicket(manualMail()) }, TEXTS.tickets.openNew),
                     h('span', { class: 'ao-spacer' }),
@@ -3238,6 +3249,7 @@
             h('div', { class: 'ao-inline-form' },
                 h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, clipText(origin.body || '', PREVIEW_MAX_CHARS))),
                 ticketForm(origin, config),
+                ticketDetails(origin, config),
                 h('div', { class: 'ao-actions' }, openTicketButton(origin, config), h('span', { class: 'ao-spacer' }), cancel)));
     }
     // La pillola "Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
@@ -3396,6 +3408,49 @@
             draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; rerender(); }, { searchable: true });
         if (draft.activityProposed && draft.activityId) activityField.querySelector('.ao-label').append(h('span', { class: 'ao-suggest-tag' }, TEXTS.mail.proposedActivity));
         return h('div', { class: 'ao-form-fields' }, companyField, activityField);
+    }
+    // Dettagli della presa in carico: i campi che andranno sul ticket e il link di AMP già compilato da copiare.
+    // Chiusi di partenza; si aprono solo con Agenzia e Attività scelte. update(): ricalcola (ticket senza mail, a ogni tasto).
+    function ticketDetails(mail, config) {
+        const draft = ticketDraft(mail, config);
+        const body = h('div', { class: 'ao-details-body' });
+        const fill = () => {
+            const company = config.companies[draft.companyId];
+            const activity = config.activities[draft.activityId];
+            if (!company || !activity) return body.replaceChildren();
+            const fields = ticketFields(mail, draft, company, activity, config);
+            const link = ampNewIncidentUrl(fields);
+            const row = (label, value) => [h('dt', null, label), h('dd', null, value || '—')];
+            body.replaceChildren(
+                h('dl', { class: 'ao-details-list' },
+                    row(TEXTS.mail.detailCompany, fields.company.displayValue),
+                    row(TEXTS.mail.detailGroup, fields.assignmentGroup.displayValue),
+                    row(TEXTS.mail.detailAssignedTo, fields.assignedTo?.displayValue),
+                    row(TEXTS.mail.detailCategory, fields.category.displayValue),
+                    row(TEXTS.mail.detailSeverity, `${SEVERITY_LABELS[fields.impact] || '?'} / ${SEVERITY_LABELS[fields.urgency] || '?'}`),
+                    row(TEXTS.mail.timeWorked, TEXTS.mail.minutes(fields.timeWorkedMinutes)),
+                    row(TEXTS.mail.detailShort, fields.shortDescription)),
+                h('div', { class: 'ao-details-link' },
+                    h('input', { class: 'ao-input', value: link, readonly: '', 'aria-label': TEXTS.mail.ampLink, onfocus: event => event.target.select() }),
+                    h('button', { type: 'button', class: 'ao-button', onclick: async () => {
+                        const copied = await copyText(link);
+                        showStatus(copied ? TEXTS.mail.ampLinkCopied : TEXTS.mail.copyFailed, copied ? 'success' : 'danger');
+                    } }, TEXTS.mail.copyReply)));
+        };
+        const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId]);
+        const section = h('div', { class: `ao-details${draft.detailsOpen && ready() ? ' ao-open' : ''}` });
+        const toggle = h('button', { type: 'button', class: 'ao-details-toggle', disabled: !ready(), 'aria-expanded': String(Boolean(draft.detailsOpen && ready())),
+            onclick: async () => {
+                draft.detailsOpen = !draft.detailsOpen;
+                section.classList.toggle('ao-open', draft.detailsOpen);
+                toggle.setAttribute('aria-expanded', String(draft.detailsOpen));
+                if (draft.detailsOpen) { fill(); section.append(body); await unfold(body); } else { await fold(body); body.remove(); }
+            } },
+            h('span', null, TEXTS.mail.details), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾'));
+        section.append(toggle);
+        if (draft.detailsOpen && ready()) { fill(); section.append(body); }
+        section.update = fill;
+        return section;
     }
     function openTicketButton(mail, config) {
         const draft = ticketDraft(mail, config);
@@ -3598,26 +3653,11 @@
         const prefix = activity?.shortDescriptionPrefix || '';
         return prefix ? `${prefix} ${clean.replace(/^\s*\[[^\]]+\]\s*/, '')}`.trim() : clean;
     }
-    // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
-    // card: la card di In coda da cui si prende in carico (si chiude con un'animazione se va tutto bene).
-    async function openTicket(mail, card = null) {
-        const config = loadConfig();
-        const draft = ticketDraft(mail, config);
-        const company = config.companies[draft.companyId];
-        const activity = config.activities[draft.activityId];
-        if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
-        if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+    // Campi del ticket per ServiceNow (gli stessi del link di AMP in Dettagli).
+    function ticketFields(mail, draft, company, activity, config, reportedOn = '') {
         // Corpo completo se è proprio la mail aperta in Outlook; altrimenti quello della Coda. Senza mail: quanto scritto.
         const body = mail.manual ? draft.description : (state.mail?.itemId && state.mail.itemId === mail.itemId ? state.mail.body : mail.body);
-        let reportedOn = mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '';
-        if (mail.manual) {
-            if (!String(draft.subject || '').trim()) return showStatus(TEXTS.tickets.missingShort, 'danger');
-            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time || '')) return showStatus(TEXTS.tickets.badTime, 'danger');
-            const when = parseDate(`${draft.date} ${draft.time}`);
-            if (!when) return showStatus(TEXTS.tickets.badTime, 'danger');
-            reportedOn = formatServiceNowDate(when);
-        }
-        const fields = {
+        return {
             company: normalizeReference(company.company),
             assignmentGroup: normalizeReference(company.assignmentGroup),
             assignedTo: config.profile.assignedTo,
@@ -3629,8 +3669,25 @@
             description: String(body || '').slice(0, 4000),
             reportedOn
         };
-        // Su AMP l'incident si crea a mano: si apre già compilato (subito, al clic) mentre qui nasce il ticket.
-        Outlook.openLink(ampNewIncidentUrl(fields));
+    }
+    // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
+    // card: la card di In coda da cui si prende in carico (si chiude con un'animazione se va tutto bene).
+    async function openTicket(mail, card = null) {
+        const config = loadConfig();
+        const draft = ticketDraft(mail, config);
+        const company = config.companies[draft.companyId];
+        const activity = config.activities[draft.activityId];
+        if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
+        if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+        let reportedOn = mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '';
+        if (mail.manual) {
+            if (!String(draft.subject || '').trim()) return showStatus(TEXTS.tickets.missingShort, 'danger');
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time || '')) return showStatus(TEXTS.tickets.badTime, 'danger');
+            const when = parseDate(`${draft.date} ${draft.time}`);
+            if (!when) return showStatus(TEXTS.tickets.badTime, 'danger');
+            reportedOn = formatServiceNowDate(when);
+        }
+        const fields = ticketFields(mail, draft, company, activity, config, reportedOn);
         const ticket = await run(() => Services.createTicket(mail.manual ? null : mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
@@ -4811,6 +4868,17 @@
 #ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 /* Ticket chiusi del thread */
+#ao-root .ao-details { display: grid; }
+#ao-root .ao-details-toggle { display: flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; justify-self: start; }
+#ao-root .ao-details-toggle:disabled { opacity: .45; cursor: default; }
+#ao-root .ao-details-toggle .ao-select-caret { transition: transform .2s ease; }
+#ao-root .ao-details.ao-open .ao-details-toggle .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-details-body { display: grid; gap: 8px; padding-top: 6px; }
+#ao-root .ao-details-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; padding-top: 8px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); }
+#ao-root .ao-details-list dt { color: var(--ao-text-muted); }
+#ao-root .ao-details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+#ao-root .ao-details-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+#ao-root .ao-details-link .ao-input { font-size: var(--ao-fs-sm); color: var(--ao-text-muted); text-overflow: ellipsis; }
 #ao-root .ao-closed { display: grid; gap: 6px; }
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
