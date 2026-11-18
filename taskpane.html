@@ -20,6 +20,7 @@
   <optgroup label="Record SharePoint">
     <option value="GetRecordByConversationId">GetRecordByConversationId</option>
     <option value="GetRecordById">GetRecordById</option>
+    <option value="UpdateRecord">UpdateRecord</option>
   </optgroup>
   <optgroup label="Ticket">
     <option value="createTicket">createTicket</option>
@@ -34,6 +35,7 @@
   </optgroup>
   <optgroup label="Posta">
     <option value="ReplyAll">ReplyAll</option>
+    <option value="SendMail">SendMail</option>
   </optgroup>
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
@@ -169,6 +171,21 @@
   <div class="developer-create-field"><label for="developer-reply-ticket-id">Ticket ID per RepliedAt (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-ticket-id" spellcheck="false" type="text"/></div>
   <div class="developer-create-field"><label for="developer-reply-signature">Firma (opzionale: vuoto = nome dell'operatore)</label><input autocomplete="off" class="developer-input" id="developer-reply-signature" type="text"/></div>
   <p class="developer-create-help">La risposta parte davvero dalla casella del servizio.</p>
+</div>
+
+<div class="developer-sendmail-form" hidden="" id="developer-sendmail-form">
+  <div class="developer-create-field"><label for="developer-sendmail-to">A</label><input autocomplete="off" class="developer-input" id="developer-sendmail-to" placeholder="nome@dominio.it; altro@dominio.it" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-cc">Cc (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-sendmail-cc" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-bcc">Ccn (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-sendmail-bcc" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-subject">Oggetto</label><input autocomplete="off" class="developer-input" id="developer-sendmail-subject" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-text">Testo</label><textarea class="developer-input" id="developer-sendmail-text" rows="5"></textarea></div>
+  <p class="developer-create-help">La mail parte davvero dalla casella del servizio.</p>
+</div>
+
+<div class="developer-update-record-form" hidden="" id="developer-update-record-form">
+  <div class="developer-create-field"><label for="developer-update-record-list">Lista</label><select class="developer-input" id="developer-update-record-list"><option value="mailEvents">MailEvents</option><option value="tickets">Ticket</option></select></div>
+  <div class="developer-create-field"><label for="developer-update-record-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-update-record-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-update-record-fields">Campi (JSON: nome interno della colonna e valore; null svuota)</label><textarea class="developer-input monospace" id="developer-update-record-fields" placeholder='{ "Status": "New", "AssignedTo": null }' rows="5" spellcheck="false"></textarea></div>
 </div>
 
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button>
