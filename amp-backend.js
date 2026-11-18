@@ -359,6 +359,10 @@
             const parentItemId = await parentOf(conversationId);
             await call('ReplyAll', { parentItemId, caller: me(), tag, reference, ticketId: ticket });
         },
+        // Attività della scheda Utility: la esegue RunUtility sul tenant dell'agenzia.
+        async runUtility(operationId, agencyId, params) {
+            return call('RunUtility', { operationId, agencyId, params, caller: me() });
+        },
         // Testo e azione sul ticket (lista Ticket; ServiceNow non ancora collegato).
         async updateTicket(number, action, text, user) {
             const record = await ticketRecord(number);
@@ -413,6 +417,7 @@
             return { ok: true };
         },
         refreshSettings,
+        operationalConfig: () => pluginConfig(), // config dell'add-in (agenzie e operazioni abilitate per la scheda Utility)
         setRefreshOverride,
         // Aggiornamento: ogni refresh.listsSeconds e quando il pannello torna in primo piano.
         subscribe(listener) {
