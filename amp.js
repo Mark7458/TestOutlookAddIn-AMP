@@ -321,7 +321,32 @@
             synced: when => `Allineato ${when}`,
             syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
         },
-        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Tools' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', utility: 'Utility', debug: 'Tools' },
+        utility: {
+            agency: 'Agenzia',
+            choose: 'Scegli…',
+            none: 'Nessuna operazione abilitata per questa agenzia.',
+            withOperations: 'Con operazioni',
+            withoutOperations: 'Senza operazioni',
+            run: 'Esegui',
+            notLinked: 'Operazione non ancora collegata',
+            fromMail: 'Dalla mail selezionata',
+            operations: {
+                GuestAdd: 'Aggiunta guest',
+                PimActivate: 'Attivazione PIM',
+                MailboxDelegation: 'Delega casella'
+            },
+            guests: 'Guest (un indirizzo per riga)',
+            role: 'Ruolo',
+            hours: 'Durata (ore)',
+            justification: 'Motivazione',
+            mailbox: 'Casella',
+            delegate: 'Delegato',
+            permission: 'Permesso',
+            action: 'Azione',
+            add: 'Aggiungi',
+            remove: 'Rimuovi'
+        },
         tools: {
             tabs: { functions: 'Funzioni', message: 'Messaggio', diagnostics: 'Diagnostica', settings: 'Impostazioni' },
             log: 'Azioni del pannello',
@@ -585,7 +610,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 00:20';
+    const BUILD = '2026-11-19 00:55';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -978,6 +1003,7 @@
 
     // Icone delle schede principali
     const TAB_ICONS = {
+        utility: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6.5 8.5l2 1.5-2 1.5M10.5 12h3"/></svg>',
         settings: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>',
         queue: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l2.5-6h9L17 11v5H3z"/><path d="M3 11h4l1 2h4l1-2h4"/></svg>',
         tickets: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M8 8h4M8 11h4"/></svg>',
@@ -1053,6 +1079,7 @@
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         toolsTab: 'functions', // scheda Tools: functions | message | diagnostics | settings
+        utility: { agency: '', operation: '' }, // scheda Utility: agenzia e operazione scelte
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
         journey: null, // ticket aperto dalla lista mentre le schede viaggiano: nella pagina i loro posti restano vuoti finché non arrivano
@@ -1854,10 +1881,10 @@
             { opacity: 1, transform: 'none' }
         ], { duration: 280, easing: 'cubic-bezier(.2, .8, .2, 1)' }));
     }
-    const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings', 'debug'];
+    const VIEW_ORDER = ['queue', 'tickets', 'mail', 'settings', 'utility', 'debug'];
     // Produzione (add-in di jak con amp-backend.js): al posto delle Impostazioni la scheda Debug con le sue sezioni.
     const PRODUCTION = window.AmpPanelMode === 'production' || window.AmpBackend?.mode === 'functions';
-    const TABS = PRODUCTION ? ['queue', 'tickets', 'debug'] : ['queue', 'tickets', 'settings'];
+    const TABS = PRODUCTION ? ['queue', 'tickets', 'utility', 'debug'] : ['queue', 'tickets', 'settings'];
     // Scheda Tools: le sezioni dell'add-in di jak (Developer Tools, dati del messaggio, diagnostica, impostazioni),
     // spostate così come sono. Quando non si vedono stanno in debugHost (nascosto): il codice di jak le cerca per id.
     let debugHost = null;
@@ -2039,7 +2066,7 @@
         if (state.view === 'debug' && body.dataset.tools === state.toolsTab) return;
         parkTools();
         body.dataset.tools = state.view === 'debug' ? state.toolsTab : '';
-        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings, debug: renderTools };
+        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings, utility: renderUtility, debug: renderTools };
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator.join(',')}|${state.ticketSearchOpen}|${state.settingsTab}`;
@@ -4197,6 +4224,60 @@
         return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
     }
 
+    // Utility: operazioni sui tenant delle agenzie (eseguite dalle function con i certificati delle agenzie).
+    // Agenzia -> solo le operazioni abilitate in config (agencies.*.operationsEnabled) -> modulo dell'operazione.
+    // Per ora schermata provvisoria: le function non ci sono ancora, Esegui lo dice.
+    const UTILITY_OPERATIONS = {
+        GuestAdd: { fields: ['guests'] },
+        PimActivate: { fields: ['role', 'hours', 'justification'] },
+        MailboxDelegation: { fields: ['mailbox', 'delegate', 'permission', 'delegationAction'] }
+    };
+    const PIM_ROLES = ['Exchange Administrator', 'User Administrator', 'Teams Administrator', 'SharePoint Administrator', 'Global Reader'];
+    const utilityDrafts = {}; // per agenzia e operazione: quanto scritto nel modulo
+    const mailAddresses = text => [...new Set(String(text || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [])];
+    function renderUtility() {
+        const T = TEXTS.utility;
+        const agencies = Object.entries(window.AmpBackend?.operationalConfig?.().agencies || {}).filter(([, agency]) => agency?.enabled !== false);
+        const choice = state.utility;
+        const agency = agencies.find(([id]) => id === choice.agency)?.[1] || null;
+        const enabled = (agency?.operationsEnabled || []).filter(id => UTILITY_OPERATIONS[id]);
+        if (!enabled.includes(choice.operation)) choice.operation = enabled[0] || '';
+        // Prima le agenzie con operazioni abilitate, poi le altre.
+        const option = ([id, item]) => ({ value: id, label: `${item.shortName || id} · ${item.displayName || ''}` });
+        const hasOperations = ([, item]) => (item.operationsEnabled || []).some(id => UTILITY_OPERATIONS[id]);
+        const agencyField = selectField(T.agency, [{ value: '', label: T.choose, placeholder: true },
+            { group: T.withOperations }, ...agencies.filter(hasOperations).map(option),
+            { group: T.withoutOperations }, ...agencies.filter(entry => !hasOperations(entry)).map(option)],
+        choice.agency, value => { choice.agency = value; choice.operation = ''; render(); }, { searchable: true });
+        // L'agenzia sta nella barra in alto, come i selettori delle altre schede.
+        const bar = h('div', { class: 'ao-source-bar' }, agencyField);
+        const cards = [];
+        if (agency && !enabled.length) cards.push(h('p', { class: 'ao-hint' }, T.none));
+        if (enabled.length) {
+            const key = `${choice.agency}|${choice.operation}`;
+            const draft = utilityDrafts[key] ||= { guests: mailAddresses(state.mail?.body).join('\n'), role: PIM_ROLES[0], hours: '4', justification: '', mailbox: '', delegate: '', permission: 'FullAccess', delegationAction: 'add' };
+            const field = name => ({
+                guests: () => [textField(T.guests, draft.guests, value => { draft.guests = value; }, { multiline: true, rows: '5', grow: true }),
+                    state.mail?.body ? h('button', { type: 'button', class: 'ao-button', onclick: () => { draft.guests = mailAddresses(state.mail.body).join('\n'); render(); } }, T.fromMail) : null],
+                role: () => selectField(T.role, PIM_ROLES.map(role => ({ value: role, label: role })), draft.role, value => { draft.role = value; }),
+                hours: () => textField(T.hours, draft.hours, value => { draft.hours = value; }, { type: 'number', min: '1', max: '8', inputmode: 'numeric' }),
+                justification: () => textField(T.justification, draft.justification, value => { draft.justification = value; }),
+                mailbox: () => textField(T.mailbox, draft.mailbox, value => { draft.mailbox = value; }, { placeholder: 'casella@dominio.it' }),
+                delegate: () => textField(T.delegate, draft.delegate, value => { draft.delegate = value; }, { placeholder: 'utente@dominio.it' }),
+                permission: () => selectField(T.permission, ['FullAccess', 'SendAs', 'FullAccess + SendAs'].map(value => ({ value, label: value })), draft.permission, value => { draft.permission = value; }),
+                delegationAction: () => selectField(T.action, [{ value: 'add', label: T.add }, { value: 'remove', label: T.remove }], draft.delegationAction, value => { draft.delegationAction = value; })
+            })[name]();
+            cards.push(h('section', { class: 'ao-card' },
+                enabled.length > 1 ? filterBar(enabled.map(id => ({ value: id, label: T.operations[id] })), choice.operation, value => { choice.operation = value; render(); }, { key: 'utility-operations', slide: false })
+                    : h('h3', { class: 'ao-card-title' }, T.operations[choice.operation]),
+                UTILITY_OPERATIONS[choice.operation].fields.map(field),
+                h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => {
+                    ActionLog.record('utility', choice.operation, { agency: choice.agency });
+                    showStatus(T.notLinked, 'warning');
+                } }, T.run))));
+        }
+        return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
+    }
     // Tools: selettore delle sezioni come nelle altre schede; ogni sezione in una card.
     function renderTools() {
         const tabs = Object.keys(TEXTS.tools.tabs);
