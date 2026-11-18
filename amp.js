@@ -86,8 +86,10 @@
             backdrop: '#f5f5f5', // sfondo dell'intero pannello
             blur: 'none', // sfocatura di quello che sta dietro alle superfici
             hoverFilter: 'none', // superficie al passaggio del mouse: si accende
-            navInk: '#fff', // scritte e icone dell'intestazione e delle schede
+            navInk: '#fff', // scritte e icone della barra delle schede
             navInkSoft: 'rgba(255, 255, 255, .72)', // schede non scelte
+            navBand: 'linear-gradient(135deg, #005a9e, #0078d4)', // fascia blu in cima (barra delle schede)
+            navEdge: 'none',
             chipLine: 'transparent', // bordino di etichette e stati dentro le schede (nel vetro chiaro serve a staccarli dal bianco)
             hoverGlow: '0 0 transparent', // bagliore intorno alla superficie al passaggio del mouse (nessuno)
             raisedShadow: '0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08)', // scheda sollevata (in viaggio, al clic)
@@ -188,7 +190,10 @@
         // al passaggio del mouse si accendono, con un bagliore leggero. Gli elementi usano solo questi nomi (superficie,
         // sfondo, bordo, passaggio…): cambiando stile cambiano tutti insieme, impostazioni comprese.
         glassColors: {
-            backdrop: 'transparent', // lo sfondo sfumato lo dipinge il contenitore dell'intestazione (glassBackdrop), dietro a tutto
+            // fascia in cima: vetro tinto di blu (riflesso diagonale, filo di luce in alto)
+            navBand: 'linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))',
+            navEdge: 'inset 0 1px 0 rgba(255, 255, 255, .45)',
+            backdrop: 'transparent', // lo sfondo sfumato lo dipinge la pagina (glassBackdrop), dietro a tutto
             surface: 'rgba(255, 255, 255, .82)',
             hover: 'rgba(255, 255, 255, .9)',
             bg: 'rgba(110, 140, 190, .1)', // zone incassate (campi raggruppati, dettagli)
@@ -254,6 +259,8 @@
             hoverFilter: 'brightness(1.22)',
             navInk: 'rgba(236, 240, 247, .93)', // vetro scuro: bianco meno acceso
             navInkSoft: 'rgba(236, 240, 247, .64)',
+            navBand: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), linear-gradient(135deg, rgba(15, 60, 130, .62), rgba(25, 85, 170, .52))',
+            navEdge: 'inset 0 1px 0 rgba(255, 255, 255, .22)',
             chipLine: 'transparent',
             notifyInk: '#23262e',
             hoverGlow: '0 0 12px rgba(90, 150, 255, .18)',
@@ -289,21 +296,9 @@
             rosso: '#d13438', arancio: '#ca5010', ambra: '#c19c00', verde: '#107c10', acqua: '#038387',
             azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
         },
-        // Stile vetro fuori dall'area AMP: sfondo sfumato (dietro intestazione e pannello) e intestazione dell'add-in
+        // Stile vetro: sfondo sfumato della pagina dell'add-in, dietro al pannello
         glassBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed',
         glassDarkBackdrop: 'radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed',
-        // Intestazione dell'add-in nel vetro, per modo: occupa tutta la larghezza, come prima, ed è dello stesso vetro
-        // del pannello, tinto di blu (riflesso diagonale, filo di luce in alto). La barra delle schede la prolunga.
-        glassHeader: {
-            light: {
-                background: 'linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84))',
-                light: 'inset 0 1px 0 rgba(255, 255, 255, .45)'
-            },
-            dark: {
-                background: 'linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), linear-gradient(135deg, rgba(15, 60, 130, .62), rgba(25, 85, 170, .52))',
-                light: 'inset 0 1px 0 rgba(255, 255, 255, .22)'
-            }
-        },
         font: { family: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' },
         fontSize: { xs: '10px', sm: '11px', md: '12px', base: '13px', lg: '14px', xl: '16px' },
         fontWeight: { normal: '400', medium: '600', bold: '700' },
@@ -567,7 +562,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:55';
+    const BUILD = '2026-11-18 12:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -622,7 +617,6 @@
         else delete root.dataset.theme;
         // Stile: vetro (predefinito) o flat.
         root.dataset.style = config.preferences?.style === 'flat' ? 'flat' : 'glass';
-        blendTabsWithHeader(); // con il vetro cambia anche l'intestazione
     }
     function saveConfig(config) {
         config.version = STORAGE.version;
@@ -1855,16 +1849,11 @@
         container.replaceChildren(root);
         // Se il riquadro cambia larghezza la sottolineatura resta sotto la scheda attiva.
         if (window.ResizeObserver) {
-            const observer = new ResizeObserver(() => {
-                blendTabsWithHeader();
+            new ResizeObserver(() => {
                 const indicator = root.querySelector('.ao-tab-indicator');
                 if (indicator && !indicator.classList.contains('ao-moving')) placeTabIndicator();
-            });
-            observer.observe(root.querySelector('.ao-tabs'));
-            const header = document.querySelector('.app-header');
-            if (header) observer.observe(header);
+            }).observe(root.querySelector('.ao-tabs'));
         }
-        blendTabsWithHeader();
         root.querySelector('.ao-tab-indicator').addEventListener('transitionend', event => event.currentTarget.classList.remove('ao-moving'));
         root.querySelector('.ao-tabs').addEventListener('transitionend', event => {
             if (event.target.classList.contains('ao-tab-label') && event.propertyName === 'max-width') settleTabIndicator();
@@ -1873,35 +1862,6 @@
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
-    // Barra delle schede come continuazione dell'intestazione blu dell'add-in: riprende la stessa sfumatura
-    // (letta dall'intestazione) e la prolunga, così le due fasce sembrano una sola.
-    function blendTabsWithHeader() {
-        const nav = root?.querySelector('.ao-tabs');
-        const header = document.querySelector('.app-header');
-        if (!nav || !header || !nav.offsetWidth) return;
-        // Misure esatte (anche frazionarie con lo zoom di Outlook), così le due fasce combaciano al pixel.
-        const { width: W, height: H } = header.getBoundingClientRect(), { width: w, height: n } = nav.getBoundingClientRect();
-        // Vetro: intestazione e schede sono un'unica lastra. Sfumatura e riflesso si dipingono sull'altezza di tutte e due
-        // e la barra delle schede ne mostra la parte bassa, così l'effetto continua senza giunture.
-        if (root.dataset.style === 'glass') {
-            const whole = { backgroundSize: `${W}px ${H + n}px`, backgroundRepeat: 'no-repeat' };
-            Object.assign(header.style, whole);
-            nav.style.background = '';
-            Object.assign(nav.style, whole, { backgroundImage: getComputedStyle(header).backgroundImage, backgroundColor: 'transparent', backgroundPosition: `0 ${-H}px` });
-            return;
-        }
-        Object.assign(header.style, { backgroundSize: '', backgroundRepeat: '' });
-        // Flat: la barra riprende la sfumatura dell'intestazione dal punto in cui finisce e la prolunga.
-        const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
-            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; });
-        if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
-        const [from, to] = [colors[0], colors[colors.length - 1]];
-        const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
-        const mix = from.map((value, i) => value + (to[i] - value) * start);
-        const css = ([r, g, b, a]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
-        const end = Math.min(100, (W / (w + n)) * 100);
-        nav.style.background = `linear-gradient(135deg, ${css(mix)} 0%, ${css(to)} ${end.toFixed(1)}%)`;
-    }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
         if (!indicator) return;
@@ -4392,7 +4352,7 @@
 #ao-root button { font: inherit; color: inherit; }
 
 /* Intestazione e schede */
-#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: #0078d4; color: var(--ao-nav-ink); } /* sfondo: continua l'intestazione (blendTabsWithHeader) */
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-nav-band); box-shadow: var(--ao-nav-edge); color: var(--ao-nav-ink); } /* fascia in cima (l'add-in non ha più l'intestazione) */
 #ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: var(--ao-nav-ink-soft); }
 /* Freccia per tornare all'add-in: invisibile finché non la si raggiunge con il mouse, così le schede hanno tutta la larghezza */
 #ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
@@ -4425,7 +4385,7 @@
 /* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
 #ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: 10px; font-weight: var(--ao-fw-bold); line-height: 14px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
 #ao-root .ao-notify-number { color: var(--ao-notify-ink); }
-#ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu dell'intestazione */
+#ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu della fascia in cima */
 #ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
 #ao-root .ao-notify-alert:not(.ao-notify-off) { animation: ao-pulse 1.6s ease-in-out infinite; } /* On Hold scaduto: pulsa piano */
 @keyframes ao-pulse { 50% { opacity: .35; } }
@@ -4917,21 +4877,14 @@
 #ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { color: var(--ao-danger); }
 `;
-    // Fuori dall'area AMP, solo mentre è aperta: pagina dell'add-in ferma (scorre solo il pannello) e intestazione
-    // più bassa, con logo piccolo e schede più vicine. Nel vetro lo sfondo sfumato del pannello (fisso, quindi senza
-    // giunture) passa anche dietro l'intestazione, che diventa di vetro leggero (stesso blu, appena trasparente, piatto).
-    const glassHeaderRule = (look, ink = '#fff') => `background: ${look.background}; box-shadow: ${look.light}; color: ${ink};`;
+    // Fuori dall'area AMP, solo mentre è aperta: pagina dell'add-in ferma (scorre solo il pannello); nel vetro lo sfondo
+    // sfumato è della pagina, dietro al pannello.
     const OUTSIDE_STYLES = `
 body:has(#amp-view:not([hidden])) { min-width: ${PANEL_MIN_WIDTH}px; }
-body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
-:has(> .app-header):has(#amp-view:not([hidden])) > .app-header { padding: 12px 16px 6px; }
-:has(> .app-header):has(#amp-view:not([hidden])) > .app-header img { width: 40px; height: 40px; }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
-@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.light)} }
-:has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} }
-@media (prefers-color-scheme: dark) { :has(> .app-header):has(#amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) > .app-header { ${glassHeaderRule(THEME.glassHeader.dark, THEME.glassDarkColors.navInk)} } }
+body:has(> main #amp-view:not([hidden])) { overflow: hidden; }
+:has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: ${THEME.glassBackdrop}; }
+:has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: ${THEME.glassDarkBackdrop}; }
+@media (prefers-color-scheme: dark) { :has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: ${THEME.glassDarkBackdrop}; } }
 `;
     function injectStyles() {
         if (document.getElementById('ao-styles')) return;
@@ -4972,8 +4925,8 @@ body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
         refreshMailBar();
     }
     // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in
-    // e prende l'altezza esatta che resta sotto l'intestazione, così la pagina non scorre più:
-    // intestazione e schede restano ferme, scorre solo il contenuto (.ao-body).
+    // e prende l'altezza esatta del riquadro, così la pagina non scorre più: le schede restano ferme, scorre solo il
+    // contenuto (.ao-body).
     function fillPane() {
         const host = root?.parentElement?.parentElement;
         if (!host) return;

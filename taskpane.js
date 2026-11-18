@@ -1005,7 +1005,6 @@ function registerHealthButton() {
 
   function loadBuildVersions() {
     const build = window.TestPluginBuild;
-    setText("plugin-version", build?.application ? `v.${build.application}` : "", "Versione non disponibile");
     const lines = build?.files ? [`Applicazione: ${build.application}`, `Release: ${build.release}`, ...Object.entries(build.files).map(([name, version]) => `${name}: ${version}`), "Bundle generati:", ...(build.generated || []).map((name) => `${name}: generato`)] : [];
     setText("diagnostic-component-versions", lines.join("\n"));
     window.WorkflowHealth?.recordDiagnostic?.("component_versions_loaded", { application: build?.application || null, release: build?.release || null, files: build?.files ? JSON.stringify(build.files) : null });
