@@ -326,7 +326,22 @@
             synced: when => `Allineato ${when}`,
             syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
         },
-        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Debug' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Tools' },
+        tools: {
+            tabs: { functions: 'Funzioni', message: 'Messaggio', diagnostics: 'Diagnostica', settings: 'Impostazioni' },
+            log: 'Azioni del pannello',
+            logEmpty: 'Nessuna azione registrata.',
+            copy: 'Copia',
+            copied: 'Registro copiato',
+            clear: 'Pulisci',
+            refresh: 'Frequenza degli aggiornamenti',
+            lists: 'Elenchi, ogni (s)',
+            thread: 'Thread in memoria (s)',
+            apply: 'Applica',
+            reset: 'Torna alla config',
+            refreshSource: { pannello: 'impostata su questo pannello', config: 'dalla config', predefiniti: 'valori predefiniti' },
+            refreshInUse: (settings, source) => `In uso: elenchi ogni ${settings.listsSeconds} s, thread per ${settings.threadCacheSeconds} s (${source}).`
+        },
         common: {
             back: view => `← ${view}`,
             loading: 'Caricamento…',
@@ -454,6 +469,14 @@
             byDomain: domain => `dal dominio @${domain}`,
             byText: 'dal testo della mail',
             openTicket: 'Prendi in carico',
+            details: 'Dettagli',
+            detailCompany: 'Company',
+            detailGroup: 'Gruppo',
+            detailAssignedTo: 'Assegnato a',
+            detailCategory: 'Categoria',
+            detailSeverity: 'Impatto / Urgenza',
+            ampLink: 'Link AMP',
+            ampLinkCopied: 'Link AMP copiato',
             discard: 'Ignora',
             profileMissing: 'Imposta prima il tuo profilo (Impostazioni → Profilo).',
             selectBoth: 'Scegli Agenzia e Attività.',
@@ -567,7 +590,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-17 19:55';
+    const BUILD = '2026-11-19 00:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -689,19 +712,66 @@
 
     class ServicesMissingError extends Error {}
 
+    // Registro delle azioni del pannello (per la diagnostica): ogni chiamata ai servizi con inizio, fine, durata ed
+    // esito, gli aggiornamenti degli elenchi e le chiamate alla Function (da amp-backend). Una chiamata senza fine è
+    // quella rimasta appesa. Ultime ACTION_LOG_MAX righe nel browser dell'operatore; window.AmpActionLog per leggerle.
+    const ACTION_LOG_KEY = 'amp_panel_action_log_v1';
+    const ACTION_LOG_MAX = 400;
+    const ActionLog = (() => {
+        let entries = [];
+        try { entries = JSON.parse(localStorage.getItem(ACTION_LOG_KEY) || '[]'); } catch { entries = []; }
+        let sequence = entries.length ? entries[entries.length - 1].id || 0 : 0;
+        const save = () => { try { localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(entries.slice(-ACTION_LOG_MAX))); } catch { /* spazio pieno */ } };
+        const summary = value => {
+            if (value === undefined || value === null) return null;
+            try { const text = typeof value === 'string' ? value : JSON.stringify(value); return text.length > 300 ? `${text.slice(0, 300)}…` : text; }
+            catch { return String(value); }
+        };
+        function record(kind, name, details = null) {
+            const entry = { id: ++sequence, at: new Date().toISOString(), kind, name, details: summary(details) };
+            entries.push(entry);
+            if (entries.length > ACTION_LOG_MAX) entries = entries.slice(-ACTION_LOG_MAX);
+            save();
+            return entry.id;
+        }
+        // Operazione con inizio e fine: la riga di fine riporta l'id dell'inizio, la durata e l'esito.
+        async function track(kind, name, details, task) {
+            const started = Date.now();
+            const id = record(kind, `${name}:start`, details);
+            try {
+                const result = await task();
+                record(kind, `${name}:ok`, { start: id, ms: Date.now() - started });
+                return result;
+            } catch (error) {
+                record(kind, `${name}:error`, { start: id, ms: Date.now() - started, message: error?.message || String(error), reason: error?.reason || null });
+                throw error;
+            }
+        }
+        // Argomenti dei servizi: solo gli identificativi (niente testi delle mail nel registro).
+        const ids = args => args.map(arg => (arg && typeof arg === 'object'
+            ? Object.fromEntries(['conversationId', 'number', 'itemId', 'action', 'status'].filter(key => arg[key] !== undefined).map(key => [key, arg[key]]))
+            : typeof arg === 'string' ? arg.slice(0, 80) : arg));
+        const read = () => entries.slice();
+        const clear = () => { entries = []; save(); };
+        const text = () => entries.map(entry => `${entry.at} #${entry.id} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n');
+        return { record, track, ids, read, clear, text };
+    })();
+    window.AmpActionLog = ActionLog;
+
     // Oggi: window.AmpBackend (simulato, solo nell'anteprima). Domani: le chiamate alla Function App.
     const Services = Object.fromEntries(SERVICE_METHODS.map(name => [name, async (...args) => {
         const backend = window.AmpBackend;
         if (typeof backend?.[name] !== 'function') throw new ServicesMissingError(name);
-        return backend[name](...args);
+        return ActionLog.track('service', name, ActionLog.ids(args), () => backend[name](...args));
     }]));
     // Pagina del thread precaricata passando sopra una scheda: il risultato resta valido qualche secondo e la pagina,
     // al clic, compare subito (poi si aggiorna comunque in silenzio).
     const threadCache = new Map();
-    const THREAD_CACHE_MS = 15000;
+    // Durata della pagina precaricata: refresh.threadCacheSeconds (Developer Tools / config), altrimenti 15 secondi.
+    const threadCacheMs = () => (window.AmpBackend?.refreshSettings?.().threadCacheSeconds ?? 15) * 1000;
     Services.prefetchThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        if (!conversationId || (cached && Date.now() - cached.at < THREAD_CACHE_MS)) return;
+        if (!conversationId || (cached && Date.now() - cached.at < threadCacheMs())) return;
         const entry = { at: Date.now(), result: null, request: null };
         threadCache.set(conversationId, entry);
         entry.request = Services.findTicketForMail({ conversationId, incNumbers: [] });
@@ -710,11 +780,11 @@
     // Richiesta di precaricamento ancora in corso: la pagina aspetta quella invece di farne un'altra.
     Services.pendingThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        return cached && !cached.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.request : null;
+        return cached && !cached.result && Date.now() - cached.at < threadCacheMs() ? cached.request : null;
     };
     Services.cachedThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        return cached?.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.result : null;
+        return cached?.result && Date.now() - cached.at < threadCacheMs() ? cached.result : null;
     };
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
@@ -723,7 +793,7 @@
     ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
-            return window.AmpBackend[name](...args);
+            return ActionLog.track('service', name, ActionLog.ids(args), () => window.AmpBackend[name](...args));
         };
     });
 
@@ -735,6 +805,26 @@
             return false;
         }
     };
+    // Nuovo incident su AMP già compilato, con un link di ServiceNow (sys_id=-1 + sysparm_query): gli stessi campi che
+    // il pannello Tampermonkey scrive nel form (agenzia, gruppo, assegnatario, categoria, impatto, urgenza, tempo
+    // lavorato, short description e description). L'operatore controlla e salva su AMP. La description si accorcia se il link
+    // diventerebbe troppo lungo.
+    const AMP_LINK_MAX = 6000;
+    function ampNewIncidentUrl(fields) {
+        const value = text => String(text ?? '').replace(/\^/g, '^^'); // "^" separa i campi: nel testo si raddoppia
+        const minutes = Number(fields.timeWorkedMinutes) || 0; // durata come data dal 1970 (formato di ServiceNow)
+        const worked = minutes ? `1970-01-01 ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00` : '';
+        const pairs = [
+            ['company', fields.company?.value], ['assignment_group', fields.assignmentGroup?.value], ['assigned_to', fields.assignedTo?.value],
+            ['x_avana_platform_category_value', fields.category?.value], ['impact', fields.impact], ['urgency', fields.urgency],
+            ['short_description', fields.shortDescription], ['time_worked', worked]
+        ].filter(([, text]) => text);
+        const base = `https://amp.service-now.com/incident.do?sys_id=-1&sysparm_query=${encodeURIComponent(pairs.map(([name, text]) => `${name}=${value(text)}`).join('^'))}`;
+        const description = text => (text ? encodeURIComponent(`^description=${value(text)}`) : '');
+        let text = String(fields.description || '');
+        while (text && (base + description(text)).length > AMP_LINK_MAX) text = text.slice(0, Math.floor(text.length * .8));
+        return base + description(text);
+    }
     // Outlook: mail aperta (dall'add-in di jak) e apertura di mail e risposte.
     const Outlook = {
         currentMail() {
@@ -968,6 +1058,7 @@
         timeDrafts: {}, // per ticket: tempo lavorato impostato nel timer, che parte insieme all'azione (non da solo)
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
+        toolsTab: 'functions', // scheda Tools: functions | message | diagnostics | settings
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
         journey: null, // ticket aperto dalla lista mentre le schede viaggiano: nella pagina i loro posti restano vuoti finché non arrivano
@@ -1222,7 +1313,8 @@
     const ticketByNumber = number => state.tickets.find(item => item.number === number) || state.ticketCache[number] || null;
 
     // Elenchi di Coda e Ticket, sempre dai servizi.
-    async function refreshLists() {
+    async function refreshLists(reason = 'action') {
+        ActionLog.record('refresh', 'lists', reason);
         if (!Services.available()) {
             state.loaded = true;
             render();
@@ -1274,6 +1366,7 @@
     // selezione solo se è la mail del ticket appena aperto (il pannello stesso la apre in Outlook).
     function handleMailChanged() {
         state.mail = Outlook.currentMail();
+        ActionLog.record('outlook', 'mailChanged', state.mail?.conversationId || null);
         if (state.extraTicketFor && state.mail?.conversationId === state.extraTicketFor) state.extraOrigin = state.mail;
         const id = state.mail?.conversationId;
         const target = state.target;
@@ -1771,7 +1864,36 @@
     // Produzione (add-in di jak con amp-backend.js): al posto delle Impostazioni la scheda Debug con le sue sezioni.
     const PRODUCTION = window.AmpPanelMode === 'production' || window.AmpBackend?.mode === 'functions';
     const TABS = PRODUCTION ? ['queue', 'tickets', 'debug'] : ['queue', 'tickets', 'settings'];
-    let debugHost = null; // scheda Debug: #main-view e #header-view dell'add-in di jak, spostati così come sono
+    // Scheda Tools: le sezioni dell'add-in di jak (Developer Tools, dati del messaggio, diagnostica, impostazioni),
+    // spostate così come sono. Quando non si vedono stanno in debugHost (nascosto): il codice di jak le cerca per id.
+    let debugHost = null;
+    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['loading', 'error', 'message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: [] };
+    // Le sezioni di jak si aprono e chiudono con i suoi pulsanti (qui non ci sono): nella scheda Tools restano aperte.
+    // Il riquadro dell'header originale invece segue i pulsanti di jak (Mostra originale / Indietro).
+    // Con le schede "Mantieni sezioni aperte" di jak non serve (le sezioni sono sempre aperte). "Abilita diagnostica
+    // avanzata" invece sì: accende la registrazione degli eventi dell'accesso e il loro log, e sta in Diagnostica.
+    const ALWAYS_OPEN = ['email-details-panel', 'message-data', 'diagnostics-panel'];
+    const alwaysOpen = node => ALWAYS_OPEN.includes(node.id);
+    const openKeeper = window.MutationObserver ? new MutationObserver(records => records.forEach(({ target }) => {
+        const card = target.closest('.ao-tools-card');
+        if (!card) return;
+        if (!alwaysOpen(target)) card.hidden = target.hidden; // avvisi e header originale: la card segue jak
+        else if (target.hidden) target.hidden = false;
+    })) : null;
+    function keepOpen(node) {
+        if (alwaysOpen(node)) node.hidden = false;
+        if (!node.dataset.aoKept) { node.dataset.aoKept = '1'; openKeeper?.observe(node, { attributes: true, attributeFilter: ['hidden'] }); }
+    }
+    function parkTools() {
+        if (!debugHost) return;
+        const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
+        const settingsPanel = document.getElementById('settings-panel');
+        if (diagnosticsSwitch && settingsPanel && diagnosticsSwitch.parentElement !== settingsPanel) settingsPanel.append(diagnosticsSwitch);
+        Object.values(TOOLS_SECTIONS).flat().forEach(id => {
+            const node = document.getElementById(id);
+            if (node && node.parentElement !== debugHost) debugHost.append(node);
+        });
+    }
     function slideInView(direction) {
         // Si anima il contenitore fisso (.ao-body): il contenuto può ridisegnarsi durante l'animazione.
         const body = root?.querySelector('.ao-body');
@@ -1953,10 +2075,11 @@
         renderStatusBar();
         renderMailBar();
         const body = root.querySelector('.ao-body');
-        body.hidden = state.view === 'debug';
-        if (debugHost) debugHost.hidden = state.view !== 'debug';
-        if (state.view === 'debug') return;
-        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
+        // Tools già aperto sulla stessa sezione: non si ridisegna (si perderebbe il campo in cui si sta scrivendo).
+        if (state.view === 'debug' && body.dataset.tools === state.toolsTab) return;
+        parkTools();
+        body.dataset.tools = state.view === 'debug' ? state.toolsTab : '';
+        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings, debug: renderTools };
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator.join(',')}|${state.ticketSearchOpen}|${state.settingsTab}`;
@@ -2385,7 +2508,7 @@
     }
     function queueActionContent(item, mail, config, choice) {
         const card = button => button.closest('.ao-queue-item');
-        if (choice.action === 'take') return [ticketForm(mail, config), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
+        if (choice.action === 'take') return [ticketForm(mail, config), ticketDetails(mail, config), h('div', { class: 'ao-actions' }, openTicketButton(mail, config))];
         if (choice.action === 'forward') {
             const groups = forwardGroups();
             const group = groups.find(entry => entry.id === choice.group);
@@ -2944,17 +3067,19 @@
         const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId] && String(draft.subject || '').trim());
         const refreshButton = () => { const button = root.querySelector('.ao-new-ticket-card .ao-primary'); if (button) button.disabled = !ready(); };
         const zone = ticketForm(mail, config);
+        const details = ticketDetails(mail, config);
         zone.append(
             h('div', { class: 'ao-field-row' },
                 textField(TEXTS.tickets.receivedDate, draft.date, value => { draft.date = value; }, { type: 'date' }),
                 textField(TEXTS.tickets.receivedTime, draft.time, value => { draft.time = value; }, { placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric' })),
-            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshButton(); }, { maxlength: '160' }),
-            textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; }, { multiline: true, rows: '4' }));
+            textField(TEXTS.tickets.shortDescription, draft.subject, value => { draft.subject = value; refreshButton(); details.update(); }, { maxlength: '160' }),
+            textField(TEXTS.tickets.description, draft.description, value => { draft.description = value; details.update(); }, { multiline: true, rows: '4' }));
         return h('section', { class: 'ao-card ao-new-ticket-card' },
             // Stesso riquadro della presa in carico da In coda: Agenzia, Attività, data e ora di ricezione,
             // poi Short description e Description.
             h('div', { class: 'ao-inline-form' },
                 zone,
+                details,
                 h('div', { class: 'ao-actions' },
                     h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready(), onclick: () => openTicket(manualMail()) }, TEXTS.tickets.openNew),
                     h('span', { class: 'ao-spacer' }),
@@ -3258,6 +3383,7 @@
             h('div', { class: 'ao-inline-form' },
                 h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, clipText(origin.body || '', PREVIEW_MAX_CHARS))),
                 ticketForm(origin, config),
+                ticketDetails(origin, config),
                 h('div', { class: 'ao-actions' }, openTicketButton(origin, config), h('span', { class: 'ao-spacer' }), cancel)));
     }
     // La pillola "Ticket" si trasforma nel modulo: un riquadro parte dalla pillola e si allarga fino al posto del modulo, in cima
@@ -3416,6 +3542,48 @@
             draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; rerender(); }, { searchable: true });
         if (draft.activityProposed && draft.activityId) activityField.querySelector('.ao-label').append(h('span', { class: 'ao-suggest-tag' }, TEXTS.mail.proposedActivity));
         return h('div', { class: 'ao-form-fields' }, companyField, activityField);
+    }
+    // Dettagli della presa in carico: i campi che andranno sul ticket e il link di AMP già compilato da copiare.
+    // Chiusi di partenza; si aprono solo con Agenzia e Attività scelte. update(): ricalcola (ticket senza mail, a ogni tasto).
+    function ticketDetails(mail, config) {
+        const draft = ticketDraft(mail, config);
+        const body = h('div', { class: 'ao-details-body' });
+        const fill = () => {
+            const company = config.companies[draft.companyId];
+            const activity = config.activities[draft.activityId];
+            if (!company || !activity) return body.replaceChildren();
+            const fields = ticketFields(mail, draft, company, activity, config);
+            const link = ampNewIncidentUrl(fields);
+            const row = (label, value) => [h('dt', null, label), h('dd', null, value || '—')];
+            body.replaceChildren(
+                h('dl', { class: 'ao-details-list' },
+                    row(TEXTS.mail.detailCompany, fields.company.displayValue),
+                    row(TEXTS.mail.detailGroup, fields.assignmentGroup.displayValue),
+                    row(TEXTS.mail.detailAssignedTo, fields.assignedTo?.displayValue),
+                    row(TEXTS.mail.detailCategory, fields.category.displayValue),
+                    row(TEXTS.mail.detailSeverity, `${SEVERITY_LABELS[fields.impact] || '?'} / ${SEVERITY_LABELS[fields.urgency] || '?'}`),
+                    row(TEXTS.mail.timeWorked, TEXTS.mail.minutes(fields.timeWorkedMinutes))),
+                h('div', { class: 'ao-details-link' },
+                    h('input', { class: 'ao-input', value: link, readonly: '', 'aria-label': TEXTS.mail.ampLink, onfocus: event => event.target.select() }),
+                    h('button', { type: 'button', class: 'ao-button', onclick: async () => {
+                        const copied = await copyText(link);
+                        showStatus(copied ? TEXTS.mail.ampLinkCopied : TEXTS.mail.copyFailed, copied ? 'success' : 'danger');
+                    } }, TEXTS.mail.copyReply)));
+        };
+        const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId]);
+        const section = h('div', { class: `ao-details${draft.detailsOpen && ready() ? ' ao-open' : ''}` });
+        const toggle = h('button', { type: 'button', class: 'ao-details-toggle', disabled: !ready(), 'aria-expanded': String(Boolean(draft.detailsOpen && ready())),
+            onclick: async () => {
+                draft.detailsOpen = !draft.detailsOpen;
+                section.classList.toggle('ao-open', draft.detailsOpen);
+                toggle.setAttribute('aria-expanded', String(draft.detailsOpen));
+                if (draft.detailsOpen) { fill(); section.append(body); await unfold(body); } else { await fold(body); body.remove(); }
+            } },
+            h('span', null, TEXTS.mail.details), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾'));
+        section.append(toggle);
+        if (draft.detailsOpen && ready()) { fill(); section.append(body); }
+        section.update = fill;
+        return section;
     }
     function openTicketButton(mail, config) {
         const draft = ticketDraft(mail, config);
@@ -3618,26 +3786,11 @@
         const prefix = activity?.shortDescriptionPrefix || '';
         return prefix ? `${prefix} ${clean.replace(/^\s*\[[^\]]+\]\s*/, '')}`.trim() : clean;
     }
-    // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
-    // card: la card di In coda da cui si prende in carico (si chiude con un'animazione se va tutto bene).
-    async function openTicket(mail, card = null) {
-        const config = loadConfig();
-        const draft = ticketDraft(mail, config);
-        const company = config.companies[draft.companyId];
-        const activity = config.activities[draft.activityId];
-        if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
-        if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+    // Campi del ticket per ServiceNow (gli stessi del link di AMP in Dettagli).
+    function ticketFields(mail, draft, company, activity, config, reportedOn = '') {
         // Corpo completo se è proprio la mail aperta in Outlook; altrimenti quello della Coda. Senza mail: quanto scritto.
         const body = mail.manual ? draft.description : (state.mail?.itemId && state.mail.itemId === mail.itemId ? state.mail.body : mail.body);
-        let reportedOn = mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '';
-        if (mail.manual) {
-            if (!String(draft.subject || '').trim()) return showStatus(TEXTS.tickets.missingShort, 'danger');
-            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time || '')) return showStatus(TEXTS.tickets.badTime, 'danger');
-            const when = parseDate(`${draft.date} ${draft.time}`);
-            if (!when) return showStatus(TEXTS.tickets.badTime, 'danger');
-            reportedOn = formatServiceNowDate(when);
-        }
-        const fields = {
+        return {
             company: normalizeReference(company.company),
             assignmentGroup: normalizeReference(company.assignmentGroup),
             assignedTo: config.profile.assignedTo,
@@ -3649,6 +3802,25 @@
             description: String(body || '').slice(0, 4000),
             reportedOn
         };
+    }
+    // Apre l'Incident su ServiceNow (assegnato a chi lo apre); il servizio registra poi il collegamento.
+    // card: la card di In coda da cui si prende in carico (si chiude con un'animazione se va tutto bene).
+    async function openTicket(mail, card = null) {
+        const config = loadConfig();
+        const draft = ticketDraft(mail, config);
+        const company = config.companies[draft.companyId];
+        const activity = config.activities[draft.activityId];
+        if (!company || !activity) return showStatus(TEXTS.mail.selectBoth, 'danger');
+        if (!config.profile.assignedTo.displayValue) return showStatus(TEXTS.mail.profileMissing, 'danger');
+        let reportedOn = mail.receivedAt ? formatServiceNowDate(parseDate(mail.receivedAt)) : '';
+        if (mail.manual) {
+            if (!String(draft.subject || '').trim()) return showStatus(TEXTS.tickets.missingShort, 'danger');
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time || '')) return showStatus(TEXTS.tickets.badTime, 'danger');
+            const when = parseDate(`${draft.date} ${draft.time}`);
+            if (!when) return showStatus(TEXTS.tickets.badTime, 'danger');
+            reportedOn = formatServiceNowDate(when);
+        }
+        const fields = ticketFields(mail, draft, company, activity, config, reportedOn);
         const ticket = await run(() => Services.createTicket(mail.manual ? null : mail, {
             companyId: draft.companyId, companyName: company.name,
             activityId: draft.activityId, activityName: activity.name, fields
@@ -4065,6 +4237,55 @@
         return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
     }
 
+    // Tools: selettore delle sezioni come nelle altre schede; ogni sezione in una card.
+    function renderTools() {
+        const tabs = Object.keys(TEXTS.tools.tabs);
+        const tab = tabs.includes(state.toolsTab) ? state.toolsTab : 'functions';
+        const bar = filterBar(tabs.map(value => ({ value, label: TEXTS.tools.tabs[value] })), tab, value => { state.toolsTab = value; render(); }, { key: 'tools' });
+        const cards = TOOLS_SECTIONS[tab].map(id => document.getElementById(id)).filter(Boolean).map(node => {
+            keepOpen(node);
+            return h('section', { class: 'ao-card ao-tools-card', hidden: !alwaysOpen(node) && node.hidden }, node);
+        });
+        // Interruttore "Abilita diagnostica avanzata" di jak in cima alla Diagnostica (registra gli eventi dell'accesso).
+        const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
+        if (tab === 'diagnostics' && diagnosticsSwitch) cards[0]?.prepend(diagnosticsSwitch);
+        if (tab === 'diagnostics') cards.push(actionLogCard());
+        if (tab === 'settings') cards.push(refreshCard());
+        return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
+    }
+    const redrawTools = () => { delete root.querySelector('.ao-body').dataset.tools; render(); };
+    // Registro delle azioni del pannello (AmpActionLog), dal più recente.
+    function actionLogCard() {
+        const output = h('pre', { class: 'ao-tools-log' });
+        const fill = () => { output.textContent = ActionLog.read().slice().reverse().map(entry => `${entry.at.slice(11, 19)} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n') || TEXTS.tools.logEmpty; };
+        fill();
+        return h('section', { class: 'ao-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.tools.log),
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: 'ao-button', onclick: fill }, '↻'),
+                h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await copyText(ActionLog.text())) showStatus(TEXTS.tools.copied, 'success'); } }, TEXTS.tools.copy),
+                h('button', { type: 'button', class: 'ao-button', onclick: () => { ActionLog.clear(); fill(); } }, TEXTS.tools.clear)),
+            output);
+    }
+    // Frequenza degli aggiornamenti: valori della config, sostituibili su questo pannello.
+    function refreshCard() {
+        const settings = window.AmpBackend?.refreshSettings?.();
+        if (!settings) return null;
+        const draft = { listsSeconds: settings.listsSeconds, threadCacheSeconds: settings.threadCacheSeconds };
+        const inUse = h('p', { class: 'ao-hint' });
+        const show = current => { inUse.textContent = TEXTS.tools.refreshInUse(current, TEXTS.tools.refreshSource[current.source] || current.source); };
+        show(settings);
+        const number = (label, key, [min, max]) => textField(label, String(draft[key]), value => { draft[key] = value; }, { type: 'number', min: String(min), max: String(max), inputmode: 'numeric' });
+        return h('section', { class: 'ao-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.tools.refresh),
+            h('div', { class: 'ao-field-row ao-even' },
+                number(TEXTS.tools.lists, 'listsSeconds', settings.limits.listsSeconds),
+                number(TEXTS.tools.thread, 'threadCacheSeconds', settings.limits.threadCacheSeconds)),
+            inUse,
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: 'ao-button', onclick: () => { window.AmpBackend.setRefreshOverride(null); redrawTools(); } }, TEXTS.tools.reset),
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => show(window.AmpBackend.setRefreshOverride(draft)) }, TEXTS.tools.apply)));
+    }
     function renderSettings(config) {
         const tabs = Object.keys(TEXTS.settings.tabs);
         const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
@@ -4414,7 +4635,44 @@
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-#ao-root .ao-debug { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; } /* scheda Debug: le sezioni dell'add-in di jak */
+/* Tools: le sezioni dell'add-in di jak dentro le card del pannello, con i controlli del pannello */
+#ao-root .ao-tools { display: grid; gap: 10px; }
+#ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card :is(.developer-input, select, textarea, input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"]) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; box-shadow: none; }
+#ao-root .ao-tools-card :is(.developer-input, select, textarea):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
+/* Pulsanti: come quelli del pannello. Esegui pieno; gli altri con il solo contorno; Reset in rosso; "Mostra originale",
+   "Mostra campi" e la chiusura del risultato sono comandi di testo. */
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
+#ao-root .ao-tools-card .secondary-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
+#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
+#ao-root .ao-tools-card #developer-execute-button { width: 100%; }
+#ao-root .ao-tools-card .diagnostic-danger-button { border-color: color-mix(in srgb, var(--ao-danger) 45%, transparent); color: var(--ao-danger); }
+#ao-root .ao-tools-card .diagnostic-danger-button:hover:where(:not(:disabled)) { background: var(--ao-danger-bg); border-color: var(--ao-danger); }
+#ao-root .ao-tools-card :is(.diagnostic-health, .diagnostic-auth-tools) { display: grid; gap: 8px; margin: 0 0 10px; }
+#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button) { min-height: 0; padding: 2px 0; border: 0; border-radius: 0; background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; }
+#ao-root .ao-tools-card .result-close-button { color: var(--ao-text-muted); font-size: var(--ao-fs-lg); }
+#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button):hover { color: var(--ao-text); background: none; }
+/* Moduli e risultato senza riquadri scuri: stanno direttamente nella card; il risultato si stacca con una linea. */
+#ao-root .ao-tools-card :is(.developer-get-form, .developer-create-form, .developer-edit-form, .developer-search-form, .developer-category-form, .developer-graph-category-form, .developer-forward-form, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .function-result) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
+#ao-root .ao-tools-card :is(#developer-ticket-response, .auth-diagnostics-output, .attachment-header-content) { margin: 8px 0 0; padding: 8px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { display: flex !important; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; } /* scritta a sinistra, interruttore a destra */
+#ao-root .ao-tools-card .message-fields { gap: 0; }
+#ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
+#ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
+#ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
+/* Caselle di spunta = interruttori */
+#ao-root .ao-tools-card input[type="checkbox"] { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-tools-card input[type="checkbox"]::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root .ao-tools-card input[type="checkbox"]:checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root .ao-tools-card input[type="checkbox"]:checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root .ao-tools-card input[type="checkbox"]:focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+#ao-root .ao-debug { display: none; } /* sezioni dell'add-in di jak non mostrate: restano nella pagina per il suo codice */
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
@@ -4674,7 +4932,8 @@
 #ao-root .ao-new-ticket-card.ao-with-origin { gap: 3px; padding: 9px 10px; } /* come una scheda aperta di In coda */
 #ao-root .ao-new-ticket-card.ao-with-origin .ao-inline-form { padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
-#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
+#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; align-items: end; }
+#ao-root .ao-field-row.ao-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Ticket */
 #ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -4829,6 +5088,17 @@
 #ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
 #ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 /* Ticket chiusi del thread */
+#ao-root .ao-details { display: grid; }
+#ao-root .ao-details-toggle { display: flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; justify-self: start; }
+#ao-root .ao-details-toggle:disabled { opacity: .45; cursor: default; }
+#ao-root .ao-details-toggle .ao-select-caret { transition: transform .2s ease; }
+#ao-root .ao-details.ao-open .ao-details-toggle .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-details-body { display: grid; gap: 8px; padding-top: 6px; }
+#ao-root .ao-details-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; padding-top: 8px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); }
+#ao-root .ao-details-list dt { color: var(--ao-text-muted); }
+#ao-root .ao-details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+#ao-root .ao-details-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+#ao-root .ao-details-link .ao-input { font-size: var(--ao-fs-sm); color: var(--ao-text-muted); text-overflow: ellipsis; }
 #ao-root .ao-closed { display: grid; gap: 6px; }
 #ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
@@ -4943,10 +5213,11 @@ body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
         if (window.ResizeObserver) new ResizeObserver(() => fitHeight()).observe(scrollContainer());
         document.getElementById('open-amp-button')?.addEventListener('click', show);
         Outlook.onMailChanged(() => handleMailChanged());
-        Services.subscribe(() => { refreshLists(); });
+        Services.subscribe(() => { refreshLists('poll'); });
         state.mail = Outlook.currentMail();
         render();
-        await refreshLists();
+        ActionLog.record('panel', 'start', BUILD);
+        await refreshLists('start');
         refreshMailBar();
     }
     // L'area AMP occupa tutto il riquadro: annulla il margine interno del contenitore dell'add-in
