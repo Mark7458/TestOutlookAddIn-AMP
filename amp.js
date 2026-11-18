@@ -455,7 +455,6 @@
             detailAssignedTo: 'Assegnato a',
             detailCategory: 'Categoria',
             detailSeverity: 'Impatto / Urgenza',
-            detailShort: 'Short description',
             ampLink: 'Link AMP',
             ampLinkCopied: 'Link AMP copiato',
             discard: 'Ignora',
@@ -571,7 +570,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 18:05';
+    const BUILD = '2026-11-18 18:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -3428,8 +3427,7 @@
                     row(TEXTS.mail.detailAssignedTo, fields.assignedTo?.displayValue),
                     row(TEXTS.mail.detailCategory, fields.category.displayValue),
                     row(TEXTS.mail.detailSeverity, `${SEVERITY_LABELS[fields.impact] || '?'} / ${SEVERITY_LABELS[fields.urgency] || '?'}`),
-                    row(TEXTS.mail.timeWorked, TEXTS.mail.minutes(fields.timeWorkedMinutes)),
-                    row(TEXTS.mail.detailShort, fields.shortDescription)),
+                    row(TEXTS.mail.timeWorked, TEXTS.mail.minutes(fields.timeWorkedMinutes))),
                 h('div', { class: 'ao-details-link' },
                     h('input', { class: 'ao-input', value: link, readonly: '', 'aria-label': TEXTS.mail.ampLink, onfocus: event => event.target.select() }),
                     h('button', { type: 'button', class: 'ao-button', onclick: async () => {
