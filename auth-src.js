@@ -1,5 +1,6 @@
-// Test-Plugin file version: 0.2-auth-src.js-5
+// Test-Plugin file version: 0.2-auth-src.js-6
 import {
+  CacheLookupPolicy,
   PublicClientApplication
 } from "@azure/msal-browser";
 
@@ -335,7 +336,10 @@ async function acquireTokenSilently() {
         scopes: [
           AUTH_CONFIG.scope
         ],
-        forceRefresh
+        forceRefresh,
+        // Solo token e refresh token in cache: il tentativo nascosto verso Microsoft (iframe) nel task pane non
+        // riesce mai e costava circa 10 secondi a ogni scadenza. Senza token valido si passa subito al dialogo.
+        cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken
       });
 
     if (!result?.accessToken) {
@@ -906,9 +910,31 @@ async function callHealth() {
 // superata dalle altre, non veniva mai completata).
 let pendingAuthentication = null;
 const oneAtATime = (task) => (...args) => {
-  if (!pendingAuthentication) pendingAuthentication = task(...args).finally(() => { pendingAuthentication = null; });
+  if (!pendingAuthentication) {
+    pendingAuthentication = task(...args)
+      .then((authentication) => { scheduleRenewal(authentication); return authentication; })
+      .finally(() => { pendingAuthentication = null; });
+  }
   return pendingAuthentication;
 };
+// Rinnovo in anticipo: qualche minuto prima della scadenza il token si rinnova in sottofondo, così le chiamate
+// del pannello non trovano mai il token scaduto (prima restavano ferme finché il rinnovo non finiva).
+const RENEW_BEFORE_EXPIRY_MS = 5 * 60 * 1000;
+let renewalTimer = null;
+function scheduleRenewal(authentication) {
+  const expiresOn = authentication?.expiresOn ? new Date(authentication.expiresOn).getTime() : NaN;
+  const delay = expiresOn - Date.now() - RENEW_BEFORE_EXPIRY_MS;
+  if (!Number.isFinite(delay) || delay < 60 * 1000) return;
+  clearTimeout(renewalTimer);
+  renewalTimer = setTimeout(() => {
+    if (pendingAuthentication) return;
+    recordAuthDiagnostic("token_renewal_start", { expiresOn: new Date(expiresOn).toISOString() });
+    currentAuthentication = null;
+    refreshOnNextSilent = true; // non riprendere dalla cache di MSAL lo stesso token in scadenza
+    clearPersistedAuthentication("renewal");
+    getAccessTokenOnce().catch((error) => recordAuthDiagnostic("token_renewal_error", { errorCode: error?.errorCode || null, message: error?.message || String(error) }));
+  }, delay);
+}
 const connectPluginOnce = oneAtATime(connectPlugin);
 const getAccessTokenOnce = oneAtATime(getAccessTokenSilently);
 // Token rifiutato dalla Function (401/403): si scarta quello in memoria e quello salvato, e il prossimo token si chiede
