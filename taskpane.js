@@ -1313,10 +1313,12 @@ function registerHealthButton() {
     ListQueue: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ListQueue",
     ListThreadMessages: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ListThreadMessages",
     GetMailBody: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetMailBody",
-    ReplyAll: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ReplyAll"
+    ReplyAll: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ReplyAll",
+    SendMail: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SendMail",
+    UpdateRecord: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/UpdateRecord"
   });
   // Funzioni del pannello AMP: GET con i parametri in query, POST con il body. Risultato mostrato come JSON.
-  const AMP_DEVELOPER_ACTIONS = ["ManageThread", "ListQueue", "ListThreadMessages", "GetMailBody", "ReplyAll"];
+  const AMP_DEVELOPER_ACTIONS = ["ManageThread", "ListQueue", "ListThreadMessages", "GetMailBody", "ReplyAll", "SendMail", "UpdateRecord"];
   const TICKET_NOTES_MAX_LENGTH = 2000;
   const TICKET_FIELDS = [
     ["id", "ID item ticket"], ["parentItemId", "Parent Item ID"], ["ticketId", "Ticket ID"],
@@ -1480,7 +1482,9 @@ function registerHealthButton() {
       "developer-queue-form": action === "ListQueue",
       "developer-messages-form": action === "ListThreadMessages",
       "developer-body-form": action === "GetMailBody",
-      "developer-reply-form": action === "ReplyAll"
+      "developer-reply-form": action === "ReplyAll",
+      "developer-sendmail-form": action === "SendMail",
+      "developer-update-record-form": action === "UpdateRecord"
     };
     Object.entries(visibility).forEach(([id, visible]) => {
       const element = byId(id);
@@ -1517,7 +1521,7 @@ function registerHealthButton() {
 
   // Parent Item ID dall'ultimo record letto; Message ID dalla mail selezionata; sigle dai gruppi della config.
   function prefillAmpDeveloperForm(action) {
-    ["developer-thread-parent-item-id", "developer-messages-parent-item-id", "developer-reply-parent-item-id"].forEach((id) => {
+    ["developer-thread-parent-item-id", "developer-messages-parent-item-id", "developer-reply-parent-item-id", "developer-update-record-item-id"].forEach((id) => {
       const input = byId(id);
       if (input && !input.value && developerLastItemId) input.value = developerLastItemId;
     });
@@ -1558,6 +1562,21 @@ function registerHealthButton() {
       if (known) body.knownCount = assertPositiveInteger(known, "knownCount");
       if (byId("developer-thread-force")?.checked) body.force = true;
       return { method: "POST", body };
+    }
+    if (action === "SendMail") {
+      const required = (id, label) => { const text = value(id); if (!text) throw new Error(`Inserisci ${label}.`); return text; };
+      const body = { caller, to: required("developer-sendmail-to", "almeno un destinatario"), subject: required("developer-sendmail-subject", "l'oggetto"), text: required("developer-sendmail-text", "il testo") };
+      [["cc", "developer-sendmail-cc"], ["bcc", "developer-sendmail-bcc"]].forEach(([key, id]) => { const text = value(id); if (text) body[key] = text; });
+      return { method: "POST", body };
+    }
+    if (action === "UpdateRecord") {
+      const itemId = value("developer-update-record-item-id");
+      if (!itemId) throw new Error("Inserisci un Item ID.");
+      assertPositiveInteger(itemId, "Item ID");
+      let fields;
+      try { fields = JSON.parse(value("developer-update-record-fields") || "null"); } catch { throw new Error("Campi: JSON non valido."); }
+      if (!fields || typeof fields !== "object" || Array.isArray(fields) || !Object.keys(fields).length) throw new Error("Campi: serve un oggetto con almeno una colonna.");
+      return { method: "POST", body: { caller, list: value("developer-update-record-list"), itemId, fields } };
     }
     const body = { parentItemId: parentItemId("developer-reply-parent-item-id"), caller };
     [["messageId", "developer-reply-message-id"], ["text", "developer-reply-text"], ["tag", "developer-reply-tag"],
