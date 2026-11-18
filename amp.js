@@ -330,8 +330,8 @@
             copied: 'Registro copiato',
             clear: 'Pulisci',
             refresh: 'Frequenza degli aggiornamenti',
-            lists: 'Elenchi ogni (secondi)',
-            thread: 'Thread precaricato per (secondi)',
+            lists: 'Elenchi, ogni (s)',
+            thread: 'Thread in memoria (s)',
             apply: 'Applica',
             reset: 'Torna alla config',
             refreshSource: { pannello: 'impostata su questo pannello', config: 'dalla config', predefiniti: 'valori predefiniti' },
@@ -585,7 +585,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 23:45';
+    const BUILD = '2026-11-19 00:05';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1861,17 +1861,21 @@
     // Scheda Tools: le sezioni dell'add-in di jak (Developer Tools, dati del messaggio, diagnostica, impostazioni),
     // spostate così come sono. Quando non si vedono stanno in debugHost (nascosto): il codice di jak le cerca per id.
     let debugHost = null;
-    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: ['settings-panel'] };
+    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: [] };
     // Le sezioni di jak si aprono e chiudono con i suoi pulsanti (qui non ci sono): nella scheda Tools restano aperte.
     // Il riquadro dell'header originale invece segue i pulsanti di jak (Mostra originale / Indietro).
-    const ALWAYS_OPEN = ['email-details-panel', 'message-data', 'diagnostics-panel', 'settings-panel'];
+    // Con le schede le opzioni di jak "Mantieni sezioni aperte" e "Diagnostica avanzata" non servono: il log è sempre visibile.
+    const ALWAYS_OPEN = ['email-details-panel', 'message-data', 'diagnostics-panel'];
+    const alwaysOpen = node => ALWAYS_OPEN.includes(node.id) || node.hasAttribute('data-diagnostics-log-ui');
     const openKeeper = window.MutationObserver ? new MutationObserver(records => records.forEach(({ target }) => {
         if (target.id === 'header-view') { const card = target.closest('.ao-tools-card'); if (card) card.hidden = target.hidden; return; }
-        if (target.hidden && target.closest('.ao-tools-card')) target.hidden = false;
+        if (target.hidden && alwaysOpen(target) && target.closest('.ao-tools-card')) target.hidden = false;
     })) : null;
     function keepOpen(node) {
-        if (ALWAYS_OPEN.includes(node.id)) node.hidden = false;
-        if (!node.dataset.aoKept) { node.dataset.aoKept = '1'; openKeeper?.observe(node, { attributes: true, attributeFilter: ['hidden'] }); }
+        [node, ...node.querySelectorAll('[data-diagnostics-log-ui]')].forEach(element => {
+            if (alwaysOpen(element)) element.hidden = false;
+            if (!element.dataset.aoKept) { element.dataset.aoKept = '1'; openKeeper?.observe(element, { attributes: true, attributeFilter: ['hidden'] }); }
+        });
     }
     function parkTools() {
         if (!debugHost) return;
@@ -4227,7 +4231,7 @@
         const number = (label, key, [min, max]) => textField(label, String(draft[key]), value => { draft[key] = value; }, { type: 'number', min: String(min), max: String(max), inputmode: 'numeric' });
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.tools.refresh),
-            h('div', { class: 'ao-field-row' },
+            h('div', { class: 'ao-field-row ao-even' },
                 number(TEXTS.tools.lists, 'listsSeconds', settings.limits.listsSeconds),
                 number(TEXTS.tools.thread, 'threadCacheSeconds', settings.limits.threadCacheSeconds)),
             inUse,
@@ -4590,17 +4594,36 @@
 #ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
 #ao-root .ao-tools-card :is(.developer-input, select, textarea, input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"]) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; box-shadow: none; }
 #ao-root .ao-tools-card :is(.developer-input, select, textarea):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
-#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; }
-#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); width: 100%; background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
-#ao-root .ao-tools-card :is(.primary-button, .secondary-button):hover:where(:not(:disabled)) { background: var(--ao-hover); }
-#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); filter: var(--ao-tone-hover-filter); }
-#ao-root .ao-tools-card :is(.function-result, .auth-diagnostics-output, .attachment-header-content, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .developer-forward-form, .developer-graph-category-form) { border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); box-shadow: none; }
+/* Pulsanti: come quelli del pannello. Esegui pieno; gli altri con il solo contorno; Reset in rosso; "Mostra originale",
+   "Mostra campi" e la chiusura del risultato sono comandi di testo. */
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
+#ao-root .ao-tools-card .secondary-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
+#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
+#ao-root .ao-tools-card #developer-execute-button { width: 100%; }
+#ao-root .ao-tools-card .diagnostic-danger-button { border-color: color-mix(in srgb, var(--ao-danger) 45%, transparent); color: var(--ao-danger); }
+#ao-root .ao-tools-card .diagnostic-danger-button:hover:where(:not(:disabled)) { background: var(--ao-danger-bg); border-color: var(--ao-danger); }
+#ao-root .ao-tools-card :is(.diagnostic-health, .diagnostic-auth-tools) { display: grid; gap: 8px; margin: 0 0 10px; }
+#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button) { min-height: 0; padding: 2px 0; border: 0; border-radius: 0; background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; }
+#ao-root .ao-tools-card .result-close-button { color: var(--ao-text-muted); font-size: var(--ao-fs-lg); }
+#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button):hover { color: var(--ao-text); background: none; }
+/* Moduli e risultato senza riquadri scuri: stanno direttamente nella card; il risultato si stacca con una linea. */
+#ao-root .ao-tools-card :is(.developer-get-form, .developer-create-form, .developer-edit-form, .developer-search-form, .developer-category-form, .developer-graph-category-form, .developer-forward-form, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .function-result) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
+#ao-root .ao-tools-card :is(#developer-ticket-response, .auth-diagnostics-output, .attachment-header-content) { margin: 8px 0 0; padding: 8px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; }
 #ao-root .ao-tools-card .message-fields { gap: 0; }
 #ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
 #ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
 #ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
 #ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
-#ao-root .ao-tools-card .diagnostic-danger-button { color: var(--ao-tone-danger, var(--ao-text)); }
+/* Caselle di spunta = interruttori */
+#ao-root .ao-tools-card input[type="checkbox"] { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-tools-card input[type="checkbox"]::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root .ao-tools-card input[type="checkbox"]:checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root .ao-tools-card input[type="checkbox"]:checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root .ao-tools-card input[type="checkbox"]:focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
 #ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 #ao-root .ao-debug { display: none; } /* sezioni dell'add-in di jak non mostrate: restano nella pagina per il suo codice */
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -4862,7 +4885,8 @@
 #ao-root .ao-new-ticket-card.ao-with-origin { gap: 3px; padding: 9px 10px; } /* come una scheda aperta di In coda */
 #ao-root .ao-new-ticket-card.ao-with-origin .ao-inline-form { padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
-#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
+#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; align-items: end; }
+#ao-root .ao-field-row.ao-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Ticket */
 #ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
