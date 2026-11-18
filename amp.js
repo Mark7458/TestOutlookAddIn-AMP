@@ -323,29 +323,22 @@
         },
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', utility: 'Utility', debug: 'Tools' },
         utility: {
-            agency: 'Agenzia',
-            choose: 'Scegli…',
-            none: 'Nessuna operazione abilitata per questa agenzia.',
-            withOperations: 'Con operazioni',
-            withoutOperations: 'Senza operazioni',
-            run: 'Esegui',
-            notLinked: 'Operazione non ancora collegata',
-            fromMail: 'Dalla mail selezionata',
-            operations: {
-                GuestAdd: 'Aggiunta guest',
-                PimActivate: 'Attivazione PIM',
-                MailboxDelegation: 'Delega casella'
-            },
-            guests: 'Guest (un indirizzo per riga)',
-            role: 'Ruolo',
-            hours: 'Durata (ore)',
-            justification: 'Motivazione',
-            mailbox: 'Casella',
-            delegate: 'Delegato',
-            permission: 'Permesso',
-            action: 'Azione',
-            add: 'Aggiungi',
-            remove: 'Rimuovi'
+            steps: ['Attività', 'Agenzia', 'Dati', 'Accesso', 'Esecuzione'],
+            stepOf: (n, total) => `${n} di ${total}`,
+            noOperations: 'Nessuna attività configurata.',
+            onlyEnabled: "Solo le agenzie dove l'attività è abilitata",
+            noAgencies: "L'attività non è abilitata su nessuna agenzia.",
+            fromMail: 'dalla mail selezionata',
+            back: 'Indietro',
+            next: 'Avanti',
+            start: 'Avvia',
+            signIn: "Accedi al tenant dell'agenzia",
+            signInHint: "Con il tuo account e l'MFA, solo per questa operazione",
+            signInStart: 'Accedi e avvia',
+            signInMissing: "L'accesso con l'operatore non è ancora disponibile",
+            again: 'Nuova attività',
+            retry: 'Riprova',
+            required: label => `Manca: ${label}`
         },
         tools: {
             tabs: { functions: 'Funzioni', message: 'Messaggio', diagnostics: 'Diagnostica', settings: 'Impostazioni' },
@@ -610,7 +603,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 00:55';
+    const BUILD = '2026-11-19 01:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -809,7 +802,7 @@
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
     Services.listThreadMessages = async conversationId => (typeof window.AmpBackend?.listThreadMessages === 'function' ? window.AmpBackend.listThreadMessages(conversationId) : null);
-    ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets'].forEach(name => {
+    ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets', 'runUtility'].forEach(name => {
         Services[name] = async (...args) => {
             if (typeof window.AmpBackend?.[name] !== 'function') throw new ServicesMissingError(name);
             return ActionLog.track('service', name, ActionLog.ids(args), () => window.AmpBackend[name](...args));
@@ -1079,7 +1072,7 @@
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
         toolsTab: 'functions', // scheda Tools: functions | message | diagnostics | settings
-        utility: { agency: '', operation: '' }, // scheda Utility: agenzia e operazione scelte
+        utility: { step: 0, operation: '', agency: '', values: {}, run: null }, // scheda Utility: passo, scelte e dati
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
         journey: null, // ticket aperto dalla lista mentre le schede viaggiano: nella pagina i loro posti restano vuoti finché non arrivano
@@ -4224,59 +4217,133 @@
         return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
     }
 
-    // Utility: operazioni sui tenant delle agenzie (eseguite dalle function con i certificati delle agenzie).
-    // Agenzia -> solo le operazioni abilitate in config (agencies.*.operationsEnabled) -> modulo dell'operazione.
-    // Per ora schermata provvisoria: le function non ci sono ancora, Esegui lo dice.
-    const UTILITY_OPERATIONS = {
-        GuestAdd: { fields: ['guests'] },
-        PimActivate: { fields: ['role', 'hours', 'justification'] },
-        MailboxDelegation: { fields: ['mailbox', 'delegate', 'permission', 'delegationAction'] }
-    };
-    const PIM_ROLES = ['Exchange Administrator', 'User Administrator', 'Teams Administrator', 'SharePoint Administrator', 'Global Reader'];
-    const utilityDrafts = {}; // per agenzia e operazione: quanto scritto nel modulo
+    // Utility: attività sui tenant delle agenzie, sempre con lo stesso flusso a passi:
+    //   Attività -> Agenzia (solo dove è abilitata) -> Dati (modulo dalla definizione) -> Accesso (solo se l'attività
+    //   lavora con l'account dell'operatore) -> Esecuzione (RunUtility sul tenant dell'agenzia, esito per passo e per voce).
+    // Le attività sono definizioni nella config (utilities.operations): campi, accesso, agenzie, passi. Un'attività nuova
+    // è una definizione + uno script lato Function, senza toccare il pannello.
+    const UTILITY_FIELD_TYPES = ['text', 'email', 'emailList', 'number', 'choice', 'switch'];
     const mailAddresses = text => [...new Set(String(text || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [])];
+    function utilityCatalog() {
+        const config = window.AmpBackend?.operationalConfig?.() || {};
+        const agencies = Object.entries(config.agencies || {}).filter(([, agency]) => agency?.enabled !== false);
+        const operations = (Array.isArray(config.utilities?.operations) ? config.utilities.operations : [])
+            .filter(operation => operation?.id && operation?.name && Array.isArray(operation.fields))
+            .map(operation => ({
+                ...operation,
+                fields: operation.fields.filter(field => field?.id && UTILITY_FIELD_TYPES.includes(field.type)),
+                // dove è abilitata: nella definizione (agencies) o nell'agenzia (operationsEnabled)
+                agencies: agencies.filter(([id, agency]) => (operation.agencies || []).includes(id) || (agency.operationsEnabled || []).includes(operation.id))
+            }));
+        return { operations };
+    }
+    function utilityDefault(field) {
+        if (field.source === 'selectedMail') return mailAddresses(state.mail?.body).join('\n');
+        if (field.default !== undefined) return Array.isArray(field.default) ? [...field.default] : field.default;
+        return field.type === 'choice' && field.multiple ? [] : field.type === 'switch' ? false : '';
+    }
+    const emptyValue = value => (Array.isArray(value) ? !value.length : value === '' || value === null || value === undefined);
     function renderUtility() {
         const T = TEXTS.utility;
-        const agencies = Object.entries(window.AmpBackend?.operationalConfig?.().agencies || {}).filter(([, agency]) => agency?.enabled !== false);
-        const choice = state.utility;
-        const agency = agencies.find(([id]) => id === choice.agency)?.[1] || null;
-        const enabled = (agency?.operationsEnabled || []).filter(id => UTILITY_OPERATIONS[id]);
-        if (!enabled.includes(choice.operation)) choice.operation = enabled[0] || '';
-        // Prima le agenzie con operazioni abilitate, poi le altre.
-        const option = ([id, item]) => ({ value: id, label: `${item.shortName || id} · ${item.displayName || ''}` });
-        const hasOperations = ([, item]) => (item.operationsEnabled || []).some(id => UTILITY_OPERATIONS[id]);
-        const agencyField = selectField(T.agency, [{ value: '', label: T.choose, placeholder: true },
-            { group: T.withOperations }, ...agencies.filter(hasOperations).map(option),
-            { group: T.withoutOperations }, ...agencies.filter(entry => !hasOperations(entry)).map(option)],
-        choice.agency, value => { choice.agency = value; choice.operation = ''; render(); }, { searchable: true });
-        // L'agenzia sta nella barra in alto, come i selettori delle altre schede.
-        const bar = h('div', { class: 'ao-source-bar' }, agencyField);
-        const cards = [];
-        if (agency && !enabled.length) cards.push(h('p', { class: 'ao-hint' }, T.none));
-        if (enabled.length) {
-            const key = `${choice.agency}|${choice.operation}`;
-            const draft = utilityDrafts[key] ||= { guests: mailAddresses(state.mail?.body).join('\n'), role: PIM_ROLES[0], hours: '4', justification: '', mailbox: '', delegate: '', permission: 'FullAccess', delegationAction: 'add' };
-            const field = name => ({
-                guests: () => [textField(T.guests, draft.guests, value => { draft.guests = value; }, { multiline: true, rows: '5', grow: true }),
-                    state.mail?.body ? h('button', { type: 'button', class: 'ao-button', onclick: () => { draft.guests = mailAddresses(state.mail.body).join('\n'); render(); } }, T.fromMail) : null],
-                role: () => selectField(T.role, PIM_ROLES.map(role => ({ value: role, label: role })), draft.role, value => { draft.role = value; }),
-                hours: () => textField(T.hours, draft.hours, value => { draft.hours = value; }, { type: 'number', min: '1', max: '8', inputmode: 'numeric' }),
-                justification: () => textField(T.justification, draft.justification, value => { draft.justification = value; }),
-                mailbox: () => textField(T.mailbox, draft.mailbox, value => { draft.mailbox = value; }, { placeholder: 'casella@dominio.it' }),
-                delegate: () => textField(T.delegate, draft.delegate, value => { draft.delegate = value; }, { placeholder: 'utente@dominio.it' }),
-                permission: () => selectField(T.permission, ['FullAccess', 'SendAs', 'FullAccess + SendAs'].map(value => ({ value, label: value })), draft.permission, value => { draft.permission = value; }),
-                delegationAction: () => selectField(T.action, [{ value: 'add', label: T.add }, { value: 'remove', label: T.remove }], draft.delegationAction, value => { draft.delegationAction = value; })
-            })[name]();
-            cards.push(h('section', { class: 'ao-card' },
-                enabled.length > 1 ? filterBar(enabled.map(id => ({ value: id, label: T.operations[id] })), choice.operation, value => { choice.operation = value; render(); }, { key: 'utility-operations', slide: false })
-                    : h('h3', { class: 'ao-card-title' }, T.operations[choice.operation]),
-                UTILITY_OPERATIONS[choice.operation].fields.map(field),
-                h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => {
-                    ActionLog.record('utility', choice.operation, { agency: choice.agency });
-                    showStatus(T.notLinked, 'warning');
-                } }, T.run))));
+        const flow = state.utility;
+        const { operations } = utilityCatalog();
+        const operation = operations.find(item => item.id === flow.operation) || null;
+        const delegated = operation?.auth === 'delegated';
+        const steps = delegated ? [0, 1, 2, 3, 4] : [0, 1, 2, 4]; // con il certificato il passo Accesso non c'è
+        const at = Math.max(0, steps.indexOf(flow.step));
+        const go = step => { flow.step = step; render(); };
+        const next = () => go(steps[at + 1]);
+        const back = () => go(steps[at - 1]);
+        const progress = h('div', { class: 'ao-steps', 'aria-hidden': 'true' }, steps.map((_, index) => h('span', { class: index <= at ? 'ao-done' : '' })));
+        const head = h('div', { class: 'ao-step-head' }, h('h3', { class: 'ao-card-title' }, T.steps[flow.step]), h('span', { class: 'ao-hint' }, [T.stepOf(at + 1, steps.length), operation && flow.step > 0 ? ` · ${operation.name}` : ''].join('')));
+        const nav = (nextLabel, ready, onNext = next) => h('div', { class: 'ao-actions ao-step-nav' },
+            at > 0 ? h('button', { type: 'button', class: 'ao-button', onclick: back }, T.back) : null,
+            nextLabel ? h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: onNext }, nextLabel) : null);
+        const pick = (selected, icon, title, subtitle, onclick) => h('button', { type: 'button', class: `ao-pick${selected ? ' ao-active' : ''}`, 'aria-pressed': String(selected), onclick },
+            icon ? h('span', { class: 'ao-pick-icon', 'aria-hidden': 'true' }, icon) : null,
+            h('span', { class: 'ao-pick-text' }, h('span', null, title), subtitle ? h('span', { class: 'ao-hint' }, subtitle) : null));
+        let body;
+        if (flow.step === 0) {
+            body = [h('section', { class: 'ao-card' }, operations.length
+                ? operations.map(item => pick(item.id === flow.operation, item.icon || '⚙', item.name, item.service, () => {
+                    if (flow.operation !== item.id) Object.assign(flow, { operation: item.id, agency: '', values: Object.fromEntries(item.fields.map(field => [field.id, utilityDefault(field)])) });
+                    render();
+                }))
+                : h('p', { class: 'ao-hint' }, T.noOperations)), nav(T.next, Boolean(operation))];
+        } else if (flow.step === 1) {
+            body = [h('section', { class: 'ao-card' }, operation.agencies.length
+                ? [operation.agencies.map(([id, agency]) => pick(id === flow.agency, '🏛', `${agency.shortName || id} · ${agency.displayName || ''}`, null, () => { flow.agency = id; render(); })),
+                    h('p', { class: 'ao-hint' }, T.onlyEnabled)]
+                : h('p', { class: 'ao-hint' }, T.noAgencies)), nav(T.next, Boolean(operation.agencies.some(([id]) => id === flow.agency)))];
+        } else if (flow.step === 2) {
+            const values = flow.values;
+            const missing = operation.fields.find(field => field.required && emptyValue(values[field.id]));
+            const field = item => {
+                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, ` · ${T.fromMail}`)] : item.label;
+                if (item.type === 'switch') return h('label', { class: 'ao-switch-row' }, h('span', null, item.label),
+                    h('input', { type: 'checkbox', class: 'ao-switch', checked: Boolean(values[item.id]), onchange: event => { values[item.id] = event.target.checked; } }));
+                if (item.type === 'choice') return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
+                    h('div', { class: 'ao-chips' }, (item.options || []).map(option => {
+                        const on = item.multiple ? (values[item.id] || []).includes(option) : values[item.id] === option;
+                        return h('button', { type: 'button', class: `ao-chip-toggle${on ? ' ao-active' : ''}`, 'aria-pressed': String(on), onclick: () => {
+                            values[item.id] = item.multiple ? (on ? values[item.id].filter(value => value !== option) : [...(values[item.id] || []), option]) : option;
+                            render();
+                        } }, option);
+                    })));
+                const node = textField(label, String(values[item.id] ?? ''), value => { values[item.id] = value; refreshNav(); },
+                    item.type === 'emailList' ? { multiline: true, rows: '3', grow: true } : { type: item.type === 'number' ? 'number' : item.type === 'email' ? 'email' : 'text', placeholder: item.placeholder || '' });
+                return node;
+            };
+            const startLabel = delegated ? T.next : T.start;
+            const actions = nav(startLabel, !missing, () => { if (delegated) next(); else runUtility(operation); });
+            const hint = h('p', { class: 'ao-hint' }, missing ? T.required(missing.label) : '');
+            const refreshNav = () => {
+                const gap = operation.fields.find(item => item.required && emptyValue(values[item.id]));
+                actions.querySelector('.ao-primary').disabled = Boolean(gap);
+                hint.textContent = gap ? T.required(gap.label) : '';
+            };
+            body = [h('section', { class: 'ao-card' }, operation.fields.map(field), hint), actions];
+        } else if (flow.step === 3) {
+            body = [h('section', { class: 'ao-card ao-step-center' },
+                h('span', { class: 'ao-step-icon', 'aria-hidden': 'true' }, '🔒'),
+                h('div', null, T.signIn), h('p', { class: 'ao-hint' }, T.signInHint),
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => showStatus(T.signInMissing, 'warning') }, T.signInStart)), nav(null, false)];
+        } else {
+            const run = flow.run;
+            const names = operation?.steps || [];
+            const results = run?.result?.steps || [];
+            const failed = run?.error || results.some(step => step.ok === false);
+            body = [h('section', { class: 'ao-card' },
+                names.map((name, index) => {
+                    const result = results[index];
+                    const status = result ? (result.ok === false ? 'ao-failed' : 'ao-ok') : run?.pending && index === 0 ? 'ao-running' : run?.pending ? '' : run?.error && index === 0 ? 'ao-failed' : '';
+                    return h('div', { class: `ao-run-step ${status}` }, h('span', { class: 'ao-run-dot', 'aria-hidden': 'true' }), h('span', null, name), result?.detail ? h('span', { class: 'ao-hint' }, result.detail) : null);
+                }),
+                (run?.result?.items || []).map(item => h('div', { class: 'ao-run-item' }, h('span', null, item.name), h('span', { class: item.ok === false ? 'ao-text-danger' : item.warning ? 'ao-text-warning' : 'ao-text-success' }, item.result || ''))),
+                run?.error ? h('p', { class: 'ao-text-danger' }, run.error) : null),
+            run?.pending ? null : h('div', { class: 'ao-actions ao-step-nav' },
+                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => { flow.step = 2; render(); } }, T.back) : null,
+                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => runUtility(operation) }, T.retry) : null,
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => { Object.assign(flow, { step: 0, operation: '', agency: '', values: {}, run: null }); render(); } }, T.again))];
         }
-        return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
+        return h('div', { class: 'ao-view' }, h('div', { class: 'ao-tools' }, progress, head, body));
+    }
+    // Esecuzione: parte da sola dopo i Dati (o l'Accesso). I passi si colorano con l'esito di RunUtility.
+    async function runUtility(operation) {
+        const flow = state.utility;
+        const params = Object.fromEntries(operation.fields.map(field => {
+            const value = flow.values[field.id];
+            return [field.id, field.type === 'emailList' ? mailAddresses(value) : field.type === 'number' ? Number(value) : value];
+        }));
+        flow.step = 4;
+        flow.run = { pending: true };
+        render();
+        try {
+            flow.run = { result: await Services.runUtility(operation.id, flow.agency, params) };
+        } catch (error) {
+            flow.run = { error: error?.message || String(error), result: error?.data || null };
+        }
+        if (state.view === 'utility') render();
     }
     // Tools: selettore delle sezioni come nelle altre schede; ogni sezione in una card.
     function renderTools() {
@@ -4678,6 +4745,42 @@
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* Tools: le sezioni dell'add-in di jak dentro le card del pannello, con i controlli del pannello */
 #ao-root .ao-tools { display: grid; gap: 10px; }
+/* Utility: avanzamento a segmenti, scelte a righe, passi dell'esecuzione */
+#ao-root .ao-steps { display: flex; gap: 4px; margin-top: 8px; }
+#ao-root .ao-steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--ao-line-strong); transition: background-color .3s; }
+#ao-root .ao-steps span.ao-done { background: var(--ao-text-accent); }
+#ao-root .ao-step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#ao-root .ao-step-nav { justify-content: flex-end; }
+#ao-root .ao-step-nav .ao-button { flex: 1; }
+#ao-root .ao-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text); font: inherit; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-pick:hover { background: var(--ao-hover); }
+#ao-root .ao-pick.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); }
+#ao-root .ao-pick-icon { flex: none; width: 20px; text-align: center; }
+#ao-root .ao-pick-text { display: grid; gap: 1px; min-width: 0; }
+#ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#ao-root .ao-chip-toggle { padding: 4px 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); cursor: pointer; }
+#ao-root .ao-chip-toggle.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); color: var(--ao-text); }
+#ao-root .ao-switch-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: var(--ao-fs-sm); cursor: pointer; }
+#ao-root .ao-switch { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root .ao-switch:checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root .ao-switch:checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root .ao-step-center { justify-items: center; text-align: center; padding: 18px 12px; }
+#ao-root .ao-step-icon { font-size: 20px; }
+#ao-root .ao-run-step { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-run-step .ao-hint { grid-column: 2; }
+#ao-root .ao-run-dot { width: 14px; height: 14px; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; }
+#ao-root .ao-run-step.ao-running { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-running .ao-run-dot { border-color: var(--ao-text-accent); border-top-color: transparent; animation: ao-spin .8s linear infinite; }
+#ao-root .ao-run-step.ao-ok { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-ok .ao-run-dot { border-color: var(--ao-success); background: var(--ao-success); }
+#ao-root .ao-run-step.ao-failed .ao-run-dot { border-color: var(--ao-danger); background: var(--ao-danger); }
+#ao-root .ao-run-item { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); overflow-wrap: anywhere; }
+#ao-root .ao-text-accent { color: var(--ao-text-accent); }
+#ao-root .ao-text-danger { color: var(--ao-danger); }
+#ao-root .ao-text-warning { color: var(--ao-warning); }
+#ao-root .ao-text-success { color: var(--ao-success); }
+@keyframes ao-spin { to { transform: rotate(360deg); } }
 #ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
 #ao-root .ao-tools-card :is(.developer-input, select, textarea, input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"]) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; box-shadow: none; }
