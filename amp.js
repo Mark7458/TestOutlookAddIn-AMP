@@ -570,7 +570,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 20:45';
+    const BUILD = '2026-11-18 23:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -746,10 +746,11 @@
     // Pagina del thread precaricata passando sopra una scheda: il risultato resta valido qualche secondo e la pagina,
     // al clic, compare subito (poi si aggiorna comunque in silenzio).
     const threadCache = new Map();
-    const THREAD_CACHE_MS = 15000;
+    // Durata della pagina precaricata: refresh.threadCacheSeconds (Developer Tools / config), altrimenti 15 secondi.
+    const threadCacheMs = () => (window.AmpBackend?.refreshSettings?.().threadCacheSeconds ?? 15) * 1000;
     Services.prefetchThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        if (!conversationId || (cached && Date.now() - cached.at < THREAD_CACHE_MS)) return;
+        if (!conversationId || (cached && Date.now() - cached.at < threadCacheMs())) return;
         const entry = { at: Date.now(), result: null, request: null };
         threadCache.set(conversationId, entry);
         entry.request = Services.findTicketForMail({ conversationId, incNumbers: [] });
@@ -758,11 +759,11 @@
     // Richiesta di precaricamento ancora in corso: la pagina aspetta quella invece di farne un'altra.
     Services.pendingThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        return cached && !cached.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.request : null;
+        return cached && !cached.result && Date.now() - cached.at < threadCacheMs() ? cached.request : null;
     };
     Services.cachedThread = conversationId => {
         const cached = threadCache.get(conversationId);
-        return cached?.result && Date.now() - cached.at < THREAD_CACHE_MS ? cached.result : null;
+        return cached?.result && Date.now() - cached.at < threadCacheMs() ? cached.result : null;
     };
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});

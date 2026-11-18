@@ -29,6 +29,9 @@
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
   </optgroup>
+  <optgroup label="Pannello AMP">
+    <option value="PanelRefresh">Frequenza degli aggiornamenti</option>
+  </optgroup>
   <optgroup label="Categorie Outlook">
     <option value="ManageCategories">Office.js — ManageCategories</option>
     <option value="SetMessageCategories">Graph — SetMessageCategories</option>
@@ -130,6 +133,13 @@
   <label class="developer-create-checkbox" for="developer-graph-skip-final-get" hidden="" id="developer-graph-skip-final-get-row"><input id="developer-graph-skip-final-get" type="checkbox"/><span>skipFinalGet — non rileggere lo stato finale</span></label>
   <button class="secondary-button compact-button developer-category-refresh" hidden="" id="developer-graph-refresh" type="button">Rileggi categorie Graph</button>
   <p class="developer-create-help developer-category-summary" id="developer-graph-status" role="status"></p>
+</div>
+
+<div class="developer-refresh-form" hidden="" id="developer-refresh-form">
+  <div class="developer-create-field"><label for="developer-refresh-lists">Elenchi (coda, ignorate, ticket): ogni quanti secondi</label><input class="developer-input" id="developer-refresh-lists" inputmode="numeric" max="900" min="15" type="number"/></div>
+  <div class="developer-create-field"><label for="developer-refresh-thread">Pagina del thread precaricata: per quanti secondi</label><input class="developer-input" id="developer-refresh-thread" inputmode="numeric" max="300" min="0" type="number"/></div>
+  <label class="developer-create-checkbox" for="developer-refresh-reset"><input id="developer-refresh-reset" type="checkbox"/><span>Torna ai valori della config</span></label>
+  <p class="developer-create-help developer-category-summary" id="developer-refresh-status" role="status"></p>
 </div>
 
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button>

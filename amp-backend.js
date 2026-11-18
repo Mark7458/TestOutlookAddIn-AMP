@@ -20,7 +20,6 @@
 
     const API = 'https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/';
     const CONFIG_KEY = 'test-plugin-operational-config';
-    const POLL_MS = 60 * 1000;
     const NOTES_MAX = 2000;
     const STATE_CODES = { 'In Progress': '2', 'On Hold': '3', Resolved: '6', Canceled: '8' };
     const OPEN_STATUSES = ['In Progress', 'On Hold'];
@@ -72,6 +71,40 @@
             throw error;
         }
         return data;
+    }
+
+    // Frequenze degli aggiornamenti: config.refresh (uguale per tutti), sostituibile sul proprio pannello dai Developer
+    // Tools (salvato nel browser). Valori fuori dai limiti si riportano dentro.
+    const REFRESH_DEFAULTS = { listsSeconds: 60, threadCacheSeconds: 15 };
+    const REFRESH_LIMITS = { listsSeconds: [15, 900], threadCacheSeconds: [0, 300] };
+    const REFRESH_OVERRIDE_KEY = 'amp_panel_refresh_override_v1';
+    const refreshListeners = new Set();
+    function refreshOverride() {
+        try { return JSON.parse(localStorage.getItem(REFRESH_OVERRIDE_KEY) || 'null') || {}; } catch { return {}; }
+    }
+    function refreshSettings() {
+        const config = pluginConfig().refresh || {};
+        const override = refreshOverride();
+        const pick = name => {
+            const value = Number(override[name] ?? config[name] ?? REFRESH_DEFAULTS[name]);
+            const [min, max] = REFRESH_LIMITS[name];
+            return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : REFRESH_DEFAULTS[name];
+        };
+        const source = Object.keys(override).length ? 'pannello' : Object.keys(config).length ? 'config' : 'predefiniti';
+        return { listsSeconds: pick('listsSeconds'), threadCacheSeconds: pick('threadCacheSeconds'), source, defaults: REFRESH_DEFAULTS, limits: REFRESH_LIMITS };
+    }
+    // values null: si torna alla config. Il nuovo intervallo vale subito.
+    function setRefreshOverride(values) {
+        const clean = Object.fromEntries(Object.keys(REFRESH_DEFAULTS)
+            .filter(name => values && values[name] !== '' && values[name] !== null && values[name] !== undefined && Number.isFinite(Number(values[name])))
+            .map(name => [name, Number(values[name])]));
+        try {
+            if (Object.keys(clean).length) localStorage.setItem(REFRESH_OVERRIDE_KEY, JSON.stringify(clean));
+            else localStorage.removeItem(REFRESH_OVERRIDE_KEY);
+        } catch { /* storage non disponibile */ }
+        window.AmpActionLog?.record('refresh', 'settings', refreshSettings());
+        refreshListeners.forEach(restart => restart());
+        return refreshSettings();
     }
 
     function pluginConfig() {
@@ -379,13 +412,22 @@
             await threadAction(conversationId, 'untag');
             return { ok: true };
         },
-        // Aggiornamento: ogni minuto e quando il pannello torna in primo piano.
+        refreshSettings,
+        setRefreshOverride,
+        // Aggiornamento: ogni refresh.listsSeconds e quando il pannello torna in primo piano.
         subscribe(listener) {
             const notify = () => { if (document.visibilityState === 'visible') listener(); };
-            const timer = setInterval(notify, POLL_MS);
+            let timer = null;
+            const schedule = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => { notify(); schedule(); }, refreshSettings().listsSeconds * 1000);
+            };
+            schedule();
+            refreshListeners.add(schedule);
             document.addEventListener('visibilitychange', notify);
             return () => {
-                clearInterval(timer);
+                clearTimeout(timer);
+                refreshListeners.delete(schedule);
                 document.removeEventListener('visibilitychange', notify);
             };
         }
