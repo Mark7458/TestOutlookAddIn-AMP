@@ -585,7 +585,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 00:05';
+    const BUILD = '2026-11-19 00:15';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1861,24 +1861,28 @@
     // Scheda Tools: le sezioni dell'add-in di jak (Developer Tools, dati del messaggio, diagnostica, impostazioni),
     // spostate così come sono. Quando non si vedono stanno in debugHost (nascosto): il codice di jak le cerca per id.
     let debugHost = null;
-    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: [] };
+    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['loading', 'error', 'message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: [] };
     // Le sezioni di jak si aprono e chiudono con i suoi pulsanti (qui non ci sono): nella scheda Tools restano aperte.
     // Il riquadro dell'header originale invece segue i pulsanti di jak (Mostra originale / Indietro).
-    // Con le schede le opzioni di jak "Mantieni sezioni aperte" e "Diagnostica avanzata" non servono: il log è sempre visibile.
+    // Con le schede "Mantieni sezioni aperte" di jak non serve (le sezioni sono sempre aperte). "Abilita diagnostica
+    // avanzata" invece sì: accende la registrazione degli eventi dell'accesso e il loro log, e sta in Diagnostica.
     const ALWAYS_OPEN = ['email-details-panel', 'message-data', 'diagnostics-panel'];
-    const alwaysOpen = node => ALWAYS_OPEN.includes(node.id) || node.hasAttribute('data-diagnostics-log-ui');
+    const alwaysOpen = node => ALWAYS_OPEN.includes(node.id);
     const openKeeper = window.MutationObserver ? new MutationObserver(records => records.forEach(({ target }) => {
-        if (target.id === 'header-view') { const card = target.closest('.ao-tools-card'); if (card) card.hidden = target.hidden; return; }
-        if (target.hidden && alwaysOpen(target) && target.closest('.ao-tools-card')) target.hidden = false;
+        const card = target.closest('.ao-tools-card');
+        if (!card) return;
+        if (!alwaysOpen(target)) card.hidden = target.hidden; // avvisi e header originale: la card segue jak
+        else if (target.hidden) target.hidden = false;
     })) : null;
     function keepOpen(node) {
-        [node, ...node.querySelectorAll('[data-diagnostics-log-ui]')].forEach(element => {
-            if (alwaysOpen(element)) element.hidden = false;
-            if (!element.dataset.aoKept) { element.dataset.aoKept = '1'; openKeeper?.observe(element, { attributes: true, attributeFilter: ['hidden'] }); }
-        });
+        if (alwaysOpen(node)) node.hidden = false;
+        if (!node.dataset.aoKept) { node.dataset.aoKept = '1'; openKeeper?.observe(node, { attributes: true, attributeFilter: ['hidden'] }); }
     }
     function parkTools() {
         if (!debugHost) return;
+        const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
+        const settingsPanel = document.getElementById('settings-panel');
+        if (diagnosticsSwitch && settingsPanel && diagnosticsSwitch.parentElement !== settingsPanel) settingsPanel.append(diagnosticsSwitch);
         Object.values(TOOLS_SECTIONS).flat().forEach(id => {
             const node = document.getElementById(id);
             if (node && node.parentElement !== debugHost) debugHost.append(node);
@@ -4200,8 +4204,11 @@
         const bar = filterBar(tabs.map(value => ({ value, label: TEXTS.tools.tabs[value] })), tab, value => { state.toolsTab = value; render(); }, { key: 'tools' });
         const cards = TOOLS_SECTIONS[tab].map(id => document.getElementById(id)).filter(Boolean).map(node => {
             keepOpen(node);
-            return h('section', { class: 'ao-card ao-tools-card', hidden: node.id === 'header-view' && node.hidden }, node);
+            return h('section', { class: 'ao-card ao-tools-card', hidden: !alwaysOpen(node) && node.hidden }, node);
         });
+        // Interruttore "Abilita diagnostica avanzata" di jak in cima alla Diagnostica (registra gli eventi dell'accesso).
+        const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
+        if (tab === 'diagnostics' && diagnosticsSwitch) cards[0]?.prepend(diagnosticsSwitch);
         if (tab === 'diagnostics') cards.push(actionLogCard());
         if (tab === 'settings') cards.push(refreshCard());
         return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
