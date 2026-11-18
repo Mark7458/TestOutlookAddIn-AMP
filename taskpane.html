@@ -26,6 +26,15 @@
     <option value="editTicket">editTicket</option>
     <option value="SearchTicketRecords">SearchTicketRecords</option>
   </optgroup>
+  <optgroup label="Thread e coda">
+    <option value="ManageThread">ManageThread</option>
+    <option value="ListQueue">ListQueue</option>
+    <option value="ListThreadMessages">ListThreadMessages</option>
+    <option value="GetMailBody">GetMailBody</option>
+  </optgroup>
+  <optgroup label="Posta">
+    <option value="ReplyAll">ReplyAll</option>
+  </optgroup>
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
   </optgroup>
@@ -133,6 +142,36 @@
   <label class="developer-create-checkbox" for="developer-graph-skip-final-get" hidden="" id="developer-graph-skip-final-get-row"><input id="developer-graph-skip-final-get" type="checkbox"/><span>skipFinalGet — non rileggere lo stato finale</span></label>
   <button class="secondary-button compact-button developer-category-refresh" hidden="" id="developer-graph-refresh" type="button">Rileggi categorie Graph</button>
   <p class="developer-create-help developer-category-summary" id="developer-graph-status" role="status"></p>
+</div>
+
+<div class="developer-thread-form" hidden="" id="developer-thread-form">
+  <div class="developer-create-field"><label for="developer-thread-action">Action</label><select class="developer-input" id="developer-thread-action"><option value="tag">tag</option><option value="untag">untag</option><option value="acquire">acquire</option><option value="release">release</option><option value="ignore">ignore</option><option value="restore">restore</option><option value="seen">seen</option></select></div>
+  <div class="developer-create-field"><label for="developer-thread-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-thread-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-thread-known-count">knownCount (opzionale)</label><input class="developer-input" id="developer-thread-known-count" inputmode="numeric" min="1" type="number"/></div>
+  <label class="developer-create-checkbox" for="developer-thread-force"><input id="developer-thread-force" type="checkbox"/><span>force — agisci senza tag, su un thread di un altro operatore, inoltrato o con ticket aperti</span></label>
+</div>
+
+<div class="developer-queue-form" hidden="" id="developer-queue-form">
+  <div class="developer-create-field"><label for="developer-queue-section">Section</label><select class="developer-input" id="developer-queue-section"><option value="active">active — in coda (New, Working)</option><option value="ignored">ignored — ignorati</option><option value="mine">mine — i miei con mail non viste o ticket aperti</option></select></div>
+</div>
+
+<div class="developer-messages-form" hidden="" id="developer-messages-form">
+  <div class="developer-create-field"><label for="developer-messages-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-messages-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+</div>
+
+<div class="developer-body-form" hidden="" id="developer-body-form">
+  <div class="developer-create-field"><label for="developer-body-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-body-message-id" spellcheck="false" type="text"/></div>
+</div>
+
+<div class="developer-reply-form" hidden="" id="developer-reply-form">
+  <div class="developer-create-field"><label for="developer-reply-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-message-id">Message ID (opzionale: vuoto = ultima mail del thread)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-message-id" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-text">Testo (vuoto = presa in carico standard)</label><textarea class="developer-input" id="developer-reply-text" rows="4"></textarea></div>
+  <div class="developer-create-field"><label for="developer-reply-tag">Sigla nell'oggetto (opzionale)</label><select class="developer-input" id="developer-reply-tag"><option value="">nessuna</option></select></div>
+  <div class="developer-create-field"><label for="developer-reply-reference">Riferimento (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-reply-reference" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-ticket-id">Ticket ID per RepliedAt (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-ticket-id" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-signature">Firma (opzionale: vuoto = nome dell'operatore)</label><input autocomplete="off" class="developer-input" id="developer-reply-signature" type="text"/></div>
+  <p class="developer-create-help">La risposta parte davvero dalla casella del servizio.</p>
 </div>
 
 <div class="developer-refresh-form" hidden="" id="developer-refresh-form">

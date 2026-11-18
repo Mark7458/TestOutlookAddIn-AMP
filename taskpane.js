@@ -1307,8 +1307,15 @@ function registerHealthButton() {
     createTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
     editTicket: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageTicket",
     ForwardConversation: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ForwardConversation",
-    SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories"
+    SetMessageCategories: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/SetMessageCategories",
+    ManageThread: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ManageThread",
+    ListQueue: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ListQueue",
+    ListThreadMessages: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ListThreadMessages",
+    GetMailBody: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/GetMailBody",
+    ReplyAll: "https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/ReplyAll"
   });
+  // Funzioni del pannello AMP: GET con i parametri in query, POST con il body. Risultato mostrato come JSON.
+  const AMP_DEVELOPER_ACTIONS = ["ManageThread", "ListQueue", "ListThreadMessages", "GetMailBody", "ReplyAll"];
   const TICKET_NOTES_MAX_LENGTH = 2000;
   const TICKET_FIELDS = [
     ["id", "ID item ticket"], ["parentItemId", "Parent Item ID"], ["ticketId", "Ticket ID"],
@@ -1468,7 +1475,12 @@ function registerHealthButton() {
       "developer-forward-form": action === "ForwardConversation",
       "developer-category-form": action === "ManageCategories",
       "developer-graph-category-form": action === "SetMessageCategories",
-      "developer-refresh-form": action === "PanelRefresh"
+      "developer-refresh-form": action === "PanelRefresh",
+      "developer-thread-form": action === "ManageThread",
+      "developer-queue-form": action === "ListQueue",
+      "developer-messages-form": action === "ListThreadMessages",
+      "developer-body-form": action === "GetMailBody",
+      "developer-reply-form": action === "ReplyAll"
     };
     Object.entries(visibility).forEach(([id, visible]) => {
       const element = byId(id);
@@ -1501,6 +1513,58 @@ function registerHealthButton() {
     if (action === "ManageCategories") void refreshOfficeCategoryForm();
     if (action === "SetMessageCategories") populateGraphCategoryForm();
     if (action === "PanelRefresh") fillPanelRefreshForm();
+    if (AMP_DEVELOPER_ACTIONS.includes(action)) prefillAmpDeveloperForm(action);
+  }
+
+  // Parent Item ID dall'ultimo record letto; Message ID dalla mail selezionata; sigle dai gruppi della config.
+  function prefillAmpDeveloperForm(action) {
+    ["developer-thread-parent-item-id", "developer-messages-parent-item-id", "developer-reply-parent-item-id"].forEach((id) => {
+      const input = byId(id);
+      if (input && !input.value && developerLastItemId) input.value = developerLastItemId;
+    });
+    const messageId = byId("developer-body-message-id");
+    if (messageId && !messageId.value && currentMessageContext?.itemId) messageId.value = currentMessageContext.itemId;
+    const tag = byId("developer-reply-tag");
+    if (action === "ReplyAll" && tag && tag.options.length === 1) {
+      Object.entries(developerConfig?.forwardingTargets || {}).forEach(([id, target]) => {
+        const code = String(target?.code || id || "").trim().toUpperCase();
+        if (code) tag.append(new Option(`${code} — ${target?.name || id}`, code));
+      });
+    }
+  }
+  // Richiesta delle funzioni del pannello AMP: { method, query } per le GET, { method, body } per le POST.
+  function collectAmpDeveloperRequest(action) {
+    const value = (id) => String(byId(id)?.value || "").trim();
+    const parentItemId = (id) => {
+      const parent = value(id);
+      if (!parent) throw new Error("Inserisci un Parent Item ID.");
+      assertPositiveInteger(parent, "Parent Item ID");
+      return parent;
+    };
+    const caller = getCurrentOperatorEmail();
+    if (action === "ListQueue") {
+      const query = { section: value("developer-queue-section") || "active" };
+      if (query.section === "mine") query.caller = caller;
+      return { method: "GET", query };
+    }
+    if (action === "ListThreadMessages") return { method: "GET", query: { parentItemId: parentItemId("developer-messages-parent-item-id") } };
+    if (action === "GetMailBody") {
+      const messageId = value("developer-body-message-id");
+      if (!messageId) throw new Error("Inserisci un Message ID.");
+      return { method: "GET", query: { messageId } };
+    }
+    if (action === "ManageThread") {
+      const body = { action: value("developer-thread-action"), parentItemId: parentItemId("developer-thread-parent-item-id"), caller };
+      const known = value("developer-thread-known-count");
+      if (known) body.knownCount = assertPositiveInteger(known, "knownCount");
+      if (byId("developer-thread-force")?.checked) body.force = true;
+      return { method: "POST", body };
+    }
+    const body = { parentItemId: parentItemId("developer-reply-parent-item-id"), caller };
+    [["messageId", "developer-reply-message-id"], ["text", "developer-reply-text"], ["tag", "developer-reply-tag"],
+      ["reference", "developer-reply-reference"], ["ticketId", "developer-reply-ticket-id"], ["signature", "developer-reply-signature"]]
+      .forEach(([key, id]) => { const text = value(id); if (text) body[key] = text; });
+    return { method: "POST", body };
   }
 
   // Frequenza degli aggiornamenti del pannello AMP: valore della config, sostituibile su questo pannello.
@@ -1760,7 +1824,7 @@ function registerHealthButton() {
       if (parent) parent.value = String(returnedItemId);
     }
 
-    const hasFields = Boolean(parsed && typeof parsed === "object");
+    const hasFields = Boolean(parsed && typeof parsed === "object") && !AMP_DEVELOPER_ACTIONS.includes(action);
     developerResultView = hasFields ? "fields" : "json";
     if (isRecordDeveloperAction(action) && parsed) renderRecordResultFields(parsed);
     else if (action === "SearchTicketRecords" && parsed) renderSearchTicketRecordsFields(parsed);
@@ -2189,7 +2253,18 @@ function registerHealthButton() {
       let url = DEVELOPER_ENDPOINTS[action];
       let request;
       let requestContext;
-      if (isRecordDeveloperAction(action)) {
+      if (AMP_DEVELOPER_ACTIONS.includes(action)) {
+        const ampRequest = collectAmpDeveloperRequest(action);
+        const headers = { Authorization: `Bearer ${authentication.accessToken}`, Accept: "application/json" };
+        if (ampRequest.method === "GET") {
+          url = `${url}?${new URLSearchParams(ampRequest.query).toString()}`;
+          request = { method: "GET", headers };
+          requestContext = ampRequest.query;
+        } else {
+          request = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(ampRequest.body) };
+          requestContext = ampRequest.body;
+        }
+      } else if (isRecordDeveloperAction(action)) {
         const parameter = action === "GetRecordById" ? "itemId" : "conversationId";
         const query = new URLSearchParams({ [parameter]: lookupValue });
         if (action === "GetRecordByConversationId") query.set("mode", getConversationRecordMode());
