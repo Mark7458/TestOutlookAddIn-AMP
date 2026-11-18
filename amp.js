@@ -321,7 +321,22 @@
             synced: when => `Allineato ${when}`,
             syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
         },
-        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Debug' },
+        tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', debug: 'Tools' },
+        tools: {
+            tabs: { functions: 'Funzioni', message: 'Messaggio', diagnostics: 'Diagnostica', settings: 'Impostazioni' },
+            log: 'Azioni del pannello',
+            logEmpty: 'Nessuna azione registrata.',
+            copy: 'Copia',
+            copied: 'Registro copiato',
+            clear: 'Pulisci',
+            refresh: 'Frequenza degli aggiornamenti',
+            lists: 'Elenchi ogni (secondi)',
+            thread: 'Thread precaricato per (secondi)',
+            apply: 'Applica',
+            reset: 'Torna alla config',
+            refreshSource: { pannello: 'impostata su questo pannello', config: 'dalla config', predefiniti: 'valori predefiniti' },
+            refreshInUse: (settings, source) => `In uso: elenchi ogni ${settings.listsSeconds} s, thread per ${settings.threadCacheSeconds} s (${source}).`
+        },
         common: {
             back: view => `← ${view}`,
             loading: 'Caricamento…',
@@ -570,7 +585,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-18 23:00';
+    const BUILD = '2026-11-18 23:45';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -1037,6 +1052,7 @@
         timeDrafts: {}, // per ticket: tempo lavorato impostato nel timer, che parte insieme all'azione (non da solo)
         editing: null, // impostazioni: { kind, id }
         settingsTab: 'profile', // profile | companies | activities | responses
+        toolsTab: 'functions', // scheda Tools: functions | message | diagnostics | settings
         backTo: null, // vista a cui torna il pulsante ← (Mail e Impostazioni aperte da un'altra vista)
         openedTicket: null, // ticket aperto dall'elenco Ticket: con ← la sua scheda torna al suo posto
         journey: null, // ticket aperto dalla lista mentre le schede viaggiano: nella pagina i loro posti restano vuoti finché non arrivano
@@ -1842,7 +1858,28 @@
     // Produzione (add-in di jak con amp-backend.js): al posto delle Impostazioni la scheda Debug con le sue sezioni.
     const PRODUCTION = window.AmpPanelMode === 'production' || window.AmpBackend?.mode === 'functions';
     const TABS = PRODUCTION ? ['queue', 'tickets', 'debug'] : ['queue', 'tickets', 'settings'];
-    let debugHost = null; // scheda Debug: #main-view e #header-view dell'add-in di jak, spostati così come sono
+    // Scheda Tools: le sezioni dell'add-in di jak (Developer Tools, dati del messaggio, diagnostica, impostazioni),
+    // spostate così come sono. Quando non si vedono stanno in debugHost (nascosto): il codice di jak le cerca per id.
+    let debugHost = null;
+    const TOOLS_SECTIONS = { functions: ['email-details-panel'], message: ['message-data', 'header-view'], diagnostics: ['diagnostics-panel'], settings: ['settings-panel'] };
+    // Le sezioni di jak si aprono e chiudono con i suoi pulsanti (qui non ci sono): nella scheda Tools restano aperte.
+    // Il riquadro dell'header originale invece segue i pulsanti di jak (Mostra originale / Indietro).
+    const ALWAYS_OPEN = ['email-details-panel', 'message-data', 'diagnostics-panel', 'settings-panel'];
+    const openKeeper = window.MutationObserver ? new MutationObserver(records => records.forEach(({ target }) => {
+        if (target.id === 'header-view') { const card = target.closest('.ao-tools-card'); if (card) card.hidden = target.hidden; return; }
+        if (target.hidden && target.closest('.ao-tools-card')) target.hidden = false;
+    })) : null;
+    function keepOpen(node) {
+        if (ALWAYS_OPEN.includes(node.id)) node.hidden = false;
+        if (!node.dataset.aoKept) { node.dataset.aoKept = '1'; openKeeper?.observe(node, { attributes: true, attributeFilter: ['hidden'] }); }
+    }
+    function parkTools() {
+        if (!debugHost) return;
+        Object.values(TOOLS_SECTIONS).flat().forEach(id => {
+            const node = document.getElementById(id);
+            if (node && node.parentElement !== debugHost) debugHost.append(node);
+        });
+    }
     function slideInView(direction) {
         // Si anima il contenitore fisso (.ao-body): il contenuto può ridisegnarsi durante l'animazione.
         const body = root?.querySelector('.ao-body');
@@ -1990,10 +2027,11 @@
         renderStatusBar();
         renderMailBar();
         const body = root.querySelector('.ao-body');
-        body.hidden = state.view === 'debug';
-        if (debugHost) debugHost.hidden = state.view !== 'debug';
-        if (state.view === 'debug') return;
-        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings };
+        // Tools già aperto sulla stessa sezione: non si ridisegna (si perderebbe il campo in cui si sta scrivendo).
+        if (state.view === 'debug' && body.dataset.tools === state.toolsTab) return;
+        parkTools();
+        body.dataset.tools = state.view === 'debug' ? state.toolsTab : '';
+        const views = { queue: renderQueue, tickets: renderTickets, mail: renderMail, settings: renderSettings, debug: renderTools };
         // Chi resta fermo (barra secondaria, "←") sta in alto, separato da una linea; tutto il resto scorre
         // sotto, a tutta larghezza. La posizione di scorrimento resta uguale tra un aggiornamento e l'altro.
         const scrollKey = `${state.view}|${state.target?.kind || ''}|${state.target?.number || state.target?.mail?.conversationId || ''}|${state.queueTab}|${state.ticketSource}|${state.ticketOperator.join(',')}|${state.ticketSearchOpen}|${state.settingsTab}`;
@@ -4151,6 +4189,52 @@
         return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
     }
 
+    // Tools: selettore delle sezioni come nelle altre schede; ogni sezione in una card.
+    function renderTools() {
+        const tabs = Object.keys(TEXTS.tools.tabs);
+        const tab = tabs.includes(state.toolsTab) ? state.toolsTab : 'functions';
+        const bar = filterBar(tabs.map(value => ({ value, label: TEXTS.tools.tabs[value] })), tab, value => { state.toolsTab = value; render(); }, { key: 'tools' });
+        const cards = TOOLS_SECTIONS[tab].map(id => document.getElementById(id)).filter(Boolean).map(node => {
+            keepOpen(node);
+            return h('section', { class: 'ao-card ao-tools-card', hidden: node.id === 'header-view' && node.hidden }, node);
+        });
+        if (tab === 'diagnostics') cards.push(actionLogCard());
+        if (tab === 'settings') cards.push(refreshCard());
+        return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
+    }
+    const redrawTools = () => { delete root.querySelector('.ao-body').dataset.tools; render(); };
+    // Registro delle azioni del pannello (AmpActionLog), dal più recente.
+    function actionLogCard() {
+        const output = h('pre', { class: 'ao-tools-log' });
+        const fill = () => { output.textContent = ActionLog.read().slice().reverse().map(entry => `${entry.at.slice(11, 19)} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n') || TEXTS.tools.logEmpty; };
+        fill();
+        return h('section', { class: 'ao-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.tools.log),
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: 'ao-button', onclick: fill }, '↻'),
+                h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await copyText(ActionLog.text())) showStatus(TEXTS.tools.copied, 'success'); } }, TEXTS.tools.copy),
+                h('button', { type: 'button', class: 'ao-button', onclick: () => { ActionLog.clear(); fill(); } }, TEXTS.tools.clear)),
+            output);
+    }
+    // Frequenza degli aggiornamenti: valori della config, sostituibili su questo pannello.
+    function refreshCard() {
+        const settings = window.AmpBackend?.refreshSettings?.();
+        if (!settings) return null;
+        const draft = { listsSeconds: settings.listsSeconds, threadCacheSeconds: settings.threadCacheSeconds };
+        const inUse = h('p', { class: 'ao-hint' });
+        const show = current => { inUse.textContent = TEXTS.tools.refreshInUse(current, TEXTS.tools.refreshSource[current.source] || current.source); };
+        show(settings);
+        const number = (label, key, [min, max]) => textField(label, String(draft[key]), value => { draft[key] = value; }, { type: 'number', min: String(min), max: String(max), inputmode: 'numeric' });
+        return h('section', { class: 'ao-card' },
+            h('h3', { class: 'ao-card-title' }, TEXTS.tools.refresh),
+            h('div', { class: 'ao-field-row' },
+                number(TEXTS.tools.lists, 'listsSeconds', settings.limits.listsSeconds),
+                number(TEXTS.tools.thread, 'threadCacheSeconds', settings.limits.threadCacheSeconds)),
+            inUse,
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: 'ao-button', onclick: () => { window.AmpBackend.setRefreshOverride(null); redrawTools(); } }, TEXTS.tools.reset),
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => show(window.AmpBackend.setRefreshOverride(draft)) }, TEXTS.tools.apply)));
+    }
     function renderSettings(config) {
         const tabs = Object.keys(TEXTS.settings.tabs);
         const tab = tabs.includes(state.settingsTab) ? state.settingsTab : 'profile';
@@ -4500,7 +4584,25 @@
 #ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
 #ao-root .ao-new-head .ao-news { align-self: center; }
 #ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-#ao-root .ao-debug { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; } /* scheda Debug: le sezioni dell'add-in di jak */
+/* Tools: le sezioni dell'add-in di jak dentro le card del pannello, con i controlli del pannello */
+#ao-root .ao-tools { display: grid; gap: 10px; }
+#ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card :is(.developer-input, select, textarea, input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"]) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; box-shadow: none; }
+#ao-root .ao-tools-card :is(.developer-input, select, textarea):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; }
+#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); width: 100%; background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button):hover:where(:not(:disabled)) { background: var(--ao-hover); }
+#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); filter: var(--ao-tone-hover-filter); }
+#ao-root .ao-tools-card :is(.function-result, .auth-diagnostics-output, .attachment-header-content, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .developer-forward-form, .developer-graph-category-form) { border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); box-shadow: none; }
+#ao-root .ao-tools-card .message-fields { gap: 0; }
+#ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
+#ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
+#ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
+#ao-root .ao-tools-card .diagnostic-danger-button { color: var(--ao-tone-danger, var(--ao-text)); }
+#ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+#ao-root .ao-debug { display: none; } /* sezioni dell'add-in di jak non mostrate: restano nella pagina per il suo codice */
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
 /* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.

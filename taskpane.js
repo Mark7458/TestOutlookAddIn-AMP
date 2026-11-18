@@ -1475,7 +1475,6 @@ function registerHealthButton() {
       "developer-forward-form": action === "ForwardConversation",
       "developer-category-form": action === "ManageCategories",
       "developer-graph-category-form": action === "SetMessageCategories",
-      "developer-refresh-form": action === "PanelRefresh",
       "developer-thread-form": action === "ManageThread",
       "developer-queue-form": action === "ListQueue",
       "developer-messages-form": action === "ListThreadMessages",
@@ -1512,7 +1511,6 @@ function registerHealthButton() {
     populateDeveloperForms(developerConfig, getCurrentOperatorEmail());
     if (action === "ManageCategories") void refreshOfficeCategoryForm();
     if (action === "SetMessageCategories") populateGraphCategoryForm();
-    if (action === "PanelRefresh") fillPanelRefreshForm();
     if (AMP_DEVELOPER_ACTIONS.includes(action)) prefillAmpDeveloperForm(action);
   }
 
@@ -1567,28 +1565,6 @@ function registerHealthButton() {
     return { method: "POST", body };
   }
 
-  // Frequenza degli aggiornamenti del pannello AMP: valore della config, sostituibile su questo pannello.
-  function describePanelRefresh(settings) {
-    const source = { pannello: "impostati su questo pannello", config: "dalla config", predefiniti: "predefiniti" }[settings.source] || settings.source;
-    return `In uso: elenchi ogni ${settings.listsSeconds} s, thread precaricato per ${settings.threadCacheSeconds} s (${source}).`;
-  }
-  function fillPanelRefreshForm() {
-    const settings = window.AmpBackend?.refreshSettings?.();
-    const status = byId("developer-refresh-status");
-    if (!settings) { if (status) status.textContent = "Pannello AMP non disponibile."; return; }
-    byId("developer-refresh-lists").value = settings.listsSeconds;
-    byId("developer-refresh-thread").value = settings.threadCacheSeconds;
-    byId("developer-refresh-reset").checked = false;
-    if (status) status.textContent = describePanelRefresh(settings);
-  }
-  function applyPanelRefresh() {
-    if (!window.AmpBackend?.setRefreshOverride) throw new Error("Pannello AMP non disponibile.");
-    const settings = byId("developer-refresh-reset")?.checked
-      ? window.AmpBackend.setRefreshOverride(null)
-      : window.AmpBackend.setRefreshOverride({ listsSeconds: byId("developer-refresh-lists")?.value, threadCacheSeconds: byId("developer-refresh-thread")?.value });
-    fillPanelRefreshForm();
-    return settings;
-  }
 
   function setTicketButtonLoading(value) {
     const button = byId("developer-execute-button");
@@ -2234,10 +2210,6 @@ function registerHealthButton() {
     resetTicketResult();
     setTicketButtonLoading(true);
     try {
-      if (action === "PanelRefresh") {
-        applyPanelRefresh();
-        return;
-      }
       if (action === "ManageCategories") {
         const result = await executeOfficeCategoryAction();
         showTicketResult(result, action);

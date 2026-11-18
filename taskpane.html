@@ -38,9 +38,6 @@
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
   </optgroup>
-  <optgroup label="Pannello AMP">
-    <option value="PanelRefresh">Frequenza degli aggiornamenti</option>
-  </optgroup>
   <optgroup label="Categorie Outlook">
     <option value="ManageCategories">Office.js — ManageCategories</option>
     <option value="SetMessageCategories">Graph — SetMessageCategories</option>
@@ -172,13 +169,6 @@
   <div class="developer-create-field"><label for="developer-reply-ticket-id">Ticket ID per RepliedAt (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-ticket-id" spellcheck="false" type="text"/></div>
   <div class="developer-create-field"><label for="developer-reply-signature">Firma (opzionale: vuoto = nome dell'operatore)</label><input autocomplete="off" class="developer-input" id="developer-reply-signature" type="text"/></div>
   <p class="developer-create-help">La risposta parte davvero dalla casella del servizio.</p>
-</div>
-
-<div class="developer-refresh-form" hidden="" id="developer-refresh-form">
-  <div class="developer-create-field"><label for="developer-refresh-lists">Elenchi (coda, ignorate, ticket): ogni quanti secondi</label><input class="developer-input" id="developer-refresh-lists" inputmode="numeric" max="900" min="15" type="number"/></div>
-  <div class="developer-create-field"><label for="developer-refresh-thread">Pagina del thread precaricata: per quanti secondi</label><input class="developer-input" id="developer-refresh-thread" inputmode="numeric" max="300" min="0" type="number"/></div>
-  <label class="developer-create-checkbox" for="developer-refresh-reset"><input id="developer-refresh-reset" type="checkbox"/><span>Torna ai valori della config</span></label>
-  <p class="developer-create-help developer-category-summary" id="developer-refresh-status" role="status"></p>
 </div>
 
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button>
