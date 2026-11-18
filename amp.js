@@ -585,7 +585,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 00:15';
+    const BUILD = '2026-11-19 00:20';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4619,7 +4619,7 @@
 #ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
 #ao-root .ao-tools-card :is(#developer-ticket-response, .auth-diagnostics-output, .attachment-header-content) { margin: 8px 0 0; padding: 8px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; }
-#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { display: flex !important; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; } /* scritta a sinistra, interruttore a destra */
 #ao-root .ao-tools-card .message-fields { gap: 0; }
 #ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
 #ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
