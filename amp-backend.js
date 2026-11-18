@@ -36,7 +36,8 @@
     // Chiamate
     // ------------------------------------------------------------------
 
-    async function call(name, body, method = 'POST') {
+    // Token rifiutato dalla Function (401): si scarta e si riprova una volta con un token nuovo.
+    async function call(name, body, method = 'POST', retried = false) {
         const authentication = await window.WorkflowHealth?.getAccessTokenSilently?.();
         if (!authentication?.accessToken) throw new Error('Accesso non disponibile: riaprire il pannello.');
         const headers = { Authorization: `Bearer ${authentication.accessToken}`, Accept: 'application/json' };
@@ -48,6 +49,10 @@
             request.body = JSON.stringify(body || {});
         }
         const response = await fetch(url, request);
+        if (response.status === 401 && !retried && window.WorkflowHealth?.invalidateToken) {
+            window.WorkflowHealth.invalidateToken('functionResponse');
+            return call(name, body, method, true);
+        }
         const text = await response.text();
         let data = null;
         try { data = text ? JSON.parse(text) : null; } catch { /* risposta non JSON */ }
