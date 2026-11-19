@@ -323,8 +323,8 @@
             servicesOk: 'Servizi collegati',
             servicesMissing: 'Servizi non ancora collegati',
             serviceError: message => `Servizi non raggiungibili: ${message}`,
-            synced: when => `Allineato ${when}`,
-            syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
+            synced: when => `Aggiornato ${when}`,
+            syncHint: 'Ultimo aggiornamento degli elenchi'
         },
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', utility: 'Utility', debug: 'Tools' },
         utility: {
@@ -722,7 +722,7 @@
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
     //            holdExpiration, conversationId, messageId, owner, newMessages,
-    //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt,
+    //            lastNewMessage: { from, at, preview } | null, lastMessageAt,
     //            forwardGroup, repliedAt }   (ticket di un inoltro: gruppo e ora della risposta con la sigla)
     // ======================================================================
 
@@ -1067,6 +1067,7 @@
         queue: [],
         tickets: [],
         loaded: false,
+        listsAt: 0, // ora dell'ultimo aggiornamento riuscito degli elenchi
         loading: false,
         serviceError: '',
         hasData: false, // elenchi letti almeno una volta (o ripresi dal browser): restano visibili anche se un aggiornamento non riesce
@@ -1372,7 +1373,7 @@
             const user = Services.currentUserEmail();
             // all'avvio Outlook può non aver ancora detto chi è l'utente: si accettano i dati di questo browser
             if (!saved || Date.now() - saved.at > LISTS_CACHE_MAX_AGE || (user && saved.user && saved.user.toLowerCase() !== user.toLowerCase())) return false;
-            Object.assign(state, { queue: saved.queue || [], ignored: saved.ignored || [], tickets: saved.tickets || [], loaded: true, hasData: true });
+            Object.assign(state, { queue: saved.queue || [], ignored: saved.ignored || [], tickets: saved.tickets || [], loaded: true, hasData: true, listsAt: saved.at });
             state.tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             ActionLog.record('refresh', 'saved', { age: Math.round((Date.now() - saved.at) / 1000) });
             return true;
@@ -1395,6 +1396,7 @@
             tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             state.serviceError = '';
             state.hasData = true;
+            state.listsAt = Date.now();
             saveLists();
         } catch (error) {
             if (reason === 'start' && attempt < REFRESH_RETRIES.length) {
@@ -2302,12 +2304,11 @@
         else if (state.serviceError) { tone = 'danger'; message = TEXTS.system.serviceError(state.serviceError); }
         else if (state.loading) { tone = 'neutral'; message = TEXTS.common.loading; }
         else message = TEXTS.system.servicesOk;
-        const syncedAt = state.tickets.find(ticket => ticket.syncedAt)?.syncedAt;
         bar.className = `ao-statusbar ao-statusbar-${tone}`;
         bar.replaceChildren(...[
             h('span', { class: 'ao-statusbar-dot', 'aria-hidden': 'true' }),
             h('span', { class: 'ao-statusbar-text', title: message }, message),
-            syncedAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(syncedAt))) : null
+            state.listsAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(new Date(state.listsAt)))) : null
         ].filter(Boolean));
     }
     // Selettore a segmenti. La pillola della voce scelta è un elemento a parte (.ao-segment-thumb):
