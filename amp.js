@@ -2065,6 +2065,35 @@
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
+    // Barra delle schede come continuazione dell'intestazione blu dell'add-in: riprende la stessa sfumatura
+    // (letta dall'intestazione) e la prolunga, così le due fasce sembrano una sola.
+    function blendTabsWithHeader() {
+        const nav = root?.querySelector('.ao-tabs');
+        const header = document.querySelector('.app-header');
+        if (!nav || !header || !nav.offsetWidth) return;
+        // Misure esatte (anche frazionarie con lo zoom di Outlook), così le due fasce combaciano al pixel.
+        const { width: W, height: H } = header.getBoundingClientRect(), { width: w, height: n } = nav.getBoundingClientRect();
+        // Vetro: intestazione e schede sono un'unica lastra. Sfumatura e riflesso si dipingono sull'altezza di tutte e due
+        // e la barra delle schede ne mostra la parte bassa, così l'effetto continua senza giunture.
+        if (root.dataset.style === 'glass') {
+            const whole = { backgroundSize: `${W}px ${H + n}px`, backgroundRepeat: 'no-repeat' };
+            Object.assign(header.style, whole);
+            nav.style.background = '';
+            Object.assign(nav.style, whole, { backgroundImage: getComputedStyle(header).backgroundImage, backgroundColor: 'transparent', backgroundPosition: `0 ${-H}px` });
+            return;
+        }
+        Object.assign(header.style, { backgroundSize: '', backgroundRepeat: '' });
+        // Flat: la barra riprende la sfumatura dell'intestazione dal punto in cui finisce e la prolunga.
+        const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
+            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; });
+        if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
+        const [from, to] = [colors[0], colors[colors.length - 1]];
+        const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
+        const mix = from.map((value, i) => value + (to[i] - value) * start);
+        const css = ([r, g, b, a]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
+        const end = Math.min(100, (W / (w + n)) * 100);
+        nav.style.background = `linear-gradient(135deg, ${css(mix)} 0%, ${css(to)} ${end.toFixed(1)}%)`;
+    }
     // Larghezze delle schede: quelle non scelte larghe quanto l'icona, la scelta prende tutto lo spazio che resta
     // (così a 300 px "In coda 27" si legge). Le larghezze cambiano con il movimento della selezione; restituisce dove
     // finirà ogni scheda, per mettere subito la sottolineatura al posto giusto.
