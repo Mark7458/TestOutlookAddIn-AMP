@@ -356,7 +356,7 @@
             lists: 'Elenchi, ogni (s)',
             thread: 'Thread in memoria (s)',
             apply: 'Applica',
-            reset: 'Torna alla config',
+            reset: 'Ripristina predefiniti',
             refreshSource: { pannello: 'impostata su questo pannello', config: 'dalla config', predefiniti: 'valori predefiniti' },
             refreshInUse: (settings, source) => `In uso: elenchi ogni ${settings.listsSeconds} s, thread per ${settings.threadCacheSeconds} s (${source}).`
         },
@@ -608,7 +608,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 01:20';
+    const BUILD = '2026-11-19 11:00';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -806,6 +806,7 @@
     };
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
+    Services.currentUserEmail = () => window.AmpBackend?.currentUserEmail?.() || ''; // per i dati salvati nel browser: solo dello stesso operatore
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
     Services.listThreadMessages = async conversationId => (typeof window.AmpBackend?.listThreadMessages === 'function' ? window.AmpBackend.listThreadMessages(conversationId) : null);
     ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets', 'runUtility'].forEach(name => {
@@ -1022,6 +1023,13 @@
         mail: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 5.5l7 5 7-5"/></svg>',
         none: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M10 7.5v5M7.5 10h5"/></svg>'
     };
+    // Icone delle sezioni di Tools
+    const TOOLS_ICONS = {
+        functions: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4.5l-2 11"/></svg>',
+        message: SEGMENT_ICONS.mail,
+        diagnostics: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10h3l2-5 3.5 10 2-5h4.5"/></svg>',
+        settings: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h7M15 5.5h1M4 10h2M10 10h6M4 14.5h8M16 14.5h0"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="8" cy="10" r="1.8"/><circle cx="14" cy="14.5" r="1.8"/></svg>'
+    };
     // Icone dei selettori di tema e stile (Impostazioni → Profilo)
     const APPEARANCE_ICONS = {
         auto: '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>',
@@ -1048,6 +1056,7 @@
         loaded: false,
         loading: false,
         serviceError: '',
+        hasData: false, // elenchi letti almeno una volta (o ripresi dal browser): restano visibili anche se un aggiornamento non riesce
         ticketSource: 'mail', // Ticket: mail (aperti da una mail) | none (senza mail)
         ticketOperator: ['mine'], // Ticket: operatori scelti, in OR: mine (vista iniziale) e/o nomi dei colleghi; [] = tutti
         ticketStatus: [], // Ticket: stati scelti, in OR: open (In Progress), hold (On Hold); [] = tutti (vista iniziale)
@@ -1333,8 +1342,31 @@
     const ticketByNumber = number => state.tickets.find(item => item.number === number) || state.ticketCache[number] || null;
 
     // Elenchi di Coda e Ticket, sempre dai servizi.
-    async function refreshLists(reason = 'action') {
-        ActionLog.record('refresh', 'lists', reason);
+    // Ultimi elenchi letti, nel browser dell'operatore: quando Outlook ricarica il pannello (es. cambiando casella) si
+    // vedono subito, mentre l'aggiornamento arriva. Senza i testi delle mail; validi per LISTS_CACHE_MAX_AGE.
+    const LISTS_CACHE_KEY = 'amp_panel_lists_v1';
+    const LISTS_CACHE_MAX_AGE = 2 * 60 * 60 * 1000;
+    const REFRESH_RETRIES = [1000, 2000, 4000]; // primo aggiornamento non riuscito: si riprova subito, poi si aspetta il giro normale
+    const withoutBodies = items => items.map(({ body, ...item }) => item);
+    function saveLists() {
+        try {
+            localStorage.setItem(LISTS_CACHE_KEY, JSON.stringify({ at: Date.now(), user: Services.currentUserEmail(), queue: withoutBodies(state.queue), ignored: withoutBodies(state.ignored), tickets: state.tickets }));
+        } catch { /* spazio pieno o storage non disponibile: si riparte senza */ }
+    }
+    function loadSavedLists() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(LISTS_CACHE_KEY) || 'null');
+            const user = Services.currentUserEmail();
+            // all'avvio Outlook può non aver ancora detto chi è l'utente: si accettano i dati di questo browser
+            if (!saved || Date.now() - saved.at > LISTS_CACHE_MAX_AGE || (user && saved.user && saved.user.toLowerCase() !== user.toLowerCase())) return false;
+            Object.assign(state, { queue: saved.queue || [], ignored: saved.ignored || [], tickets: saved.tickets || [], loaded: true, hasData: true });
+            state.tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
+            ActionLog.record('refresh', 'saved', { age: Math.round((Date.now() - saved.at) / 1000) });
+            return true;
+        } catch { return false; }
+    }
+    async function refreshLists(reason = 'action', attempt = 0) {
+        ActionLog.record('refresh', 'lists', attempt ? `${reason} (${attempt + 1})` : reason);
         if (!Services.available()) {
             state.loaded = true;
             render();
@@ -1349,7 +1381,13 @@
             state.tickets = tickets;
             tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             state.serviceError = '';
+            state.hasData = true;
+            saveLists();
         } catch (error) {
+            if (reason === 'start' && attempt < REFRESH_RETRIES.length) {
+                await new Promise(resolve => setTimeout(resolve, REFRESH_RETRIES[attempt]));
+                return refreshLists(reason, attempt + 1);
+            }
             state.serviceError = error?.message || String(error);
         }
         state.loaded = true;
@@ -1904,6 +1942,38 @@
         if (alwaysOpen(node)) node.hidden = false;
         if (!node.dataset.aoKept) { node.dataset.aoKept = '1'; openKeeper?.observe(node, { attributes: true, attributeFilter: ['hidden'] }); }
     }
+    // Elenchi a discesa di jak: il menu nativo resta (il suo codice lo legge e lo scrive per id) ma è nascosto, e al suo
+    // posto c'è l'elenco del pannello, sincronizzato nei due sensi: la scelta scrive il nativo e manda "change";
+    // le modifiche del suo codice (valore, voci) ridisegnano l'elenco.
+    const nativeSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    const nativeIndex = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+    function bridgeSelect(select) {
+        if (select.dataset.aoBridge) return;
+        select.dataset.aoBridge = '1';
+        let control = null;
+        let queued = false;
+        const build = () => {
+            queued = false;
+            const options = [...select.children].flatMap(child => (child.tagName === 'OPTGROUP'
+                ? [{ group: child.label }, ...[...child.children].map(option => ({ value: option.value, label: option.textContent }))]
+                : [{ value: child.value, label: child.textContent }]));
+            const next = selectField(select.getAttribute('aria-label') || '', options, nativeSelect.get.call(select), value => {
+                nativeSelect.set.call(select, value);
+                select.dispatchEvent(new Event('input', { bubbles: true }));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }, { searchable: options.length > 10 });
+            next.classList.add('ao-bridge');
+            next.classList.toggle('ao-disabled', select.disabled);
+            if (control) control.replaceWith(next); else select.after(next);
+            control = next;
+        };
+        const later = () => { if (!queued) { queued = true; queueMicrotask(build); } };
+        Object.defineProperty(select, 'value', { configurable: true, get() { return nativeSelect.get.call(this); }, set(value) { nativeSelect.set.call(this, value); later(); } });
+        Object.defineProperty(select, 'selectedIndex', { configurable: true, get() { return nativeIndex.get.call(this); }, set(value) { nativeIndex.set.call(this, value); later(); } });
+        select.addEventListener('change', later);
+        new MutationObserver(later).observe(select, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['disabled'] });
+        build();
+    }
     function parkTools() {
         if (!debugHost) return;
         const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
@@ -1995,39 +2065,35 @@
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
-    // Barra delle schede come continuazione dell'intestazione blu dell'add-in: riprende la stessa sfumatura
-    // (letta dall'intestazione) e la prolunga, così le due fasce sembrano una sola.
-    function blendTabsWithHeader() {
-        const nav = root?.querySelector('.ao-tabs');
-        const header = document.querySelector('.app-header');
-        if (!nav || !header || !nav.offsetWidth) return;
-        // Misure esatte (anche frazionarie con lo zoom di Outlook), così le due fasce combaciano al pixel.
-        const { width: W, height: H } = header.getBoundingClientRect(), { width: w, height: n } = nav.getBoundingClientRect();
-        // Vetro: intestazione e schede sono un'unica lastra. Sfumatura e riflesso si dipingono sull'altezza di tutte e due
-        // e la barra delle schede ne mostra la parte bassa, così l'effetto continua senza giunture.
-        if (root.dataset.style === 'glass') {
-            const whole = { backgroundSize: `${W}px ${H + n}px`, backgroundRepeat: 'no-repeat' };
-            Object.assign(header.style, whole);
-            nav.style.background = '';
-            Object.assign(nav.style, whole, { backgroundImage: getComputedStyle(header).backgroundImage, backgroundColor: 'transparent', backgroundPosition: `0 ${-H}px` });
-            return;
-        }
-        Object.assign(header.style, { backgroundSize: '', backgroundRepeat: '' });
-        // Flat: la barra riprende la sfumatura dell'intestazione dal punto in cui finisce e la prolunga.
-        const colors = (getComputedStyle(header).backgroundImage.match(/rgba?\([^)]+\)/g) || [])
-            .map(color => { const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number); return [r, g, b, a]; });
-        if (colors.length < 2) { nav.style.background = getComputedStyle(header).backgroundColor; return; }
-        const [from, to] = [colors[0], colors[colors.length - 1]];
-        const start = H / (W + H); // punto della sfumatura sul bordo basso dell'intestazione, a sinistra
-        const mix = from.map((value, i) => value + (to[i] - value) * start);
-        const css = ([r, g, b, a]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
-        const end = Math.min(100, (W / (w + n)) * 100);
-        nav.style.background = `linear-gradient(135deg, ${css(mix)} 0%, ${css(to)} ${end.toFixed(1)}%)`;
+    // Larghezze delle schede: quelle non scelte larghe quanto l'icona, la scelta prende tutto lo spazio che resta
+    // (così a 300 px "In coda 27" si legge). Le larghezze cambiano con il movimento della selezione; restituisce dove
+    // finirà ogni scheda, per mettere subito la sottolineatura al posto giusto.
+    function layoutTabs(activeView) {
+        const nav = root.querySelector('.ao-tabs');
+        const tabs = [...nav.querySelectorAll('.ao-tab')];
+        const style = getComputedStyle(nav);
+        const gap = parseFloat(style.columnGap) || 0;
+        const others = [...nav.children].filter(child => !child.classList.contains('ao-tab') && getComputedStyle(child).position !== 'absolute')
+            .reduce((sum, child) => sum + child.offsetWidth + gap, 0);
+        const inner = nav.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - others - gap * (tabs.length - 1);
+        const narrow = tab => tab.querySelector('.ao-tab-icon').offsetWidth + 24; // icona + 12 px per lato
+        const active = tabs.find(tab => tab.dataset.view === activeView);
+        const widths = new Map(tabs.map(tab => [tab, tab === active ? 0 : narrow(tab)]));
+        if (active) widths.set(active, Math.max(narrow(active), inner - [...widths.values()].reduce((sum, width) => sum + width, 0)));
+        const place = new Map();
+        let left = parseFloat(style.paddingLeft);
+        tabs.forEach(tab => {
+            tab.style.width = `${widths.get(tab)}px`;
+            place.set(tab, { left, width: widths.get(tab) });
+            left += widths.get(tab) + gap;
+        });
+        return place;
     }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
         if (!indicator) return;
         const activeView = state.view === 'mail' ? (state.backTo || 'tickets') : state.view;
+        const place = layoutTabs(activeView);
         const tab = root.querySelector(`.ao-tab[data-view="${activeView}"]`);
         if (!tab) { indicator.classList.remove('ao-ready'); return; }
         const changed = indicator.dataset.view && indicator.dataset.view !== activeView && indicator.classList.contains('ao-ready');
@@ -2037,9 +2103,10 @@
         const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
         const content = tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
             + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
-        const width = Math.min(tab.offsetWidth, Math.max(36, content + 12));
+        const final = place.get(tab);
+        const width = Math.min(final.width, Math.max(36, content + 12));
         indicator.style.width = `${width}px`;
-        indicator.style.transform = `translateX(${tab.offsetLeft + (tab.offsetWidth - width) / 2}px)`;
+        indicator.style.transform = `translateX(${final.left + (final.width - width) / 2}px)`;
         indicator.dataset.view = activeView;
         requestAnimationFrame(() => indicator.classList.add('ao-ready'));
     }
@@ -2183,7 +2250,7 @@
         return null;
     }
     // Servizi mancanti, in errore o in caricamento: gli elenchi vuoti non dicono "nessun elemento".
-    const servicesBlocked = () => !Services.available() || Boolean(state.serviceError) || state.loading;
+    const servicesBlocked = () => !Services.available() || (Boolean(state.serviceError) && !state.hasData) || state.loading; // con elenchi già letti restano visibili
     function renderStatusBar() {
         const bar = root?.querySelector('.ao-statusbar');
         if (!bar) return;
@@ -4389,7 +4456,7 @@
     function renderTools() {
         const tabs = Object.keys(TEXTS.tools.tabs);
         const tab = tabs.includes(state.toolsTab) ? state.toolsTab : 'functions';
-        const bar = filterBar(tabs.map(value => ({ value, label: TEXTS.tools.tabs[value] })), tab, value => { state.toolsTab = value; render(); }, { key: 'tools' });
+        const bar = iconBar(tabs.map(value => ({ value, icon: TOOLS_ICONS[value], label: TEXTS.tools.tabs[value] })), tab, value => { state.toolsTab = value; render(); }, { key: 'tools' });
         const cards = TOOLS_SECTIONS[tab].map(id => document.getElementById(id)).filter(Boolean).map(node => {
             keepOpen(node);
             return h('section', { class: 'ao-card ao-tools-card', hidden: !alwaysOpen(node) && node.hidden }, node);
@@ -4397,6 +4464,7 @@
         // Interruttore "Abilita diagnostica avanzata" di jak in cima alla Diagnostica (registra gli eventi dell'accesso).
         const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
         if (tab === 'diagnostics' && diagnosticsSwitch) cards[0]?.prepend(diagnosticsSwitch);
+        cards.forEach(card => card?.querySelectorAll?.('select').forEach(bridgeSelect));
         if (tab === 'diagnostics') cards.push(actionLogCard());
         if (tab === 'settings') cards.push(refreshCard());
         return h('div', { class: 'ao-view' }, bar, h('div', { class: 'ao-tools' }, cards));
@@ -4745,7 +4813,7 @@
 #ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
 #ao-root .ao-tabs .ao-back:is(:hover, :focus-visible) { opacity: 1; }
 #ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: var(--ao-nav-ink); }
-#ao-root .ao-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 4px 7px; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: var(--ao-nav-ink-soft); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab { flex: none; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 12px 7px; transition: width var(--ao-selection-motion); border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: var(--ao-nav-ink-soft); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
 #ao-root .ao-tab:hover { color: var(--ao-nav-ink); }
 #ao-root .ao-tab.ao-active { color: var(--ao-nav-ink); }
 #ao-root .ao-tab-icon { position: relative; display: inline-flex; opacity: .8; transition: color .25s, opacity .25s; }
@@ -4800,11 +4868,6 @@
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 #ao-root .ao-chip-toggle { padding: 4px 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-chip-toggle.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); color: var(--ao-text); }
-#ao-root .ao-switch-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: var(--ao-fs-sm); cursor: pointer; }
-#ao-root .ao-switch { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
-#ao-root .ao-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
-#ao-root .ao-switch:checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
-#ao-root .ao-switch:checked::before { transform: translateX(12px); background: var(--ao-white); }
 #ao-root .ao-step-center { justify-items: center; text-align: center; padding: 18px 12px; }
 #ao-root .ao-step-icon { font-size: 20px; }
 #ao-root .ao-run-step { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
@@ -4823,8 +4886,9 @@
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 #ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
-#ao-root .ao-tools-card :is(.developer-input, select, textarea, input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"]) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; box-shadow: none; }
-#ao-root .ao-tools-card :is(.developer-input, select, textarea):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root .ao-tools-card select { display: none !important; } /* elenchi di jak: al loro posto quello del pannello (bridgeSelect) */
+#ao-root .ao-bridge > .ao-label:empty { display: none; }
+#ao-root .ao-bridge.ao-disabled { opacity: .5; pointer-events: none; }
 /* Pulsanti: come quelli del pannello. Esegui pieno; gli altri con il solo contorno; Reset in rosso; "Mostra originale",
    "Mostra campi" e la chiusura del risultato sono comandi di testo. */
 #ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
@@ -4843,18 +4907,21 @@
 #ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
 #ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
 #ao-root .ao-tools-card :is(#developer-ticket-response, .auth-diagnostics-output, .attachment-header-content) { margin: 8px 0 0; padding: 8px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; }
-#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { display: flex !important; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; } /* scritta a sinistra, interruttore a destra */
+/* Riga con interruttore, una sola per tutto il pannello: scritta a sinistra, interruttore a destra
+   (nelle righe di jak l'interruttore viene prima nel codice: row-reverse) */
+#ao-root :is(.ao-switch-row, .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row)) { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; cursor: pointer; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { flex-direction: row-reverse; }
 #ao-root .ao-tools-card .message-fields { gap: 0; }
 #ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
 #ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
 #ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
 #ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
 /* Caselle di spunta = interruttori */
-#ao-root .ao-tools-card input[type="checkbox"] { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
-#ao-root .ao-tools-card input[type="checkbox"]::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
-#ao-root .ao-tools-card input[type="checkbox"]:checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
-#ao-root .ao-tools-card input[type="checkbox"]:checked::before { transform: translateX(12px); background: var(--ao-white); }
-#ao-root .ao-tools-card input[type="checkbox"]:focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]) { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"])::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
 #ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 #ao-root .ao-debug { display: none; } /* sezioni dell'add-in di jak non mostrate: restano nella pagina per il suo codice */
 #ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -4978,6 +5045,7 @@
 /* Selettore con icone (Impostazioni): la voce scelta è più larga e ha il nome, che compare in dissolvenza */
 #ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; overflow: hidden; }
 #ao-root .ao-segmented-icons .ao-segment.ao-grow { flex: 2.6; }
+#ao-root .ao-segmented-icons:has(.ao-segment:nth-of-type(4)) .ao-segment.ao-grow { flex: 4.5; } /* quattro o più voci (Tools): il nome della scelta ci sta intero anche a 300 px */
 #ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: color .25s, flex-grow var(--ao-selection-motion); }
 /* Nome della voce: compare e svanisce allargandosi e stringendosi con la voce, così l'icona si ricentra senza scatti
    (la colonna passa da 0 alla larghezza del nome; il margine negativo annulla lo spazio tra icona e nome) */
@@ -5086,7 +5154,7 @@
 /* Campi */
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
 #ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
-#ao-root .ao-input { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:is([type="text"], [type="number"], [type="email"], [type="date"], [type="datetime-local"]):not(.ao-select-search))) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
 /* Elenco a discesa: campo come gli altri, con la freccetta; l'elenco è quello dei filtri */
 #ao-root .ao-select { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
@@ -5102,7 +5170,7 @@
 #ao-root .ao-select-search:focus-visible { box-shadow: none; } /* il campo che lo contiene mostra già il fuoco */
 #ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; } /* aperto con il filtro: al posto del valore si scrive */
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
-#ao-root .ao-input:focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:not([type="checkbox"], .ao-select-search))):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
 /* Campi dei moduli (Prendi in carico, Nuovo ticket, Risposta): campi semplici sulla scheda, come in tutto il pannello;
    l'agenzia suggerita sta accanto all'etichetta, le pillole delle attività sotto "Attività" */
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
@@ -5399,6 +5467,7 @@ body:has(> .app-header):has(#amp-view:not([hidden])) { overflow: hidden; }
         Outlook.onMailChanged(() => handleMailChanged());
         Services.subscribe(() => { refreshLists('poll'); });
         state.mail = Outlook.currentMail();
+        loadSavedLists();
         render();
         ActionLog.record('panel', 'start', BUILD);
         await refreshLists('start');
