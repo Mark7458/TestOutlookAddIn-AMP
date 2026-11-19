@@ -811,6 +811,7 @@
     Services.available = () => SERVICE_METHODS.every(name => typeof window.AmpBackend?.[name] === 'function');
     Services.subscribe = listener => window.AmpBackend?.subscribe?.(listener) || (() => {});
     Services.currentUserEmail = () => window.AmpBackend?.currentUserEmail?.() || ''; // per i dati salvati nel browser: solo dello stesso operatore
+    Services.currentUserName = () => window.AmpBackend?.currentUserName?.() || '';
     Services.getMailBody = async messageId => (typeof window.AmpBackend?.getMailBody === 'function' ? window.AmpBackend.getMailBody(messageId) : null);
     Services.listThreadMessages = async conversationId => (typeof window.AmpBackend?.listThreadMessages === 'function' ? window.AmpBackend.listThreadMessages(conversationId) : null);
     ['forwardMail', 'replyAll', 'labelMail', 'unlabelMail', 'updateTicket', 'searchTickets', 'runUtility'].forEach(name => {
@@ -911,8 +912,12 @@
     function currentUser(config = loadConfig()) {
         const profile = config.profile.assignedTo;
         if (profile.displayValue) return profile;
-        const name = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
-        return { displayValue: name, value: '' };
+        return { displayValue: defaultUserName(), value: '' };
+    }
+    // Senza profilo: l'operatore della config che ha fatto l'accesso; poi il nome di Outlook (che con una casella
+    // condivisa aggiunta come account è quello della casella).
+    function defaultUserName() {
+        return Services.currentUserName() || state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
     }
     function isMine(ticket, user = currentUser()) {
         const assignee = ticket?.assignedTo;
@@ -4593,7 +4598,7 @@
     }
     function profileSection(config) {
         const draft = { name: config.profile.assignedTo.displayValue };
-        const outlookName = state.mail?.userName || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userDisplayName || '';
+        const outlookName = defaultUserName();
         return [
             h('section', { class: 'ao-card' },
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.profile),
