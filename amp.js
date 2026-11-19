@@ -604,7 +604,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 13:30';
+    const BUILD = '2026-11-19 14:10';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -2070,7 +2070,7 @@
 
     // Sottolineatura blu delle schede principali: un elemento solo che scivola sulla scheda attiva
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
-    // Larghezze delle schede: quelle non scelte larghe quanto l'icona, la scelta prende tutto lo spazio che resta
+    // Larghezze delle schede: la scelta grande quanto il suo contenuto, le altre si dividono il resto
     // (così a 300 px "In coda 27" si legge). Le larghezze cambiano con il movimento della selezione; restituisce dove
     // finirà ogni scheda, per mettere subito la sottolineatura al posto giusto.
     function layoutTabs(activeView) {
@@ -2083,8 +2083,10 @@
         const inner = nav.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - others - gap * (tabs.length - 1);
         const narrow = tab => tab.querySelector('.ao-tab-icon').offsetWidth + 24; // icona + 12 px per lato
         const active = tabs.find(tab => tab.dataset.view === activeView);
-        const widths = new Map(tabs.map(tab => [tab, tab === active ? 0 : narrow(tab)]));
-        if (active) widths.set(active, Math.max(narrow(active), inner - [...widths.values()].reduce((sum, width) => sum + width, 0)));
+        const rest = tabs.filter(tab => tab !== active);
+        const activeWidth = active ? Math.min(tabContentWidth(active) + 36, inner - rest.reduce((sum, tab) => sum + narrow(tab), 0)) : 0;
+        const share = rest.length ? (inner - activeWidth) / rest.length : 0;
+        const widths = new Map(tabs.map(tab => [tab, tab === active ? Math.max(narrow(tab), activeWidth) : Math.max(narrow(tab), share)]));
         const place = new Map();
         let left = parseFloat(style.paddingLeft);
         tabs.forEach(tab => {
@@ -2093,6 +2095,12 @@
             left += widths.get(tab) + gap;
         });
         return place;
+    }
+    // Icona, nome e numero della scheda come saranno da aperta (il nome può essere ancora in comparsa).
+    function tabContentWidth(tab) {
+        const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
+        return tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
+            + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
     }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
@@ -2105,9 +2113,7 @@
         indicator.classList.toggle('ao-moving', Boolean(changed));
         // Linea corta e arrotondata, centrata sotto icona e nome della scheda.
         // Larghezza a scheda aperta (nome e numero stanno ancora comparendo): dall'icona all'ultima cifra.
-        const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
-        const content = tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
-            + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
+        const content = tabContentWidth(tab);
         const final = place.get(tab);
         const width = Math.min(final.width, Math.max(36, content + 12));
         indicator.style.width = `${width}px`;
