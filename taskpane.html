@@ -23,11 +23,22 @@
   <optgroup label="Record SharePoint">
     <option value="GetRecordByConversationId">GetRecordByConversationId</option>
     <option value="GetRecordById">GetRecordById</option>
+    <option value="UpdateRecord">UpdateRecord</option>
   </optgroup>
   <optgroup label="Ticket">
     <option value="createTicket">createTicket</option>
     <option value="editTicket">editTicket</option>
     <option value="SearchTicketRecords">SearchTicketRecords</option>
+  </optgroup>
+  <optgroup label="Thread e coda">
+    <option value="ManageThread">ManageThread</option>
+    <option value="ListQueue">ListQueue</option>
+    <option value="ListThreadMessages">ListThreadMessages</option>
+    <option value="GetMailBody">GetMailBody</option>
+  </optgroup>
+  <optgroup label="Posta">
+    <option value="ReplyAll">ReplyAll</option>
+    <option value="SendMail">SendMail</option>
   </optgroup>
   <optgroup label="Forwarding">
     <option value="ForwardConversation">ForwardConversation</option>
@@ -53,8 +64,8 @@
 </div>
 
 <div class="developer-create-form" hidden="" id="developer-create-form">
-  <div class="developer-create-field"><label for="developer-create-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dal record canonico recuperato con mode=first, quando disponibile; modificabile.</p></div>
-  <div class="developer-create-field"><label for="developer-create-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-create-message-id" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dall'ID Outlook normalizzato; modificabile.</p></div>
+  <div class="developer-create-field"><label for="developer-create-parent-item-id">Parent Item ID (vuoto = ticket senza mail)</label><input autocomplete="off" class="developer-input monospace" id="developer-create-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dal record canonico recuperato con mode=first, quando disponibile; modificabile.</p></div>
+  <div class="developer-create-field"><label for="developer-create-message-id">Message ID (solo con Parent Item ID)</label><input autocomplete="off" class="developer-input monospace" id="developer-create-message-id" spellcheck="false" type="text"/><p class="developer-create-help">Precompilato dall'ID Outlook normalizzato; modificabile.</p></div>
   <div class="developer-create-field"><label for="developer-create-operator">Operatore</label><select class="developer-input" id="developer-create-operator"></select><p class="developer-create-help">Operatori caricati dalla PluginConfig; il payload contiene l'email selezionata.</p></div>
   <div class="developer-create-field"><label for="developer-create-status">Stato</label><select class="developer-input" id="developer-create-status"></select></div>
   <div class="developer-create-field"><label for="developer-create-amp-reference">Riferimento AMP (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-create-amp-reference" spellcheck="false" type="text"/></div>
@@ -63,6 +74,7 @@
   <div class="developer-create-field"><label for="developer-create-description">Descrizione (opzionale)</label><textarea class="developer-input developer-long-text" id="developer-create-description" rows="5"></textarea><p class="developer-create-help">Vuota per impostazione predefinita; compilazione manuale.</p></div>
   <div class="developer-create-field"><label for="developer-create-notes">Note (opzionali)</label><textarea aria-describedby="developer-create-notes-help" class="developer-input developer-long-text" id="developer-create-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help" id="developer-create-notes-help"><span>Massimo 2000 caratteri.</span><span id="developer-create-notes-count">0/2000</span></p></div>
   <div class="developer-create-field"><label for="developer-create-resolution-notes">Note di risoluzione (opzionali)</label><textarea aria-describedby="developer-create-resolution-notes-help" class="developer-input developer-long-text" id="developer-create-resolution-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help" id="developer-create-resolution-notes-help"><span>Massimo 2000 caratteri.</span><span id="developer-create-resolution-notes-count">0/2000</span></p></div>
+  <div class="developer-create-field"><label for="developer-create-forward-group">Gruppo di inoltro (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-create-forward-group" type="text"/></div>
   <div class="developer-create-field"><label for="developer-create-elapsed-time">Tempo trascorso (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-create-elapsed-time" type="text"/></div>
   <p class="developer-create-help" id="developer-create-config-status" role="status"></p>
 </div>
@@ -81,10 +93,13 @@
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-notes"><input id="developer-edit-use-notes" type="checkbox"/>Aggiorna note</label><textarea class="developer-input developer-long-text" disabled="" id="developer-edit-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help"><span>Vuoto + Aggiorna = null.</span><span id="developer-edit-notes-count">0/2000</span></p></div>
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-resolution-notes"><input id="developer-edit-use-resolution-notes" type="checkbox"/>Aggiorna note di risoluzione</label><textarea class="developer-input developer-long-text" disabled="" id="developer-edit-resolution-notes" maxlength="2000" rows="4"></textarea><p class="developer-create-help developer-notes-help"><span>Vuoto + Aggiorna = null.</span><span id="developer-edit-resolution-notes-count">0/2000</span></p></div>
   <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-elapsed-time"><input id="developer-edit-use-elapsed-time" type="checkbox"/>Aggiorna tempo trascorso</label><input class="developer-input" disabled="" id="developer-edit-elapsed-time" type="text"/></div>
+  <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-forward-group"><input id="developer-edit-use-forward-group" type="checkbox"/>Aggiorna gruppo di inoltro</label><input class="developer-input" disabled="" id="developer-edit-forward-group" type="text"/></div>
+  <div class="developer-editable-field"><label class="developer-field-heading" for="developer-edit-use-replied-at"><input id="developer-edit-use-replied-at" type="checkbox"/>Aggiorna risposta inviata il</label><input class="developer-input" disabled="" id="developer-edit-replied-at" type="datetime-local"/></div>
 </div>
 
 <div class="developer-search-form" hidden="" id="developer-search-form">
   <p class="developer-create-help">Valori multipli: una voce per riga oppure separata da virgola. I valori nella stessa famiglia sono combinati in OR; famiglie diverse in AND.</p>
+  <div class="developer-create-field"><label for="developer-search-text">Testo (numero, riferimento AMP, descrizioni)</label><input autocomplete="off" class="developer-input" id="developer-search-text" type="text"/></div>
   <div class="developer-search-grid">
     <div class="developer-create-field"><label for="developer-search-ticket-ids">Ticket ID</label><textarea class="developer-input developer-filter-list monospace" id="developer-search-ticket-ids" rows="3"></textarea></div>
     <div class="developer-create-field"><label for="developer-search-amp-references">Riferimenti AMP</label><textarea class="developer-input developer-filter-list monospace" id="developer-search-amp-references" rows="3"></textarea></div>
@@ -106,6 +121,8 @@
 <div class="developer-forward-form" hidden="" id="developer-forward-form">
   <div class="developer-create-field"><label for="developer-forward-conversation-id">Conversation ID</label><input autocomplete="off" class="developer-input monospace" id="developer-forward-conversation-id" spellcheck="false" type="text"/></div>
   <div class="developer-create-field"><label for="developer-forward-target">Destinazione</label><select class="developer-input" id="developer-forward-target"></select><p class="developer-create-help">Al backend viene inviato esclusivamente il name della destinazione come groupName.</p></div>
+  <div class="developer-create-field"><label for="developer-forward-parent-item-id">Parent Item ID (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-forward-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <label class="developer-create-checkbox" for="developer-forward-force"><input id="developer-forward-force" type="checkbox"/><span>force — inoltra anche senza il proprio tag, con il thread di un altro operatore o con un altro gruppo già scritto</span></label>
 </div>
 
 <div class="developer-category-form" hidden="" id="developer-category-form">
@@ -127,6 +144,51 @@
   <label class="developer-create-checkbox" for="developer-graph-skip-final-get" hidden="" id="developer-graph-skip-final-get-row"><input id="developer-graph-skip-final-get" type="checkbox"/><span>skipFinalGet — non rileggere lo stato finale</span></label>
   <button class="secondary-button compact-button developer-category-refresh" hidden="" id="developer-graph-refresh" type="button">Rileggi categorie Graph</button>
   <p class="developer-create-help developer-category-summary" id="developer-graph-status" role="status"></p>
+</div>
+
+<div class="developer-thread-form" hidden="" id="developer-thread-form">
+  <div class="developer-create-field"><label for="developer-thread-action">Action</label><select class="developer-input" id="developer-thread-action"><option value="tag">tag</option><option value="untag">untag</option><option value="acquire">acquire</option><option value="release">release</option><option value="ignore">ignore</option><option value="restore">restore</option><option value="seen">seen</option></select></div>
+  <div class="developer-create-field"><label for="developer-thread-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-thread-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-thread-known-count">knownCount (opzionale)</label><input class="developer-input" id="developer-thread-known-count" inputmode="numeric" min="1" type="number"/></div>
+  <label class="developer-create-checkbox" for="developer-thread-force"><input id="developer-thread-force" type="checkbox"/><span>force — agisci senza tag, su un thread di un altro operatore, inoltrato o con ticket aperti</span></label>
+</div>
+
+<div class="developer-queue-form" hidden="" id="developer-queue-form">
+  <div class="developer-create-field"><label for="developer-queue-section">Section</label><select class="developer-input" id="developer-queue-section"><option value="active">active — in coda (New, Working)</option><option value="ignored">ignored — ignorati</option><option value="mine">mine — i miei con mail non viste o ticket aperti</option></select></div>
+</div>
+
+<div class="developer-messages-form" hidden="" id="developer-messages-form">
+  <div class="developer-create-field"><label for="developer-messages-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-messages-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+</div>
+
+<div class="developer-body-form" hidden="" id="developer-body-form">
+  <div class="developer-create-field"><label for="developer-body-message-id">Message ID</label><input autocomplete="off" class="developer-input monospace" id="developer-body-message-id" spellcheck="false" type="text"/></div>
+</div>
+
+<div class="developer-reply-form" hidden="" id="developer-reply-form">
+  <div class="developer-create-field"><label for="developer-reply-parent-item-id">Parent Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-parent-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-message-id">Message ID (opzionale: vuoto = ultima mail del thread)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-message-id" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-text">Testo (vuoto = presa in carico standard)</label><textarea class="developer-input" id="developer-reply-text" rows="4"></textarea></div>
+  <div class="developer-create-field"><label for="developer-reply-tag">Sigla nell'oggetto (opzionale)</label><select class="developer-input" id="developer-reply-tag"><option value="">nessuna</option></select></div>
+  <div class="developer-create-field"><label for="developer-reply-reference">Riferimento (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-reply-reference" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-ticket-id">Ticket ID per RepliedAt (opzionale)</label><input autocomplete="off" class="developer-input monospace" id="developer-reply-ticket-id" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-reply-signature">Firma (opzionale: vuoto = nome dell'operatore)</label><input autocomplete="off" class="developer-input" id="developer-reply-signature" type="text"/></div>
+  <p class="developer-create-help">La risposta parte davvero dalla casella del servizio.</p>
+</div>
+
+<div class="developer-sendmail-form" hidden="" id="developer-sendmail-form">
+  <div class="developer-create-field"><label for="developer-sendmail-to">A</label><input autocomplete="off" class="developer-input" id="developer-sendmail-to" placeholder="nome@dominio.it; altro@dominio.it" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-cc">Cc (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-sendmail-cc" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-bcc">Ccn (opzionale)</label><input autocomplete="off" class="developer-input" id="developer-sendmail-bcc" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-subject">Oggetto</label><input autocomplete="off" class="developer-input" id="developer-sendmail-subject" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-sendmail-text">Testo</label><textarea class="developer-input" id="developer-sendmail-text" rows="5"></textarea></div>
+  <p class="developer-create-help">La mail parte davvero dalla casella del servizio.</p>
+</div>
+
+<div class="developer-update-record-form" hidden="" id="developer-update-record-form">
+  <div class="developer-create-field"><label for="developer-update-record-list">Lista</label><select class="developer-input" id="developer-update-record-list"><option value="mailEvents">MailEvents</option><option value="tickets">Ticket</option></select></div>
+  <div class="developer-create-field"><label for="developer-update-record-item-id">Item ID</label><input autocomplete="off" class="developer-input monospace" id="developer-update-record-item-id" inputmode="numeric" spellcheck="false" type="text"/></div>
+  <div class="developer-create-field"><label for="developer-update-record-fields">Campi (JSON: nome interno della colonna e valore; null svuota)</label><textarea class="developer-input monospace" id="developer-update-record-fields" placeholder='{ "Status": "New", "AssignedTo": null }' rows="5" spellcheck="false"></textarea></div>
 </div>
 
 <button class="primary-button" id="developer-execute-button" type="button">Esegui</button>
