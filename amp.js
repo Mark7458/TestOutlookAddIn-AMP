@@ -349,6 +349,7 @@
             tabs: { functions: 'Funzioni', message: 'Messaggio', diagnostics: 'Diagnostica', settings: 'Impostazioni' },
             log: 'Azioni del pannello',
             logEmpty: 'Nessuna azione registrata.',
+            reload: 'Aggiorna',
             copy: 'Copia',
             copied: 'Registro copiato',
             clear: 'Pulisci',
@@ -608,7 +609,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 11:00';
+    const BUILD = '2026-11-19 13:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -976,6 +977,16 @@
     const FILTER_OFF_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/><path d="M2.5 2.5l15 15"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
     const PLUS_ICON = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v6M7 10h6"/></svg>'; // nuova voce delle Impostazioni
+    // Icone dei comandi di testo (linkButton)
+    const LINK_ICONS = {
+        refresh: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/></svg>',
+        copy: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="9.5" height="9.5" rx="1.8"/><path d="M13 7V5.3A1.8 1.8 0 0 0 11.2 3.5H5.3A1.8 1.8 0 0 0 3.5 5.3v5.9A1.8 1.8 0 0 0 5.3 13H7"/></svg>',
+        clear: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 16.5h8"/><path d="M11.8 3.8l4.4 4.4-7.7 7.7H5.7l-2.2-2.2a1.4 1.4 0 0 1 0-2z"/><path d="M7.5 8.1l4.4 4.4"/></svg>',
+        reset: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h8.5a4 4 0 0 1 0 8H8"/><path d="M7 4.5l-3 3 3 3"/></svg>',
+        save: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8v13l-4-3-4 3z"/></svg>',
+        import: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 14v2.5h12V14"/></svg>',
+        export: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5v-9M6.5 7L10 3.5 13.5 7"/><path d="M4 14v2.5h12V14"/></svg>'
+    };
     const CHEVRON_UP_ICON = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5-5 5 5"/></svg>';
     const CLOCK_ICON = '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6.5V10l2.5 1.5"/></svg>';
     const CHEVRON_LEFT_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 5l-5 5 5 5"/></svg>';
@@ -1000,6 +1011,8 @@
         icon.innerHTML = markup;
         return icon;
     }
+    // Comando di testo con icona: azioni di servizio (copia, aggiorna, pulisci...), senza riquadro.
+    const linkButton = (icon, label, onclick, extra = {}) => h('button', { type: 'button', ...extra, class: `ao-link-button${extra.class ? ` ${extra.class}` : ''}`, onclick }, icon ? svgIcon(LINK_ICONS[icon]) : null, label);
 
     // Icone delle schede principali
     const TAB_ICONS = {
@@ -3681,10 +3694,10 @@
                     row(TEXTS.mail.timeWorked, TEXTS.mail.minutes(fields.timeWorkedMinutes))),
                 h('div', { class: 'ao-details-link' },
                     h('input', { class: 'ao-input', value: link, readonly: '', 'aria-label': TEXTS.mail.ampLink, onfocus: event => event.target.select() }),
-                    h('button', { type: 'button', class: 'ao-button', onclick: async () => {
+                    linkButton('copy', TEXTS.mail.copyReply, async () => {
                         const copied = await copyText(link);
                         showStatus(copied ? TEXTS.mail.ampLinkCopied : TEXTS.mail.copyFailed, copied ? 'success' : 'danger');
-                    } }, TEXTS.mail.copyReply)));
+                    })));
         };
         const ready = () => Boolean(config.companies[draft.companyId] && config.activities[draft.activityId]);
         const section = h('div', { class: `ao-details${draft.detailsOpen && ready() ? ' ao-open' : ''}` });
@@ -4206,13 +4219,13 @@
         const naming = state.namingResponse === ticket.number;
         const tools = h('div', { class: 'ao-reply-tools' },
             h('button', {
-                type: 'button', class: 'ao-button ao-small ao-menu-anchor', disabled: !responses.length,
+                type: 'button', class: 'ao-link-button ao-menu-anchor', disabled: !responses.length,
                 onclick: event => toggleSelect(event.currentTarget, responses.map(([id, item]) => ({ value: id, label: item.title })), () => '',
                     id => { draft.text = config.usefulResponses[id]?.response || ''; render(); }, { wide: tools })
-            }, TEXTS.mail.responses, h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
-            h('button', { type: 'button', class: 'ao-button ao-small', 'aria-pressed': String(naming), onclick: () => { state.namingResponse = naming ? null : ticket.number; render(); } }, TEXTS.mail.saveResponse),
+            }, svgIcon(SETTINGS_ICONS.responses), TEXTS.mail.responses, h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
+            linkButton('save', TEXTS.mail.saveResponse, () => { state.namingResponse = naming ? null : ticket.number; render(); }, { 'aria-pressed': String(naming) }),
             h('span', { class: 'ao-spacer' }),
-            h('button', { type: 'button', class: 'ao-button ao-small', onclick: () => copyReply(ticket, draft, config) }, TEXTS.mail.copyReply));
+            linkButton('copy', TEXTS.mail.copyReply, () => copyReply(ticket, draft, config)));
         if (!naming) return tools;
         const name = h('input', {
             class: 'ao-input', placeholder: TEXTS.mail.responseName, 'aria-label': TEXTS.mail.responseName,
@@ -4506,10 +4519,10 @@
         fill();
         return h('section', { class: 'ao-card' },
             h('h3', { class: 'ao-card-title' }, TEXTS.tools.log),
-            h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: 'ao-button', onclick: fill }, '↻'),
-                h('button', { type: 'button', class: 'ao-button', onclick: async () => { if (await copyText(ActionLog.text())) showStatus(TEXTS.tools.copied, 'success'); } }, TEXTS.tools.copy),
-                h('button', { type: 'button', class: 'ao-button', onclick: () => { ActionLog.clear(); fill(); } }, TEXTS.tools.clear)),
+            h('div', { class: 'ao-link-actions' },
+                linkButton('refresh', TEXTS.tools.reload, fill),
+                linkButton('copy', TEXTS.tools.copy, async () => { if (await copyText(ActionLog.text())) showStatus(TEXTS.tools.copied, 'success'); }),
+                linkButton('clear', TEXTS.tools.clear, () => { ActionLog.clear(); fill(); }, { class: 'ao-danger' })),
             output);
     }
     // Frequenza degli aggiornamenti: valori della config, sostituibili su questo pannello.
@@ -4527,8 +4540,8 @@
                 number(TEXTS.tools.lists, 'listsSeconds', settings.limits.listsSeconds),
                 number(TEXTS.tools.thread, 'threadCacheSeconds', settings.limits.threadCacheSeconds)),
             inUse,
-            h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: 'ao-button', onclick: () => { window.AmpBackend.setRefreshOverride(null); redrawTools(); } }, TEXTS.tools.reset),
+            h('div', { class: 'ao-actions ao-actions-split' },
+                linkButton('reset', TEXTS.tools.reset, () => { window.AmpBackend.setRefreshOverride(null); redrawTools(); }),
                 h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => show(window.AmpBackend.setRefreshOverride(draft)) }, TEXTS.tools.apply)));
     }
     function renderSettings(config) {
@@ -4599,8 +4612,8 @@
                 h('h3', { class: 'ao-card-title' }, TEXTS.settings.backup),
                 h('p', { class: 'ao-hint' }, TEXTS.settings.backupHint),
                 h('div', { class: 'ao-actions' },
-                    h('button', { type: 'button', class: 'ao-button', onclick: importConfig }, TEXTS.settings.import),
-                    h('button', { type: 'button', class: 'ao-button', onclick: exportConfig }, TEXTS.settings.export))),
+                    linkButton('import', TEXTS.settings.import, importConfig),
+                    linkButton('export', TEXTS.settings.export, exportConfig))),
             h('p', { class: 'ao-footnote' }, TEXTS.settings.version(BUILD))
         ];
     }
@@ -4918,19 +4931,33 @@
 #ao-root .ao-tools-card select { display: none !important; } /* elenchi di jak: al loro posto quello del pannello (bridgeSelect) */
 #ao-root .ao-bridge > .ao-label:empty { display: none; }
 #ao-root .ao-bridge.ao-disabled { opacity: .5; pointer-events: none; }
-/* Pulsanti: come quelli del pannello. Esegui pieno; gli altri con il solo contorno; Reset in rosso; "Mostra originale",
-   "Mostra campi" e la chiusura del risultato sono comandi di testo. */
+/* Pulsanti: come quelli del pannello. Esegui pieno, gli altri con il solo contorno; le eccezioni sono più sotto. */
 #ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
 #ao-root .ao-tools-card .secondary-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
 #ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
 #ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
 #ao-root .ao-tools-card #developer-execute-button { width: 100%; }
-#ao-root .ao-tools-card .diagnostic-danger-button { border-color: color-mix(in srgb, var(--ao-danger) 45%, transparent); color: var(--ao-danger); }
-#ao-root .ao-tools-card .diagnostic-danger-button:hover:where(:not(:disabled)) { background: var(--ao-danger-bg); border-color: var(--ao-danger); }
+/* Pillole compatte (B): Test connessione e Reset completo auth */
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { justify-self: start; width: auto; white-space: nowrap; min-height: 26px; padding: 0 12px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card #connection-status-label { max-width: none; white-space: nowrap; }
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset):hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-text) 11%, transparent); border-color: var(--ao-line-strong); }
+#ao-root .ao-tools-card #auth-full-reset { border-color: color-mix(in srgb, var(--ao-danger) 40%, transparent); background: color-mix(in srgb, var(--ao-danger) 10%, transparent); color: var(--ao-danger); }
+#ao-root .ao-tools-card #auth-full-reset:hover:where(:not(:disabled)) { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
 #ao-root .ao-tools-card :is(.diagnostic-health, .diagnostic-auth-tools) { display: grid; gap: 8px; margin: 0 0 10px; }
-#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button) { min-height: 0; padding: 2px 0; border: 0; border-radius: 0; background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; }
+/* Comando di testo con icona (C), uno solo per tutto il pannello: azioni di servizio come copia, aggiorna, pulisci,
+   ripristina, mostra/nascondi. Accento; rosso per quelle che cancellano. */
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):hover:where(:not(:disabled)) { background: none; color: var(--ao-text); }
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):disabled { opacity: .45; cursor: default; }
+#ao-root .ao-link-button[aria-pressed="true"] { color: var(--ao-text); }
+#ao-root :is(.ao-link-button.ao-danger, .ao-tools-card #auth-diagnostics-clear) { color: var(--ao-danger); }
 #ao-root .ao-tools-card .result-close-button { color: var(--ao-text-muted); font-size: var(--ao-fs-lg); }
-#ao-root .ao-tools-card :is(.identifier-view-toggle, .result-view-toggle, .result-close-button):hover { color: var(--ao-text); background: none; }
+#ao-root .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear)::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: var(--ao-link-icon) center / contain no-repeat; mask: var(--ao-link-icon) center / contain no-repeat; }
+#ao-root .ao-tools-card #auth-diagnostics-refresh { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 10a6 6 0 1 1-1.8-4.3'/%3E%3Cpath d='M16 3.5V7h-3.5'/%3E%3C/svg%3E"); }
+#ao-root .ao-tools-card #auth-diagnostics-copy { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='7' y='7' width='9.5' height='9.5' rx='1.8'/%3E%3Cpath d='M13 7V5.3A1.8 1.8 0 0 0 11.2 3.5H5.3A1.8 1.8 0 0 0 3.5 5.3v5.9A1.8 1.8 0 0 0 5.3 13H7'/%3E%3C/svg%3E"); }
+#ao-root .ao-tools-card #auth-diagnostics-clear { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 16.5h8'/%3E%3Cpath d='M11.8 3.8l4.4 4.4-7.7 7.7H5.7l-2.2-2.2a1.4 1.4 0 0 1 0-2z'/%3E%3Cpath d='M7.5 8.1l4.4 4.4'/%3E%3C/svg%3E"); }
+#ao-root :is(.ao-link-actions, .ao-tools-card .auth-diagnostics-actions) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
+#ao-root .ao-actions-split { justify-content: space-between; align-items: center; }
 /* Moduli e risultato senza riquadri scuri: stanno direttamente nella card; il risultato si stacca con una linea. */
 #ao-root .ao-tools-card :is(.developer-get-form, .developer-create-form, .developer-edit-form, .developer-search-form, .developer-category-form, .developer-graph-category-form, .developer-forward-form, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .function-result) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 #ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
@@ -5242,6 +5269,7 @@
 #ao-root .ao-message-where { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-reply-tools, #ao-root .ao-reply-name { display: flex; align-items: center; gap: 6px; } /* risposta da incollare nella mail */
+#ao-root .ao-reply-tools { gap: 14px; }
 #ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 #ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 #ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
