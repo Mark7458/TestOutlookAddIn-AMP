@@ -436,7 +436,9 @@
         },
         refreshSettings,
         operationalConfig: () => pluginConfig(),
-        currentUserEmail: () => { try { return me(); } catch { return ''; } }, // config dell'add-in (agenzie e operazioni abilitate per la scheda Utility)
+        currentUserEmail: () => { try { return me(); } catch { return ''; } },
+        // nome dell'operatore che usa il pannello, se è nella config (altrimenti vuoto)
+        currentUserName: () => { try { const email = me(); const name = operatorName(email); return name === email ? '' : name; } catch { return ''; } }, // config dell'add-in (agenzie e operazioni abilitate per la scheda Utility)
         setRefreshOverride,
         // Aggiornamento: ogni refresh.listsSeconds e quando il pannello torna in primo piano.
         subscribe(listener) {
