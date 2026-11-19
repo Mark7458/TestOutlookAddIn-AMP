@@ -1807,7 +1807,8 @@
         bar.getAnimations().forEach(animation => animation.cancel());
         delete bar.dataset.leaving;
         root.classList.toggle('ao-with-mailbar', visible);
-        const space = [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }];
+        // ha il suo posto sotto la lista: entrando e uscendo ne prende o ne restituisce lo spazio
+        const space = [{ opacity: 0, height: '0px', marginTop: '0px', marginBottom: '0px' }, { opacity: 1, height: '56px', marginTop: '8px', marginBottom: '8px' }];
         if (visible) {
             bar.hidden = false;
             if (!reducedMotion()) bar.animate(space, { duration: JOURNEY.build, easing: JOURNEY.easing });
@@ -2025,7 +2026,7 @@
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             debugHost,
-            // Mail selezionata in Outlook, sempre allo stesso posto (come un mini player), con la freccia per andare dove si gestisce.
+            // Mail selezionata in Outlook, con un posto suo sotto la lista (come un mini player): un clic porta dove si gestisce.
             h('div', { class: 'ao-mailbar', hidden: true }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
@@ -5387,8 +5388,8 @@
 /* Collegamento mail ↔ ticket */
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-mailbar { position: absolute; left: 12px; right: 12px; bottom: 34px; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; padding: 0 10px; overflow: hidden; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-open-shadow); }
-#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 74px; }
+#ao-root .ao-mailbar { position: relative; flex: none; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; margin: 8px 12px; padding: 0 10px; overflow: hidden; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); }
+#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 28px; -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); } /* la lista sfuma sopra il player */
 #ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
 #ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 #ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -5397,8 +5398,8 @@
 #ao-root .ao-mailbar-subject { font-weight: var(--ao-fw-medium); }
 #ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
 #ao-root .ao-mailbar-detail { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s; }
-#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-line-strong); }
+#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s, box-shadow .35s; }
+#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); }
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
@@ -5429,7 +5430,7 @@
 #ao-root .ao-status > .ao-svg-icon:last-child:not(:first-child) { margin: 0 -6px 0 -4px; } /* freccia: la pillola porta altrove */
 #ao-root .ao-status.ao-clickable { cursor: pointer; transition: border-color .25s; }
 #ao-root .ao-status.ao-clickable:hover { border-color: var(--ao-line-strong); }
-#ao-root.ao-with-mailbar .ao-status { bottom: 98px; }
+#ao-root.ao-with-mailbar .ao-status { bottom: 106px; }
 @keyframes ao-pill-in { from { opacity: 0; transform: translate(-50%, 6px); } }
 #ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
