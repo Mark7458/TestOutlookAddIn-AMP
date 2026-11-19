@@ -199,7 +199,6 @@
             newMessages: 0,
             lastNewMessage: null,
             lastMessageAt: null,
-            syncedAt: record.modified || null,
             forwardGroup: record.forwardGroup || '',
             repliedAt: record.repliedAt || '',
             ...extra

@@ -323,8 +323,8 @@
             servicesOk: 'Servizi collegati',
             servicesMissing: 'Servizi non ancora collegati',
             serviceError: message => `Servizi non raggiungibili: ${message}`,
-            synced: when => `Allineato ${when}`,
-            syncHint: 'Ultimo allineamento della copia su SharePoint con ServiceNow'
+            synced: when => `Aggiornato ${when}`,
+            syncHint: 'Ultimo aggiornamento degli elenchi'
         },
         tabs: { queue: 'In coda', tickets: 'Ticket', mail: 'Mail', settings: 'Settings', utility: 'Utility', debug: 'Tools' },
         utility: {
@@ -350,6 +350,9 @@
             log: 'Azioni del pannello',
             logEmpty: 'Nessuna azione registrata.',
             reload: 'Aggiorna',
+            testLong: 'Test Connessione',
+            test: 'Connessione',
+            resetAuth: 'Reset auth',
             copy: 'Copia',
             copied: 'Registro copiato',
             clear: 'Pulisci',
@@ -609,7 +612,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 13:30';
+    const BUILD = '2026-11-19 14:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -722,7 +725,7 @@
     // Ticket = { number, sysId, url, state, assignedTo: { name, sysId }, companyName, activityName,
     //            shortDescription, description, reportedOn, openedAt, closedAt, timeWorkedMinutes, holdReason,
     //            holdExpiration, conversationId, messageId, owner, newMessages,
-    //            lastNewMessage: { from, at, preview } | null, lastMessageAt, syncedAt,
+    //            lastNewMessage: { from, at, preview } | null, lastMessageAt,
     //            forwardGroup, repliedAt }   (ticket di un inoltro: gruppo e ora della risposta con la sigla)
     // ======================================================================
 
@@ -1067,6 +1070,7 @@
         queue: [],
         tickets: [],
         loaded: false,
+        listsAt: 0, // ora dell'ultimo aggiornamento riuscito degli elenchi
         loading: false,
         serviceError: '',
         hasData: false, // elenchi letti almeno una volta (o ripresi dal browser): restano visibili anche se un aggiornamento non riesce
@@ -1372,7 +1376,7 @@
             const user = Services.currentUserEmail();
             // all'avvio Outlook può non aver ancora detto chi è l'utente: si accettano i dati di questo browser
             if (!saved || Date.now() - saved.at > LISTS_CACHE_MAX_AGE || (user && saved.user && saved.user.toLowerCase() !== user.toLowerCase())) return false;
-            Object.assign(state, { queue: saved.queue || [], ignored: saved.ignored || [], tickets: saved.tickets || [], loaded: true, hasData: true });
+            Object.assign(state, { queue: saved.queue || [], ignored: saved.ignored || [], tickets: saved.tickets || [], loaded: true, hasData: true, listsAt: saved.at });
             state.tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             ActionLog.record('refresh', 'saved', { age: Math.round((Date.now() - saved.at) / 1000) });
             return true;
@@ -1395,6 +1399,7 @@
             tickets.forEach(ticket => { state.ticketCache[ticket.number] = ticket; });
             state.serviceError = '';
             state.hasData = true;
+            state.listsAt = Date.now();
             saveLists();
         } catch (error) {
             if (reason === 'start' && attempt < REFRESH_RETRIES.length) {
@@ -1811,7 +1816,8 @@
         bar.getAnimations().forEach(animation => animation.cancel());
         delete bar.dataset.leaving;
         root.classList.toggle('ao-with-mailbar', visible);
-        const space = [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }];
+        // ha il suo posto sotto la lista: entrando e uscendo ne prende o ne restituisce lo spazio
+        const space = [{ opacity: 0, height: '0px', marginTop: '0px', marginBottom: '0px' }, { opacity: 1, height: '56px', marginTop: '8px', marginBottom: '8px' }];
         if (visible) {
             bar.hidden = false;
             if (!reducedMotion()) bar.animate(space, { duration: JOURNEY.build, easing: JOURNEY.easing });
@@ -2029,7 +2035,7 @@
                 h('span', { class: 'ao-tab-indicator', 'aria-hidden': 'true' })),
             h('div', { class: 'ao-body' }),
             debugHost,
-            // Mail selezionata in Outlook, sempre allo stesso posto (come un mini player), con la freccia per andare dove si gestisce.
+            // Mail selezionata in Outlook, con un posto suo sotto la lista (come un mini player): un clic porta dove si gestisce.
             h('div', { class: 'ao-mailbar', hidden: true }),
             h('div', { class: 'ao-status', role: 'status', 'aria-live': 'polite', hidden: true }),
             // Barra di sistema fissa in fondo: stato dei servizi e ultimo allineamento, sempre visibile.
@@ -2080,7 +2086,20 @@
     // (come la pillola dei selettori). In Impostazioni nessuna scheda è attiva e sparisce.
     // Barra delle schede come continuazione dell'intestazione blu dell'add-in: riprende la stessa sfumatura
     // (letta dall'intestazione) e la prolunga, così le due fasce sembrano una sola.
+    let headerWatched = false;
     function blendTabsWithHeader() {
+        // L'intestazione cambia sfondo anche senza cambiare misura (area AMP mostrata, tema di Outlook, caratteri caricati):
+        // la barra la ricopia ogni volta, altrimenti resta con la sfumatura di prima (tema chiaro su Outlook desktop).
+        if (!headerWatched && root) {
+            headerWatched = true;
+            const reblend = () => requestAnimationFrame(blendTabsWithHeader);
+            const ampView = document.getElementById('amp-view');
+            if (ampView) new MutationObserver(reblend).observe(ampView, { attributes: true, attributeFilter: ['hidden'] });
+            new MutationObserver(reblend).observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-style'] });
+            window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', reblend);
+            document.fonts?.ready.then(reblend);
+            window.addEventListener('load', reblend);
+        }
         const nav = root?.querySelector('.ao-tabs');
         const header = document.querySelector('.app-header');
         if (!nav || !header || !nav.offsetWidth) return;
@@ -2107,7 +2126,7 @@
         const end = Math.min(100, (W / (w + n)) * 100);
         nav.style.background = `linear-gradient(135deg, ${css(mix)} 0%, ${css(to)} ${end.toFixed(1)}%)`;
     }
-    // Larghezze delle schede: quelle non scelte larghe quanto l'icona, la scelta prende tutto lo spazio che resta
+    // Larghezze delle schede: la scelta grande quanto il suo contenuto, le altre si dividono il resto
     // (così a 300 px "In coda 27" si legge). Le larghezze cambiano con il movimento della selezione; restituisce dove
     // finirà ogni scheda, per mettere subito la sottolineatura al posto giusto.
     function layoutTabs(activeView) {
@@ -2120,8 +2139,10 @@
         const inner = nav.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - others - gap * (tabs.length - 1);
         const narrow = tab => tab.querySelector('.ao-tab-icon').offsetWidth + 24; // icona + 12 px per lato
         const active = tabs.find(tab => tab.dataset.view === activeView);
-        const widths = new Map(tabs.map(tab => [tab, tab === active ? 0 : narrow(tab)]));
-        if (active) widths.set(active, Math.max(narrow(active), inner - [...widths.values()].reduce((sum, width) => sum + width, 0)));
+        const rest = tabs.filter(tab => tab !== active);
+        const activeWidth = active ? Math.min(tabContentWidth(active) + 36, inner - rest.reduce((sum, tab) => sum + narrow(tab), 0)) : 0;
+        const share = rest.length ? (inner - activeWidth) / rest.length : 0;
+        const widths = new Map(tabs.map(tab => [tab, tab === active ? Math.max(narrow(tab), activeWidth) : Math.max(narrow(tab), share)]));
         const place = new Map();
         let left = parseFloat(style.paddingLeft);
         tabs.forEach(tab => {
@@ -2130,6 +2151,12 @@
             left += widths.get(tab) + gap;
         });
         return place;
+    }
+    // Icona, nome e numero della scheda come saranno da aperta (il nome può essere ancora in comparsa).
+    function tabContentWidth(tab) {
+        const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
+        return tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
+            + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
     }
     function placeTabIndicator() {
         const indicator = root?.querySelector('.ao-tab-indicator');
@@ -2142,9 +2169,7 @@
         indicator.classList.toggle('ao-moving', Boolean(changed));
         // Linea corta e arrotondata, centrata sotto icona e nome della scheda.
         // Larghezza a scheda aperta (nome e numero stanno ancora comparendo): dall'icona all'ultima cifra.
-        const label = tab.querySelector('.ao-tab-label'), count = tab.querySelector('.ao-counter');
-        const content = tab.querySelector('.ao-tab-icon').offsetWidth + TAB_GAP.label + label.scrollWidth
-            + (count.classList.contains('ao-counter-off') ? 0 : TAB_GAP.counter + count.scrollWidth);
+        const content = tabContentWidth(tab);
         const final = place.get(tab);
         const width = Math.min(final.width, Math.max(36, content + 12));
         indicator.style.width = `${width}px`;
@@ -2302,12 +2327,11 @@
         else if (state.serviceError) { tone = 'danger'; message = TEXTS.system.serviceError(state.serviceError); }
         else if (state.loading) { tone = 'neutral'; message = TEXTS.common.loading; }
         else message = TEXTS.system.servicesOk;
-        const syncedAt = state.tickets.find(ticket => ticket.syncedAt)?.syncedAt;
         bar.className = `ao-statusbar ao-statusbar-${tone}`;
         bar.replaceChildren(...[
             h('span', { class: 'ao-statusbar-dot', 'aria-hidden': 'true' }),
             h('span', { class: 'ao-statusbar-text', title: message }, message),
-            syncedAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(syncedAt))) : null
+            state.listsAt ? h('span', { class: 'ao-statusbar-sync', title: TEXTS.system.syncHint }, TEXTS.system.synced(formatWhen(new Date(state.listsAt)))) : null
         ].filter(Boolean));
     }
     // Selettore a segmenti. La pillola della voce scelta è un elemento a parte (.ao-segment-thumb):
@@ -4506,6 +4530,17 @@
         // Interruttore "Abilita diagnostica avanzata" di jak in cima alla Diagnostica (registra gli eventi dell'accesso).
         const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
         if (tab === 'diagnostics' && diagnosticsSwitch) cards[0]?.prepend(diagnosticsSwitch);
+        // "Reset completo auth" accanto a "Test connessione", sulla stessa riga.
+        const reset = cards[0]?.querySelector('#auth-full-reset'), health = cards[0]?.querySelector('.diagnostic-health');
+        if (tab === 'diagnostics' && reset && health && reset.parentElement !== health) health.append(reset);
+        // Scritte brevi con icona, così stanno sulla stessa riga a 300 px (il pallino del test resta l'indicatore di stato).
+        const testLabel = cards[0]?.querySelector('#connection-status-label');
+        if (tab === 'diagnostics' && testLabel?.textContent === TEXTS.tools.testLong) testLabel.textContent = TEXTS.tools.test;
+        if (tab === 'diagnostics' && reset && !reset.dataset.aoShort) {
+            reset.dataset.aoShort = '1';
+            reset.title = reset.textContent.trim();
+            reset.replaceChildren(svgIcon(LINK_ICONS.reset), TEXTS.tools.resetAuth);
+        }
         cards.forEach(card => card?.querySelectorAll?.('select').forEach(bridgeSelect));
         if (tab === 'diagnostics') cards.push(actionLogCard());
         if (tab === 'settings') cards.push(refreshCard());
@@ -4938,12 +4973,14 @@
 #ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
 #ao-root .ao-tools-card #developer-execute-button { width: 100%; }
 /* Pillole compatte (B): Test connessione e Reset completo auth */
-#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { justify-self: start; width: auto; white-space: nowrap; min-height: 26px; padding: 0 12px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; gap: 5px; width: auto; white-space: nowrap; min-height: 26px; padding: 0 10px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
 #ao-root .ao-tools-card #connection-status-label { max-width: none; white-space: nowrap; }
 #ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset):hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-text) 11%, transparent); border-color: var(--ao-line-strong); }
 #ao-root .ao-tools-card #auth-full-reset { border-color: color-mix(in srgb, var(--ao-danger) 40%, transparent); background: color-mix(in srgb, var(--ao-danger) 10%, transparent); color: var(--ao-danger); }
 #ao-root .ao-tools-card #auth-full-reset:hover:where(:not(:disabled)) { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
-#ao-root .ao-tools-card :is(.diagnostic-health, .diagnostic-auth-tools) { display: grid; gap: 8px; margin: 0 0 10px; }
+#ao-root .ao-tools-card .diagnostic-health { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; } /* Test connessione e Reset sulla stessa riga (renderTools) */
+#ao-root .ao-tools-card .diagnostic-auth-tools { margin: 0; }
+#ao-root .ao-tools-card #diagnostics-panel { padding-left: 0; padding-right: 0; } /* allineata all'interruttore in cima */
 /* Comando di testo con icona (C), uno solo per tutto il pannello: azioni di servizio come copia, aggiorna, pulisci,
    ripristina, mostra/nascondi. Accento; rosso per quelle che cancellano. */
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
@@ -5426,8 +5463,8 @@
 /* Collegamento mail ↔ ticket */
 
 /* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
-#ao-root .ao-mailbar { position: absolute; left: 12px; right: 12px; bottom: 34px; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; padding: 0 10px; overflow: hidden; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-open-shadow); }
-#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 74px; }
+#ao-root .ao-mailbar { position: relative; flex: none; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; margin: 8px 12px; padding: 0 10px; overflow: hidden; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); }
+#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 28px; -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); } /* la lista sfuma sopra il player */
 #ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
 #ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 #ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -5436,8 +5473,8 @@
 #ao-root .ao-mailbar-subject { font-weight: var(--ao-fw-medium); }
 #ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
 #ao-root .ao-mailbar-detail { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
-#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s; }
-#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-line-strong); }
+#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s, box-shadow .35s; }
+#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); }
 #ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 /* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
    uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
@@ -5468,7 +5505,7 @@
 #ao-root .ao-status > .ao-svg-icon:last-child:not(:first-child) { margin: 0 -6px 0 -4px; } /* freccia: la pillola porta altrove */
 #ao-root .ao-status.ao-clickable { cursor: pointer; transition: border-color .25s; }
 #ao-root .ao-status.ao-clickable:hover { border-color: var(--ao-line-strong); }
-#ao-root.ao-with-mailbar .ao-status { bottom: 98px; }
+#ao-root.ao-with-mailbar .ao-status { bottom: 106px; }
 @keyframes ao-pill-in { from { opacity: 0; transform: translate(-50%, 6px); } }
 #ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
