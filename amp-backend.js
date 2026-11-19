@@ -42,6 +42,7 @@
         const authentication = await window.WorkflowHealth?.getAccessTokenSilently?.();
         log?.record('function', `${name}:token`, { ms: Date.now() - tokenStarted, mode: authentication?.acquisitionMode || null, ok: Boolean(authentication?.accessToken) });
         if (!authentication?.accessToken) throw new Error('Accesso non disponibile: riaprire il pannello.');
+        rememberTokenUser(authentication.accessToken);
         const headers = { Authorization: `Bearer ${authentication.accessToken}`, Accept: 'application/json' };
         let url = API + name;
         const request = { method, headers };
@@ -111,10 +112,28 @@
         try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null')?.payload || {}; }
         catch { return {}; }
     }
-    // Operatore che usa il pannello: l'email di Outlook.
+    // Chi ha fatto l'accesso all'add-in, letto dal token (ricordato per l'avvio, prima del primo token).
+    const TOKEN_USER_KEY = 'amp_panel_token_user_v1';
+    let tokenUser = '';
+    try { tokenUser = localStorage.getItem(TOKEN_USER_KEY) || ''; } catch { /* storage non disponibile */ }
+    function rememberTokenUser(accessToken) {
+        try {
+            const part = String(accessToken).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const claims = JSON.parse(decodeURIComponent(escape(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '=')))));
+            const user = String(claims.preferred_username || claims.upn || claims.email || claims.unique_name || '').trim().toLowerCase();
+            if (!user || user === tokenUser) return;
+            tokenUser = user;
+            try { localStorage.setItem(TOKEN_USER_KEY, user); } catch { /* storage non disponibile */ }
+        } catch { /* token non leggibile: resta l'email di Outlook */ }
+    }
+    // Operatore che usa il pannello: chi ha fatto l'accesso, non la casella aperta in Outlook (su Outlook desktop una
+    // casella condivisa aggiunta come account risulta come utente). Vale quello dei due che è tra gli operatori della config.
     function me() {
-        const email = window.Office?.context?.mailbox?.userProfile?.emailAddress
+        const outlook = window.Office?.context?.mailbox?.userProfile?.emailAddress
             || window.TestPluginAPI?.getCurrentMessageContext?.()?.mailbox?.userEmailAddress || '';
+        const operators = Object.values(pluginConfig().operators || {});
+        const known = email => email && operators.some(operator => sameEmail(operator?.email, email));
+        const email = [tokenUser, outlook].find(known) || tokenUser || outlook;
         if (!email) throw new Error('Utente di Outlook non disponibile.');
         return email;
     }
