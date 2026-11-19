@@ -417,7 +417,8 @@
             return { ok: true };
         },
         refreshSettings,
-        operationalConfig: () => pluginConfig(), // config dell'add-in (agenzie e operazioni abilitate per la scheda Utility)
+        operationalConfig: () => pluginConfig(),
+        currentUserEmail: () => { try { return me(); } catch { return ''; } }, // config dell'add-in (agenzie e operazioni abilitate per la scheda Utility)
         setRefreshOverride,
         // Aggiornamento: ogni refresh.listsSeconds e quando il pannello torna in primo piano.
         subscribe(listener) {
