@@ -345,6 +345,9 @@
             log: 'Azioni del pannello',
             logEmpty: 'Nessuna azione registrata.',
             reload: 'Aggiorna',
+            testLong: 'Test Connessione',
+            test: 'Connessione',
+            resetAuth: 'Reset auth',
             copy: 'Copia',
             copied: 'Registro copiato',
             clear: 'Pulisci',
@@ -604,7 +607,7 @@
 
     const STORAGE = { key: 'snow_ticket_assistant_v1', version: 3 };
     // Versione del pannello (si vede in Impostazioni → Profilo): serve a capire se il browser usa l'ultima.
-    const BUILD = '2026-11-19 14:10';
+    const BUILD = '2026-11-19 14:30';
 
     function createDefaultConfig() {
         const now = new Date().toISOString();
@@ -4474,6 +4477,17 @@
         // Interruttore "Abilita diagnostica avanzata" di jak in cima alla Diagnostica (registra gli eventi dell'accesso).
         const diagnosticsSwitch = document.getElementById('diagnostics-enabled-setting')?.closest('.setting-row');
         if (tab === 'diagnostics' && diagnosticsSwitch) cards[0]?.prepend(diagnosticsSwitch);
+        // "Reset completo auth" accanto a "Test connessione", sulla stessa riga.
+        const reset = cards[0]?.querySelector('#auth-full-reset'), health = cards[0]?.querySelector('.diagnostic-health');
+        if (tab === 'diagnostics' && reset && health && reset.parentElement !== health) health.append(reset);
+        // Scritte brevi con icona, così stanno sulla stessa riga a 300 px (il pallino del test resta l'indicatore di stato).
+        const testLabel = cards[0]?.querySelector('#connection-status-label');
+        if (tab === 'diagnostics' && testLabel?.textContent === TEXTS.tools.testLong) testLabel.textContent = TEXTS.tools.test;
+        if (tab === 'diagnostics' && reset && !reset.dataset.aoShort) {
+            reset.dataset.aoShort = '1';
+            reset.title = reset.textContent.trim();
+            reset.replaceChildren(svgIcon(LINK_ICONS.reset), TEXTS.tools.resetAuth);
+        }
         cards.forEach(card => card?.querySelectorAll?.('select').forEach(bridgeSelect));
         if (tab === 'diagnostics') cards.push(actionLogCard());
         if (tab === 'settings') cards.push(refreshCard());
@@ -4906,12 +4920,14 @@
 #ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
 #ao-root .ao-tools-card #developer-execute-button { width: 100%; }
 /* Pillole compatte (B): Test connessione e Reset completo auth */
-#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { justify-self: start; width: auto; white-space: nowrap; min-height: 26px; padding: 0 12px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; gap: 5px; width: auto; white-space: nowrap; min-height: 26px; padding: 0 10px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
 #ao-root .ao-tools-card #connection-status-label { max-width: none; white-space: nowrap; }
 #ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset):hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-text) 11%, transparent); border-color: var(--ao-line-strong); }
 #ao-root .ao-tools-card #auth-full-reset { border-color: color-mix(in srgb, var(--ao-danger) 40%, transparent); background: color-mix(in srgb, var(--ao-danger) 10%, transparent); color: var(--ao-danger); }
 #ao-root .ao-tools-card #auth-full-reset:hover:where(:not(:disabled)) { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
-#ao-root .ao-tools-card :is(.diagnostic-health, .diagnostic-auth-tools) { display: grid; gap: 8px; margin: 0 0 10px; }
+#ao-root .ao-tools-card .diagnostic-health { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; } /* Test connessione e Reset sulla stessa riga (renderTools) */
+#ao-root .ao-tools-card .diagnostic-auth-tools { margin: 0; }
+#ao-root .ao-tools-card #diagnostics-panel { padding-left: 0; padding-right: 0; } /* allineata all'interruttore in cima */
 /* Comando di testo con icona (C), uno solo per tutto il pannello: azioni di servizio come copia, aggiorna, pulisci,
    ripristina, mostra/nascondi. Accento; rosso per quelle che cancellano. */
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
