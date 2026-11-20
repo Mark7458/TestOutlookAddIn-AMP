@@ -33,6 +33,12 @@
   --fs-sm: 13px;
   --fs-md: 15px;
   --fs-lg: 18px;
+  --motion: .44s cubic-bezier(.32, 1.12, .5, 1); /* scivola con un leggero rimbalzo finale, come iOS */
+  --ease: cubic-bezier(.3, .8, .2, 1);
+  --glow-rest: 0 0 12px rgba(80, 150, 255, .28), 0 0 3px rgba(80, 150, 255, .14);
+  --glow-hover: 0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38);
+  --glow-left: -7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
+  --glow-right: 7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -50,13 +56,20 @@ button { font: inherit; color: inherit; }
 
 /* Pulsanti: pieno (azione principale), contorno, comando di testo */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px;
-  background: transparent; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color .2s, filter .2s; }
+  background: transparent; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color .3s, border-color .3s, box-shadow .35s, filter .3s, transform .15s var(--ease); }
+.btn:active:not(:disabled) { transform: scale(.97); }
 .btn:hover { background: var(--hover); }
-.btn.primary { border-color: var(--accent-line); background: var(--accent-fill); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18); }
-.btn.primary:hover { filter: brightness(1.12); }
+.btn.primary { border-color: var(--accent-line); background: var(--accent-fill); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-rest); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-hover); animation: call-on .4s ease-out, call-sway 4.8s ease-in-out .4s infinite; }
+.btn.danger:hover:not(:disabled) { background: rgba(240, 138, 138, .1); border-color: var(--danger); }
+@keyframes call-on { from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-rest); } }
+@keyframes call-sway {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-hover); }
+  25% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-left); }
+  75% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-right); } }
 .btn.danger { border-color: rgba(240, 138, 138, .4); color: var(--danger); }
 .btn.wide { width: 100%; }
-.link { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; text-decoration: none; cursor: pointer; }
+.link { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; text-decoration: none; cursor: pointer; transition: color .2s; }
 .link:hover { color: var(--text); }
 .icon { flex: none; width: 16px; height: 16px; }
 
@@ -69,10 +82,10 @@ button { font: inherit; color: inherit; }
 .app { height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
 .topbar { flex: none; display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand { font-size: var(--fs-lg); font-weight: 600; letter-spacing: .2px; }
-.tabs { min-width: 0; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .18); overflow-x: auto; }
-.tab { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-weight: 500; white-space: nowrap; cursor: pointer; }
+.tabs { position: relative; min-width: 0; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .18); overflow-x: auto; }
+.tab { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-weight: 500; white-space: nowrap; cursor: pointer; transition: color .25s; }
 .tab:hover { color: var(--text); }
-.tab[aria-selected="true"] { background: var(--surface-strong); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+.tab[aria-selected="true"] { color: var(--text); }
 .count { min-width: 18px; color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .tab[aria-selected="true"] .count { color: var(--accent); }
 .account { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
@@ -86,13 +99,18 @@ button { font: inherit; color: inherit; }
 .column-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 0; }
 
 /* Selettore della sezione (Attive / Ignorate) */
-.segmented { display: flex; flex: 1; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, .2); }
-.segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
-.segment[aria-pressed="true"] { background: var(--surface-strong); color: var(--text); }
+.segmented { position: relative; display: flex; flex: 1; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, .2); }
+.segment { position: relative; z-index: 1; transition: color .25s; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+.segment[aria-pressed="true"] { color: var(--text); }
+/* Pillola della voce scelta (schede e selettori): un elemento solo che scivola (animate() in app.js) */
+.thumb { position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; border-radius: 8px; background: var(--surface-strong); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .25); pointer-events: none; }
+.tabs .thumb { border-radius: 9px; }
+.thumb.moving { transition: transform var(--motion), width var(--motion); }
 
 /* Elenco dei thread e dei ticket */
 .list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.item { display: grid; gap: 3px; width: 100%; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; text-align: left; cursor: pointer; }
+.item { display: grid; gap: 3px; width: 100%; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; text-align: left; cursor: pointer; transition: background-color .2s, border-color .3s, transform .15s var(--ease); }
+.item:active { transform: scale(.99); }
 .item:hover { background: var(--hover); }
 .item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
 .item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -212,7 +230,16 @@ button { font: inherit; color: inherit; }
   .workspace.detail-open > .column:first-child, .workspace:not(.detail-open) > .column:nth-child(2) { display: none; }
   .back { display: inline-flex; margin-bottom: 6px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* Entrata delle parti che cambiano contenuto e scorrimento della vista tra le schede in alto */
+.enter { animation: enter-up .32s var(--ease) both; }
+.workspace.enter-next { animation: enter-next .36s var(--ease) both; }
+.workspace.enter-back { animation: enter-back .36s var(--ease) both; }
+.toast.enter { animation: toast-in .3s var(--ease) both; }
+@keyframes enter-up { from { opacity: 0; transform: translateY(6px); } }
+@keyframes enter-next { from { opacity: 0; transform: translateX(18px); } }
+@keyframes enter-back { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -662,7 +689,7 @@ button { font: inherit; color: inherit; }
     // Pillola dell'esito, in basso.
     let toastTimer = null;
     function showStatus(text, tone = 'success') {
-        state.toast = { text, tone };
+        state.toast = { text, tone, id: Date.now() };
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => { state.toast = null; render(); }, 3800);
         render();
@@ -1287,6 +1314,49 @@ button { font: inherit; color: inherit; }
         return state.toast ? h('div', { class: `toast ${state.toast.tone}`, role: 'status' }, state.toast.text) : null;
     }
 
+    // ------------------------------------------------------------------
+    // Movimento (come nel pannello): la pillola della voce scelta scivola nei selettori e nelle schede; le parti che
+    // cambiano contenuto entrano con una breve dissolvenza; le schede in alto fanno scorrere la vista nel loro verso.
+    // Il ridisegno ricrea tutto: si anima solo ciò che è cambiato dal disegno precedente.
+    // ------------------------------------------------------------------
+    const motion = { keys: new Map(), thumbs: new Map(), tab: null, toast: null };
+    const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Pillola sotto la voce scelta: parte da dove era e scivola sulla nuova.
+    function slideThumb(group, selector, key) {
+        const chosen = group.querySelector(selector);
+        if (!chosen) return;
+        const thumb = h('span', { class: 'thumb', 'aria-hidden': 'true' });
+        group.prepend(thumb);
+        const place = { x: chosen.offsetLeft, width: chosen.offsetWidth };
+        const before = motion.thumbs.get(key);
+        motion.thumbs.set(key, place);
+        const put = ({ x, width }) => { thumb.style.transform = `translateX(${x}px)`; thumb.style.width = `${width}px`; };
+        put(before && !reducedMotion() ? before : place);
+        if (!before || reducedMotion() || (before.x === place.x && before.width === place.width)) return;
+        thumb.getBoundingClientRect();
+        thumb.classList.add('moving');
+        put(place);
+    }
+    function enter(element, key, name, className = 'enter') {
+        if (!element) return;
+        const before = motion.keys.get(name);
+        motion.keys.set(name, key);
+        if (before !== undefined && before !== key && !reducedMotion()) element.classList.add(className);
+    }
+    function animate() {
+        slideThumb(root.querySelector('.tabs'), '.tab[aria-selected="true"]', 'tabs');
+        root.querySelectorAll('.segmented').forEach(group => slideThumb(group, '.segment[aria-pressed="true"]', `segmented:${group.getAttribute('aria-label')}`));
+        const order = TABS.findIndex(tab => tab.id === state.tab);
+        if (motion.tab !== null && motion.tab !== order && !reducedMotion()) root.querySelector('.workspace')?.classList.add(order > motion.tab ? 'enter-next' : 'enter-back');
+        motion.tab = order;
+        if (state.tab !== 'work') return;
+        enter(root.querySelector('[aria-label="Elenco"] .scroll'), state.section, 'list');
+        enter(root.querySelector('.workspace > .column:nth-child(2) > .card'), state.selected || '', 'thread');
+        enter(root.querySelector('aside .side'), `${state.selected}|${state.panel?.type || state.panel || ''}`, 'side');
+        const toastNode = root.querySelector('.toast');
+        if (toastNode && motion.toast !== state.toast.id) { motion.toast = state.toast.id; toastNode.classList.add('enter'); }
+    }
+
     // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
     function render() {
         if (!state.user) return;
@@ -1294,6 +1364,7 @@ button { font: inherit; color: inherit; }
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
         root.replaceChildren(topbar(), workspace(), toast() || '');
+        animate();
         root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
         const field = focus && document.getElementById(focus.id);
         if (field) {
