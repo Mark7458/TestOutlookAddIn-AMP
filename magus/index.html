@@ -381,21 +381,41 @@ button { font: inherit; color: inherit; }
 .workspace.single { grid-template-columns: minmax(0, 1fr); }
 .workspace.single > .column { display: flex !important; }
 
-/* Larghezze: tre colonne, poi due (dettagli sotto il thread), poi una sola con il ritorno all'elenco */
-@media (max-width: 1100px) {
-  .workspace { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
-  .workspace > .column:last-child { display: none; }
-  .side-inline { display: grid !important; padding: 0 0 6px; }
-}
+/* Vista: computer (tre colonne, o due sotto i 1100 px con i dettagli sopra il thread) o mobile (una colonna con il
+   ritorno all'elenco). La sceglie Impostazioni > Aspetto; in automatico decide la larghezza dello schermo. */
 .side-inline { display: none; }
-@media (max-width: 760px) {
-  .app { gap: 10px; padding-top: 10px; }
-  .brand, .account .name, .tab:not([aria-selected="true"]) .tab-label { display: none; }
-  .tab { padding: 0 11px; }
-  .workspace { grid-template-columns: minmax(0, 1fr); }
-  .workspace.detail-open > .column:first-child, .workspace:not(.detail-open) > .column:nth-child(2) { display: none; }
-  .back { display: inline-flex; margin-bottom: 6px; }
-}
+:root[data-layout="medium"] .workspace { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
+:root[data-layout="medium"] .workspace > .column:last-child,
+:root[data-layout="mobile"] .workspace > aside.column { display: none; }
+:root[data-layout="medium"] .side-inline,
+:root[data-layout="mobile"] .side-inline { display: grid !important; padding: 0 0 6px; }
+:root[data-layout="mobile"] .app { gap: 10px; padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+:root[data-layout="mobile"] .brand,
+:root[data-layout="mobile"] .account .name,
+:root[data-layout="mobile"] .tab:not([aria-selected="true"]) .tab-label { display: none; }
+:root[data-layout="mobile"] .topbar { gap: 10px; }
+:root[data-layout="mobile"] .tabs { flex: 1; }
+:root[data-layout="mobile"] .tab { flex: 1; justify-content: center; padding: 0 11px; height: 38px; }
+:root[data-layout="mobile"] .workspace { grid-template-columns: minmax(0, 1fr); }
+:root[data-layout="mobile"] .workspace.detail-open > .column:first-child,
+:root[data-layout="mobile"] .workspace:not(.detail-open):not(.single) > .column:nth-child(2) { display: none; }
+:root[data-layout="mobile"] .back { display: inline-flex; margin-bottom: 6px; min-height: 36px; }
+:root[data-layout="mobile"] .thread-head { padding: 10px 12px 8px; }
+:root[data-layout="mobile"] .column-head { padding: 10px 10px 0; }
+:root[data-layout="mobile"] .item { padding-top: 12px; padding-bottom: 12px; }
+:root[data-layout="mobile"] .btn, :root[data-layout="mobile"] .segment { min-height: 38px; }
+:root[data-layout="mobile"] input, :root[data-layout="mobile"] select, :root[data-layout="mobile"] textarea { font-size: 16px; }
+:root[data-layout="mobile"] .steps { grid-template-columns: repeat(2, 1fr); }
+:root[data-layout="mobile"] .modal-backdrop { padding: 0; }
+:root[data-layout="mobile"] .modal { width: 100%; max-width: 100%; min-width: 0; height: 100%; border-radius: 0; }
+:root[data-layout="mobile"] .modal > *, :root[data-layout="mobile"] .settings .tool { min-width: 0; }
+:root[data-layout="mobile"] .settings-head .segmented { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+:root[data-layout="mobile"] .settings-head .segment { flex: none; }
+:root[data-layout="mobile"] .settings .segmented .segment { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
+/* Vista mobile scelta su uno schermo largo: la pagina resta della larghezza di un telefono, al centro */
+:root[data-layout="mobile"][data-wide] .app { width: min(430px, 100%); margin: 0 auto; }
+:root[data-layout="mobile"][data-wide] .modal-backdrop { padding: 16px; }
+:root[data-layout="mobile"][data-wide] .modal { width: min(430px, 100%); height: min(820px, 100%); border-radius: inherit; }
 /* Entrata delle parti che cambiano contenuto e scorrimento della vista tra le schede in alto */
 .enter { animation: enter-up .32s var(--ease) both; }
 .workspace.enter-next { animation: enter-next .36s var(--ease) both; }
@@ -582,6 +602,8 @@ button { font: inherit; color: inherit; }
         light: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M4.7 15.3L6 14M14 6l1.3-1.3"/>',
         dark: '<path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/>',
         flat: '<rect x="4" y="4" width="12" height="12" rx="2"/>',
+        desktop: '<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/>',
+        mobile: '<rect x="6" y="2.5" width="8" height="15" rx="2"/><path d="M9 15h2"/>',
         glass: '<rect x="3" y="3" width="10" height="10" rx="2"/><rect x="7" y="7" width="10" height="10" rx="2"/>',
         trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>'
     };
@@ -639,6 +661,17 @@ button { font: inherit; color: inherit; }
         document.documentElement.dataset.mode = dark ? 'dark' : 'light';
         document.documentElement.dataset.style = settings.preferences.style === 'flat' ? 'flat' : 'glass';
         document.documentElement.style.setProperty('--label', LABELS[settings.profile.label] || LABELS.azzurro);
+        applyLayout(settings);
+    }
+    // Vista computer o mobile: scelta nelle impostazioni, oppure (automatica) dalla larghezza dello schermo.
+    const narrowQuery = window.matchMedia?.('(max-width: 760px)');
+    const mediumQuery = window.matchMedia?.('(max-width: 1100px)');
+    function applyLayout(settings) {
+        const view = settings.preferences.view || 'auto';
+        const narrow = !!narrowQuery?.matches;
+        const layout = view === 'mobile' || (view === 'auto' && narrow) ? 'mobile' : mediumQuery?.matches ? 'medium' : 'wide';
+        document.documentElement.dataset.layout = layout;
+        document.documentElement.toggleAttribute('data-wide', layout === 'mobile' && !narrow);
     }
     function reference(value) {
         if (!value) return { value: '', displayValue: '' };
@@ -1600,7 +1633,9 @@ button { font: inherit; color: inherit; }
                 h('div', { class: 'segmented', role: 'group', 'aria-label': 'Tema' },
                     [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.theme || 'auto') === id), onclick: () => setPreference('theme', id) }, icon(ICONS[id]), label))),
                 h('div', { class: 'segmented', role: 'group', 'aria-label': 'Stile' },
-                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id), onclick: () => setPreference('style', id) }, icon(ICONS[id]), label)))),
+                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id), onclick: () => setPreference('style', id) }, icon(ICONS[id]), label))),
+                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Vista' },
+                    [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.view || 'auto') === id), onclick: () => setPreference('view', id) }, icon(ICONS[iconName]), label)))),
             h('section', { class: 'tool' },
                 h('h2', {}, 'Copia di sicurezza'),
                 h('div', { class: 'link-actions' }, importFile,
@@ -1781,6 +1816,8 @@ button { font: inherit; color: inherit; }
     });
     applyAppearance(state.settings);
     darkQuery?.addEventListener?.('change', () => applyAppearance(state.settings));
+    narrowQuery?.addEventListener?.('change', () => applyLayout(state.settings));
+    mediumQuery?.addEventListener?.('change', () => applyLayout(state.settings));
 
     (async () => {
         state.user = await Data.session();
