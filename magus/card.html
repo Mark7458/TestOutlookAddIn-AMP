@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magus · card del pannello</title>
+<style>
+#ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+#ao-root[data-theme="dark"] { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; }
+@media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; } }
+#ao-root[data-style="glass"] { --ao-nav-band: linear-gradient(125deg, rgba(255, 255, 255, .28), transparent 45%), linear-gradient(135deg, rgba(0, 90, 158, .9), rgba(0, 120, 212, .84)); --ao-nav-edge: inset 0 1px 0 rgba(255, 255, 255, .45); --ao-backdrop: transparent; --ao-surface: rgba(255, 255, 255, .82); --ao-hover: rgba(255, 255, 255, .9); --ao-bg: rgba(110, 140, 190, .1); --ao-bg-soft: rgba(255, 255, 255, .55); --ao-line: rgba(255, 255, 255, .75); --ao-line-light: rgba(0, 0, 0, .07); --ao-line-strong: rgba(0, 0, 0, .14); --ao-blur: blur(14px) saturate(1.2); --ao-hover-filter: brightness(1.06); --ao-chip-line: rgba(0, 50, 110, .16); --ao-notify-ink: #fff; --ao-hover-glow: 0 0 12px rgba(120, 170, 255, .2); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: rgba(255, 255, 255, .95); --ao-item-hover-glow: 0 0 16px rgba(110, 165, 255, .38); --ao-segment-track: rgba(214, 224, 240, .6); --ao-choice-track: var(--ao-segment-track); --ao-selection: var(--ao-surface); --ao-selection-line: var(--ao-line); --ao-selection-shadow: 0 1px 2px rgba(0, 0, 0, .06); --ao-selection-tone: 0%; --ao-selection-motion: .44s cubic-bezier(.32, 1.12, .5, 1); --ao-menu-bg: #fbfcfe; --ao-call-border: 1px solid var(--ao-line); --ao-call-open-border: var(--ao-line); --ao-call-glow: 0 0 18px rgba(80, 150, 255, .5), 0 0 4px rgba(80, 150, 255, .25); --ao-call-glow-rest: 0 0 12px rgba(80, 150, 255, .28), 0 0 3px rgba(80, 150, 255, .14); --ao-tag-hover-edge: transparent; --ao-open-shadow: 0 0 18px rgba(80, 150, 255, .45), 0 6px 16px rgba(0, 0, 0, .1); --ao-call-glow-hover: 0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38); --ao-call-glow-left: -7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36); --ao-call-glow-right: 7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36); --ao-call-edge-hover: var(--ao-line); --ao-search-bg: var(--ao-hover); --ao-search-lens-bg: var(--ao-hover); --ao-search-line: transparent; --ao-search-focus-line: transparent; --ao-field-focus-line: rgba(120, 170, 255, .45); --ao-field-focus-glow: 0 0 6px rgba(120, 170, 255, .14); --ao-search-lens-line: transparent; --ao-tone-take: #0f5fbf; --ao-tone-forward: #7b3fbf; --ao-tone-ignore: #c4183c; --ao-tone-fill: 86%; --ao-tone-line: rgba(255, 255, 255, .22); --ao-tone-hover-filter: brightness(1.08); --ao-btn-highlight: inset 0 1px 0 rgba(255, 255, 255, .22); --ao-spinner-track: 35%; --ao-tag-fill: 22%; --ao-tag-base: transparent; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: rgba(0, 50, 110, .16); }
+#ao-root[data-style="glass"][data-theme="dark"] { --ao-surface: rgba(52, 56, 66, .62); --ao-hover: rgba(70, 77, 92, .68); --ao-bg: rgba(0, 0, 0, .2); --ao-bg-soft: rgba(40, 44, 52, .5); --ao-line: rgba(255, 255, 255, .09); --ao-line-light: rgba(255, 255, 255, .07); --ao-line-strong: rgba(255, 255, 255, .16); --ao-hover-filter: brightness(1.22); --ao-nav-ink: rgba(236, 240, 247, .93); --ao-nav-ink-soft: rgba(236, 240, 247, .64); --ao-nav-band: linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), linear-gradient(135deg, rgba(15, 60, 130, .62), rgba(25, 85, 170, .52)); --ao-nav-edge: inset 0 1px 0 rgba(255, 255, 255, .22); --ao-chip-line: transparent; --ao-notify-ink: #23262e; --ao-hover-glow: 0 0 12px rgba(90, 150, 255, .18); --ao-item-hover-edge: rgba(255, 255, 255, .2); --ao-item-hover-glow: 0 0 16px rgba(90, 150, 255, .3); --ao-segment-track: rgba(28, 31, 38, .62); --ao-selection-shadow: 0 1px 2px rgba(0, 0, 0, .3); --ao-menu-bg: #2b2e36; --ao-field-focus-line: rgba(90, 150, 255, .4); --ao-field-focus-glow: 0 0 6px rgba(90, 150, 255, .12); --ao-call-glow: 0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25); --ao-call-glow-rest: 0 0 12px rgba(70, 140, 255, .28), 0 0 3px rgba(70, 140, 255, .14); --ao-call-glow-hover: 0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38); --ao-call-glow-left: -7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36); --ao-call-glow-right: 7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36); --ao-open-shadow: 0 0 18px rgba(70, 140, 255, .45), 0 6px 16px rgba(0, 0, 0, .3); --ao-tone-take: color-mix(in srgb, #0f5fbf 82%, #000); --ao-tone-forward: color-mix(in srgb, #7b3fbf 82%, #000); --ao-tone-ignore: color-mix(in srgb, #c4183c 82%, #000); --ao-tone-resolve: color-mix(in srgb, #2e8b57 82%, #000); --ao-tone-hold: color-mix(in srgb, #d4ac0d 82%, #000); --ao-tone-line: rgba(255, 255, 255, .14); --ao-btn-highlight: 0 0 transparent; --ao-tag-fill: 28%; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; --ao-tag-line: rgba(255, 255, 255, .12); }
+@media (prefers-color-scheme: dark) { #ao-root[data-style="glass"]:not([data-theme="light"]) { --ao-surface: rgba(52, 56, 66, .62); --ao-hover: rgba(70, 77, 92, .68); --ao-bg: rgba(0, 0, 0, .2); --ao-bg-soft: rgba(40, 44, 52, .5); --ao-line: rgba(255, 255, 255, .09); --ao-line-light: rgba(255, 255, 255, .07); --ao-line-strong: rgba(255, 255, 255, .16); --ao-hover-filter: brightness(1.22); --ao-nav-ink: rgba(236, 240, 247, .93); --ao-nav-ink-soft: rgba(236, 240, 247, .64); --ao-nav-band: linear-gradient(125deg, rgba(255, 255, 255, .18), transparent 45%), linear-gradient(135deg, rgba(15, 60, 130, .62), rgba(25, 85, 170, .52)); --ao-nav-edge: inset 0 1px 0 rgba(255, 255, 255, .22); --ao-chip-line: transparent; --ao-notify-ink: #23262e; --ao-hover-glow: 0 0 12px rgba(90, 150, 255, .18); --ao-item-hover-edge: rgba(255, 255, 255, .2); --ao-item-hover-glow: 0 0 16px rgba(90, 150, 255, .3); --ao-segment-track: rgba(28, 31, 38, .62); --ao-selection-shadow: 0 1px 2px rgba(0, 0, 0, .3); --ao-menu-bg: #2b2e36; --ao-field-focus-line: rgba(90, 150, 255, .4); --ao-field-focus-glow: 0 0 6px rgba(90, 150, 255, .12); --ao-call-glow: 0 0 18px rgba(70, 140, 255, .5), 0 0 4px rgba(70, 140, 255, .25); --ao-call-glow-rest: 0 0 12px rgba(70, 140, 255, .28), 0 0 3px rgba(70, 140, 255, .14); --ao-call-glow-hover: 0 0 24px rgba(70, 140, 255, .66), 0 0 6px rgba(70, 140, 255, .38); --ao-call-glow-left: -7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36); --ao-call-glow-right: 7px 0 22px rgba(70, 140, 255, .62), 0 0 6px rgba(70, 140, 255, .36); --ao-open-shadow: 0 0 18px rgba(70, 140, 255, .45), 0 6px 16px rgba(0, 0, 0, .3); --ao-tone-take: color-mix(in srgb, #0f5fbf 82%, #000); --ao-tone-forward: color-mix(in srgb, #7b3fbf 82%, #000); --ao-tone-ignore: color-mix(in srgb, #c4183c 82%, #000); --ao-tone-resolve: color-mix(in srgb, #2e8b57 82%, #000); --ao-tone-hold: color-mix(in srgb, #d4ac0d 82%, #000); --ao-tone-line: rgba(255, 255, 255, .14); --ao-btn-highlight: 0 0 transparent; --ao-tag-fill: 28%; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; --ao-tag-line: rgba(255, 255, 255, .12); } }
+/* L'area AMP ha l'altezza esatta del riquadro visibile: schede e barra di sistema ferme, scorre solo il contenuto */
+#ao-root { position: relative; display: flex; flex-direction: column; min-width: 300px; overflow: hidden; font-family: var(--ao-font); font-size: var(--ao-fs-base); color: var(--ao-text); background: var(--ao-backdrop); line-height: 1.4; }
+#ao-root *, #ao-root *::before, #ao-root *::after { box-sizing: border-box; }
+#ao-root [hidden] { display: none !important; }
+#ao-root.ao-busy { cursor: progress; }
+#ao-root button { font: inherit; color: inherit; }
+
+/* Intestazione e schede */
+#ao-root .ao-tabs { position: relative; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 4px; background: var(--ao-nav-band); box-shadow: var(--ao-nav-edge); color: var(--ao-nav-ink); } /* fascia in cima (l'add-in non ha più l'intestazione) */
+#ao-root .ao-tabs .ao-icon-button { flex: none; font-size: var(--ao-fs-lg); color: var(--ao-nav-ink-soft); }
+/* Freccia per tornare all'add-in: invisibile finché non la si raggiunge con il mouse, così le schede hanno tutta la larghezza */
+#ao-root .ao-tabs .ao-back { position: absolute; left: 4px; top: 50%; z-index: 1; transform: translateY(-50%); opacity: 0; transition: opacity .2s; }
+#ao-root .ao-tabs .ao-back:is(:hover, :focus-visible) { opacity: 1; }
+#ao-root .ao-tabs .ao-icon-button:hover { background: rgba(255, 255, 255, .14); border-color: transparent; color: var(--ao-nav-ink); }
+#ao-root .ao-tab { flex: none; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0; padding: 9px 12px 7px; transition: width var(--ao-selection-motion); border: 0; border-bottom: 2px solid transparent; border-radius: var(--ao-radius-base) var(--ao-radius-base) 0 0; background: none; color: var(--ao-nav-ink-soft); font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-normal); cursor: pointer; }
+#ao-root .ao-tab:hover { color: var(--ao-nav-ink); }
+#ao-root .ao-tab.ao-active { color: var(--ao-nav-ink); }
+#ao-root .ao-tab-icon { position: relative; display: inline-flex; opacity: .8; transition: color .25s, opacity .25s; }
+#ao-root .ao-tab.ao-active .ao-tab-icon { color: var(--ao-nav-ink); opacity: 1; }
+/* Ogni scheda ha il suo posto: chiusa solo l'icona, aperta anche nome e contatore (si allargano nel suo posto) */
+#ao-root .ao-tab-label { max-width: 0; margin-left: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width var(--ao-selection-motion), margin-left var(--ao-selection-motion), opacity .25s; }
+#ao-root .ao-tab.ao-active .ao-tab-label { max-width: 120px; margin-left: 9px; opacity: 1; } /* spazio anche per il segnalino */
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-label { transition: none; } }
+#ao-root .ao-tab-indicator { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--ao-nav-ink); pointer-events: none; opacity: 0; }
+#ao-root .ao-tab-indicator.ao-ready { opacity: 1; }
+#ao-root .ao-tab-indicator.ao-moving { transition: transform .32s cubic-bezier(.3, .8, .2, 1), width .32s cubic-bezier(.3, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab-indicator.ao-moving { transition: none; } }
+/* Scheda aperta: leggero zoom della scritta (e del numero), che resta finché è selezionata */
+#ao-root .ao-tab > * { transition: transform .35s ease-in-out; }
+#ao-root .ao-tab.ao-active > * { transform: scale(1.04); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab > * { transition: none; } }
+/* Schede: il conteggio è un numero pulito, solo sulla scheda aperta. */
+#ao-root .ao-counter { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--ao-radius-badge); color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); line-height: 18px; text-align: center; }
+#ao-root .ao-tab.ao-active .ao-counter { color: var(--ao-nav-ink); }
+/* Segnalino della scheda: sparisce rimpicciolendosi e svanendo, e la scritta si ricentra senza scatti (e il contrario quando torna) */
+#ao-root .ao-tab .ao-counter { min-width: 0; margin-left: 5px; padding: 0; max-width: 40px; color: var(--ao-nav-ink-soft); overflow: hidden; transition: opacity .2s ease, max-width .28s ease, margin-left .28s ease, transform .28s ease; } /* solo il numero: la sottolineatura si centra sulle cifre */
+#ao-root .ao-tab .ao-counter.ao-counter-off { opacity: 0; max-width: 0; margin-left: 0; transform: scale(.6); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-tab .ao-counter { transition: none; } }
+/* Aggiornamenti: segnalino tondo con il numero sull'icona, sempre visibile, del colore del testo intorno. */
+#ao-root .ao-notify { position: absolute; top: -6px; right: -7px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: currentColor; font-size: 10px; font-weight: var(--ao-fw-bold); line-height: 14px; text-align: center; pointer-events: auto; transition: opacity .2s, transform .2s; }
+#ao-root .ao-notify-number { color: var(--ao-notify-ink); }
+#ao-root .ao-tab .ao-notify-number { color: #005a9e; } /* blu della fascia in cima */
+#ao-root .ao-notify-off { opacity: 0; transform: scale(.6); pointer-events: none; }
+#ao-root .ao-notify-alert:not(.ao-notify-off) { animation: ao-pulse 1.6s ease-in-out infinite; } /* On Hold scaduto: pulsa piano */
+@keyframes ao-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-notify-alert:not(.ao-notify-off) { animation: none; } }
+#ao-root .ao-segment:not(.ao-active) .ao-notify:not(.ao-notify-off) { opacity: .5; } /* selettore: sulla voce non scelta il segnalino è più discreto */
+#ao-root .ao-notify-anchor { position: relative; display: inline-flex; margin-right: 5px; }
+/* Card: numero dei messaggi nuovi su sfondo blu. */
+#ao-root .ao-news { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ao-accent); color: var(--ao-white); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-bold); line-height: 18px; text-align: center; }
+#ao-root .ao-new-head .ao-news { align-self: center; }
+#ao-root .ao-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Tools: le sezioni dell'add-in di jak dentro le card del pannello, con i controlli del pannello */
+#ao-root .ao-tools { display: grid; gap: 10px; }
+/* Utility: avanzamento a segmenti, scelte a righe, passi dell'esecuzione */
+#ao-root .ao-steps { display: flex; gap: 4px; margin-top: 8px; }
+#ao-root .ao-steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--ao-line-strong); transition: background-color .3s; }
+#ao-root .ao-steps span.ao-done { background: var(--ao-text-accent); }
+#ao-root .ao-step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#ao-root .ao-step-nav { justify-content: flex-end; }
+#ao-root .ao-step-nav .ao-button { flex: 1; }
+#ao-root .ao-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text); font: inherit; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-pick:hover { background: var(--ao-hover); }
+#ao-root .ao-pick.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); }
+#ao-root .ao-pick-icon { flex: none; width: 20px; text-align: center; }
+#ao-root .ao-pick-text { display: grid; gap: 1px; min-width: 0; }
+#ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#ao-root .ao-chip-toggle { padding: 4px 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); cursor: pointer; }
+#ao-root .ao-chip-toggle.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); color: var(--ao-text); }
+#ao-root .ao-step-center { justify-items: center; text-align: center; padding: 18px 12px; }
+#ao-root .ao-step-icon { font-size: 20px; }
+#ao-root .ao-run-step { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-run-step .ao-hint { grid-column: 2; }
+#ao-root .ao-run-dot { width: 14px; height: 14px; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; }
+#ao-root .ao-run-step.ao-running { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-running .ao-run-dot { border-color: var(--ao-text-accent); border-top-color: transparent; animation: ao-spin .8s linear infinite; }
+#ao-root .ao-run-step.ao-ok { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-ok .ao-run-dot { border-color: var(--ao-success); background: var(--ao-success); }
+#ao-root .ao-run-step.ao-failed .ao-run-dot { border-color: var(--ao-danger); background: var(--ao-danger); }
+#ao-root .ao-run-item { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); overflow-wrap: anywhere; }
+#ao-root .ao-text-accent { color: var(--ao-text-accent); }
+#ao-root .ao-text-danger { color: var(--ao-danger); }
+#ao-root .ao-text-warning { color: var(--ao-warning); }
+#ao-root .ao-text-success { color: var(--ao-success); }
+@keyframes ao-spin { to { transform: rotate(360deg); } }
+#ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card select { display: none !important; } /* elenchi di jak: al loro posto quello del pannello (bridgeSelect) */
+#ao-root .ao-bridge > .ao-label:empty { display: none; }
+#ao-root .ao-bridge.ao-disabled { opacity: .5; pointer-events: none; }
+/* Pulsanti: come quelli del pannello. Esegui pieno, gli altri con il solo contorno; le eccezioni sono più sotto. */
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
+#ao-root .ao-tools-card .secondary-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
+#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
+#ao-root .ao-tools-card #developer-execute-button { width: 100%; }
+/* Pillole compatte (B): Test connessione e Reset completo auth */
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; gap: 5px; width: auto; white-space: nowrap; min-height: 26px; padding: 0 10px; border: 1px solid var(--ao-line); border-radius: 13px; background: color-mix(in srgb, var(--ao-text) 6%, transparent); color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card #connection-status-label { max-width: none; white-space: nowrap; }
+#ao-root .ao-tools-card :is(#test-function-button, #auth-full-reset):hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-text) 11%, transparent); border-color: var(--ao-line-strong); }
+#ao-root .ao-tools-card #auth-full-reset { border-color: color-mix(in srgb, var(--ao-danger) 40%, transparent); background: color-mix(in srgb, var(--ao-danger) 10%, transparent); color: var(--ao-danger); }
+#ao-root .ao-tools-card #auth-full-reset:hover:where(:not(:disabled)) { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
+#ao-root .ao-tools-card .diagnostic-health { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; } /* Test connessione e Reset sulla stessa riga (renderTools) */
+#ao-root .ao-tools-card .diagnostic-auth-tools { margin: 0; }
+#ao-root .ao-tools-card #diagnostics-panel { padding-left: 0; padding-right: 0; } /* allineata all'interruttore in cima */
+/* Comando di testo con icona (C), uno solo per tutto il pannello: azioni di servizio come copia, aggiorna, pulisci,
+   ripristina, mostra/nascondi. Accento; rosso per quelle che cancellano. */
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):hover:where(:not(:disabled)) { background: none; color: var(--ao-text); }
+#ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):disabled { opacity: .45; cursor: default; }
+#ao-root .ao-link-button[aria-pressed="true"] { color: var(--ao-text); }
+#ao-root :is(.ao-link-button.ao-danger, .ao-tools-card #auth-diagnostics-clear) { color: var(--ao-danger); }
+#ao-root .ao-tools-card .result-close-button { color: var(--ao-text-muted); font-size: var(--ao-fs-lg); }
+#ao-root .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear)::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: var(--ao-link-icon) center / contain no-repeat; mask: var(--ao-link-icon) center / contain no-repeat; }
+#ao-root .ao-tools-card #auth-diagnostics-refresh { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 10a6 6 0 1 1-1.8-4.3'/%3E%3Cpath d='M16 3.5V7h-3.5'/%3E%3C/svg%3E"); }
+#ao-root .ao-tools-card #auth-diagnostics-copy { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='7' y='7' width='9.5' height='9.5' rx='1.8'/%3E%3Cpath d='M13 7V5.3A1.8 1.8 0 0 0 11.2 3.5H5.3A1.8 1.8 0 0 0 3.5 5.3v5.9A1.8 1.8 0 0 0 5.3 13H7'/%3E%3C/svg%3E"); }
+#ao-root .ao-tools-card #auth-diagnostics-clear { --ao-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 16.5h8'/%3E%3Cpath d='M11.8 3.8l4.4 4.4-7.7 7.7H5.7l-2.2-2.2a1.4 1.4 0 0 1 0-2z'/%3E%3Cpath d='M7.5 8.1l4.4 4.4'/%3E%3C/svg%3E"); }
+#ao-root :is(.ao-link-actions, .ao-tools-card .auth-diagnostics-actions) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
+#ao-root .ao-actions-split { justify-content: space-between; align-items: center; }
+/* Moduli e risultato senza riquadri scuri: stanno direttamente nella card; il risultato si stacca con una linea. */
+#ao-root .ao-tools-card :is(.developer-get-form, .developer-create-form, .developer-edit-form, .developer-search-form, .developer-category-form, .developer-graph-category-form, .developer-forward-form, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .function-result) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
+#ao-root .ao-tools-card :is(#developer-ticket-response, .auth-diagnostics-output, .attachment-header-content) { margin: 8px 0 0; padding: 8px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; }
+/* Riga con interruttore, una sola per tutto il pannello: scritta a sinistra, interruttore a destra
+   (nelle righe di jak l'interruttore viene prima nel codice: row-reverse) */
+#ao-root :is(.ao-switch-row, .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row)) { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; cursor: pointer; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { flex-direction: row-reverse; }
+#ao-root .ao-tools-card .message-fields { gap: 0; }
+#ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
+#ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
+#ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
+/* Caselle di spunta = interruttori */
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]) { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"])::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+#ao-root .ao-debug { display: none; } /* sezioni dell'add-in di jak non mostrate: restano nella pagina per il suo codice */
+#ao-root .ao-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* In alto, fermi: barra secondaria o "←", con una linea sottile come confine */
+/* Barra secondaria scontornata: nessuna fascia né separatore, solo il menu.
+   A casa sta in cima all'elenco; fuori casa compare sovrapposto al contenuto, con un'ombra sotto il menu stesso. */
+#ao-root .ao-fixed { --ao-lift: 0; position: sticky; top: 0; z-index: 3; display: grid; gap: 10px; padding-top: 12px; pointer-events: none; will-change: transform; }
+/* Completamento del movimento quando lo scorrimento si ferma a metà */
+#ao-root .ao-fixed.ao-snap { transition: transform .18s ease-out; }
+/* Ricomparsa: discesa morbida con un lieve rimbalzo; l'ombra si accende mentre arriva */
+#ao-root .ao-fixed.ao-reveal { transition: transform .42s cubic-bezier(.2, 1.3, .4, 1); }
+#ao-root .ao-fixed.ao-reveal > * { transition: box-shadow .35s ease-out .08s, background-color .35s ease-out .08s; }
+#ao-root .ao-fixed > * { pointer-events: auto; }
+/* Ombra (e fondo della riga "indietro") graduati da --ao-lift: 0 a casa, 1 sovrapposta al contenuto */
+#ao-root .ao-fixed .ao-segmented,
+#ao-root .ao-fixed .ao-bar-btn,
+#ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
+/* Ricerca aperta: il suo bagliore (vetro) insieme all'ombra di sollevamento */
+#ao-root .ao-fixed .ao-search-bar, #ao-root .ao-fixed .ao-bar-search.ao-active, #ao-root .ao-fixed .ao-bar-filter.ao-open { box-shadow: var(--ao-hover-glow), 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); }
+#ao-root .ao-fixed .ao-back-row { justify-self: start; margin-left: -10px; padding: 4px 10px; border-radius: var(--ao-radius-base); background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-fixed.ao-snap, #ao-root .ao-fixed.ao-reveal, #ao-root .ao-fixed.ao-reveal > * { transition: none; } }
+/* Sotto la linea scorre il contenuto, a tutta larghezza (barra di scorrimento sottile, spazio riservato) */
+/* Barra di scorrimento sottile (4px): lo spazio a destra è quasi uguale a quello a sinistra */
+#ao-root .ao-scroll { flex: 1; min-height: 0; display: grid; align-content: start; gap: 10px; padding: 0 8px 12px 12px; scroll-padding-top: 60px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+@supports not selector(::-webkit-scrollbar) { #ao-root .ao-scroll { scrollbar-width: thin; scrollbar-color: var(--ao-line-strong) transparent; } }
+#ao-root .ao-scroll::-webkit-scrollbar { width: 4px; }
+#ao-root .ao-scroll::-webkit-scrollbar-thumb { border-radius: 2px; background: var(--ao-line-strong); }
+#ao-root .ao-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Pulsanti */
+#ao-root .ao-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); font-weight: var(--ao-fw-medium); cursor: pointer; transition: background-color .3s, box-shadow .35s, filter .3s; }
+#ao-root .ao-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
+/* Pulsante principale, ovunque: pieno del colore della sua azione (--ao-btn, classi ao-fill-*), scritta bianca;
+   nel vetro è vetro colorato (pietre preziose) con un filo di luce; al passaggio si accende appena */
+#ao-root .ao-button.ao-primary { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-button.ao-primary:hover:where(:not(:disabled)) { background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); filter: var(--ao-tone-hover-filter); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-button.ao-fill-forward { --ao-btn: var(--ao-tone-forward); }
+#ao-root .ao-button.ao-fill-danger { --ao-btn: var(--ao-tone-ignore); }
+#ao-root .ao-button.ao-fill-resolve { --ao-btn: var(--ao-tone-resolve); }
+#ao-root .ao-button.ao-fill-hold { --ao-btn: var(--ao-tone-hold); }
+#ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
+#ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
+/* Prendi in carico (righe di In coda): azzurro leggero al passaggio del mouse */
+/* Ignora: solo la scritta diventa rossa (niente sfondo né bordo), anche quando chiede conferma */
+#ao-root .ao-armed, #ao-root .ao-armed:hover { background: var(--ao-danger-bg) !important; border-color: var(--ao-danger) !important; color: var(--ao-danger) !important; }
+#ao-root .ao-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
+#ao-root .ao-icon-button:hover { background: var(--ao-hover); border-color: var(--ao-line); }
+#ao-root .ao-danger:hover { color: var(--ao-danger); }
+#ao-root .ao-link { padding: 0; border: 0; background: none; color: var(--ao-text-accent); font-size: var(--ao-fs-md); cursor: pointer; text-align: left; }
+#ao-root .ao-link:hover { text-decoration: underline; }
+#ao-root :disabled { opacity: var(--ao-disabled-opacity); cursor: not-allowed; }
+#ao-root :focus-visible { outline: none; box-shadow: var(--ao-shadow-focus); }
+
+/* Filtri e scelte a segmenti */
+#ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+/* Al passaggio del mouse cambia solo il colore della voce (nessuna forma di pulsante); la pillola della voce scelta scivola */
+#ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
+#ao-root .ao-segment:hover { color: var(--ao-text); }
+#ao-root .ao-segment.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-segment-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; }
+#ao-root .ao-segment-thumb.ao-ready { opacity: 1; }
+#ao-root .ao-segment-thumb.ao-moving { transition: transform var(--ao-selection-motion), width var(--ao-selection-motion); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-thumb.ao-moving, #ao-root .ao-segment { transition: none; } }
+/* Ticket: selettore Da mail | Senza mail largo come gli altri, con il filtro operatore nella voce scelta e il menu sotto */
+#ao-root .ao-source-bar { position: relative; display: grid; gap: 6px; }
+/* Riga della barra secondaria: [pulsante] selettore [pulsante]. I pulsanti sono staccati; dove non servono
+   (In coda) resta lo spazio vuoto, così il selettore ha la stessa larghezza in tutte le sezioni. */
+#ao-root .ao-bar-row { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+#ao-root .ao-bar-row > .ao-segmented { flex: 1; min-width: 0; }
+#ao-root .ao-bar-btn, #ao-root .ao-bar-spacer { position: relative; flex: none; width: 34px; }
+#ao-root .ao-bar-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text-muted); cursor: pointer; transition: background-color .3s, color .2s, box-shadow .35s, filter .3s; }
+#ao-root .ao-bar-btn:hover, #ao-root .ao-bar-btn.ao-open { background: var(--ao-hover); }
+#ao-root .ao-bar-btn.ao-active { color: var(--ao-text-accent); }
+#ao-root .ao-bar-filter.ao-active:not(.ao-open)::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-accent); }
+#ao-root .ao-bar-search.ao-active, #ao-root .ao-bar-filter.ao-open { border-color: var(--ao-search-lens-line); background: var(--ao-search-lens-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+/* Ricerca: prende il posto della barra, stessa misura (lente a sinistra, × a destra) */
+#ao-root .ao-search-bar { align-items: stretch; min-height: 34px; border-color: var(--ao-search-line); background: var(--ao-search-bg); filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+/* Barra di ricerca in movimento (apertura e chiusura): sopra il selettore, alla stessa altezza */
+#ao-root .ao-search-bar:focus-within { border-color: var(--ao-search-focus-line); }
+#ao-root .ao-search-input { flex: 1; min-width: 0; padding: 0 10px; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-search-input::-webkit-search-cancel-button { display: none; }
+/* Filtri (imbuto): Da mail | Senza mail si trasformano nei due filtri (morphBar). Due metà sul fondo del
+   selettore; il filtro attivo è pieno come la voce scelta dei selettori. */
+#ao-root .ao-filter-bar { flex: 1; min-width: 0; gap: 2px; }
+#ao-root .ao-filter-dd { position: relative; flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 10px; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-md); cursor: pointer; transition: background-color .2s, color .2s; }
+#ao-root .ao-filter-dd:hover { color: var(--ao-text); }
+#ao-root .ao-filter-dd.ao-set { background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-filter-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-filter-caret { flex: none; font-size: var(--ao-fs-xs); }
+#ao-root .ao-filter-menu { left: 0; top: calc(100% + 6px); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-filter-menu-operator { left: auto; right: 0; }
+#ao-root .ao-menu-check { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid var(--ao-line-strong); border-radius: 4px; font-size: 10px; line-height: 1; }
+#ao-root .ao-menu-item.ao-active .ao-menu-check { border-color: var(--ao-accent); background: var(--ao-accent); color: var(--ao-white); }
+#ao-root .ao-filter-actions { display: flex; gap: 6px; padding: 6px 2px 2px; }
+#ao-root .ao-filter-actions .ao-button { flex: 1; }
+#ao-root .ao-menu-default { margin-left: auto; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-search-input:focus, #ao-root .ao-search-input:focus-visible { outline: none; box-shadow: none; }
+#ao-root .ao-chip-clear { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--ao-line-light); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1; cursor: pointer; }
+#ao-root .ao-chip-clear:hover { background: var(--ao-hover); color: var(--ao-text); }
+/* Ricerca: scheletro di caricamento che pulsa, poi i risultati entrano dal basso */
+#ao-root .ao-skeleton-list { display: grid; gap: 6px; }
+#ao-root .ao-skeleton { display: grid; gap: 7px; padding: 11px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); }
+#ao-root .ao-skeleton-line { display: block; height: 9px; border-radius: 5px; background: linear-gradient(90deg, var(--ao-line-light) 25%, var(--ao-bg) 50%, var(--ao-line-light) 75%); background-size: 200% 100%; animation: ao-shimmer 1.1s linear infinite; }
+#ao-root .ao-skeleton-short { width: 32%; }
+#ao-root .ao-skeleton-mid { width: 58%; }
+@keyframes ao-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+#ao-root .ao-results-in > * { animation: ao-result-in .28s cubic-bezier(.2, .8, .2, 1) backwards; }
+#ao-root .ao-results-in > :nth-child(2) { animation-delay: .04s; }
+#ao-root .ao-results-in > :nth-child(3) { animation-delay: .08s; }
+#ao-root .ao-results-in > :nth-child(n+4) { animation-delay: .12s; }
+@keyframes ao-result-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-skeleton-line, #ao-root .ao-results-in > * { animation: none; } }
+#ao-root .ao-mark { padding: 0 1px; border-radius: 2px; background: var(--ao-warning-bg); color: inherit; }
+#ao-root .ao-menu { position: absolute; top: calc(100% + 4px); z-index: 4; display: grid; min-width: 170px; padding: 4px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-menu-bg); box-shadow: 0 6px 16px rgba(0,0,0,.14); animation: ao-menu-in .16s ease-out; }
+@keyframes ao-menu-in { from { opacity: 0; transform: translateY(-4px); } }
+#ao-root .ao-menu-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text); text-align: left; font-size: var(--ao-fs-md); cursor: pointer; }
+#ao-root .ao-menu-item:hover { background: var(--ao-accent-bg); }
+#ao-root .ao-menu-item.ao-active { color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); } /* scelta: solo la scritta; lo sfondo resta al passaggio del mouse */
+#ao-root .ao-menu-sep { margin: 3px 0; border: 0; border-top: 1px solid var(--ao-line-light); }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-menu { animation: none; } }
+/* Selettore con icone (Impostazioni): la voce scelta è più larga e ha il nome, che compare in dissolvenza */
+#ao-root .ao-segmented-icons .ao-segment { flex: 1; min-width: 0; overflow: hidden; }
+#ao-root .ao-segmented-icons .ao-segment.ao-grow { flex: 2.6; }
+#ao-root .ao-segmented-icons:has(.ao-segment:nth-of-type(4)) .ao-segment.ao-grow { flex: 4.5; } /* quattro o più voci (Tools): il nome della scelta ci sta intero anche a 300 px */
+#ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: color .25s, flex-grow var(--ao-selection-motion); }
+/* Nome della voce: compare e svanisce allargandosi e stringendosi con la voce, così l'icona si ricentra senza scatti
+   (la colonna passa da 0 alla larghezza del nome; il margine negativo annulla lo spazio tra icona e nome) */
+#ao-root .ao-segment-name { display: inline-grid; grid-template-columns: 1fr; }
+#ao-root .ao-segment-name > span { min-width: 0; overflow: hidden; white-space: nowrap; }
+#ao-root .ao-segment-name-in { animation: ao-name-in var(--ao-selection-motion) backwards; }
+#ao-root .ao-segment-name-out { animation: ao-name-out var(--ao-selection-motion) forwards; }
+@keyframes ao-name-in { from { grid-template-columns: 0fr; margin-left: -5px; opacity: 0; } }
+@keyframes ao-name-out { to { grid-template-columns: 0fr; margin-left: -5px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-segment-name-in { animation: none; } #ao-root .ao-segment-name-out { display: none; } #ao-root .ao-segmented-icons.ao-growing .ao-segment { transition: none; } }
+#ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-card-title .ao-count { margin-left: 6px; }
+
+/* Elenchi di Coda e Ticket */
+#ao-root .ao-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+#ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; cursor: pointer; transition: background-color .35s ease, box-shadow .4s ease, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); } /* stessa struttura d'ombra del passaggio del mouse: sfuma invece di scattare */
+/* Ticket che si apre o si richiude: sollevato come la scheda aperta di In coda (openFromCard, closeToList) */
+/* Il blu (titolo e bordo) è riservato alla scheda selezionata (modulo o dettagli aperti), che non reagisce all'hover
+   (il passaggio del mouse, uguale per tutte le superfici, è nel blocco Superfici). */
+#ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); } /* aperta: niente schiarimento al passaggio del mouse */
+#ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+#ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
+#ao-root .ao-primary-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 5px; vertical-align: -3px; border-radius: 5px; background: var(--ao-accent-bg); color: var(--ao-text-accent); } /* principale del thread */
+#ao-root .ao-primary-mark svg { width: 12px; height: 12px; }
+#ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
+#ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; } /* a destra l'etichetta dell'operatore */
+#ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
+/* Più ticket sullo stesso thread: conteggio accanto al numero e, aperte, le righe dei ticket */
+#ao-root .ao-group-count { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--ao-accent) 40%, transparent); border-radius: var(--ao-radius-pill); background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); vertical-align: 1px; cursor: pointer; transition: color .25s, border-color .25s; }
+#ao-root .ao-group-count:hover, #ao-root .ao-group-count.ao-open { border-color: color-mix(in srgb, var(--ao-accent) 75%, transparent); } /* blu come il numero; acceso al passaggio e da aperto */
+#ao-root .ao-group-caret { display: inline-block; transition: transform .3s; }
+#ao-root .ao-group-count.ao-open .ao-group-caret { transform: rotate(180deg); }
+#ao-root .ao-group-rows { display: grid; margin-top: 6px; overflow: hidden; }
+#ao-root .ao-group-row { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-md); }
+#ao-root .ao-group-short { overflow: hidden; color: var(--ao-text-muted); white-space: nowrap; text-overflow: ellipsis; }
+#ao-root .ao-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
+/* Scadenza dell'On Hold: neutra, oggi arancio, passata rossa */
+#ao-root .ao-due { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
+#ao-root .ao-due-chip { padding: 2px 8px; border-radius: var(--ao-radius-badge); background: var(--ao-line-light); color: var(--ao-text-muted); }
+#ao-root .ao-due-chip svg { width: 13px; height: 13px; }
+#ao-root .ao-due-today { background: var(--ao-warning-bg); color: var(--ao-warning); }
+#ao-root .ao-due-late { color: var(--ao-danger); }
+#ao-root .ao-empty, #ao-root .ao-footnote { margin: 8px 0; color: var(--ao-text-subtle); text-align: center; }
+#ao-root .ao-footnote { font-size: var(--ao-fs-sm); }
+
+/* Etichette colorate */
+#ao-root .ao-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--ao-radius-pill); box-shadow: inset 0 0 0 1px var(--ao-chip-line); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; }
+#ao-root .ao-chip.ao-tone-neutral { background: var(--ao-line-light); color: var(--ao-text-muted); }
+#ao-root .ao-chip.ao-tone-person { background: var(--ao-surface); color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-text-subtle); }
+#ao-root .ao-chip.ao-tone-accent { background: var(--ao-accent-bg); color: var(--ao-text-accent); }
+#ao-root .ao-chip.ao-tone-success { background: var(--ao-success-bg); color: var(--ao-success); }
+#ao-root .ao-chip.ao-tone-warning { background: var(--ao-warning-bg); color: var(--ao-warning); }
+#ao-root .ao-chip.ao-tone-danger { background: var(--ao-danger-bg); color: var(--ao-danger); }
+#ao-root .ao-chip.ao-tone-hold { background: var(--ao-hold-bg); color: var(--ao-hold); }
+#ao-root .ao-chip.ao-tone-forward { background: var(--ao-choice-forward-bg); color: var(--ao-choice-forward-text); }
+/* Etichetta dell'operatore: un colore a testa (--ao-tag-color), fondo e scritta ricavati secondo lo stile */
+#ao-root .ao-user-tag { display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 9px; border: 0; border-radius: var(--ao-radius-pill); background: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-fill), var(--ao-tag-base)); color: color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); box-shadow: inset 0 0 0 1px var(--ao-tag-line); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); line-height: 1; white-space: nowrap; }
+#ao-root button.ao-user-tag { cursor: pointer; }
+#ao-root .ao-user-tag-in { animation: ao-tag-in .28s cubic-bezier(.32, 1.28, .5, 1); }
+@keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
+/* Posto vuoto per la propria etichetta: più stretto di qualunque etichetta, con il fondo dei selettori */
+#ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .3s, box-shadow .4s ease; }
+#ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-tag-hover-edge), var(--ao-item-hover-glow); } /* come le schede: non si schiarisce, si accendono bordo (e bagliore nel vetro) */
+/* Profilo: scelta del colore */
+#ao-root .ao-tag-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+#ao-root .ao-tag-swatch { justify-content: center; height: 24px; padding: 0 4px; overflow: hidden; }
+#ao-root .ao-tag-swatch.ao-active { outline: 2px solid color-mix(in srgb, var(--ao-tag-color) var(--ao-tag-ink), var(--ao-tag-ink-base)); outline-offset: 2px; }
+/* Etichetta di un collega a scheda aperta: cliccabile; pronta al passaggio mostra il suo cognome barrato e il proprio */
+#ao-root .ao-tag-swap { gap: 4px; }
+#ao-root .ao-tag-swap s { opacity: .7; }
+#ao-root .ao-tag-swap .ao-tag-next { color: color-mix(in srgb, var(--ao-tag-new) var(--ao-tag-ink), var(--ao-tag-ink-base)); }
+#ao-root .ao-armed-tag { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ao-tag-new) 55%, transparent); animation: ao-fade-in .2s linear; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in, #ao-root .ao-armed-tag { animation: none; } }
+
+/* Riquadri */
+#ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#ao-root .ao-card-title { margin: 0; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
+#ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#ao-root .ao-actions .ao-primary { flex: 1; }
+
+/* Mail aperta */
+#ao-root .ao-mail-head { display: grid; gap: 2px; min-width: 0; padding: 2px 2px 0; }
+/* Testata del thread: sempre visibile. Scorrendo prende il fondo e l'ombra, e l'oggetto si stringe a una riga */
+#ao-root .ao-fixed.ao-pinned { will-change: auto; }
+#ao-root .ao-thread-head { display: grid; gap: 8px; margin: -12px -8px 0 -12px; padding: 10px 8px 8px 12px;
+    background: color-mix(in srgb, var(--ao-surface) calc(100% * var(--ao-lift)), transparent);
+    box-shadow: 0 3px 10px rgba(0,0,0, calc(.12 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
+#ao-root .ao-thread-title { display: flex; align-items: flex-start; gap: 4px; }
+#ao-root .ao-thread-back { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: -6px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; transition: background-color .25s, color .25s; }
+#ao-root .ao-thread-back:hover { background: var(--ao-hover); color: var(--ao-text); }
+#ao-root .ao-thread-head .ao-mail-subject { transition: font-size .25s; }
+#ao-root .ao-thread-head .ao-mail-from { max-height: 40px; overflow: hidden; transition: max-height .25s, opacity .25s; }
+#ao-root .ao-scrolled .ao-thread-head .ao-mail-subject { font-size: var(--ao-fs-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-scrolled .ao-thread-head .ao-mail-from { max-height: 0; opacity: 0; }
+#ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; } /* come il pulsante Ticket di Senza mail */
+#ao-root .ao-pill.ao-away { visibility: hidden; }
+#ao-root .ao-morph { position: fixed; z-index: 20; pointer-events: none; border: 1px solid var(--ao-call-open-border); background: var(--ao-surface); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12); } /* pillola "Ticket" che diventa il modulo */
+#ao-root .ao-mail-subject { font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-bold); overflow-wrap: anywhere; }
+#ao-root .ao-mail-from { display: flex; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
+
+/* Campi */
+#ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
+#ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:is([type="text"], [type="number"], [type="email"], [type="date"], [type="datetime-local"]):not(.ao-select-search))) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
+#ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
+/* Elenco a discesa: campo come gli altri, con la freccetta; l'elenco è quello dei filtri */
+#ao-root .ao-select { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+#ao-root .ao-select-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-select-placeholder { color: var(--ao-text-subtle); }
+#ao-root .ao-select-caret { flex: none; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); transition: transform .2s; }
+#ao-root .ao-select.ao-open { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); }
+#ao-root .ao-select.ao-open .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-menu-group { padding: 6px 10px 2px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-menu-group:not(:first-child) { margin-top: 2px; border-top: 1px solid var(--ao-line); padding-top: 6px; }
+#ao-root .ao-suggest-mark { color: var(--ao-text-accent); font-size: .85em; }
+#ao-root .ao-select-search { flex: 1; min-width: 0; margin: -2px 0; padding: 0; border: 0; outline: none; background: none; color: var(--ao-text); font: inherit; }
+#ao-root .ao-select-search:focus-visible { box-shadow: none; } /* il campo che lo contiene mostra già il fuoco */
+#ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; } /* aperto con il filtro: al posto del valore si scrive */
+#ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:not([type="checkbox"], .ao-select-search))):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
+/* Campi dei moduli (Prendi in carico, Nuovo ticket, Risposta): campi semplici sulla scheda, come in tutto il pannello;
+   l'agenzia suggerita sta accanto all'etichetta, le pillole delle attività sotto "Attività" */
+#ao-root .ao-form-fields { display: grid; gap: 8px; }
+#ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
+/* Aperto: come una scheda di In coda aperta (sollevato, gli altri ticket sfocati), col suo bagliore */
+#ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); } /* nasce dal pulsante (growFrom, morphInto) */
+#ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
+#ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
+#ao-root .ao-new-ticket-card.ao-with-origin { gap: 3px; padding: 9px 10px; } /* come una scheda aperta di In coda */
+#ao-root .ao-new-ticket-card.ao-with-origin .ao-inline-form { padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
+#ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
+#ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; align-items: end; }
+#ao-root .ao-field-row.ao-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Ticket */
+#ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+
+/* Storico */
+
+/* Torna all'elenco (vista di lavoro del ticket) */
+#ao-root .ao-back-row { display: flex; align-items: center; min-height: 22px; }
+#ao-root .ao-back-link { font-weight: var(--ao-fw-medium); }
+
+/* Impostazioni */
+#ao-root .ao-editor { display: grid; gap: 8px; } /* modulo dentro la scheda (Impostazioni) */
+
+/* In coda: riga con azioni e modulo compatto */
+#ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
+#ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
+/* Scheda di In coda aperta: testo della mail */
+#ao-root .ao-mail-preview { min-height: 60px; max-height: 230px; overflow: hidden; padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; } /* come la description nel thread */
+#ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; } /* testo oltre 230px (scheda di sola lettura grande circa quanto il modulo di Senza mail): solo allora la barra */
+/* Più messaggi nel thread: frecce per scorrerli; quello che si guarda è quello da cui nasce il ticket */
+#ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
+#ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--ao-text-muted); cursor: pointer; transition: color .25s; } /* come le voci dei selettori: al passaggio cambia solo il colore */
+#ao-root .ao-message-step:hover:where(:not(:disabled)) { color: var(--ao-text); }
+#ao-root .ao-message-step:disabled { opacity: .4; cursor: default; }
+#ao-root .ao-message-where { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#ao-root .ao-spacer { flex: 1; }
+#ao-root .ao-reply-tools, #ao-root .ao-reply-name { display: flex; align-items: center; gap: 6px; } /* risposta da incollare nella mail */
+#ao-root .ao-reply-tools { gap: 14px; }
+#ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+#ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+#ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-queue-row > :last-child { flex: none; }
+#ao-root .ao-queue-item.ao-expanded .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
+#ao-root .ao-handled { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); } /* gestione della mail: icona dell'azione, chi e quando */
+#ao-root .ao-handled .ao-svg-icon svg { width: 13px; height: 13px; }
+/* Prendi in carico: su una riga e largo, occupa lo spazio libero accanto a Ignora e Chiudi */
+#ao-root .ao-queue-item .ao-actions { flex-wrap: nowrap; }
+#ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
+#ao-root .ao-queue-item .ao-actions .ao-spacer { display: none; }
+/* Scheda aperta: selettore dell'azione (e del gruppo), contenuto dell'azione, freccia per richiudere */
+#ao-root .ao-choice { position: relative; display: flex; padding: 3px; border-radius: var(--ao-radius-base); background: var(--ao-choice-track); }
+#ao-root .ao-choice-option { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 30px; padding: 4px 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; white-space: nowrap; line-height: 1.25; transition: color .25s; }
+#ao-root .ao-choice-sub { font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
+#ao-root .ao-choice-option:hover:not(.ao-active) { color: var(--ao-text); }
+#ao-root .ao-choice-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); opacity: 0; pointer-events: none; transition: background-color .25s; }
+#ao-root .ao-choice-thumb.ao-ready { opacity: 1; }
+#ao-root .ao-choice-thumb.ao-appearing { animation: ao-fade-in .2s linear; }
+#ao-root .ao-choice-thumb.ao-moving { transition: transform var(--ao-selection-motion), width var(--ao-selection-motion), background-color .25s; }
+@keyframes ao-fade-in { from { opacity: 0; } }
+#ao-root .ao-choice-accent { --ao-choice-bg: color-mix(in srgb, var(--ao-accent) 16%, var(--ao-surface)); --ao-choice-glow: var(--ao-accent); --ao-choice-text: var(--ao-text-accent); } /* più deciso dell'azzurro dei filtri: si stacca dal fondo grigio */
+#ao-root .ao-choice-forward { --ao-choice-bg: var(--ao-choice-forward-bg); --ao-choice-glow: var(--ao-tone-forward); --ao-choice-text: var(--ao-choice-forward-text); }
+#ao-root .ao-choice-danger { --ao-choice-bg: var(--ao-choice-danger-bg); --ao-choice-glow: var(--ao-tone-ignore); --ao-choice-text: var(--ao-choice-danger-text); }
+#ao-root .ao-choice-resolve { --ao-choice-bg: var(--ao-choice-resolve-bg); --ao-choice-glow: var(--ao-tone-resolve); --ao-choice-text: var(--ao-choice-resolve-text); }
+#ao-root .ao-choice-hold { --ao-choice-bg: var(--ao-choice-hold-bg); --ao-choice-glow: var(--ao-tone-hold); --ao-choice-text: var(--ao-choice-hold-text); }
+/* Selettori delle azioni (In coda, ticket): la voce scelta prende il colore della sua azione */
+#ao-root .ao-segmented.ao-toned .ao-segment-thumb { background: color-mix(in srgb, var(--ao-choice-bg) var(--ao-selection-tone), var(--ao-selection)); }
+#ao-root .ao-segmented.ao-toned .ao-segment.ao-active { color: var(--ao-choice-text); }
+#ao-root .ao-choice-option.ao-active { color: var(--ao-choice-text); }
+#ao-root .ao-choice-zone:empty { display: none; }
+#ao-root .ao-choice-content { display: grid; gap: 8px; }
+#ao-root .ao-collapse { position: relative; top: 5px; /* più distante dai pulsanti, dentro il margine della scheda: l'altezza non cambia */ display: flex; justify-content: center; align-items: center; justify-self: center; width: 44px; height: 22px; margin-top: -2px; padding: 0; border: 0; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); cursor: pointer; }
+#ao-root .ao-collapse:hover { background: var(--ao-hover); color: var(--ao-text); }
+#ao-root .ao-svg-icon { display: inline-flex; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-choice-thumb, #ao-root .ao-choice-option { transition: none; animation: none; } }
+/* Esito su una scheda di In coda: banner colorato (le animazioni sono nel blocco Animazioni dello script) */
+#ao-root .ao-queue-item { position: relative; overflow: hidden; gap: 6px; transition: background-color .3s, border-color .3s, transform .32s cubic-bezier(.3, .8, .2, 1), box-shadow .32s ease, filter .32s ease; }
+/* Scheda aperta: in primo piano (si solleva e si ingrandisce appena), bordo chiaro come le altre */
+#ao-root .ao-queue-item.ao-expanded, #ao-root .ao-queue-item.ao-expanded:hover {
+    z-index: 1; border-color: var(--ao-line); transform: translateY(-2px) scale(1.015);
+    box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge);
+}
+#ao-root .ao-queue-item.ao-resolving { transform: none; box-shadow: var(--ao-shadow-card); }
+/* Con una scheda aperta le altre si sfocano (tornano nitide appena si richiude) */
+#ao-root .ao-list:has(.ao-queue-item.ao-expanded:not(.ao-unlifted):not(.ao-resolving)) .ao-queue-item:not(.ao-expanded) { filter: blur(5px); }
+/* Titolo: neutro finché non si sceglie l'azione, poi del suo colore */
+#ao-root .ao-queue-item.ao-expanded .ao-item-title { color: var(--ao-text); transition: color .25s; }
+#ao-root .ao-queue-item.ao-expanded[data-choice="take"] .ao-item-title { color: var(--ao-text-accent); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
+#ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
+#ao-root .ao-resolving { pointer-events: none; }
+#ao-root .ao-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
+@keyframes ao-spin { to { transform: rotate(360deg); } }
+/* Passi dell'inoltro: pallini uniti da un tratto, colorato (progress) fino ai passi riusciti, rosso fino al passo non
+   riuscito; bagliore solo sui pallini riusciti e su quello in corso */
+#ao-root .ao-steps { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; padding: 4px 0 2px; }
+#ao-root .ao-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
+#ao-root .ao-step + .ao-step::before { content: ""; position: absolute; top: 8px; left: calc(-50% + 12px); width: calc(100% - 24px); height: 2px; border-radius: 1px; background: var(--ao-line-strong); }
+#ao-root .ao-step + .ao-step-ok::before { background: var(--ao-progress); }
+#ao-root .ao-step + .ao-step-ko::before { background: var(--ao-danger); }
+#ao-root .ao-step-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; background: none; color: inherit; }
+#ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
+#ao-root .ao-step-dot .ao-spinner { width: 10px; height: 10px; }
+#ao-root .ao-step-run { color: var(--ao-text); }
+#ao-root .ao-step-ok .ao-step-dot, #ao-root .ao-step-run .ao-step-dot { border-color: var(--ao-progress); color: var(--ao-progress); box-shadow: 0 0 10px color-mix(in srgb, var(--ao-progress) 70%, transparent); }
+#ao-root .ao-step-ok .ao-step-dot { background: color-mix(in srgb, var(--ao-progress) 18%, transparent); }
+#ao-root .ao-step-ko { color: var(--ao-danger); }
+#ao-root .ao-step-ko .ao-step-dot { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
+#ao-root button.ao-step-dot { cursor: pointer; transition: transform .15s; }
+#ao-root button.ao-step-dot:hover { transform: scale(1.15); }
+#ao-root .ao-ticket-steps { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-spinner { transition: none; animation: none; } }
+
+/* Impostazioni */
+/* Category: spazio per due righe, etichetta centrata in altezza */
+
+/* Risposte nuove e più ticket sullo stesso thread */
+/* Contenitore del ticket nella pagina del thread */
+/* Testata del ticket (lista e thread): numero con stato ed etichetta affiancati; agenzia e attività; short description */
+/* Ticket nel thread: una sola scheda. Sotto la testata (uguale alla lista) la description come citazione, le date,
+   e da estesa Attività; estesa si solleva con l'ombra di In coda */
+#ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
+#ao-root .ao-ticket-card.ao-static { cursor: default; }
+/* Aperto: come In coda, in primo piano (si solleva e si ingrandisce appena); gli altri ticket si sfocano */
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded, #ao-root .ao-ticket-card.ao-raised { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
+/* Appena aperta, ancora a terra: lo stesso aspetto del passaggio del mouse (bagliore e bordo), così sollevandosi il
+   bagliore prosegue senza spegnersi; richiudendo torna allo stesso aspetto */
+#ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
+#ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
+#ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
+/* Voci di Impostazioni (agenzie, attività, risposte): schede compatte come le altre; aperte, il modulo sotto */
+#ao-root .ao-config-face { display: grid; gap: 2px; }
+#ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
+#ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
+#ao-root .ao-config-footer { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } /* domini dell'agenzia, tutti */
+#ao-root .ao-config-summary { color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
+#ao-root .ao-config-text { color: var(--ao-text); white-space: pre-line; } /* risposta: il testo intero, da leggere */
+#ao-root .ao-ticket-card.ao-away { visibility: hidden; } /* la sua scheda sta ancora arrivando */
+#ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
+#ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+#ao-root .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-amp-pill { flex: none; display: inline-flex; align-items: center; gap: 4px; align-self: center; height: 22px; margin-right: 4px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--ao-accent) 40%, transparent); border-radius: var(--ao-radius-pill); background: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .25s; } /* nel campo di ricerca */
+#ao-root .ao-amp-pill[hidden] { display: none; }
+#ao-root .ao-amp-pill:hover, #ao-root .ao-amp-pill.ao-active { border-color: color-mix(in srgb, var(--ao-accent) 75%, transparent); }
+#ao-root .ao-amp-pill svg { width: 12px; height: 12px; }
+#ao-root .ao-amp-line { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-amp-line::after { content: ''; flex: 1; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-amp-note { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+#ao-root .ao-amp-note-title { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-ticket-dates b { color: var(--ao-text-muted); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-ticket-work { display: grid; gap: 6px; }
+#ao-root .ao-ticket-work > .ao-card { padding: 8px 0 0; border: 0; border-top: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; cursor: default; } /* Attività dentro la scheda */
+#ao-root .ao-item-tags { display: flex; align-items: center; gap: 4px; flex: none; }
+#ao-root .ao-item-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#ao-root .ao-item-place { min-width: 0; }
+#ao-root .ao-item-company { color: var(--ao-text); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-item-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
+/* Tempo lavorato: larghezza fissa, così − e + restano sempre allo stesso posto (serve per tenere premuto).
+   Il tempo sta incassato nella traccia dei selettori; − e + sono in rilievo come la voce scelta. */
+#ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+#ao-root .ao-timer-value.ao-timer-changed { color: var(--ao-text-accent); } /* tempo impostato, parte con l'azione */
+#ao-root .ao-timer-step { width: 24px; height: 100%; padding: 0; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; transition: filter .3s, box-shadow .35s; }
+#ao-root .ao-timer-step:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-hover-glow); }
+#ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
+#ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
+/* Ticket chiusi del thread */
+#ao-root .ao-details { display: grid; }
+#ao-root .ao-details-toggle { display: flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; justify-self: start; }
+#ao-root .ao-details-toggle:disabled { opacity: .45; cursor: default; }
+#ao-root .ao-details-toggle .ao-select-caret { transition: transform .2s ease; }
+#ao-root .ao-details.ao-open .ao-details-toggle .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-details-body { display: grid; gap: 8px; padding-top: 6px; }
+#ao-root .ao-details-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; padding-top: 8px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); }
+#ao-root .ao-details-list dt { color: var(--ao-text-muted); }
+#ao-root .ao-details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+#ao-root .ao-details-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+#ao-root .ao-details-link .ao-input { font-size: var(--ao-fs-sm); color: var(--ao-text-muted); text-overflow: ellipsis; }
+#ao-root .ao-closed { display: grid; gap: 6px; }
+#ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
+#ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-closed-item { display: grid; gap: 2px; padding: 7px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); opacity: .8; }
+
+/* Viaggio della scheda tra lista e thread, anteprima dei messaggi nuovi */
+#ao-root .ao-journey { position: fixed; z-index: 30; margin: 0; pointer-events: none; list-style: none; } /* copia della scheda in viaggio */
+#ao-root .ao-journey-shadow { position: absolute; inset: 0; z-index: -1; border-radius: inherit; box-shadow: 0 12px 28px rgba(0, 0, 0, .18); opacity: 0; pointer-events: none; will-change: opacity; } /* ombra della scheda sollevata: compare e svanisce */
+#ao-root .ao-ghost { position: fixed; z-index: 29; margin: 0; overflow: hidden; pointer-events: none; will-change: filter, opacity; } /* copia ferma della lista durante l'andata, sfocatura preparata in anticipo */
+#ao-root .ao-new-preview { display: grid; gap: 2px; padding: 6px 8px; border-radius: var(--ao-radius-base); background: var(--ao-surface); border: 1px solid var(--ao-accent-border); }
+#ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
+#ao-root .ao-new-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--ao-fs-sm); }
+#ao-root .ao-new-from { flex: 1; font-weight: var(--ao-fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-new-text { color: var(--ao-text-muted); font-size: var(--ao-fs-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Collegamento mail ↔ ticket */
+
+/* Barra di sistema in fondo all'area (stato dei servizi, allineamento), sempre visibile */
+#ao-root .ao-mailbar { position: relative; flex: none; z-index: 15; display: flex; align-items: center; gap: 8px; min-width: 0; height: 56px; margin: 8px 12px; padding: 0 10px; overflow: hidden; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); }
+#ao-root.ao-with-mailbar .ao-scroll { padding-bottom: 28px; -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); } /* la lista sfuma sopra il player */
+#ao-root .ao-mailbar-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-segment-track); color: var(--ao-text-accent); }
+#ao-root .ao-mailbar-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#ao-root .ao-mailbar-row { display: flex; align-items: center; gap: 6px; min-width: 0; height: 20px; }
+#ao-root :is(.ao-mailbar-subject, .ao-mailbar-detail) { flex: 1; min-width: 0; }
+#ao-root .ao-mailbar-subject { font-weight: var(--ao-fw-medium); }
+#ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
+#ao-root .ao-mailbar-detail { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-mailbar.ao-clickable { cursor: pointer; transition: border-color .25s, box-shadow .35s; }
+#ao-root .ao-mailbar.ao-clickable:hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); }
+#ao-root .ao-statusbar { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-top: 1px solid var(--ao-line); background: var(--ao-surface); color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+/* Superfici: quali elementi sfocano quello che hanno dietro (solo nel vetro) e il passaggio del mouse,
+   uguale per tutte (nel flat solo lo sfondo, nel vetro si accendono con un bagliore leggero). */
+#ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-mailbar, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
+#ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); } /* solo la scheda: niente filtro sul contenuto (timer, etichette) */
+/* non si schiarisce: si accende, poi il bagliore scivola piano avanti e indietro (il pulsante resta fermo) */
+#ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-on .4s ease-out, ao-call-sway 4.8s ease-in-out .4s infinite; }
+@keyframes ao-call-on { from { box-shadow: var(--ao-call-glow-rest); } to { box-shadow: var(--ao-call-glow-hover); } }
+@keyframes ao-call-sway {
+    0%, 100% { box-shadow: var(--ao-call-glow-hover); }
+    25% { box-shadow: var(--ao-call-glow-left); }
+    75% { box-shadow: var(--ao-call-glow-right); } }
+/* pulsantini della barra e candidati: lo sfondo al passaggio è nelle loro regole; i pulsanti normali solo si schiariscono */
+#ao-root .ao-bar-btn:hover { filter: var(--ao-hover-filter); box-shadow: var(--ao-hover-glow); }
+#ao-root .ao-statusbar-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ao-success); }
+#ao-root .ao-statusbar-warning .ao-statusbar-dot { background: var(--ao-warning); }
+#ao-root .ao-statusbar-danger .ao-statusbar-dot { background: var(--ao-danger); }
+#ao-root .ao-statusbar-danger { color: var(--ao-danger); }
+#ao-root .ao-statusbar-neutral .ao-statusbar-dot { background: var(--ao-text-subtle); }
+#ao-root .ao-statusbar-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ao-root .ao-statusbar-sync { flex: none; }
+
+/* Messaggi temporanei, sopra la barra di sistema */
+#ao-root .ao-status:not([hidden]) { display: flex; align-items: center; gap: 10px; animation: ao-pill-in .25s ease-out; }
+#ao-root .ao-status { position: absolute; left: 50%; bottom: 40px; z-index: 16; max-width: calc(100% - 24px); margin: 0; padding: 7px 14px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-pill); background: var(--ao-surface); transform: translateX(-50%); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); white-space: nowrap; box-shadow: var(--ao-open-shadow); -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); } /* esito: pillola di vetro in basso, sopra il mini player; solo testo e icona del colore dell'esito */
+#ao-root .ao-status > span:not(.ao-svg-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-status > .ao-svg-icon { flex: none; display: inline-flex; margin-right: -4px; }
+#ao-root .ao-status > .ao-svg-icon:last-child:not(:first-child) { margin: 0 -6px 0 -4px; } /* freccia: la pillola porta altrove */
+#ao-root .ao-status.ao-clickable { cursor: pointer; transition: border-color .25s; }
+#ao-root .ao-status.ao-clickable:hover { border-color: var(--ao-line-strong); }
+#ao-root.ao-with-mailbar .ao-status { bottom: 106px; }
+@keyframes ao-pill-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+#ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
+#ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
+#ao-root .ao-status.ao-tone-danger { color: var(--ao-danger); }
+
+body:has(#amp-view:not([hidden])) { min-width: 300px; }
+body:has(> main #amp-view:not([hidden])) { overflow: hidden; }
+:has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(121, 184, 255, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(185, 168, 245, .32), transparent 70%), linear-gradient(180deg, #e9f1fb, #eef0fa) fixed; }
+:has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"][data-theme="dark"]) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; }
+@media (prefers-color-scheme: dark) { :has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }
+
+html,body{height:100%;margin:0}
+body{background:radial-gradient(ellipse 620px 460px at 8% 0%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 560px 460px at 96% 100%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24);background-attachment:fixed}
+/* Solo impaginazione della demo: due colonne. Tutto il resto sono le regole del pannello. */
+#ao-root.demo{height:100%;min-width:0;display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:12px;padding:12px 16px 16px;background:transparent;font-size:15px}
+#ao-root.demo .col{min-height:0;overflow-y:auto;padding:10px 10px 14px;display:grid;gap:10px;align-content:start}
+#ao-root.demo .col-title{color:var(--ao-text-muted);font-size:var(--ao-fs-sm);font-weight:var(--ao-fw-medium);letter-spacing:.04em;text-transform:uppercase;margin:6px 4px 0}
+#ao-root.demo .ao-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+#ao-root.demo .msg{display:grid;gap:6px}
+#ao-root.demo .msg-head{display:flex;gap:8px;align-items:baseline;font-size:var(--ao-fs-md)}
+#ao-root.demo .msg-head b{font-weight:var(--ao-fw-medium)}
+#ao-root.demo .msg-head span{margin-left:auto;color:var(--ao-text-subtle);font-size:var(--ao-fs-sm)}
+#ao-root.demo .msg-body{white-space:pre-wrap;margin:0;font:inherit;color:var(--ao-text)}
+#ao-root.demo .compose{display:grid;gap:8px}
+#ao-root.demo .chips{display:flex;flex-wrap:wrap;gap:6px}
+#ao-root.demo #center .ao-queue-item.ao-expanded{overflow:visible;padding-bottom:14px}
+@media (max-width:760px){#ao-root.demo{grid-template-columns:minmax(0,1fr)}#ao-root.demo .col:first-child{display:none}}
+</style></head>
+<body>
+<div id="ao-root" class="demo" data-style="glass" data-theme="dark">
+ <section class="col" aria-label="Elenco"><div class="col-title">Ticket aperti</div><ul class="ao-list" id="l-t"></ul><div class="col-title">In coda</div><ul class="ao-list" id="l-q"></ul></section>
+ <section class="col" aria-label="Thread" id="center"></section>
+</div>
+<script>
+const ICONS={"take":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z\"/><path d=\"M10 7.5v5M7.5 10h5\"/></svg>","forward":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M11.5 4.5l5 5-5 5\"/><path d=\"M16.5 9.5H8a4.5 4.5 0 0 0-4.5 4.5v1.5\"/></svg>","ignore":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"3.5\" width=\"15\" height=\"4\" rx=\"1\"/><path d=\"M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4\"/></svg>","comment":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3.5 4.5h13v8.5h-7l-3.5 3v-3H3.5z\"/><path d=\"M7 8h6M7 10.5h4\"/></svg>","resolve":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4.5 10.5l3.5 3.5 7.5-8\"/></svg>","hold":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 4.5v11M13 4.5v11\"/></svg>","cancel":"<svg viewBox=\"0 0 20 20\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10\"/></svg>"};
+const TONE={take:'accent',forward:'forward',ignore:'danger',comment:'accent',resolve:'resolve',hold:'hold',cancel:'danger'};
+const FILL={take:'',forward:' ao-fill-forward',ignore:' ao-fill-danger',comment:'',resolve:' ao-fill-resolve',hold:' ao-fill-hold',cancel:' ao-fill-danger'};
+const NAMES={take:'Prendi in carico',forward:'Inoltra',ignore:'Ignora',comment:'Aggiorna',resolve:'Risolvi',hold:'On Hold',cancel:'Annulla'};
+const BUTTON={take:'Prendi in carico',forward:'Inoltra',ignore:'Conferma',comment:'Aggiorna',resolve:'Risolvi',hold:'Metti in On Hold',cancel:'Annulla il ticket'};
+const DATA={
+ q1:{kind:'queue',subject:'Errore accesso casella condivisa',from:'Anna Bianchi',time:'17:35',tag:'Viotti',mails:[['Anna Bianchi','17:35','Buongiorno,\n\nda stamattina non riesco ad aprire la casella condivisa protocollo@agenzia.it da Outlook: compare un errore di autorizzazione.\n\nGrazie\nAnna Bianchi']]},
+ q2:{kind:'queue',subject:'Richiesta licenza Visio',from:'Paolo Neri',time:'17:09',tag:'',mails:[['Paolo Neri','17:09','Buongiorno,\n\nchiedo una licenza Visio per il collega Luca Rossi.\n\nCordiali saluti']]},
+ t1:{kind:'ticket',subject:'Casella protocollo non visibile',from:'Giorgio Rosa',time:'17:27',number:'SHP-0042',info:['In lavorazione','Agenzia del Demanio','INC0123456','25 min'],mails:[['Giorgio Rosa','17:27','Ora la vedo ma non riesco a inviare per conto della casella.'],['servizio@esempio.it','14:37','Salve,\n\nsi prende in carico la richiesta, riferimento INC0123456.\n\nSaluti,\nMarco Viotti']]}
+};
+let cur='q1';const choice={q1:'take',q2:null,t1:'comment'};let lastThumb=null;
+const esc=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function listItem(id){const d=DATA[id];return '<li class="ao-item ao-queue-item'+(id===cur?' ao-active':'')+'" data-id="'+id+'" style="cursor:pointer'+(id===cur?';border-color:var(--ao-item-hover-edge);box-shadow:var(--ao-item-hover-glow)':'')+'"><div class="ao-item-main"><div class="ao-queue-row"><span class="ao-item-title">'+esc(d.subject)+'</span><span class="ao-item-time">'+d.time+'</span></div><div class="ao-queue-row"><span class="ao-item-sub">'+(d.kind==='ticket'?d.number+' · '+esc(d.from):esc(d.from))+'</span>'+(d.tag?'<span class="ao-user-tag" style="--ao-tag-color: #0078d4">'+d.tag+'</span>':'')+'</div></div></li>';}
+function bar(options,value){
+ return '<div class="ao-segmented ao-segmented-icons'+(value?' ao-toned ao-choice-'+TONE[value]:'')+'" role="group"><span class="ao-segment-thumb ao-ready" aria-hidden="true"></span>'+options.map(v=>'<button type="button" class="ao-segment'+(v===value?' ao-active ao-grow':'')+'" data-value="'+v+'" aria-pressed="'+(v===value)+'" title="'+NAMES[v]+'"><span class="ao-svg-icon" aria-hidden="true">'+ICONS[v]+'</span>'+(v===value?'<span class="ao-segment-name ao-segment-name-in"><span>'+NAMES[v]+'</span></span>':'')+'</button>').join('')+'</div>';
+}
+function zone(v,d){
+ if(!v)return '';
+ let inner='';
+ if(v==='take')inner='<div class="ao-form-fields"><div class="ao-field"><span class="ao-label">Agenzia</span><div class="ao-input ao-select" role="button" tabindex="0"><span class="ao-select-value">Agenzia del Demanio</span><span class="ao-select-caret">▾</span></div></div><div class="ao-field"><span class="ao-label">Attività</span><div class="ao-input ao-select" role="button" tabindex="0"><span class="ao-select-value">Casella condivisa</span><span class="ao-select-caret">▾</span></div></div></div><div class="ao-details"><button type="button" class="ao-details-toggle" aria-expanded="false"><span>Dettagli</span><span class="ao-select-caret">▾</span></button></div>';
+ if(v==='forward')inner='<div class="ao-choice" role="group"><span class="ao-choice-thumb" aria-hidden="true"></span><button type="button" class="ao-choice-option ao-active" aria-pressed="true"><span class="ao-choice-label">ES</span><span class="ao-choice-sub">Email Security</span></button><button type="button" class="ao-choice-option" aria-pressed="false"><span class="ao-choice-label">PO</span><span class="ao-choice-sub">Posta</span></button></div>';
+ if(['comment','resolve','hold','cancel'].includes(v))inner='<div class="ao-field"><span class="ao-label">'+(v==='comment'?'Testo':'Note')+'</span><textarea class="ao-input" rows="3" placeholder="Scrivi…"></textarea></div>'+(v==='hold'?'<div class="ao-field"><span class="ao-label">Fino a</span><input class="ao-input" value="domani 09:00"></div>':'');
+ return '<div class="ao-choice-zone"><div class="ao-choice-content">'+inner+'<div class="ao-actions"><button type="button" class="ao-button ao-primary'+FILL[v]+'">'+BUTTON[v]+'</button></div></div></div>';
+}
+function card(id){
+ const d=DATA[id],v=choice[id];
+ const opts=d.kind==='ticket'?['comment','resolve','hold','cancel']:['take','forward','ignore'];
+ const sub=d.kind==='ticket'?'<div class="chips">'+d.info.map((t,i)=>'<span class="ao-chip ao-tone-'+(i===0?'accent':'neutral')+'">'+esc(t)+'</span>').join('')+'</div>':'<div class="ao-queue-row"><span class="ao-item-sub">'+esc(d.from)+'</span>'+(d.tag?'<span class="ao-user-tag" style="--ao-tag-color: #0078d4">'+d.tag+'</span>':'')+'</div>';
+ return '<div class="ao-item ao-queue-item ao-expanded" style="cursor:default"><div class="ao-item-main"><div class="ao-queue-row"><span class="ao-item-title">'+(d.kind==='ticket'?d.number+' · ':'')+esc(d.subject)+'</span><span class="ao-item-time">'+d.time+'</span></div>'+sub+'</div><div class="ao-inline-form">'+bar(opts,v)+zone(v,d)+'</div></div>';
+}
+function compose(d){return '<section class="ao-card compose"><div class="ao-field"><span class="ao-label">A</span><input class="ao-input" value="'+(d.from.toLowerCase().replace(' ','.'))+'@agenzia.it"></div><div class="ao-field"><span class="ao-label">Oggetto</span><input class="ao-input" value="RE: '+esc(d.subject)+'"></div><div class="ao-field"><span class="ao-label">Risposta</span><textarea class="ao-input" rows="4" placeholder="Rispondi a tutti"></textarea></div><div class="ao-actions"><span class="ao-spacer"></span><button type="button" class="ao-button ao-primary">Invia</button></div></section>';}
+function mails(d){return d.mails.map(([f,t,b])=>'<section class="ao-card msg"><div class="msg-head"><b>'+esc(f)+'</b><span>'+t+'</span></div><p class="msg-body">'+esc(b)+'</p></section>').join('');}
+function draw(){
+ document.getElementById('l-t').innerHTML=['t1'].map(listItem).join('');
+ document.getElementById('l-q').innerHTML=['q1','q2'].map(listItem).join('');
+ const d=DATA[cur];
+ document.getElementById('center').innerHTML=card(cur)+compose(d)+mails(d);
+ const seg=document.querySelector('#center .ao-segmented'),thumb=seg.querySelector('.ao-segment-thumb'),on=seg.querySelector('.ao-segment.ao-active');
+ const place=el=>{thumb.style.width=el.offsetWidth+'px';thumb.style.transform='translateX('+(el.offsetLeft-2)+'px)'};
+ if(on){ if(lastThumb&&lastThumb.id===cur){thumb.style.width=lastThumb.w+'px';thumb.style.transform='translateX('+lastThumb.x+'px)';thumb.getBoundingClientRect();thumb.classList.add('ao-moving');}
+  requestAnimationFrame(()=>{place(on);lastThumb={id:cur,w:on.offsetWidth,x:on.offsetLeft-2};});} else {thumb.classList.remove('ao-ready');lastThumb=null;}
+ const ct=document.querySelector('#center .ao-choice-thumb'),co=document.querySelector('#center .ao-choice-option.ao-active');if(ct&&co){ct.style.width=co.offsetWidth+'px';ct.style.transform='translateX('+(co.offsetLeft-2)+'px)';ct.style.opacity=1;}
+ document.querySelectorAll('#center .ao-segment').forEach(b=>b.onclick=()=>{const v=b.dataset.value;if(lastThumb===null&&!choice[cur]){}choice[cur]=choice[cur]===v?null:v;draw();});
+ document.querySelectorAll('.ao-list .ao-item').forEach(li=>li.onclick=()=>{cur=li.dataset.id;lastThumb=null;draw();});
+}
+draw();
+</script></body></html>
