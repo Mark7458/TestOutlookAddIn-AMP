@@ -90,7 +90,22 @@ button { font: inherit; color: inherit; }
 .tab[aria-selected="true"] .count { color: var(--accent); }
 .account { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
 .avatar { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--selected); color: var(--accent); font-size: var(--fs-xs); font-weight: 600; }
+.account { position: relative; }
+.account-button { display: inline-flex; align-items: center; gap: 8px; min-width: 0; height: 36px; padding: 0 8px 0 3px; border: 1px solid transparent; border-radius: 999px; background: none; color: var(--muted); font-size: var(--fs-sm); cursor: pointer; transition: background-color .2s, border-color .25s, color .2s; }
+.account-button:hover, .account-button[aria-expanded="true"] { border-color: var(--line); background: var(--hover); color: var(--text); }
+.account-button .icon { width: 14px; height: 14px; transition: transform .25s var(--ease); }
+.account-button[aria-expanded="true"] .icon { transform: rotate(180deg); }
 .account .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Menu a tendina dell'utente */
+.menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: grid; min-width: 220px; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: rgba(24, 30, 44, .94); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); animation: menu-in .2s var(--ease) both; }
+.menu-head { display: grid; gap: 1px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.menu-head .name { color: var(--text); font-size: var(--fs-sm); font-weight: 600; }
+.menu-head .email { color: var(--subtle); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.menu-item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--text); font-size: var(--fs-sm); text-align: left; cursor: pointer; transition: background-color .15s; }
+.menu-item:hover { background: var(--hover); }
+.menu-item .icon { color: var(--muted); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
 
 .workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 320px); gap: 12px; }
 .column { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -201,6 +216,22 @@ button { font: inherit; color: inherit; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: calc(100% - 32px); padding: 9px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
   background: rgba(22, 28, 42, .92); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); color: var(--text); font-size: var(--fs-sm); font-weight: 500; transform: translateX(-50%); }
 .toast.success { color: #8fd6b0; } .toast.warning { color: var(--working); } .toast.danger { color: var(--danger); }
+
+/* Impostazioni */
+.settings { display: grid; gap: 14px; align-content: start; width: 100%; max-width: 720px; margin: 0 auto; padding: 16px; }
+.settings .tool { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .025); }
+.settings-head { width: 100%; max-width: 720px; margin: 0 auto; padding: 14px 16px 0; }
+.new-item { justify-self: start; }
+.config-list { gap: 8px; }
+.config-item { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .03); transition: border-color .3s, box-shadow .35s; }
+.config-item.open { padding: 14px; border-color: var(--accent-line); box-shadow: var(--glow-rest); animation: enter-up .3s var(--ease) both; }
+.config-face { display: grid; gap: 4px; width: 100%; padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--radius); transition: background-color .2s; }
+.config-face:hover { background: var(--hover); }
+.config-summary { color: var(--muted); font-size: var(--fs-sm); }
+.config-summary.text { white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.config-footer { display: flex; flex-wrap: wrap; gap: 4px; }
+.actions-row.start { justify-content: flex-start; }
+.actions-row.start .btn { flex: none; }
 
 /* Tools */
 .tools { display: grid; gap: 18px; align-content: start; max-width: 640px; padding: 18px; }
@@ -406,7 +437,13 @@ button { font: inherit; color: inherit; }
         import: '<path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 14v2.5h12V14"/>',
         export: '<path d="M10 12.5v-9M6.5 7L10 3.5 13.5 7"/><path d="M4 14v2.5h12V14"/>',
         refresh: '<path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/>',
-        save: '<path d="M6 3.5h8v13l-4-3-4 3z"/>'
+        save: '<path d="M6 3.5h8v13l-4-3-4 3z"/>',
+        settings: '<circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/>',
+        profile: '<circle cx="10" cy="7" r="3"/><path d="M4 16.5a6 6 0 0 1 12 0"/>',
+        companies: '<rect x="4" y="3.5" width="12" height="13" rx="1.5"/><path d="M7.5 7h1M11.5 7h1M7.5 10h1M11.5 10h1M9 16.5v-3h2v3"/>',
+        activities: '<path d="M8 5.5h8.5M8 10h8.5M8 14.5h8.5"/><circle cx="4.5" cy="5.5" r=".9"/><circle cx="4.5" cy="10" r=".9"/><circle cx="4.5" cy="14.5" r=".9"/>',
+        caret: '<path d="M6 8l4 4 4-4"/>',
+        trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>'
     };
 
     // ------------------------------------------------------------------
@@ -679,6 +716,9 @@ button { font: inherit; color: inherit; }
         forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
         forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
         busy: false,
+        menuOpen: false, // menu a tendina dell'utente
+        settingsTab: 'profile',
+        editing: null, // voce aperta nelle impostazioni { kind, id } (id null = nuova)
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
         toast: null
     };
@@ -1024,10 +1064,20 @@ button { font: inherit; color: inherit; }
             h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sezioni' },
                 TABS.map(tab => h('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(state.tab === tab.id), onclick: () => { state.tab = tab.id; render(); } },
                     icon(ICONS[tab.icon]), h('span', { class: 'tab-label' }, tab.label), counts[tab.id] !== undefined && state.loaded ? h('span', { class: 'count' }, String(counts[tab.id])) : null))),
-            h('div', { class: 'account' },
+            accountMenu());
+    }
+    // Utente: un clic apre il menu a tendina con Impostazioni ed Esci.
+    function accountMenu() {
+        const item = (label, iconName, onclick) => h('button', { type: 'button', class: 'menu-item', role: 'menuitem', onclick: () => { state.menuOpen = false; onclick(); } }, icon(ICONS[iconName]), label);
+        return h('div', { class: 'account' },
+            h('button', { type: 'button', class: 'account-button', 'aria-haspopup': 'menu', 'aria-expanded': String(state.menuOpen), onclick: () => { state.menuOpen = !state.menuOpen; render(); } },
                 h('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(state.user?.name)),
                 h('span', { class: 'name' }, state.user?.name || ''),
-                h('button', { type: 'button', class: 'link', title: 'Esci', 'aria-label': 'Esci', onclick: () => window.MagusAuth.logout() }, icon(ICONS.logout))));
+                icon(ICONS.caret)),
+            state.menuOpen ? h('div', { class: 'menu', role: 'menu' },
+                h('div', { class: 'menu-head' }, h('span', { class: 'name' }, state.user?.name || ''), h('span', { class: 'email' }, state.user?.email || '')),
+                item('Impostazioni', 'settings', () => { state.tab = 'settings'; state.editing = null; render(); }),
+                item('Esci', 'logout', () => window.MagusAuth.logout())) : null);
     }
 
     function threadTag(item) {
@@ -1271,8 +1321,77 @@ button { font: inherit; color: inherit; }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
     function toolsView() {
+        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll tools' },
+            h('section', { class: 'tool' },
+                h('h2', {}, 'Elenchi'),
+                h('div', { class: 'link-actions' }, link('Aggiorna adesso', () => reloadAll(), 'refresh')))))));
+    }
+
+    // ------------------------------------------------------------------
+    // Impostazioni (come nel pannello): Profilo, Agenzie, Attività, Risposte; copia di sicurezza in JSON.
+    // ------------------------------------------------------------------
+    const SETTINGS_TABS = [['profile', 'Profilo'], ['companies', 'Agenzie'], ['activities', 'Attività'], ['responses', 'Risposte']];
+    const EDITORS = {
+        companies: {
+            newLabel: 'Agenzia',
+            summary: item => [reference(item.company).displayValue, reference(item.assignmentGroup).displayValue].filter(Boolean).join(' · '),
+            footer: item => (item.domains || []).map(domain => `@${domain}`),
+            unverified: item => [item.company, item.assignmentGroup].some(value => reference(value).displayValue && !reference(value).value),
+            fields: [
+                { key: 'name', label: 'Nome', required: true },
+                { key: 'company', label: 'Company', reference: true },
+                { key: 'assignmentGroup', label: 'Assignment group', reference: true },
+                { key: 'domains', label: 'Domini', list: true }
+            ]
+        },
+        activities: {
+            newLabel: 'Attività',
+            summary: item => [reference(item.category).displayValue, `${SEVERITY[item.impact] || '?'} / ${SEVERITY[item.urgency] || '?'}`, `${Number(item.timeWorked) || 0} min`,
+                item.shortDescriptionPrefix ? `prefisso ${item.shortDescriptionPrefix}` : null].filter(Boolean).join(' · '),
+            unverified: item => Boolean(reference(item.category).displayValue && !reference(item.category).value),
+            fields: [
+                { key: 'name', label: 'Nome', required: true },
+                { key: 'category', label: 'Categoria', reference: true },
+                { key: 'impact', label: 'Impatto', options: ['1', '2', '3'] },
+                { key: 'urgency', label: 'Urgenza', options: ['1', '2', '3'] },
+                { key: 'timeWorked', label: 'Tempo lavorato (minuti)', number: true },
+                { key: 'shortDescriptionPrefix', label: 'Prefisso della short description' }
+            ]
+        },
+        responses: {
+            newLabel: 'Risposta',
+            collection: 'usefulResponses',
+            nameKey: 'title',
+            summary: item => item.response || '',
+            fields: [
+                { key: 'title', label: 'Titolo', required: true },
+                { key: 'response', label: 'Testo', multiline: true }
+            ]
+        }
+    };
+    const collectionOf = tab => EDITORS[tab].collection || tab;
+    // Il sys_id resta quello di prima solo se il nome non è cambiato.
+    function keepReference(previous, displayValue) {
+        const before = reference(previous);
+        const name = String(displayValue || '').trim();
+        return { displayValue: name, value: name && name === before.displayValue ? before.value : '' };
+    }
+    const createId = name => `${String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'voce'}-${Date.now().toString(36)}`;
+    const chip = (text, tone = '') => h('span', { class: `tag${tone ? ` ${tone}` : ''}` }, text);
+
+    function settingsView() {
+        const tab = state.settingsTab;
+        const bar = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Impostazioni' },
+            SETTINGS_TABS.map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.settingsTab = id; state.editing = null; render(); } },
+                icon(ICONS[id === 'responses' ? 'responses' : id]), label,
+                id !== 'profile' ? h('span', { class: 'count' }, String(Object.keys(state.settings[collectionOf(id)]).length)) : null)));
+        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' },
+            h('div', { class: 'column-head settings-head' }, bar),
+            h('div', { class: 'scroll settings', 'data-scroll': `settings:${tab}` }, tab === 'profile' ? profileSection() : collectionSection(tab)))));
+    }
+    function profileSection() {
         const profile = state.settings.profile.assignedTo;
-        const counts = `${Object.keys(state.settings.companies).length} agenzie · ${Object.keys(state.settings.activities).length} attività · ${Object.keys(state.settings.usefulResponses).length} risposte`;
+        const draft = { name: profile.displayValue, sysId: profile.value };
         const importFile = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: async event => {
             const file = event.target.files?.[0];
             if (!file) return;
@@ -1282,30 +1401,110 @@ button { font: inherit; color: inherit; }
                 showStatus('Configurazioni importate');
             } catch { showStatus('File non valido', 'danger'); }
         } });
-        const exportLink = () => {
+        const exportFile = () => {
             const blob = new Blob([JSON.stringify(state.settings, null, 2)], { type: 'application/json' });
             const anchor = h('a', { href: URL.createObjectURL(blob), download: 'magus-configurazioni.json' });
             anchor.click();
             setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
         };
-        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll tools' },
+        return [
             h('section', { class: 'tool' },
                 h('h2', {}, 'Profilo'),
-                input('Assegnato a (nome su AMP)', profile.displayValue, value => { profile.displayValue = value; saveSettings(state.settings); }, { id: 'profile-name' }),
-                input('sys_id su AMP', profile.value, value => { profile.value = value; saveSettings(state.settings); }, { id: 'profile-sysid' })),
+                input('Assegnato a', draft.name, value => { draft.name = value; }, { id: 'profile-name', placeholder: currentUser().displayValue }),
+                input('sys_id su AMP', draft.sysId, value => { draft.sysId = value; }, { id: 'profile-sysid' }),
+                profile.displayValue && !profile.value ? h('div', {}, chip('Da verificare', 'working')) : null,
+                h('div', { class: 'actions-row start' }, button('Salva', () => {
+                    state.settings.profile.assignedTo = { displayValue: draft.name.trim(), value: draft.sysId.trim() };
+                    saveSettings(state.settings);
+                    showStatus('Salvato');
+                }, { kind: 'primary', iconName: 'check' }))),
             h('section', { class: 'tool' },
-                h('h2', {}, 'Configurazioni'),
-                h('p', { class: 'hint' }, counts),
+                h('h2', {}, 'Copia di sicurezza'),
                 h('div', { class: 'link-actions' }, importFile,
                     link('Importa JSON', () => importFile.click(), 'import'),
-                    link('Esporta JSON', exportLink, 'export'))),
-            h('section', { class: 'tool' },
-                h('h2', {}, 'Elenchi'),
-                h('div', { class: 'link-actions' }, link('Aggiorna adesso', () => reloadAll(), 'refresh')))))));
+                    link('Esporta JSON', exportFile, 'export')))
+        ];
+    }
+    // Agenzie, Attività, Risposte: schede che si leggono chiuse; un clic apre il modulo per modificarle.
+    function collectionSection(tab) {
+        const editor = EDITORS[tab];
+        const nameKey = editor.nameKey || 'name';
+        const items = Object.entries(state.settings[collectionOf(tab)]).sort(([, a], [, b]) => String(a[nameKey] || '').localeCompare(String(b[nameKey] || ''), 'it'));
+        const editing = state.editing?.kind === tab ? state.editing : null;
+        const card = (id, item) => {
+            const open = editing?.id === id;
+            return h('li', { class: `config-item${open ? ' open' : ''}` }, open ? editorForm(tab, id, item)
+                : h('button', { type: 'button', class: 'config-face', onclick: () => { state.editing = { kind: tab, id }; render(); } },
+                    h('span', { class: 'item-top' }, h('span', { class: 'item-title' }, item[nameKey] || ''), editor.unverified?.(item) ? chip('Da verificare', 'working') : null),
+                    editor.summary(item) ? h('span', { class: `config-summary${tab === 'responses' ? ' text' : ''}` }, editor.summary(item)) : null,
+                    editor.footer?.(item).length ? h('span', { class: 'config-footer' }, editor.footer(item).map(text => chip(text))) : null));
+        };
+        return [
+            editing?.id === null ? h('div', { class: 'config-item open new' }, editorForm(tab, null, {}))
+                : h('button', { type: 'button', class: 'btn primary new-item', onclick: () => { state.editing = { kind: tab, id: null }; render(); } }, icon(ICONS.plus), editor.newLabel),
+            items.length ? h('ul', { class: 'list config-list' }, items.map(([id, item]) => card(id, item))) : (editing ? null : empty(tab === 'responses' ? 'responses' : tab, 'Nessuna voce'))
+        ];
+    }
+    function editorForm(tab, id, item) {
+        const editor = EDITORS[tab];
+        const values = {};
+        const fields = editor.fields.map(field => {
+            const fieldId = `edit-${tab}-${field.key}`;
+            if (field.reference) {
+                values[field.key] = reference(item[field.key]).displayValue;
+                return input(field.label, values[field.key], value => { values[field.key] = value; }, { id: fieldId });
+            }
+            if (field.options) {
+                values[field.key] = String(item[field.key] || '3');
+                return dropdown(field.label, field.options.map(value => [value, SEVERITY[value] || value]), values[field.key], value => { values[field.key] = value; });
+            }
+            const initial = field.list ? (item[field.key] || []).join(', ') : String(item[field.key] ?? '');
+            values[field.key] = initial;
+            return input(field.label, initial, value => { values[field.key] = value; }, { id: fieldId, multiline: field.multiline, type: field.number ? 'number' : undefined, min: field.number ? '0' : undefined });
+        });
+        const close = () => { state.editing = null; render(); };
+        const save = () => {
+            const nameKey = editor.nameKey || 'name';
+            if (!String(values[nameKey] || '').trim()) return showStatus('Manca il nome', 'danger');
+            const collection = state.settings[collectionOf(tab)];
+            const targetId = id || createId(values[nameKey]);
+            const previous = collection[targetId] || {};
+            const next = { ...previous };
+            editor.fields.forEach(field => {
+                const value = values[field.key];
+                if (field.reference) next[field.key] = keepReference(previous[field.key], value);
+                else if (field.list) next[field.key] = [...new Set(String(value).split(/[,;\s]+/).map(entry => entry.trim().toLowerCase().replace(/^@/, '')).filter(Boolean))];
+                else if (field.number) next[field.key] = Math.max(0, Number.parseInt(value, 10) || 0);
+                else next[field.key] = field.multiline ? String(value) : String(value).trim();
+            });
+            if (tab === 'responses') {
+                const now = new Date().toISOString();
+                next.created ||= now;
+                next.updated = now;
+            }
+            collection[targetId] = next;
+            saveSettings(state.settings);
+            showStatus('Salvato');
+            close();
+        };
+        const remove = () => {
+            if (state.armed !== `delete:${id}`) { state.armed = `delete:${id}`; render(); return; }
+            state.armed = null;
+            delete state.settings[collectionOf(tab)][id];
+            saveSettings(state.settings);
+            showStatus('Eliminato');
+            close();
+        };
+        return h('div', { class: 'form' }, fields,
+            h('div', { class: 'actions-row' },
+                id ? button(state.armed === `delete:${id}` ? 'Conferma' : 'Elimina', remove, { kind: 'danger', iconName: 'trash' }) : button('Annulla', close),
+                id ? button('Chiudi', close) : null,
+                button('Salva', save, { kind: 'primary', iconName: 'check' })));
     }
 
     function workspace() {
         if (state.tab === 'tools') return toolsView();
+        if (state.tab === 'settings') return settingsView();
         if (state.tab === 'utility') return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, empty('utility', 'Utility'))));
         const item = selectedItem();
         return h('main', { class: `workspace${item || state.selected === 'new' ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
@@ -1346,7 +1545,7 @@ button { font: inherit; color: inherit; }
     function animate() {
         slideThumb(root.querySelector('.tabs'), '.tab[aria-selected="true"]', 'tabs');
         root.querySelectorAll('.segmented').forEach(group => slideThumb(group, '.segment[aria-pressed="true"]', `segmented:${group.getAttribute('aria-label')}`));
-        const order = TABS.findIndex(tab => tab.id === state.tab);
+        const order = state.tab === 'settings' ? TABS.length : TABS.findIndex(tab => tab.id === state.tab); // le impostazioni stanno a destra delle schede
         if (motion.tab !== null && motion.tab !== order && !reducedMotion()) root.querySelector('.workspace')?.classList.add(order > motion.tab ? 'enter-next' : 'enter-back');
         motion.tab = order;
         if (state.tab !== 'work') return;
@@ -1388,6 +1587,14 @@ button { font: inherit; color: inherit; }
         setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); }, seconds * 1000);
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); });
     }
+
+    // Il menu dell'utente si chiude con un clic fuori o con Esc.
+    document.addEventListener('click', event => {
+        if (state.menuOpen && !event.target.closest('.account')) { state.menuOpen = false; render(); }
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && state.menuOpen) { state.menuOpen = false; render(); }
+    });
 
     (async () => {
         state.user = await Data.session();
