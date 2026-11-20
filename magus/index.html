@@ -239,6 +239,17 @@ button { font: inherit; color: inherit; }
 .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; border-radius: 8px; background: var(--surface-strong); box-shadow: var(--thumb-shadow); pointer-events: none; }
 .tabs .thumb { border-radius: 9px; }
 .thumb.moving { transition: transform var(--motion), width var(--motion); }
+/* Selettore con le icone: la voce scelta è più larga e ha il nome, che compare allargandosi con lei */
+.segmented.icons .segment { flex: 1 1 0; min-width: 0; overflow: hidden; gap: 0; }
+.segmented.icons .segment.big { flex-grow: 2.6; }
+.segmented.icons:has(.segment:nth-of-type(4)) .segment.big { flex-grow: 4.5; }
+.segmented.icons .segment-name { display: inline-grid; grid-template-columns: 0fr; opacity: 0; }
+.segmented.icons .segment-name > span { min-width: 0; overflow: hidden; white-space: nowrap; }
+.segmented.icons .segment.big .segment-name { grid-template-columns: 1fr; opacity: 1; margin-left: 6px; }
+.segmented.icons .segment:not(.big) .count { display: none; }
+.segmented.icons .segment.big .count { margin-left: 6px; }
+.segmented.icons.growing .segment { transition: color .25s, flex-grow var(--motion); }
+.segmented.icons.growing .segment-name { transition: grid-template-columns var(--motion), opacity var(--motion), margin-left var(--motion); }
 
 /* Elenco dei thread e dei ticket */
 .list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -409,9 +420,6 @@ button { font: inherit; color: inherit; }
 :root[data-layout="mobile"] .modal-backdrop { padding: 0; }
 :root[data-layout="mobile"] .modal { width: 100%; max-width: 100%; min-width: 0; height: 100%; border-radius: 0; }
 :root[data-layout="mobile"] .modal > *, :root[data-layout="mobile"] .settings .tool { min-width: 0; }
-:root[data-layout="mobile"] .settings-head .segmented { min-width: 0; overflow-x: auto; scrollbar-width: none; }
-:root[data-layout="mobile"] .settings-head .segment { flex: none; }
-:root[data-layout="mobile"] .settings .segmented .segment { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
 /* Vista mobile scelta su uno schermo largo: la pagina resta della larghezza di un telefono, al centro */
 :root[data-layout="mobile"][data-wide] .app { width: min(430px, 100%); margin: 0 auto; }
 :root[data-layout="mobile"][data-wide] .modal-backdrop { padding: 16px; }
@@ -1568,12 +1576,17 @@ button { font: inherit; color: inherit; }
     const createId = name => `${String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'voce'}-${Date.now().toString(36)}`;
     const chip = (text, tone = '') => h('span', { class: `tag${tone ? ` ${tone}` : ''}` }, text);
 
+    // Selettore con le icone (come nelle impostazioni del pannello): la voce scelta si allarga e mostra il nome,
+    // le altre solo l'icona (il nome passandoci sopra). Il numero compare solo sulla voce scelta.
+    function iconSegment(label, iconName, pressed, onclick, count) {
+        return h('button', { type: 'button', class: `segment${pressed ? ' big' : ''}`, 'aria-pressed': String(pressed), title: pressed ? undefined : label, 'aria-label': label, onclick },
+            icon(ICONS[iconName]), h('span', { class: 'segment-name' }, h('span', {}, label)), count !== undefined ? h('span', { class: 'count' }, String(count)) : null);
+    }
     function settingsView() {
         const tab = state.settingsTab;
-        const bar = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Impostazioni' },
-            SETTINGS_TABS.map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.settingsTab = id; state.editing = null; render(); } },
-                icon(ICONS[id === 'responses' ? 'responses' : id]), label,
-                id !== 'profile' ? h('span', { class: 'count' }, String(Object.keys(state.settings[collectionOf(id)]).length)) : null)));
+        const bar = h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Impostazioni' },
+            SETTINGS_TABS.map(([id, label]) => iconSegment(label, id === 'responses' ? 'responses' : id, tab === id, () => { state.settingsTab = id; state.editing = null; render(); },
+                id !== 'profile' ? Object.keys(state.settings[collectionOf(id)]).length : undefined)));
         return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeSettings(); } },
             h('section', { class: 'card modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Impostazioni' },
                 h('div', { class: 'modal-head' }, h('h2', {}, 'Impostazioni'),
@@ -1630,12 +1643,12 @@ button { font: inherit; color: inherit; }
                 }, { kind: 'primary', iconName: 'check' }))),
             h('section', { class: 'tool' },
                 h('h2', {}, 'Aspetto'),
-                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Tema' },
-                    [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.theme || 'auto') === id), onclick: () => setPreference('theme', id) }, icon(ICONS[id]), label))),
-                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Stile' },
-                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id), onclick: () => setPreference('style', id) }, icon(ICONS[id]), label))),
-                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Vista' },
-                    [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.view || 'auto') === id), onclick: () => setPreference('view', id) }, icon(ICONS[iconName]), label)))),
+                h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Tema' },
+                    [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => iconSegment(label, id, (state.settings.preferences.theme || 'auto') === id, () => setPreference('theme', id)))),
+                h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Stile' },
+                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => iconSegment(label, id, (state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id, () => setPreference('style', id)))),
+                h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Vista' },
+                    [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => iconSegment(label, iconName, (state.settings.preferences.view || 'auto') === id, () => setPreference('view', id))))),
             h('section', { class: 'tool' },
                 h('h2', {}, 'Copia di sicurezza'),
                 h('div', { class: 'link-actions' }, importFile,
@@ -1735,7 +1748,7 @@ button { font: inherit; color: inherit; }
     // cambiano contenuto entrano con una breve dissolvenza; le schede in alto fanno scorrere la vista nel loro verso.
     // Il ridisegno ricrea tutto: si anima solo ciò che è cambiato dal disegno precedente.
     // ------------------------------------------------------------------
-    const motion = { keys: new Map(), thumbs: new Map(), tab: null, toast: null };
+    const motion = { keys: new Map(), thumbs: new Map(), icons: new Map(), tab: null, toast: null };
     const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     // Pillola sotto la voce scelta: parte da dove era e scivola sulla nuova.
     function slideThumb(group, selector, key) {
@@ -1753,6 +1766,29 @@ button { font: inherit; color: inherit; }
         thumb.classList.add('moving');
         put(place);
     }
+    // Selettore con le icone: la voce di prima si stringe e il suo nome svanisce mentre la nuova si allarga e il suo
+    // nome compare; la pillola segue, tutto con lo stesso movimento.
+    function growIcons(group, key) {
+        const buttons = [...group.querySelectorAll('.segment')];
+        const index = buttons.findIndex(button => button.classList.contains('big'));
+        if (index < 0) return;
+        const before = motion.icons.get(key);
+        motion.icons.set(key, index);
+        const thumb = h('span', { class: 'thumb', 'aria-hidden': 'true' });
+        group.prepend(thumb);
+        const put = button => { thumb.style.transform = `translateX(${button.offsetLeft}px)`; thumb.style.width = `${button.offsetWidth}px`; };
+        if (before === undefined || before === index || !buttons[before] || reducedMotion()) { put(buttons[index]); return; }
+        const from = buttons[before], to = buttons[index];
+        // dove arriverà la voce nuova: si misura con le larghezze finali
+        const end = { x: to.offsetLeft, width: to.offsetWidth };
+        to.classList.remove('big'); from.classList.add('big');
+        put(from);
+        group.getBoundingClientRect();
+        group.classList.add('growing');
+        thumb.classList.add('moving');
+        from.classList.remove('big'); to.classList.add('big');
+        thumb.style.transform = `translateX(${end.x}px)`; thumb.style.width = `${end.width}px`;
+    }
     function enter(element, key, name, className = 'enter') {
         if (!element) return;
         const before = motion.keys.get(name);
@@ -1761,7 +1797,8 @@ button { font: inherit; color: inherit; }
     }
     function animate() {
         slideThumb(root.querySelector('.tabs'), '.tab[aria-selected="true"]', 'tabs');
-        root.querySelectorAll('.segmented').forEach(group => slideThumb(group, '.segment[aria-pressed="true"]', `segmented:${group.getAttribute('aria-label')}`));
+        root.querySelectorAll('.segmented.icons').forEach(group => growIcons(group, group.getAttribute('aria-label')));
+        root.querySelectorAll('.segmented:not(.icons)').forEach(group => slideThumb(group, '.segment[aria-pressed="true"]', `segmented:${group.getAttribute('aria-label')}`));
         const order = TABS.findIndex(tab => tab.id === state.tab);
         if (motion.tab !== null && motion.tab !== order && !reducedMotion()) root.querySelector('.workspace')?.classList.add(order > motion.tab ? 'enter-next' : 'enter-back');
         motion.tab = order;
