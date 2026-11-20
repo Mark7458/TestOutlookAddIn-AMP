@@ -1,0 +1,1333 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Magus</title>
+<style>
+/* Magus: vetro scuro del pannello AMP. Token in :root, una regola per tipo di elemento. */
+:root {
+  color-scheme: dark;
+  --bg: #0f1420;
+  --glow-a: rgba(70, 120, 220, .32);
+  --glow-b: rgba(140, 110, 230, .22);
+  --surface: rgba(255, 255, 255, .05);
+  --surface-strong: rgba(255, 255, 255, .08);
+  --hover: rgba(255, 255, 255, .07);
+  --line: rgba(255, 255, 255, .12);
+  --line-strong: rgba(255, 255, 255, .22);
+  --text: #e8ecf4;
+  --muted: #9aa4b8;
+  --subtle: #6f7a8f;
+  --accent: #7cb4ff;
+  --accent-fill: rgba(70, 130, 230, .55);
+  --accent-line: rgba(124, 180, 255, .45);
+  --selected: rgba(124, 180, 255, .14);
+  --working: #e3b65c;
+  --danger: #f08a8a;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --blur: blur(18px);
+  --font: "Segoe UI", system-ui, sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font: var(--fs-md)/1.45 var(--font); color: var(--text);
+  background: radial-gradient(ellipse 620px 460px at 8% 0%, var(--glow-a), transparent 70%), radial-gradient(ellipse 560px 460px at 96% 100%, var(--glow-b), transparent 70%), var(--bg);
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Superfici */
+.card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .07); }
+
+/* Pulsanti: pieno (azione principale), contorno, comando di testo */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px;
+  background: transparent; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color .2s, filter .2s; }
+.btn:hover { background: var(--hover); }
+.btn.primary { border-color: var(--accent-line); background: var(--accent-fill); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18); }
+.btn.primary:hover { filter: brightness(1.12); }
+.btn.danger { border-color: rgba(240, 138, 138, .4); color: var(--danger); }
+.btn.wide { width: 100%; }
+.link { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; text-decoration: none; cursor: pointer; }
+.link:hover { color: var(--text); }
+.icon { flex: none; width: 16px; height: 16px; }
+
+/* Pagina di accesso */
+.login { flex: 1; min-height: 100%; display: grid; place-items: center; padding: 16px; }
+.login .card { width: min(380px, 100%); padding: 22px; }
+.login h1 { margin: 0 0 18px; font-size: 20px; font-weight: 600; }
+
+/* App: barra in alto e colonne */
+.app { height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.topbar { flex: none; display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand { font-size: var(--fs-lg); font-weight: 600; letter-spacing: .2px; }
+.tabs { min-width: 0; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .18); overflow-x: auto; }
+.tab { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-weight: 500; white-space: nowrap; cursor: pointer; }
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { background: var(--surface-strong); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+.count { min-width: 18px; color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.tab[aria-selected="true"] .count { color: var(--accent); }
+.account { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
+.avatar { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--selected); color: var(--accent); font-size: var(--fs-xs); font-weight: 600; }
+.account .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 320px); gap: 12px; }
+.column { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.column > .card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; }
+.column-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 0; }
+
+/* Selettore della sezione (Attive / Ignorate) */
+.segmented { display: flex; flex: 1; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, .2); }
+.segment { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+.segment[aria-pressed="true"] { background: var(--surface-strong); color: var(--text); }
+
+/* Elenco dei thread e dei ticket */
+.list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; gap: 3px; width: 100%; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; text-align: left; cursor: pointer; }
+.item:hover { background: var(--hover); }
+.item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
+.item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.item-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+.item-time { flex: none; color: var(--subtle); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.item-meta { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
+.item-meta > span:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text); font-size: var(--fs-xs); font-weight: 500; }
+.tag.mine { border-color: var(--accent-line); color: var(--accent); }
+.tag.working { border-color: rgba(227, 182, 92, .45); color: var(--working); }
+.count-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-fill); color: #fff; font-size: var(--fs-xs); font-weight: 600; text-align: center; line-height: 20px; }
+
+/* Thread */
+.thread-head { flex: none; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.thread-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; text-wrap: balance; }
+.thread-sub { margin-top: 2px; color: var(--muted); font-size: var(--fs-sm); }
+.messages { display: grid; gap: 10px; }
+.message { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .035); }
+.message.service { background: rgba(124, 180, 255, .06); }
+.message-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-bottom: 6px; color: var(--muted); font-size: var(--fs-sm); }
+.message-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
+.message-time { margin-left: auto; flex: none; color: var(--subtle); font-size: var(--fs-xs); }
+.message-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.message-body.loading { color: var(--subtle); }
+.attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.attachment { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: var(--fs-xs); }
+.thread-body { display: grid; gap: 12px; align-content: start; }
+.composer { display: grid; gap: 0; padding: 4px 12px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: rgba(0, 0, 0, .16); }
+.compose-field { display: flex; align-items: center; gap: 10px; min-width: 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+.compose-field > span { flex: none; width: 56px; color: var(--muted); }
+.compose-field input { flex: 1; min-width: 0; height: 36px; border: 0; background: none; color: var(--text); font: inherit; outline-offset: -2px; }
+.composer textarea { width: 100%; min-height: 110px; margin-top: 10px; resize: vertical; padding: 10px 0 0; border: 0; background: none; color: var(--text); font: inherit; outline-offset: 2px; }
+.composer textarea::placeholder { color: var(--subtle); }
+.composer-actions { display: flex; align-items: center; gap: 14px; padding-top: 8px; border-top: 1px solid var(--line); }
+.composer-actions .btn { margin-left: auto; }
+.group + .group { margin-top: 14px; }
+.group-title { display: flex; align-items: center; gap: 8px; margin: 2px 12px 6px; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Colonna destra: dettagli e azioni */
+.side { display: grid; gap: 14px; align-content: start; padding: 14px; }
+.side h2 { margin: 0; font-size: var(--fs-md); font-weight: 600; }
+.fields { display: grid; margin: 0; }
+.field { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+.field dt { color: var(--muted); }
+.field dd { margin: 0; min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.actions { display: grid; gap: 8px; }
+.actions-row { display: flex; gap: 8px; }
+.actions-row .btn { flex: 1; }
+
+/* Moduli */
+.form { display: grid; gap: 10px; }
+.field-input { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
+.field-input :is(input, select, textarea), .search input, .amp-link input { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: rgba(0, 0, 0, .18); color: var(--text); font: inherit; font-size: var(--fs-md); }
+.field-input textarea { height: auto; min-height: 90px; padding: 8px 10px; resize: vertical; }
+.field-input select option { background: #1b2130; }
+.hint { margin: 0; color: var(--subtle); font-size: var(--fs-sm); }
+.details { border-top: 1px solid var(--line); padding-top: 8px; font-size: var(--fs-sm); }
+.details summary { color: var(--accent); font-weight: 500; cursor: pointer; }
+.details[open] summary { margin-bottom: 4px; }
+.amp-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 8px; }
+.tag-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.choices { display: grid; gap: 6px; }
+.link.danger { color: var(--danger); }
+.btn:disabled, .link:disabled { opacity: .5; cursor: default; filter: none; }
+.btn.icon-only { flex: none; width: 36px; padding: 0; }
+.column-head.stack { flex-direction: column; align-items: stretch; }
+.search-row { display: flex; gap: 8px; }
+.search { position: relative; flex: 1; min-width: 0; }
+.search .icon { position: absolute; left: 10px; top: 10px; color: var(--subtle); }
+.search input { padding-left: 32px; }
+.segmented.small .segment { height: 28px; font-size: var(--fs-xs); }
+.link.responses { position: relative; }
+.link.responses select { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Inoltro: passi con pallino (fatto, in corso, non riuscito, da fare) */
+.forward-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.step { display: grid; justify-items: center; gap: 4px; color: var(--subtle); font-size: var(--fs-xs); }
+.step-dot { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; background: none; color: inherit; }
+.step-dot .icon { width: 13px; height: 13px; }
+.step.ok { color: var(--accent); } .step.ok .step-dot { border-color: var(--accent-line); background: var(--selected); }
+.step.run { color: var(--text); }
+.step.ko { color: var(--danger); } .step.ko .step-dot { border-color: rgba(240, 138, 138, .5); cursor: pointer; }
+.spinner { width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Pillola dell'esito */
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: calc(100% - 32px); padding: 9px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: rgba(22, 28, 42, .92); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); color: var(--text); font-size: var(--fs-sm); font-weight: 500; transform: translateX(-50%); }
+.toast.success { color: #8fd6b0; } .toast.warning { color: var(--working); } .toast.danger { color: var(--danger); }
+
+/* Tools */
+.tools { display: grid; gap: 18px; align-content: start; max-width: 640px; padding: 18px; }
+.tool { display: grid; gap: 10px; }
+.tool h2 { margin: 0; font-size: var(--fs-md); font-weight: 600; }
+.link-actions { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+
+/* Stati vuoti */
+.empty { display: grid; place-items: center; gap: 8px; height: 100%; min-height: 160px; padding: 24px; color: var(--subtle); font-size: var(--fs-sm); text-align: center; }
+.empty .icon { width: 28px; height: 28px; }
+.back { display: none; }
+.workspace.single { grid-template-columns: minmax(0, 1fr); }
+.workspace.single > .column { display: flex !important; }
+
+/* Larghezze: tre colonne, poi due (dettagli sotto il thread), poi una sola con il ritorno all'elenco */
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
+  .workspace > .column:last-child { display: none; }
+  .side-inline { display: grid !important; padding: 0 0 6px; }
+}
+.side-inline { display: none; }
+@media (max-width: 760px) {
+  .app { gap: 10px; padding-top: 10px; }
+  .brand, .account .name, .tab:not([aria-selected="true"]) .tab-label { display: none; }
+  .tab { padding: 0 11px; }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .workspace.detail-open > .column:first-child, .workspace:not(.detail-open) > .column:nth-child(2) { display: none; }
+  .back { display: inline-flex; margin-bottom: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+// Anteprima: risposte finte delle Function e dell'accesso, nello stesso formato di quelle vere.
+(() => {
+  const ME = 'utente@esempio.it', BOX = 'servizio@esempio.it';
+  const ago = minutes => new Date(Date.now() - minutes * 60000).toISOString();
+  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PO: { name: 'Posta', code: 'PO' } }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
+  const threads = [
+    { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 2, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
+    { id: 102, subject: 'Richiesta licenza Visio', from: 'Paolo Neri <paolo.neri@agenzia.it>', at: 48, count: 1, thread: { status: 'New' } },
+    { id: 103, subject: 'Abilitazione Teams per utente esterno', from: 'Sara Gialli <sara.gialli@agenzia.it>', at: 95, count: 3, thread: { status: 'Working', assignedTo: 'luigi.verdi@esempio.it', statusAt: ago(60) } },
+    { id: 104, subject: 'Aggiunta membri a lista di distribuzione', from: 'Marco Blu <marco.blu@agenzia.it>', at: 160, count: 1, thread: { status: 'New' } },
+    { id: 105, subject: 'Reset MFA', from: 'Elena Viola <elena.viola@agenzia.it>', at: 1500, count: 2, thread: { status: 'New' } }
+  ];
+  const ignored = [{ id: 201, subject: 'Newsletter servizi cloud', from: 'Notifiche <noreply@fornitore.it>', at: 300, count: 1, thread: { status: 'Ignored', statusBy: 'luigi.verdi@esempio.it', statusAt: ago(280) } }];
+  const toItem = t => ({ parentItemId: t.id, conversationId: 'C' + t.id, subject: t.subject, from: t.from, lastReceived: ago(t.at), messageCount: t.count, lastMessage: { messageId: 'M' + t.id + '-' + t.count, from: t.from, subject: t.subject, receivedDate: ago(t.at) }, thread: t.thread });
+  const tickets = [
+    { id: '11', ticketId: 'SHP-0042', parentItemId: 106, status: 'In Progress', agency: 'DEM', operator: ME, shortDescription: 'Casella condivisa protocollo non visibile', ampReference: 'INC0123456', created: ago(200), elapsedTime: 25 },
+    { id: '12', ticketId: 'SHP-0039', parentItemId: 107, status: 'On Hold', agency: 'AG1', operator: ME, shortDescription: 'Migrazione archivio PST', ampReference: 'INC0123311', created: ago(3000), elapsedTime: 90 },
+    { id: '13', ticketId: 'SHP-M-7', parentItemId: null, status: 'In Progress', agency: 'AG2', operator: 'luigi.verdi@esempio.it', shortDescription: 'Verifica regole di inoltro', created: ago(500), elapsedTime: 10 }
+  ];
+  const conversations = {
+    101: [['Anna Bianchi <anna.bianchi@agenzia.it>', 22 + 30, 'Buongiorno,\n\nda stamattina non riesco ad aprire la casella condivisa protocollo@agenzia.it da Outlook: compare un errore di autorizzazione.\n\nGrazie\nAnna Bianchi', true], [BOX, 22, 'Salve,\n\nsi prende in carico la richiesta.\n\nSaluti,\nMario Rossi\nService Desk', false]],
+    102: [['Paolo Neri <paolo.neri@agenzia.it>', 48, 'Buongiorno,\n\nchiedo l\'assegnazione di una licenza Visio per il collega Luca Rossi.\n\nCordiali saluti\nPaolo Neri', false]],
+    103: [['Sara Gialli <sara.gialli@agenzia.it>', 200, 'Buongiorno,\n\nserve abilitare la chat Teams con un consulente esterno.\n\nSara', false], [BOX, 150, 'Salve,\n\nci indica l\'indirizzo del consulente?\n\nSaluti,\nLuigi Verdi', false], ['Sara Gialli <sara.gialli@agenzia.it>', 95, 'È consulente@studio-esterno.it, grazie.', false]],
+    104: [['Marco Blu <marco.blu@agenzia.it>', 160, 'Buongiorno,\n\nvanno aggiunti alla lista uffici-roma@agenzia.it i colleghi in allegato.\n\nGrazie', true]],
+    105: [['Elena Viola <elena.viola@agenzia.it>', 1560, 'Ho cambiato telefono e non riesco più ad approvare l\'accesso.', false], [BOX, 1500, 'Salve,\n\nprocediamo con il reset del metodo di autenticazione.\n\nSaluti,\nLuigi Verdi', false]],
+    106: [['Giorgio Rosa <giorgio.rosa@agenzia.it>', 260, 'La casella protocollo non compare più in Outlook.', false], [BOX, 200, 'Salve,\n\nsi prende in carico la richiesta, riferimento INC0123456.\n\nSaluti,\nMario Rossi', false], ['Giorgio Rosa <giorgio.rosa@agenzia.it>', 30, 'Ora la vedo ma non riesco a inviare per conto della casella.', false]],
+    107: [['Chiara Verdi <chiara.verdi@agenzia.it>', 3100, 'Dobbiamo importare un archivio PST di 30 GB nella nuova casella.', true], [BOX, 3000, 'Salve,\n\nattendiamo il caricamento del file nella cartella condivisa.\n\nSaluti,\nMario Rossi', false]],
+    201: [['Notifiche <noreply@fornitore.it>', 300, 'Novità del mese sui servizi cloud.', false]]
+  };
+  const closed = [{ id: '9', ticketId: 'SHP-0031', parentItemId: null, status: 'Resolved', agency: 'DEM', operator: ME, shortDescription: 'Reset password casella protocollo', ampReference: 'INC0122001', created: ago(9000), elapsedTime: 15 }];
+  const bodies = {};
+  try {
+    if (!localStorage.getItem('snow_ticket_assistant_v1')) localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
+      profile: { assignedTo: { displayValue: 'Mario Rossi', value: 'abc123' } },
+      companies: { dem: { name: 'Agenzia del Demanio', domains: ['agenzia.it'], company: { displayValue: 'Agenzia del Demanio', value: 'c1' }, assignmentGroup: { displayValue: 'M365 Service Desk', value: 'g1' } }, ag1: { name: 'Agenzia Uno', domains: ['agenziauno.it'], company: { displayValue: 'Agenzia Uno', value: 'c2' }, assignmentGroup: { displayValue: 'M365 Service Desk', value: 'g1' } } },
+      activities: { a1: { name: 'Casella condivisa', category: { displayValue: 'Exchange', value: 'k1' }, impact: '3', urgency: '3', timeWorked: 15 }, a2: { name: 'Licenze', category: { displayValue: 'Licensing', value: 'k2' }, impact: '3', urgency: '3', timeWorked: 10 } },
+      usefulResponses: { r1: { title: 'Presa in carico', response: 'si prende in carico la richiesta.' }, r2: { title: 'Richiesta informazioni', response: 'per procedere ci serve il nome completo dell\'utente.' } }
+    }));
+  } catch {}
+  const subjects = Object.fromEntries([...threads, ...ignored].map(t => [t.id, t.subject]).concat([[106, 'Casella protocollo non visibile'], [107, 'Importazione archivio PST']]));
+  const messages = id => (conversations[id] || []).map(([from, at, text, attach], index) => {
+    const messageId = `M${id}-${index + 1}`;
+    const subject = (index ? 'RE: ' : '') + (subjects[id] || '');
+    bodies[messageId] = { subject, from, to: [BOX], cc: id === 101 || id === 106 ? ['ufficio.it@agenzia.it'] : [], receivedDate: ago(at), hasAttachments: attach, text, newText: text };
+    return { messageId, subject, from, receivedDate: ago(at), hasAttachment: attach, status: 'New' };
+  });
+  const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const url = new URL(String(input), location.href);
+    const path = url.pathname.replace(/^.*?(\/(\.auth|api)\/)/, '$1');
+    if (!path.startsWith('/api/')) return realFetch(input, init);
+    await delay(250 + Math.random() * 300);
+    const name = path.slice(5), q = url.searchParams;
+    if (name === 'PluginConfig') return json(config);
+    if (name === 'ListQueue') {
+      const section = q.get('section');
+      if (section === 'active') return json({ threads: threads.map(toItem) });
+      if (section === 'ignored') return json({ threads: ignored.map(toItem) });
+      return json({ threads: [{ parentItemId: 106, unseenCount: 1, lastReceived: ago(30) }] });
+    }
+    const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
+    if (name === 'SearchTicketRecords') {
+      if (body.text) { const t = body.text.toLowerCase(); return json({ records: [...tickets, ...closed].filter(r => [r.ticketId, r.shortDescription, r.ampReference].some(v => String(v || '').toLowerCase().includes(t))) }); }
+      return json({ records: tickets.filter(r => ['In Progress', 'On Hold'].includes(r.status)) });
+    }
+    if (name === 'ManageThread') {
+      const all = [...threads, ...ignored]; const t = all.find(x => x.id === Number(body.parentItemId)); if (!t) return json({ status: 'error', message: 'Thread non trovato' });
+      const a = body.action;
+      if (a === 'tag') t.thread = { status: t.thread.status === 'Ignored' ? 'Ignored' : 'Working', assignedTo: ME, statusAt: ago(0) };
+      if (a === 'untag') t.thread = { status: t.thread.status === 'Ignored' ? 'Ignored' : 'New', statusBy: t.thread.statusBy };
+      if (a === 'acquire') { threads.splice(threads.indexOf(t), 1); }
+      if (a === 'ignore') { threads.splice(threads.indexOf(t), 1); t.thread = { status: 'Ignored', statusBy: ME, statusAt: ago(0) }; ignored.unshift(t); }
+      if (a === 'restore') { ignored.splice(ignored.indexOf(t), 1); t.thread = { status: 'New' }; threads.unshift(t); }
+      return json({ status: 'ok', thread: t.thread });
+    }
+    if (name === 'ManageTicket') {
+      if (body.action === 'createTicket') {
+        const n = body.parentItemId ? `SHP-00${50 + tickets.length}` : `SHP-M-${10 + tickets.length}`;
+        const r = { id: String(100 + tickets.length), ticketId: n, parentItemId: body.parentItemId || null, status: 'In Progress', agency: body.agency, operator: ME, shortDescription: body.shortDescription, created: ago(0), elapsedTime: body.elapsedTime, forwardGroup: body.forwardGroup || '' };
+        tickets.unshift(r); if (body.parentItemId) conversations[body.parentItemId] = conversations[body.parentItemId] || [];
+        return json({ status: 'ok', ticket: r });
+      }
+      const r = tickets.find(x => x.ticketId === body.ticketId); Object.assign(r, { status: body.status || r.status, notes: body.notes ?? r.notes, elapsedTime: body.elapsedTime ?? r.elapsedTime });
+      return json({ status: 'ok', ticket: r });
+    }
+    if (name === 'ReplyAll') {
+      const id = Number(body.parentItemId); (conversations[id] = conversations[id] || []).push([BOX, 0, body.text || 'Salve,\n\nsi prende in carico la richiesta.\n\nSaluti,\nMario Rossi', false]);
+      const r = tickets.find(x => x.ticketId === body.ticketId); if (r) r.repliedAt = ago(0);
+      return json({ status: 'ok' });
+    }
+    if (name === 'ListThreadMessages') return json({ messages: messages(Number(q.get('parentItemId'))) });
+    if (name === 'GetMailBody') return json(bodies[q.get('messageId')] || { text: '' });
+    return json({ status: 'ok' });
+  };
+  // Accesso finto al posto di MagusAuth (src/auth.js): Accedi entra subito come utente di prova, Esci torna alla schermata di accesso.
+  const KEY = 'magus_preview_logged';
+  const logged = () => { try { return sessionStorage.getItem(KEY) === '1'; } catch { return false; } };
+  const set = value => { try { value ? sessionStorage.setItem(KEY, '1') : sessionStorage.removeItem(KEY); } catch {} location.reload(); };
+  window.MagusAuth = { start: async () => logged() ? { email: ME, name: 'Mario Rossi' } : null, login: () => set(true), logout: () => set(false), token: async () => 'token-di-prova' };
+})();
+
+</script>
+<script>
+// Magus: coda dei thread, mail e ticket della casella del servizio (il pannello AMP fuori da Outlook).
+// Dati dalle Function di jakFunction, chiamate con il token dell'accesso Microsoft (MagusAuth, src/auth.js).
+// Agenzie, attività, risposte utili e profilo sono le configurazioni dell'operatore, salvate nel browser come nel
+// pannello (si importano dal JSON esportato dal pannello, in Tools).
+(() => {
+    'use strict';
+
+    // ------------------------------------------------------------------
+    // DOM
+    // ------------------------------------------------------------------
+    function h(tag, attrs = {}, ...children) {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(attrs || {})) {
+            if (value === null || value === undefined || value === false) continue;
+            if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+            else if (key === 'class') node.className = value;
+            else if (key === 'value') node.value = value;
+            else node.setAttribute(key, value === true ? '' : value);
+        }
+        node.append(...children.flat(Infinity).filter(child => child !== null && child !== undefined && child !== false));
+        return node;
+    }
+    const SVG = 'http://www.w3.org/2000/svg';
+    function icon(paths) {
+        const node = document.createElementNS(SVG, 'svg');
+        node.setAttribute('class', 'icon');
+        node.setAttribute('viewBox', '0 0 20 20');
+        node.setAttribute('aria-hidden', 'true');
+        node.innerHTML = `<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
+        return node;
+    }
+    const ICONS = {
+        queue: '<path d="M3 10.5h4l1.5 2h3l1.5-2h4"/><path d="M5 4.5h10l2 6v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-4z"/>',
+        ignored: '<rect x="3" y="4" width="14" height="3.5" rx="1"/><path d="M4.5 7.5v7A1.5 1.5 0 0 0 6 16h8a1.5 1.5 0 0 0 1.5-1.5v-7M8.5 10.5h3"/>',
+        ticket: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h11A1.5 1.5 0 0 1 17 6.5v2a1.5 1.5 0 0 0 0 3v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5v-2a1.5 1.5 0 0 0 0-3z"/><path d="M8 8.5h4M8 11.5h4"/>',
+        mail: '<rect x="3" y="5" width="14" height="10" rx="1.8"/><path d="M3.5 6l6.5 5 6.5-5"/>',
+        attach: '<path d="M15.5 9.5l-5.6 5.6a3.2 3.2 0 0 1-4.5-4.5l6-6a2.1 2.1 0 0 1 3 3l-5.9 5.9a1 1 0 0 1-1.5-1.5l5.3-5.3"/>',
+        responses: '<path d="M4 7h8a4 4 0 0 1 0 8H9"/><path d="M7 4L4 7l3 3"/>',
+        send: '<path d="M3.5 10l13-6-4.5 13-2.5-5.5z"/><path d="M9.5 11.5l3-3"/>',
+        back: '<path d="M12 4.5L6.5 10l5.5 5.5"/>',
+        logout: '<path d="M8 4H5a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 5 16h3M12.5 13.5 16 10l-3.5-3.5M16 10H8"/>',
+        utility: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6.5 8.5l2 1.5-2 1.5M10.5 11.5h3"/>',
+        tools: '<path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.8 13.5a1.5 1.5 0 0 0 2.1 2.1l5.4-5.4a3.5 3.5 0 0 0 4.6-3.3l-2 2-2.2-.6-.6-2.2z"/>',
+        tag: '<path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/>',
+        take: '<path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 16h12"/>',
+        forward: '<path d="M11 5l5 5-5 5"/><path d="M16 10H8a4 4 0 0 0-4 4v1"/>',
+        ignore: '<circle cx="10" cy="10" r="6.5"/><path d="M5.5 14.5l9-9"/>',
+        restore: '<path d="M4 7.5h8.5a4 4 0 0 1 0 8H8"/><path d="M7 4.5l-3 3 3 3"/>',
+        plus: '<circle cx="10" cy="10" r="7"/><path d="M10 7v6M7 10h6"/>',
+        search: '<circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/>',
+        close: '<path d="M5 5l10 10M15 5L5 15"/>',
+        check: '<path d="M4.5 10.5l3.5 3.5 7.5-8"/>',
+        copy: '<rect x="7" y="7" width="9.5" height="9.5" rx="1.8"/><path d="M13 7V5.3A1.8 1.8 0 0 0 11.2 3.5H5.3A1.8 1.8 0 0 0 3.5 5.3v5.9A1.8 1.8 0 0 0 5.3 13H7"/>',
+        import: '<path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 14v2.5h12V14"/>',
+        export: '<path d="M10 12.5v-9M6.5 7L10 3.5 13.5 7"/><path d="M4 14v2.5h12V14"/>',
+        refresh: '<path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/>',
+        save: '<path d="M6 3.5h8v13l-4-3-4 3z"/>'
+    };
+
+    // ------------------------------------------------------------------
+    // Formati
+    // ------------------------------------------------------------------
+    const pad = value => String(value).padStart(2, '0');
+    function parseDate(value) {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    // Oggi: ora; ieri: "ieri"; prima: giorno/mese.
+    function shortWhen(value) {
+        const date = parseDate(value);
+        if (!date) return '';
+        const days = Math.round((new Date(new Date().toDateString()) - new Date(date.toDateString())) / 86400000);
+        if (days === 0) return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        if (days === 1) return 'ieri';
+        return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+    }
+    function fullWhen(value) {
+        const date = parseDate(value);
+        return date ? `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}` : '';
+    }
+    const sameEmail = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    // "Nome <email>" oppure solo l'email.
+    function sender(from) {
+        const text = String(from || '').trim();
+        const match = text.match(/^(.*?)\s*<([^>]+)>$/);
+        if (match) return { name: match[1].replace(/^"|"$/g, '') || match[2], email: match[2] };
+        return { name: text, email: text.includes('@') ? text : '' };
+    }
+    const initials = name => String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0].toUpperCase()).join('');
+    const surname = name => String(name || '').trim().split(/\s+/).pop() || '';
+    const addresses = text => String(text || '').split(/[;,\s]+/).map(item => item.trim()).filter(Boolean);
+    const cleanSubject = subject => String(subject || '').replace(/^\s*((re|r|fw|fwd|i)\s*:\s*)+/i, '').trim();
+    const byName = ([, a], [, b]) => String(a.name || '').localeCompare(String(b.name || ''), 'it');
+
+    // ------------------------------------------------------------------
+    // Configurazioni dell'operatore (come nel pannello: profilo, agenzie, attività, risposte utili)
+    // ------------------------------------------------------------------
+    const SETTINGS_KEY = 'snow_ticket_assistant_v1';
+    function reference(value) {
+        if (!value) return { value: '', displayValue: '' };
+        if (typeof value === 'string') return { value: '', displayValue: value };
+        return { value: value.value || '', displayValue: value.displayValue || '' };
+    }
+    function normalizeSettings(data) {
+        const object = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+        const companies = object(data?.companies);
+        Object.values(companies).forEach(company => {
+            const list = Array.isArray(company.domains) ? company.domains : String(company.domains || '').split(/[,;\s]+/);
+            company.domains = [...new Set(list.map(item => String(item).trim().toLowerCase().replace(/^@/, '')).filter(Boolean))];
+        });
+        return {
+            ...object(data),
+            profile: { ...object(data?.profile), assignedTo: reference(data?.profile?.assignedTo) },
+            companies,
+            activities: object(data?.activities),
+            usefulResponses: object(data?.usefulResponses)
+        };
+    }
+    function loadSettings() {
+        try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null')); }
+        catch { return normalizeSettings(null); }
+    }
+    function saveSettings(settings) {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, updated: new Date().toISOString() })); return true; }
+        catch { return false; }
+    }
+
+    // ------------------------------------------------------------------
+    // Function (le stesse del pannello AMP, senza quelle di Outlook)
+    // ------------------------------------------------------------------
+    const FUNCTIONS_URL = 'https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/';
+    // Token rifiutato dalla Function (401): se ne chiede uno nuovo e si riprova una volta.
+    async function call(name, params = {}, method = 'GET', retried = false) {
+        let url = FUNCTIONS_URL + name;
+        const request = { method, headers: { Accept: 'application/json', Authorization: `Bearer ${await window.MagusAuth.token({ fresh: retried })}` } };
+        if (method === 'GET') {
+            const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null));
+            if (String(query)) url += `?${query}`;
+        } else {
+            request.headers['Content-Type'] = 'application/json';
+            request.body = JSON.stringify(params);
+        }
+        const response = await fetch(url, request);
+        if (response.status === 401 && !retried) return call(name, params, method, true);
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.status === 'error') {
+            const error = new Error(data?.message || `${name}: errore ${response.status}`);
+            error.reason = data?.reason || data?.error || null;
+            error.data = data;
+            throw error;
+        }
+        return data;
+    }
+
+    const OPEN_TICKET_STATUSES = ['In Progress', 'On Hold'];
+    const THREAD_STATUS = { New: 'Nuovo', Working: 'In coda', Acquired: 'In carico', Ignored: 'Ignorata', Forwarded: 'Inoltrata', Solved: 'Risolta' };
+    const TICKET_STATUS = { 'In Progress': 'In lavorazione', 'On Hold': 'In attesa', Resolved: 'Risolto', Canceled: 'Annullato' };
+    const NOTES_MAX = 2000;
+    // Il thread è cambiato nel frattempo: la function si è fermata, la vista si aggiorna.
+    const CHANGED = {
+        thread_changed: 'Nuovo messaggio nel thread: aggiornato',
+        tagged_by_other: 'C’è il tag di un collega: aggiornato',
+        thread_acquired: 'Già in carico a un collega: aggiornato',
+        thread_forwarded: 'Già inoltrata: aggiornato',
+        not_in_queue: 'Non è più in coda: aggiornato',
+        not_ignored: 'Non è più tra le ignorate: aggiornato',
+        not_tagged: 'Serve il tuo tag'
+    };
+
+    const operators = () => Object.values(state.config.operators || {});
+    const operatorName = email => operators().find(operator => sameEmail(operator?.email, email))?.displayName || email || '';
+    const serviceMailbox = () => state.config.ticketing?.email || '';
+    const isMe = email => sameEmail(email, state.user?.email);
+    const forwardGroups = () => Object.entries(state.config.forwardingTargets || {})
+        .filter(([, target]) => target && target.enabled !== false)
+        .map(([id, target]) => ({ id, tag: target.code || target.tag || id, name: target.name || '' }))
+        .sort((a, b) => a.tag.localeCompare(b.tag, 'it'));
+    // Nome dell'operatore: il profilo (assegnatario di ServiceNow), poi quello della config, poi l'account.
+    function currentUser() {
+        const profile = state.settings.profile.assignedTo;
+        if (profile.displayValue) return profile;
+        const name = operatorName(state.user?.email);
+        return { displayValue: name && name !== state.user?.email ? name : state.user?.name || '', value: '' };
+    }
+
+    function toThread(item, section) {
+        const last = item.lastMessage || {};
+        const thread = item.thread || {};
+        return {
+            key: `thread:${item.parentItemId}`,
+            parentItemId: Number(item.parentItemId),
+            section,
+            subject: item.subject || last.subject || '(senza oggetto)',
+            from: sender(last.from || item.from),
+            receivedAt: item.lastReceived || last.receivedDate,
+            messageCount: Number(item.messageCount) || 0,
+            status: thread.status || 'New',
+            assignedTo: thread.assignedTo || '',
+            statusBy: thread.statusBy || '',
+            statusAt: thread.statusAt || ''
+        };
+    }
+    function toTicket(record, unseen) {
+        return {
+            key: `ticket:${record.ticketId}`,
+            number: record.ticketId,
+            parentItemId: Number(record.parentItemId) || null,
+            subject: record.shortDescription || record.ticketId,
+            status: record.status,
+            agency: record.agency || '',
+            operator: record.operator || '',
+            ampReference: record.ampReference || '',
+            openedAt: record.created || '',
+            minutes: Number(record.elapsedTime) || 0,
+            notes: record.notes || '',
+            forwardGroup: record.forwardGroup || '',
+            repliedAt: record.repliedAt || '',
+            unseen: unseen?.unseenCount || 0,
+            lastAt: unseen?.lastReceived || record.modified || record.created
+        };
+    }
+
+    const Data = {
+        session: () => window.MagusAuth.start(),
+        async config() {
+            const raw = await call('PluginConfig');
+            return raw?.payload || raw || {};
+        },
+        async queue(section) {
+            const result = await call('ListQueue', { section });
+            return (result?.threads || []).map(item => toThread(item, section));
+        },
+        async tickets() {
+            const [found, mine] = await Promise.all([
+                call('SearchTicketRecords', { statuses: OPEN_TICKET_STATUSES }, 'POST'),
+                call('ListQueue', { section: 'mine' }).catch(() => null)
+            ]);
+            const unseen = new Map((mine?.threads || []).map(item => [Number(item.parentItemId), item]));
+            return (found?.records || []).map(record => toTicket(record, unseen.get(Number(record.parentItemId))));
+        },
+        async searchTickets(text) {
+            const result = await call('SearchTicketRecords', { text, resultSize: 20 }, 'POST');
+            return (result?.records || []).map(record => ({ ...toTicket(record), found: true }));
+        },
+        async messages(parentItemId) {
+            const result = await call('ListThreadMessages', { parentItemId });
+            return (result?.messages || [])
+                .map(message => ({ id: message.messageId, subject: message.subject || '', from: sender(message.from), receivedAt: message.receivedDate, hasAttachment: Boolean(message.hasAttachment), status: message.status }))
+                .sort((a, b) => (parseDate(a.receivedAt) || 0) - (parseDate(b.receivedAt) || 0));
+        },
+        async body(messageId) {
+            const result = await call('GetMailBody', { messageId });
+            return { text: result?.newText || result?.text || '', to: result?.to || [], cc: result?.cc || [], hasAttachments: Boolean(result?.hasAttachments) };
+        },
+        // Azioni sul thread (MailEvents). knownCount: le mail che la vista conosce; se ne è arrivata un'altra la function
+        // si ferma (thread_changed).
+        thread(item, action, extra = {}) {
+            const counted = ['tag', 'acquire', 'ignore', 'restore'].includes(action) && item.messageCount;
+            return call('ManageThread', { action, parentItemId: item.parentItemId, ...(counted ? { knownCount: item.messageCount } : {}), ...extra }, 'POST');
+        },
+        async createTicket(item, { agency, shortDescription, description, minutes, forwardGroup }) {
+            const result = await call('ManageTicket', {
+                action: 'createTicket',
+                ...(item ? { parentItemId: item.parentItemId, messageId: item.messageId } : {}),
+                operator: state.user.email,
+                status: 'In Progress',
+                shortDescription,
+                description: String(description || '').slice(0, 4000),
+                agency: agency || '',
+                elapsedTime: String(Number(minutes) || 0),
+                ...(forwardGroup ? { forwardGroup } : {})
+            }, 'POST');
+            return toTicket(result.ticket);
+        },
+        async editTicket(number, changes, force = false) {
+            const result = await call('ManageTicket', { action: 'editTicket', ticketId: number, force, ...changes }, 'POST');
+            return toTicket(result.ticket);
+        },
+        // Testo e azione sul ticket: commento nelle note (con data e autore), risoluzione/annullamento nelle note di
+        // risoluzione; un commento su un ticket in attesa lo rimette in lavorazione.
+        async updateTicket(ticket, type, text, addMinutes) {
+            const changes = {};
+            if (text) {
+                if (type === 'resolve' || type === 'cancel') changes.resolutionNotes = text.slice(0, NOTES_MAX);
+                else {
+                    const line = `${fullWhen(new Date().toISOString())} ${currentUser().displayValue}: ${text}`;
+                    changes.notes = (ticket.notes ? `${ticket.notes}\n${line}` : line).slice(-NOTES_MAX);
+                }
+            }
+            if (type === 'resolve') changes.status = 'Resolved';
+            if (type === 'cancel') changes.status = 'Canceled';
+            if (type === 'hold') changes.status = 'On Hold';
+            if (type === 'comment' && ticket.status === 'On Hold') changes.status = 'In Progress';
+            if (Number(addMinutes)) changes.elapsedTime = String(Math.max(0, ticket.minutes + Number(addMinutes)));
+            return Object.keys(changes).length ? Data.editTicket(ticket.number, changes) : ticket;
+        },
+        forward: (item, group) => call('ForwardConversation', { parentItemId: item.parentItemId, groupName: group.id }, 'POST'),
+        // Risposta a tutti dalla casella del servizio. Senza destinatari e oggetto: quelli della risposta a tutti
+        // (presa in carico, inoltro con la sigla del gruppo).
+        reply: (parentItemId, options) => call('ReplyAll', { parentItemId, ...options }, 'POST')
+    };
+
+    // ------------------------------------------------------------------
+    // Stato
+    // ------------------------------------------------------------------
+    const TABS = [
+        { id: 'work', label: 'Thread', icon: 'queue' },
+        { id: 'utility', label: 'Utility', icon: 'utility' },
+        { id: 'tools', label: 'Tools', icon: 'tools' }
+    ];
+    const state = {
+        user: null,
+        config: {},
+        settings: loadSettings(),
+        tab: 'work',
+        section: 'active',
+        lists: { active: [], ignored: [], tickets: [] },
+        found: null, // risultati della ricerca nei ticket
+        search: '',
+        loaded: false,
+        error: '',
+        selected: null, // chiave dell'elemento aperto (thread:<id>, ticket:<numero>, new)
+        threads: new Map(), // parentItemId → { messages, bodies: Map, loading, error }
+        drafts: new Map(), // parentItemId → risposta in corso
+        panel: null, // azione aperta nella colonna dei dettagli: take | forward | update
+        forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
+        forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
+        busy: false,
+        armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
+        toast: null
+    };
+    const allItems = () => [...state.lists.active, ...state.lists.ignored, ...state.lists.tickets, ...(state.found || [])];
+    const selectedItem = () => allItems().find(item => item.key === state.selected) || null;
+    const threadItemFor = ticket => state.lists.active.find(item => item.parentItemId === ticket.parentItemId) || null;
+
+    // Pillola dell'esito, in basso.
+    let toastTimer = null;
+    function showStatus(text, tone = 'success') {
+        state.toast = { text, tone };
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { state.toast = null; render(); }, 3800);
+        render();
+    }
+    // Esegue un'azione: blocca i pulsanti, mostra l'esito; se il thread è cambiato nel frattempo aggiorna tutto.
+    async function run(action, done) {
+        if (state.busy) return null;
+        state.busy = true;
+        render();
+        try {
+            const result = await action();
+            if (done) showStatus(typeof done === 'function' ? done(result) : done);
+            return result ?? true;
+        } catch (error) {
+            console.error('[Magus]', error);
+            if (CHANGED[error.reason]) {
+                showStatus(CHANGED[error.reason], 'warning');
+                if (error.reason !== 'not_tagged') reloadAll();
+            } else showStatus(error.message || 'Operazione non riuscita', 'danger');
+            return null;
+        } finally {
+            state.busy = false;
+            render();
+        }
+    }
+
+    async function loadLists() {
+        try {
+            const [active, ignored, tickets] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets()]);
+            Object.assign(state.lists, { active, ignored, tickets });
+            state.error = '';
+        } catch (error) {
+            state.error = error.message;
+        }
+        state.loaded = true;
+        render();
+    }
+    function reloadAll() {
+        state.threads.clear();
+        loadLists().then(() => { const item = selectedItem(); if (item) openThread(item.parentItemId); });
+    }
+    async function openThread(parentItemId) {
+        if (!parentItemId || state.threads.has(parentItemId)) return;
+        const thread = { messages: [], bodies: new Map(), loading: true, error: '' };
+        state.threads.set(parentItemId, thread);
+        try { thread.messages = await Data.messages(parentItemId); }
+        catch (error) { thread.error = error.message; }
+        thread.loading = false;
+        render();
+        await Promise.all(thread.messages.map(async message => {
+            try { thread.bodies.set(message.id, await Data.body(message.id)); }
+            catch (error) { thread.bodies.set(message.id, { error: error.message }); }
+            render();
+        }));
+    }
+    function select(item) {
+        state.selected = item.key;
+        state.panel = null;
+        state.armed = null;
+        render();
+        openThread(item.parentItemId);
+    }
+    function closeSelected() {
+        state.selected = null;
+        state.panel = null;
+        render();
+    }
+
+    // ------------------------------------------------------------------
+    // Azioni
+    // ------------------------------------------------------------------
+    // Tag: tuo → lo togli; di un collega → secondo clic per subentrare; nessuno → lo metti.
+    async function toggleTag(item) {
+        const mine = item.status === 'Working' && isMe(item.assignedTo);
+        const other = item.assignedTo && !mine && ['Working', 'Ignored'].includes(item.status);
+        if (other && state.armed !== item.key) { state.armed = item.key; render(); return; }
+        state.armed = null;
+        const done = await run(() => Data.thread(item, mine ? 'untag' : 'tag', other ? { force: true } : {}), mine ? 'Tag tolto' : 'Tag messo');
+        if (done) await loadLists();
+    }
+    // Presa in carico, inoltro e ignora vogliono il proprio tag: se manca si mette prima.
+    async function ensureTag(item) {
+        if (item.status === 'Working' && isMe(item.assignedTo)) return;
+        if (item.assignedTo && !isMe(item.assignedTo)) {
+            const error = new Error(CHANGED.tagged_by_other);
+            error.reason = 'not_tagged';
+            throw error;
+        }
+        await Data.thread(item, 'tag');
+    }
+
+    // Presa in carico: Agenzia (suggerita dal dominio del mittente), Attività, Short description; i Dettagli mostrano
+    // i campi del ticket e il link di AMP già compilato.
+    function suggestCompany(from, subject) {
+        const domain = String(from?.email || '').split('@')[1]?.toLowerCase() || '';
+        const companies = Object.entries(state.settings.companies);
+        const byDomain = domain && companies.find(([, company]) => company.domains.some(item => domain === item || domain.endsWith(`.${item}`)));
+        if (byDomain) return byDomain[0];
+        const text = String(subject || '').toLowerCase();
+        return companies.find(([, company]) => company.name && text.includes(company.name.toLowerCase()))?.[0] || '';
+    }
+    function takeDraft(item) {
+        const key = `take:${item?.key || 'new'}`;
+        if (!state.forms.has(key)) {
+            const thread = item && state.threads.get(item.parentItemId);
+            const first = thread?.messages?.[0];
+            state.forms.set(key, {
+                companyId: item ? suggestCompany(item.from, item.subject) : '',
+                activityId: '',
+                subject: item ? cleanSubject(item.subject) : '',
+                description: first ? thread.bodies.get(first.id)?.text || '' : '',
+                detailsOpen: false
+            });
+        }
+        return state.forms.get(key);
+    }
+    const SEVERITY = { '1': '1 - High', '2': '2 - Medium', '3': '3 - Low' };
+    const AMP_LINK_MAX = 6000;
+    function ticketFields(draft) {
+        const company = state.settings.companies[draft.companyId];
+        const activity = state.settings.activities[draft.activityId];
+        if (!company || !activity) return null;
+        const prefix = activity.shortDescriptionPrefix || '';
+        return {
+            company: reference(company.company),
+            assignmentGroup: reference(company.assignmentGroup),
+            assignedTo: state.settings.profile.assignedTo,
+            category: reference(activity.category),
+            impact: activity.impact,
+            urgency: activity.urgency,
+            minutes: Number(activity.timeWorked) || 0,
+            shortDescription: prefix ? `${prefix} ${draft.subject.replace(/^\s*\[[^\]]+\]\s*/, '')}`.trim() : draft.subject.trim(),
+            description: String(draft.description || '').slice(0, 4000)
+        };
+    }
+    // Nuovo incident su AMP con i campi già compilati ("^" separa i campi: nel testo si raddoppia).
+    function ampLink(fields) {
+        const value = text => String(text ?? '').replace(/\^/g, '^^');
+        const worked = fields.minutes ? `1970-01-01 ${pad(Math.floor(fields.minutes / 60))}:${pad(fields.minutes % 60)}:00` : '';
+        const pairs = [
+            ['company', fields.company.value], ['assignment_group', fields.assignmentGroup.value], ['assigned_to', fields.assignedTo.value],
+            ['x_avana_platform_category_value', fields.category.value], ['impact', fields.impact], ['urgency', fields.urgency],
+            ['short_description', fields.shortDescription], ['time_worked', worked]
+        ].filter(([, text]) => text);
+        const base = `https://amp.service-now.com/incident.do?sys_id=-1&sysparm_query=${encodeURIComponent(pairs.map(([name, text]) => `${name}=${value(text)}`).join('^'))}`;
+        const description = text => (text ? encodeURIComponent(`^description=${value(text)}`) : '');
+        let text = fields.description;
+        while (text && (base + description(text)).length > AMP_LINK_MAX) text = text.slice(0, Math.floor(text.length * .8));
+        return base + description(text);
+    }
+    async function takeCharge(item) {
+        const draft = takeDraft(item);
+        const fields = ticketFields(draft);
+        if (!fields) return showStatus('Scegli agenzia e attività', 'danger');
+        const company = state.settings.companies[draft.companyId];
+        const thread = item && state.threads.get(item.parentItemId);
+        const ticket = await run(async () => {
+            if (item) {
+                await ensureTag(item);
+                await Data.thread({ ...item, messageCount: thread?.messages?.length || item.messageCount }, 'acquire');
+            }
+            return Data.createTicket(item ? { ...item, messageId: thread?.messages?.[0]?.id } : null,
+                { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes });
+        }, created => `Ticket ${created.number} aperto`);
+        if (!ticket) return;
+        state.forms.delete(`take:${item?.key || 'new'}`);
+        state.panel = null;
+        await loadLists();
+        state.selected = ticket.key;
+        render();
+        openThread(ticket.parentItemId);
+    }
+    async function ignoreThread(item) {
+        const done = await run(async () => { await ensureTag(item); await Data.thread(item, 'ignore'); }, 'Ignorata');
+        if (done) { closeSelected(); await loadLists(); }
+    }
+    async function restoreThread(item) {
+        const done = await run(() => Data.thread(item, 'restore'), 'Rimessa in coda');
+        if (done) { closeSelected(); await loadLists(); }
+    }
+
+    // Inoltro in quattro passi: ticket, risposta con la sigla del gruppo, inoltro, chiusura del ticket. Al primo passo
+    // che non riesce si ferma; il ticket resta tra gli aperti con la striscia dei passi e si riprende da lì.
+    const FORWARD_STEPS = [['ticket', 'Ticket'], ['reply', 'Risposta'], ['forward', 'Inoltro'], ['close', 'Chiusura']];
+    const FORWARD_ACTIONS = {
+        ticket: async job => {
+            await ensureTag(job.item);
+            job.ticket = await Data.createTicket({ ...job.item, messageId: job.messageId },
+                { agency: '', shortDescription: cleanSubject(job.item.subject), description: job.description, minutes: 0, forwardGroup: job.group.name || job.group.tag });
+        },
+        reply: job => Data.reply(job.item.parentItemId, { tag: job.group.tag, reference: job.ticket.ampReference || job.ticket.number, ticketId: job.ticket.number }),
+        forward: job => Data.forward(job.item, job.group),
+        close: async job => { job.ticket = await Data.updateTicket(job.ticket, 'resolve', `Inoltrato a ${job.group.tag}`); }
+    };
+    async function runForward(job, from) {
+        for (let index = from; index < FORWARD_STEPS.length; index += 1) {
+            job.steps[index] = 'run';
+            render();
+            try {
+                await FORWARD_ACTIONS[FORWARD_STEPS[index][0]](job);
+                job.steps[index] = 'ok';
+            } catch (error) {
+                console.error('[Magus]', error);
+                job.steps[index] = 'ko';
+                job.error = error;
+                render();
+                return false;
+            }
+        }
+        render();
+        return true;
+    }
+    async function forwardThread(item, group) {
+        const thread = state.threads.get(item.parentItemId);
+        const first = thread?.messages?.[0];
+        const job = { item, group, messageId: first?.id, description: first ? thread.bodies.get(first.id)?.text || '' : '', ticket: null, steps: FORWARD_STEPS.map(() => 'wait') };
+        state.panel = { type: 'forwarding', job };
+        state.busy = true;
+        const ok = await runForward(job, 0);
+        state.busy = false;
+        if (!job.ticket) {
+            state.panel = null;
+            if (CHANGED[job.error?.reason]) { showStatus(CHANGED[job.error.reason], 'warning'); reloadAll(); }
+            else showStatus('Inoltro non riuscito', 'danger');
+            return;
+        }
+        if (ok) {
+            state.panel = null;
+            showStatus(`Inoltrata a ${group.tag}`);
+            closeSelected();
+        } else {
+            state.forwardJobs.set(job.ticket.number, job);
+            const stuck = FORWARD_STEPS[job.steps.indexOf('ko')][1];
+            showStatus(`Bloccato su ${stuck}`, 'warning');
+            state.selected = job.ticket.key;
+            state.panel = null;
+        }
+        await loadLists();
+    }
+    // Inoltro fermo a metà su un ticket: i passi si ricavano dal ticket se la pagina non l'ha seguito.
+    function forwardJobFor(ticket) {
+        if (!ticket.forwardGroup || !OPEN_TICKET_STATUSES.includes(ticket.status)) return null;
+        if (!state.forwardJobs.has(ticket.number)) {
+            const group = forwardGroups().find(entry => [entry.name, entry.id, entry.tag].includes(ticket.forwardGroup));
+            if (!group) return null;
+            state.forwardJobs.set(ticket.number, {
+                item: { parentItemId: ticket.parentItemId, subject: ticket.subject }, group, ticket,
+                steps: ['ok', ticket.repliedAt ? 'ok' : 'ko', ticket.repliedAt ? 'ko' : 'wait', 'wait']
+            });
+        }
+        return state.forwardJobs.get(ticket.number);
+    }
+    async function resumeForward(job, index) {
+        if (state.busy) return;
+        state.busy = true;
+        const ok = await runForward(job, index);
+        state.busy = false;
+        if (ok) {
+            state.forwardJobs.delete(job.ticket.number);
+            showStatus(`Inoltrata a ${job.group.tag}`);
+            closeSelected();
+        }
+        await loadLists();
+    }
+
+    // Aggiornamento del ticket: commento, risoluzione, attesa, annullamento; minuti da aggiungere al tempo lavorato.
+    const UPDATE_TYPES = [['comment', 'Aggiorna'], ['resolve', 'Risolvi'], ['hold', 'In attesa'], ['cancel', 'Annulla']];
+    async function updateTicket(ticket) {
+        const draft = state.forms.get(`update:${ticket.number}`) || { type: 'comment', text: '', minutes: '' };
+        if (!draft.text.trim() && draft.type === 'comment' && !Number(draft.minutes)) return showStatus('Scrivi il commento', 'danger');
+        const label = { comment: 'Ticket aggiornato', resolve: 'Ticket risolto', hold: 'Ticket in attesa', cancel: 'Ticket annullato' }[draft.type];
+        const done = await run(() => Data.updateTicket(ticket, draft.type, draft.text.trim(), draft.minutes), label);
+        if (!done) return;
+        state.forms.delete(`update:${ticket.number}`);
+        state.panel = null;
+        if (draft.type === 'resolve' || draft.type === 'cancel') closeSelected();
+        await loadLists();
+    }
+
+    // Risposta a tutti con i destinatari e l'oggetto scelti.
+    async function sendReply(item, thread) {
+        const draft = draftFor(item, thread);
+        if (!draft.text.trim()) return showStatus('Scrivi la risposta', 'danger');
+        if (!addresses(draft.to).length) return showStatus('Manca il destinatario', 'danger');
+        const ticket = item.key.startsWith('ticket:') ? item : null;
+        const done = await run(() => Data.reply(item.parentItemId, {
+            text: draft.text.trim(), to: addresses(draft.to), cc: addresses(draft.cc), bcc: addresses(draft.bcc), subject: draft.subject,
+            ...(ticket ? { ticketId: ticket.number, reference: ticket.ampReference || ticket.number } : {})
+        }), 'Risposta inviata');
+        if (!done) return;
+        state.drafts.delete(item.parentItemId);
+        state.threads.delete(item.parentItemId);
+        openThread(item.parentItemId);
+    }
+
+    async function search(text) {
+        state.search = text;
+        if (!text.trim()) { state.found = null; render(); return; }
+        const found = await run(() => Data.searchTickets(text.trim()));
+        state.found = found || [];
+        render();
+    }
+
+    // ------------------------------------------------------------------
+    // Interfaccia
+    // ------------------------------------------------------------------
+    const root = document.getElementById('app');
+    function empty(iconName, text) {
+        return h('div', { class: 'empty' }, icon(ICONS[iconName]), text);
+    }
+    function button(label, onclick, { kind = '', iconName = '', disabled = false, wide = false } = {}) {
+        return h('button', { type: 'button', class: `btn${kind ? ` ${kind}` : ''}${wide ? ' wide' : ''}`, disabled: disabled || state.busy, onclick }, iconName ? icon(ICONS[iconName]) : null, label);
+    }
+    function link(label, onclick, iconName = '', extra = {}) {
+        return h('button', { type: 'button', class: `link${extra.danger ? ' danger' : ''}`, disabled: state.busy, onclick, title: extra.title }, iconName ? icon(ICONS[iconName]) : null, label);
+    }
+    // Elenco a discesa del browser, nello stile del pannello.
+    function dropdown(label, options, value, onchange) {
+        return h('label', { class: 'field-input' }, h('span', {}, label),
+            h('select', { onchange: event => onchange(event.target.value) },
+                options.map(([id, text]) => h('option', { value: id, selected: id === value }, text))));
+    }
+    function input(label, value, onchange, extra = {}) {
+        return h('label', { class: 'field-input' }, h('span', {}, label),
+            h(extra.multiline ? 'textarea' : 'input', { id: extra.id, value, type: extra.type, min: extra.min, placeholder: extra.placeholder, oninput: event => onchange(event.target.value) }));
+    }
+
+    function topbar() {
+        const counts = { work: state.lists.tickets.length + state.lists.active.length };
+        return h('header', { class: 'topbar' },
+            h('span', { class: 'brand' }, 'Magus'),
+            h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sezioni' },
+                TABS.map(tab => h('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(state.tab === tab.id), onclick: () => { state.tab = tab.id; render(); } },
+                    icon(ICONS[tab.icon]), h('span', { class: 'tab-label' }, tab.label), counts[tab.id] !== undefined && state.loaded ? h('span', { class: 'count' }, String(counts[tab.id])) : null))),
+            h('div', { class: 'account' },
+                h('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(state.user?.name)),
+                h('span', { class: 'name' }, state.user?.name || ''),
+                h('button', { type: 'button', class: 'link', title: 'Esci', 'aria-label': 'Esci', onclick: () => window.MagusAuth.logout() }, icon(ICONS.logout))));
+    }
+
+    function threadTag(item) {
+        if (['Working', 'Ignored'].includes(item.status) && item.assignedTo) {
+            return h('span', { class: `tag${isMe(item.assignedTo) ? ' mine' : ''}` }, surname(operatorName(item.assignedTo)));
+        }
+        if (item.status === 'New' || item.status === 'Ignored') return null;
+        return h('span', { class: 'tag' }, THREAD_STATUS[item.status] || item.status);
+    }
+    function listItem(item) {
+        const ticket = item.key.startsWith('ticket:');
+        return h('li', {},
+            h('button', { type: 'button', class: 'item', 'aria-current': String(item.key === state.selected), onclick: () => select(item) },
+                h('span', { class: 'item-top' },
+                    h('span', { class: 'item-title' }, item.subject),
+                    h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
+                h('span', { class: 'item-meta' },
+                    ticket ? h('span', {}, [item.number, item.agency].filter(Boolean).join(' · ')) : h('span', {}, item.from.name),
+                    ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : threadTag(item),
+                    ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null)));
+    }
+    // Una vista sola: i ticket aperti e, sotto, i thread in coda; le ignorate a parte. La ricerca filtra quello che
+    // c'è e, con Invio, cerca anche tra tutti i ticket.
+    function listColumn() {
+        const needle = state.search.trim().toLowerCase();
+        const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference].some(text => String(text || '').toLowerCase().includes(needle));
+        const sections = state.section === 'ignored'
+            ? [['', state.lists.ignored.filter(match)]]
+            : [['Ticket aperti', state.lists.tickets.filter(match)], ['In coda', state.lists.active.filter(match)],
+                ...(state.found ? [['Ricerca nei ticket', state.found.filter(item => !state.lists.tickets.some(open => open.number === item.number))]] : [])];
+        const shown = sections.filter(([, list]) => list.length);
+        const head = h('div', { class: 'column-head stack' },
+            h('div', { class: 'segmented', role: 'group', 'aria-label': 'Sezione' },
+                [['active', 'Attive', 'queue', state.lists.tickets.length + state.lists.active.length], ['ignored', 'Ignorate', 'ignored', state.lists.ignored.length]].map(([id, label, iconName, count]) =>
+                    h('button', { type: 'button', class: 'segment', 'aria-pressed': String(state.section === id), onclick: () => { state.section = id; closeSelected(); } },
+                        icon(ICONS[iconName]), label, h('span', { class: 'count' }, String(count))))),
+            h('div', { class: 'search-row' },
+                h('label', { class: 'search' }, icon(ICONS.search),
+                    h('input', { id: 'search', type: 'search', placeholder: 'Cerca', value: state.search, 'aria-label': 'Cerca',
+                        oninput: event => { state.search = event.target.value; if (!state.search) state.found = null; render(); },
+                        onkeydown: event => { if (event.key === 'Enter') search(event.target.value); } })),
+                h('button', { type: 'button', class: 'btn icon-only', title: 'Nuovo ticket', 'aria-label': 'Nuovo ticket', onclick: () => { state.selected = 'new'; state.panel = null; render(); } }, icon(ICONS.plus))));
+        const body = !state.loaded ? empty('queue', 'Caricamento…')
+            : state.error ? empty('queue', state.error)
+                : shown.length ? shown.map(([title, list]) => h('section', { class: 'group' },
+                    title ? h('h2', { class: 'group-title' }, title, h('span', { class: 'count' }, String(list.length))) : null,
+                    h('ul', { class: 'list' }, list.map(listItem))))
+                    : empty('queue', needle ? 'Nessun risultato' : state.section === 'ignored' ? 'Nessuna ignorata' : 'Niente in coda');
+        return h('section', { class: 'column', 'aria-label': 'Elenco' },
+            h('div', { class: 'card' }, head, h('div', { class: 'scroll', 'data-scroll': `list:${state.section}` }, body)));
+    }
+
+    function message(item, thread) {
+        const body = thread.bodies.get(item.id);
+        const service = sameEmail(item.from.email, serviceMailbox());
+        return h('article', { class: `message${service ? ' service' : ''}` },
+            h('div', { class: 'message-head' },
+                h('span', { class: 'message-from' }, item.from.name),
+                h('span', { class: 'message-time' }, fullWhen(item.receivedAt))),
+            !body ? h('p', { class: 'message-body loading' }, 'Caricamento…')
+                : body.error ? h('p', { class: 'message-body loading' }, body.error)
+                    : h('p', { class: 'message-body' }, body.text),
+            item.hasAttachment || body?.hasAttachments
+                ? h('div', { class: 'attachments' }, h('span', { class: 'attachment' }, icon(ICONS.attach), 'Allegati'))
+                : null);
+    }
+    // Risposta a tutti precompilata dall'ultima mail arrivata (non della casella del servizio): A = chi l'ha scritta,
+    // Cc = gli altri destinatari, Oggetto = RE: della mail. Tutto modificabile; Ccn su richiesta.
+    function draftFor(item, thread) {
+        const id = item.parentItemId;
+        if (state.drafts.has(id)) return state.drafts.get(id);
+        const service = serviceMailbox();
+        const last = [...thread.messages].reverse().find(entry => !sameEmail(entry.from.email, service)) || thread.messages[thread.messages.length - 1];
+        const body = last && thread.bodies.get(last.id);
+        const to = last?.from.email || '';
+        const cc = [...(body?.to || []), ...(body?.cc || [])].filter(address => address && !sameEmail(address, service) && !sameEmail(address, to));
+        const subject = last?.subject || item.subject || '';
+        return { to, cc: [...new Set(cc)].join('; '), bcc: '', subject: /^re:/i.test(subject) ? subject : `RE: ${subject}`, text: '', bccOpen: false };
+    }
+    function composer(item, thread) {
+        const id = item.parentItemId;
+        const draft = draftFor(item, thread);
+        const change = (key, value) => { state.drafts.set(id, { ...draftFor(item, thread), [key]: value }); };
+        const responses = Object.entries(state.settings.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
+        const field = (key, label) => h('label', { class: 'compose-field' },
+            h('span', {}, label),
+            h('input', { id: `reply-${key}-${id}`, value: draft[key], autocomplete: 'off', oninput: event => change(key, event.target.value) }),
+            key === 'cc' && !draft.bccOpen ? h('button', { type: 'button', class: 'link', onclick: () => { change('bccOpen', true); render(); document.getElementById(`reply-bcc-${id}`)?.focus(); } }, 'Ccn') : null);
+        return h('div', { class: 'composer' },
+            field('to', 'A'),
+            field('cc', 'Cc'),
+            draft.bccOpen ? field('bcc', 'Ccn') : null,
+            field('subject', 'Oggetto'),
+            h('textarea', { id: `reply-text-${id}`, placeholder: 'Rispondi a tutti', 'aria-label': 'Testo della risposta', oninput: event => change('text', event.target.value) }, draft.text),
+            h('div', { class: 'composer-actions' },
+                responses.length ? h('label', { class: 'link responses' }, icon(ICONS.responses), 'Risposte',
+                    h('select', { 'aria-label': 'Risposte utili', onchange: event => { const chosen = state.settings.usefulResponses[event.target.value]; if (chosen) { change('text', chosen.response || ''); render(); } } },
+                        h('option', { value: '' }, ''), responses.map(([key, entry]) => h('option', { value: key }, entry.title)))) : null,
+                button('Invia', () => sendReply(item, thread), { kind: 'primary', iconName: 'send' })));
+    }
+    function threadColumn(item) {
+        if (state.selected === 'new') return newTicketColumn();
+        if (!item) return h('section', { class: 'column', 'aria-label': 'Thread' }, h('div', { class: 'card' }, empty('mail', 'Scegli un thread')));
+        const thread = state.threads.get(item.parentItemId);
+        const ready = thread && !thread.loading && !thread.error;
+        const content = !item.parentItemId ? empty('mail', 'Ticket senza mail')
+            : !thread || thread.loading ? empty('mail', 'Caricamento…')
+                : thread.error ? empty('mail', thread.error)
+                    : h('div', { class: 'messages' }, [...thread.messages].reverse().map(entry => message(entry, thread)));
+        return h('section', { class: 'column', 'aria-label': 'Thread' },
+            h('div', { class: 'card' },
+                h('div', { class: 'thread-head' },
+                    h('button', { type: 'button', class: 'link back', onclick: closeSelected }, icon(ICONS.back), 'Elenco'),
+                    h('h1', { class: 'thread-title' }, item.subject),
+                    h('div', { class: 'thread-sub' }, thread?.messages?.length ? `${thread.messages.length} mail` : '')),
+                h('div', { class: 'scroll thread-body', 'data-scroll': `thread:${item.key}` },
+                    h('div', { class: 'side side-inline' }, sideContent(item)),
+                    ready && item.section !== 'ignored' ? composer(item, thread) : null,
+                    content)));
+    }
+
+    // Ticket senza mail: lo stesso modulo della presa in carico, con la descrizione scritta a mano.
+    function newTicketColumn() {
+        const draft = takeDraft(null);
+        return h('section', { class: 'column', 'aria-label': 'Nuovo ticket' },
+            h('div', { class: 'card' },
+                h('div', { class: 'thread-head' },
+                    h('button', { type: 'button', class: 'link back', onclick: closeSelected }, icon(ICONS.back), 'Elenco'),
+                    h('h1', { class: 'thread-title' }, 'Nuovo ticket')),
+                h('div', { class: 'scroll side' },
+                    takeForm(null),
+                    input('Descrizione', draft.description, value => { draft.description = value; }, { multiline: true, id: 'new-description' }),
+                    h('div', { class: 'actions-row' }, button('Annulla', closeSelected), button('Crea ticket', () => takeCharge(null), { kind: 'primary', iconName: 'check' })))));
+    }
+
+    function fields(rows) {
+        return h('dl', { class: 'fields' }, rows.filter(([, value]) => value).map(([label, value]) => h('div', { class: 'field' }, h('dt', {}, label), h('dd', {}, value))));
+    }
+    function takeForm(item) {
+        const draft = takeDraft(item);
+        const companies = Object.entries(state.settings.companies).sort(byName);
+        const activities = Object.entries(state.settings.activities).sort(byName);
+        const details = ticketFields(draft);
+        return h('div', { class: 'form' },
+            companies.length && activities.length ? null : h('p', { class: 'hint' }, 'Importa le configurazioni in Tools'),
+            dropdown('Agenzia', [['', 'Scegli'], ...companies.map(([id, company]) => [id, company.name])], draft.companyId, value => { draft.companyId = value; render(); }),
+            dropdown('Attività', [['', 'Scegli'], ...activities.map(([id, activity]) => [id, activity.name])], draft.activityId, value => { draft.activityId = value; render(); }),
+            input('Short description', draft.subject, value => { draft.subject = value; }, { id: `take-subject-${item?.key || 'new'}` }),
+            details ? h('details', { class: 'details', open: draft.detailsOpen, ontoggle: event => { draft.detailsOpen = event.target.open; } },
+                h('summary', {}, 'Dettagli'),
+                fields([
+                    ['Company', details.company.displayValue],
+                    ['Gruppo', details.assignmentGroup.displayValue],
+                    ['Assegnato a', details.assignedTo.displayValue],
+                    ['Categoria', details.category.displayValue],
+                    ['Impatto / Urgenza', `${SEVERITY[details.impact] || '?'} / ${SEVERITY[details.urgency] || '?'}`],
+                    ['Tempo lavorato', `${details.minutes} min`]
+                ]),
+                h('div', { class: 'amp-link' },
+                    h('input', { value: ampLink(details), readonly: true, 'aria-label': 'Link di AMP', onfocus: event => event.target.select() }),
+                    link('Copia', async () => {
+                        try { await navigator.clipboard.writeText(ampLink(details)); showStatus('Link copiato'); }
+                        catch { showStatus('Copia non riuscita', 'danger'); }
+                    }, 'copy'))) : null);
+    }
+    function forwardStrip(job, retry) {
+        return h('div', { class: 'steps', role: 'list' }, FORWARD_STEPS.map(([, label], index) => {
+            const status = job.steps[index];
+            const mark = status === 'ok' ? icon(ICONS.check) : status === 'ko' ? icon(ICONS.close) : status === 'run' ? h('span', { class: 'spinner' }) : null;
+            const dot = status === 'ko' && retry
+                ? h('button', { type: 'button', class: 'step-dot', title: `Riprova: ${label}`, 'aria-label': `Riprova: ${label}`, onclick: () => retry(index) }, mark)
+                : h('span', { class: 'step-dot' }, mark);
+            return h('div', { class: `step ${status}`, role: 'listitem' }, dot, h('span', { class: 'step-label' }, label));
+        }));
+    }
+
+    function threadSide(item) {
+        const mine = item.status === 'Working' && isMe(item.assignedTo);
+        const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
+        const tagRow = h('div', { class: 'tag-row' },
+            tagged ? h('span', { class: `tag${mine ? ' mine' : ''}` }, operatorName(item.assignedTo)) : h('span', { class: 'hint' }, 'Nessun tag'),
+            link(mine ? 'Togli' : tagged ? (state.armed === item.key ? 'Clic di nuovo per conferma' : 'Subentra') : 'Metti il tag', () => toggleTag(item), 'tag'));
+        const info = fields([
+            ['Stato', item.status === 'Working' ? 'In coda' : THREAD_STATUS[item.status] || item.status],
+            ['Ignorata da', item.status === 'Ignored' ? operatorName(item.statusBy) : ''],
+            ['Mail', String(item.messageCount || '')],
+            ['Ultima', fullWhen(item.receivedAt)]
+        ]);
+        if (item.section === 'ignored') {
+            return [h('h2', {}, 'Ignorata'), tagRow, info, h('div', { class: 'actions' }, button('Rimetti in coda', () => restoreThread(item), { kind: 'primary', iconName: 'restore', wide: true }))];
+        }
+        if (state.panel?.type === 'forwarding') return [h('h2', {}, `Inoltro a ${state.panel.job.group.tag}`), forwardStrip(state.panel.job)];
+        if (state.panel === 'take') {
+            return [h('h2', {}, 'Presa in carico'), takeForm(item),
+                h('div', { class: 'actions-row' }, button('Annulla', () => { state.panel = null; render(); }), button('Crea ticket', () => takeCharge(item), { kind: 'primary', iconName: 'check' }))];
+        }
+        if (state.panel === 'forward') {
+            const groups = forwardGroups();
+            return [h('h2', {}, 'Inoltra a'),
+                groups.length ? h('div', { class: 'choices' }, groups.map(group => button(group.name ? `${group.tag} · ${group.name}` : group.tag, () => forwardThread(item, group), { wide: true }))) : h('p', { class: 'hint' }, 'Nessun gruppo nella config'),
+                h('div', { class: 'actions-row' }, button('Annulla', () => { state.panel = null; render(); }))];
+        }
+        return [h('h2', {}, 'Thread'), tagRow, info,
+            h('div', { class: 'actions' },
+                button('Prendi in carico', () => { state.panel = 'take'; render(); }, { kind: 'primary', iconName: 'take', wide: true }),
+                h('div', { class: 'actions-row' },
+                    button('Inoltra', () => { state.panel = 'forward'; render(); }, { iconName: 'forward' }),
+                    button('Ignora', () => ignoreThread(item), { kind: 'danger', iconName: 'ignore' })))];
+    }
+    function ticketSide(item) {
+        const job = forwardJobFor(item);
+        const draft = state.forms.get(`update:${item.number}`) || { type: 'comment', text: '', minutes: '' };
+        const keep = () => state.forms.set(`update:${item.number}`, draft);
+        const parts = [h('h2', {}, item.number),
+            fields([
+                ['Stato', TICKET_STATUS[item.status] || item.status],
+                ['Agenzia', item.agency],
+                ['Operatore', operatorName(item.operator)],
+                ['AMP', item.ampReference],
+                ['Inoltrato a', item.forwardGroup],
+                ['Aperto', fullWhen(item.openedAt)],
+                ['Tempo lavorato', item.minutes ? `${item.minutes} min` : '']
+            ])];
+        if (item.found && !OPEN_TICKET_STATUSES.includes(item.status)) return parts;
+        if (job) parts.push(h('div', { class: 'forward-box' }, h('span', { class: 'hint' }, `Inoltro a ${job.group.tag}`), forwardStrip(job, index => resumeForward(job, index))));
+        parts.push(h('div', { class: 'form' },
+            h('div', { class: 'segmented small', role: 'group', 'aria-label': 'Azione' },
+                UPDATE_TYPES.map(([type, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(draft.type === type), onclick: () => { draft.type = type; keep(); render(); } }, label))),
+            input(draft.type === 'resolve' || draft.type === 'cancel' ? 'Note di risoluzione' : 'Commento', draft.text, value => { draft.text = value; keep(); }, { multiline: true, id: `update-text-${item.number}` }),
+            input('Minuti da aggiungere', draft.minutes, value => { draft.minutes = value; keep(); }, { type: 'number', min: '0', id: `update-minutes-${item.number}` }),
+            button(UPDATE_TYPES.find(([type]) => type === draft.type)[1], () => updateTicket(item), { kind: draft.type === 'cancel' ? 'danger' : 'primary', wide: true })));
+        return parts;
+    }
+    function sideContent(item) {
+        return item.key.startsWith('ticket:') ? ticketSide(item) : threadSide(item);
+    }
+    function sideColumn(item) {
+        return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
+            h('div', { class: 'card' }, item ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item)) : empty('ticket', '')));
+    }
+
+    // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
+    function toolsView() {
+        const profile = state.settings.profile.assignedTo;
+        const counts = `${Object.keys(state.settings.companies).length} agenzie · ${Object.keys(state.settings.activities).length} attività · ${Object.keys(state.settings.usefulResponses).length} risposte`;
+        const importFile = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                state.settings = normalizeSettings(JSON.parse(await file.text()));
+                saveSettings(state.settings);
+                showStatus('Configurazioni importate');
+            } catch { showStatus('File non valido', 'danger'); }
+        } });
+        const exportLink = () => {
+            const blob = new Blob([JSON.stringify(state.settings, null, 2)], { type: 'application/json' });
+            const anchor = h('a', { href: URL.createObjectURL(blob), download: 'magus-configurazioni.json' });
+            anchor.click();
+            setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
+        };
+        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll tools' },
+            h('section', { class: 'tool' },
+                h('h2', {}, 'Profilo'),
+                input('Assegnato a (nome su AMP)', profile.displayValue, value => { profile.displayValue = value; saveSettings(state.settings); }, { id: 'profile-name' }),
+                input('sys_id su AMP', profile.value, value => { profile.value = value; saveSettings(state.settings); }, { id: 'profile-sysid' })),
+            h('section', { class: 'tool' },
+                h('h2', {}, 'Configurazioni'),
+                h('p', { class: 'hint' }, counts),
+                h('div', { class: 'link-actions' }, importFile,
+                    link('Importa JSON', () => importFile.click(), 'import'),
+                    link('Esporta JSON', exportLink, 'export'))),
+            h('section', { class: 'tool' },
+                h('h2', {}, 'Elenchi'),
+                h('div', { class: 'link-actions' }, link('Aggiorna adesso', () => reloadAll(), 'refresh')))))));
+    }
+
+    function workspace() {
+        if (state.tab === 'tools') return toolsView();
+        if (state.tab === 'utility') return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, empty('utility', 'Utility'))));
+        const item = selectedItem();
+        return h('main', { class: `workspace${item || state.selected === 'new' ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
+    }
+    function toast() {
+        return state.toast ? h('div', { class: `toast ${state.toast.tone}`, role: 'status' }, state.toast.text) : null;
+    }
+
+    // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
+    function render() {
+        if (!state.user) return;
+        const scrolls = new Map([...root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll, node.scrollTop]));
+        const active = document.activeElement;
+        const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
+        root.replaceChildren(topbar(), workspace(), toast() || '');
+        root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
+        const field = focus && document.getElementById(focus.id);
+        if (field) {
+            field.focus();
+            try { if (typeof focus.start === 'number') field.setSelectionRange(focus.start, focus.end); } catch { /* campo senza selezione */ }
+        }
+    }
+
+    // Chi non è entrato vede solo Accedi (login Microsoft con reindirizzamento, poi si torna qui).
+    function loginScreen() {
+        return h('main', { class: 'login' },
+            h('div', { class: 'card' },
+                h('h1', {}, 'Magus'),
+                h('button', { type: 'button', class: 'btn primary wide', onclick: () => window.MagusAuth.login() },
+                    icon('<path d="M12 4h3a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 15 16h-3M7.5 13.5 11 10 7.5 6.5M11 10H3.5"/>'), 'Accedi con Microsoft')));
+    }
+
+    // Aggiornamento degli elenchi: ogni config.refresh.listsSeconds (60 s) e quando la pagina torna in primo piano.
+    function scheduleRefresh() {
+        const seconds = Math.min(900, Math.max(15, Number(state.config.refresh?.listsSeconds) || 60));
+        setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); }, seconds * 1000);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); });
+    }
+
+    (async () => {
+        state.user = await Data.session();
+        if (!state.user) { root.replaceChildren(loginScreen()); return; }
+        render();
+        try { state.config = await Data.config(); } catch { state.config = {}; }
+        await loadLists();
+        scheduleRefresh();
+    })();
+})();
+
+</script>
+</body>
+</html>
