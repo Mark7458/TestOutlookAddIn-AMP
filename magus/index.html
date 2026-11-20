@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Magus</title>
 <style>
-/* Magus: vetro scuro del pannello AMP. Token in :root, una regola per tipo di elemento. */
+/* Magus: tema e stile del pannello AMP (Impostazioni → Profilo → Aspetto). Vetro scuro in :root; data-mode (light/dark)
+   e data-style (glass/flat) su <html> ridefiniscono solo i token. Gli elementi usano solo i token. */
 :root {
   color-scheme: dark;
   --bg: #0f1420;
@@ -25,6 +26,19 @@
   --selected: rgba(124, 180, 255, .14);
   --working: #e3b65c;
   --danger: #f08a8a;
+  --success: #8fd6b0;
+  --track: rgba(0, 0, 0, .2); /* fondo di schede e selettori */
+  --field-bg: rgba(0, 0, 0, .18);
+  --option-bg: #1b2130;
+  --menu-bg: rgba(24, 30, 44, .94);
+  --toast-bg: rgba(22, 28, 42, .92);
+  --message-bg: rgba(255, 255, 255, .035);
+  --message-service-bg: rgba(124, 180, 255, .06);
+  --panel-bg: rgba(255, 255, 255, .03);
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .07);
+  --thumb-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .25);
+  --menu-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .18);
   --radius: 12px;
   --radius-lg: 16px;
   --blur: blur(18px);
@@ -39,6 +53,110 @@
   --glow-hover: 0 0 24px rgba(80, 150, 255, .66), 0 0 6px rgba(80, 150, 255, .38);
   --glow-left: -7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
   --glow-right: 7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
+  --label: #0078d4; /* colore della propria etichetta (Profilo) */
+}
+/* Vetro chiaro */
+:root[data-mode="light"] {
+  color-scheme: light;
+  --bg: #e9f1fb;
+  --glow-a: rgba(121, 184, 255, .45);
+  --glow-b: rgba(185, 168, 245, .32);
+  --surface: rgba(255, 255, 255, .72);
+  --surface-strong: rgba(255, 255, 255, .96);
+  --hover: rgba(255, 255, 255, .9);
+  --line: rgba(0, 40, 90, .1);
+  --line-strong: rgba(0, 0, 0, .16);
+  --text: #242424;
+  --muted: #605e5c;
+  --subtle: #8a8886;
+  --accent: #106ebe;
+  --accent-fill: rgba(15, 95, 191, .86);
+  --accent-line: rgba(0, 90, 180, .35);
+  --selected: rgba(0, 120, 212, .1);
+  --working: #8a5a00;
+  --danger: #a4262c;
+  --success: #107c10;
+  --track: rgba(214, 224, 240, .6);
+  --field-bg: rgba(255, 255, 255, .7);
+  --option-bg: #fff;
+  --menu-bg: rgba(251, 252, 254, .96);
+  --toast-bg: rgba(255, 255, 255, .94);
+  --message-bg: rgba(255, 255, 255, .55);
+  --message-service-bg: rgba(0, 120, 212, .07);
+  --panel-bg: rgba(255, 255, 255, .5);
+  --card-shadow: 0 6px 20px rgba(30, 60, 110, .08), inset 0 1px 0 rgba(255, 255, 255, .6);
+  --thumb-shadow: 0 1px 3px rgba(0, 0, 0, .1);
+  --menu-shadow: 0 12px 32px rgba(30, 60, 110, .18);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .22);
+  --blur: blur(14px) saturate(1.2);
+}
+/* Flat scuro (come Outlook scuro): niente trasparenze, sfocature e bagliori */
+:root[data-style="flat"] {
+  --bg: #201f1e;
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --surface: #2d2c2b;
+  --surface-strong: #3b3a39;
+  --hover: #3b3a39;
+  --line: #484644;
+  --line-strong: #605e5c;
+  --text: #f3f2f1;
+  --muted: #c8c6c4;
+  --subtle: #a19f9d;
+  --accent: #6cb8f6;
+  --accent-fill: #0078d4;
+  --accent-line: #3a6a8f;
+  --selected: #19344a;
+  --working: #f0d257;
+  --danger: #ffb3b8;
+  --success: #6ccb5f;
+  --track: #252423;
+  --field-bg: #252423;
+  --option-bg: #2d2c2b;
+  --menu-bg: #2d2c2b;
+  --toast-bg: #2d2c2b;
+  --message-bg: #292827;
+  --message-service-bg: #1d2f3f;
+  --panel-bg: #292827;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+  --highlight: 0 0 transparent;
+  --blur: none;
+  --glow-rest: 0 0 transparent;
+  --glow-hover: 0 0 transparent;
+  --glow-left: 0 0 transparent;
+  --glow-right: 0 0 transparent;
+}
+/* Flat chiaro (come Outlook) */
+:root[data-style="flat"][data-mode="light"] {
+  --bg: #f5f5f5;
+  --surface: #fff;
+  --surface-strong: #fff;
+  --hover: #faf9f8;
+  --line: #e1dfdd;
+  --line-strong: #c8c6c4;
+  --text: #242424;
+  --muted: #605e5c;
+  --subtle: #8a8886;
+  --accent: #106ebe;
+  --accent-fill: #0078d4;
+  --accent-line: #c7e0f4;
+  --selected: #eff6fc;
+  --working: #8a5a00;
+  --danger: #a4262c;
+  --success: #107c10;
+  --track: #edebe9;
+  --field-bg: #fff;
+  --option-bg: #fff;
+  --menu-bg: #fff;
+  --toast-bg: #fff;
+  --message-bg: #faf9f8;
+  --message-service-bg: #eff6fc;
+  --panel-bg: #faf9f8;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .1);
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, .14);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -52,22 +170,22 @@ button { font: inherit; color: inherit; }
 
 /* Superfici */
 .card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .07); }
+  box-shadow: var(--card-shadow); }
 
 /* Pulsanti: pieno (azione principale), contorno, comando di testo */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px;
   background: transparent; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color .3s, border-color .3s, box-shadow .35s, filter .3s, transform .15s var(--ease); }
 .btn:active:not(:disabled) { transform: scale(.97); }
 .btn:hover { background: var(--hover); }
-.btn.primary { border-color: var(--accent-line); background: var(--accent-fill); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-rest); }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-hover); animation: call-on .4s ease-out, call-sway 4.8s ease-in-out .4s infinite; }
-.btn.danger:hover:not(:disabled) { background: rgba(240, 138, 138, .1); border-color: var(--danger); }
-@keyframes call-on { from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-rest); } }
+.btn.primary { border-color: var(--accent-line); background: var(--accent-fill); color: #fff; box-shadow: var(--highlight), var(--glow-rest); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: var(--highlight), var(--glow-hover); animation: call-on .4s ease-out, call-sway 4.8s ease-in-out .4s infinite; }
+.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); border-color: var(--danger); }
+@keyframes call-on { from { box-shadow: var(--highlight), var(--glow-rest); } }
 @keyframes call-sway {
-  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-hover); }
-  25% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-left); }
-  75% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), var(--glow-right); } }
-.btn.danger { border-color: rgba(240, 138, 138, .4); color: var(--danger); }
+  0%, 100% { box-shadow: var(--highlight), var(--glow-hover); }
+  25% { box-shadow: var(--highlight), var(--glow-left); }
+  75% { box-shadow: var(--highlight), var(--glow-right); } }
+.btn.danger { border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); }
 .btn.wide { width: 100%; }
 .link { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; text-decoration: none; cursor: pointer; transition: color .2s; }
 .link:hover { color: var(--text); }
@@ -82,7 +200,7 @@ button { font: inherit; color: inherit; }
 .app { height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
 .topbar { flex: none; display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand { font-size: var(--fs-lg); font-weight: 600; letter-spacing: .2px; }
-.tabs { position: relative; min-width: 0; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .18); overflow-x: auto; }
+.tabs { position: relative; min-width: 0; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track); overflow-x: auto; }
 .tab { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-weight: 500; white-space: nowrap; cursor: pointer; transition: color .25s; }
 .tab:hover { color: var(--text); }
 .tab[aria-selected="true"] { color: var(--text); }
@@ -98,7 +216,7 @@ button { font: inherit; color: inherit; }
 .account .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* Menu a tendina dell'utente */
 .menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: grid; min-width: 220px; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius);
-  background: rgba(24, 30, 44, .94); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); animation: menu-in .2s var(--ease) both; }
+  background: var(--menu-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); animation: menu-in .2s var(--ease) both; }
 .menu-head { display: grid; gap: 1px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .menu-head .name { color: var(--text); font-size: var(--fs-sm); font-weight: 600; }
 .menu-head .email { color: var(--subtle); font-size: var(--fs-xs); overflow-wrap: anywhere; }
@@ -114,11 +232,11 @@ button { font: inherit; color: inherit; }
 .column-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 0; }
 
 /* Selettore della sezione (Attive / Ignorate) */
-.segmented { position: relative; display: flex; flex: 1; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, .2); }
+.segmented { position: relative; display: flex; flex: 1; padding: 3px; border-radius: 10px; background: var(--track); }
 .segment { position: relative; z-index: 1; transition: color .25s; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
 .segment[aria-pressed="true"] { color: var(--text); }
 /* Pillola della voce scelta (schede e selettori): un elemento solo che scivola (animate() in app.js) */
-.thumb { position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; border-radius: 8px; background: var(--surface-strong); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .25); pointer-events: none; }
+.thumb { position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; border-radius: 8px; background: var(--surface-strong); box-shadow: var(--thumb-shadow); pointer-events: none; }
 .tabs .thumb { border-radius: 9px; }
 .thumb.moving { transition: transform var(--motion), width var(--motion); }
 
@@ -134,8 +252,8 @@ button { font: inherit; color: inherit; }
 .item-meta { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
 .item-meta > span:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .tag { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text); font-size: var(--fs-xs); font-weight: 500; }
-.tag.mine { border-color: var(--accent-line); color: var(--accent); }
-.tag.working { border-color: rgba(227, 182, 92, .45); color: var(--working); }
+.tag.mine { border-color: color-mix(in srgb, var(--label) 60%, transparent); background: color-mix(in srgb, var(--label) 22%, transparent); color: color-mix(in srgb, var(--label) 45%, var(--text)); }
+.tag.working { border-color: color-mix(in srgb, var(--working) 50%, transparent); color: var(--working); }
 .count-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-fill); color: #fff; font-size: var(--fs-xs); font-weight: 600; text-align: center; line-height: 20px; }
 
 /* Thread */
@@ -143,8 +261,8 @@ button { font: inherit; color: inherit; }
 .thread-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; text-wrap: balance; }
 .thread-sub { margin-top: 2px; color: var(--muted); font-size: var(--fs-sm); }
 .messages { display: grid; gap: 10px; }
-.message { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .035); }
-.message.service { background: rgba(124, 180, 255, .06); }
+.message { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--message-bg); }
+.message.service { background: var(--message-service-bg); }
 .message-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-bottom: 6px; color: var(--muted); font-size: var(--fs-sm); }
 .message-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
 .message-time { margin-left: auto; flex: none; color: var(--subtle); font-size: var(--fs-xs); }
@@ -153,7 +271,7 @@ button { font: inherit; color: inherit; }
 .attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .attachment { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: var(--fs-xs); }
 .thread-body { display: grid; gap: 12px; align-content: start; }
-.composer { display: grid; gap: 0; padding: 4px 12px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: rgba(0, 0, 0, .16); }
+.composer { display: grid; gap: 0; padding: 4px 12px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--field-bg); }
 .compose-field { display: flex; align-items: center; gap: 10px; min-width: 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 .compose-field > span { flex: none; width: 56px; color: var(--muted); }
 .compose-field input { flex: 1; min-width: 0; height: 36px; border: 0; background: none; color: var(--text); font: inherit; outline-offset: -2px; }
@@ -178,9 +296,9 @@ button { font: inherit; color: inherit; }
 /* Moduli */
 .form { display: grid; gap: 10px; }
 .field-input { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
-.field-input :is(input, select, textarea), .search input, .amp-link input { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: rgba(0, 0, 0, .18); color: var(--text); font: inherit; font-size: var(--fs-md); }
+.field-input :is(input, select, textarea), .search input, .amp-link input { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--text); font: inherit; font-size: var(--fs-md); }
 .field-input textarea { height: auto; min-height: 90px; padding: 8px 10px; resize: vertical; }
-.field-input select option { background: #1b2130; }
+.field-input select option { background: var(--option-bg); }
 .hint { margin: 0; color: var(--subtle); font-size: var(--fs-sm); }
 .details { border-top: 1px solid var(--line); padding-top: 8px; font-size: var(--fs-sm); }
 .details summary { color: var(--accent); font-weight: 500; cursor: pointer; }
@@ -208,22 +326,39 @@ button { font: inherit; color: inherit; }
 .step-dot .icon { width: 13px; height: 13px; }
 .step.ok { color: var(--accent); } .step.ok .step-dot { border-color: var(--accent-line); background: var(--selected); }
 .step.run { color: var(--text); }
-.step.ko { color: var(--danger); } .step.ko .step-dot { border-color: rgba(240, 138, 138, .5); cursor: pointer; }
+.step.ko { color: var(--danger); } .step.ko .step-dot { border-color: color-mix(in srgb, var(--danger) 50%, transparent); cursor: pointer; }
 .spinner { width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Pillola dell'esito */
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: calc(100% - 32px); padding: 9px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
-  background: rgba(22, 28, 42, .92); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); color: var(--text); font-size: var(--fs-sm); font-weight: 500; transform: translateX(-50%); }
-.toast.success { color: #8fd6b0; } .toast.warning { color: var(--working); } .toast.danger { color: var(--danger); }
+  background: var(--toast-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); color: var(--text); font-size: var(--fs-sm); font-weight: 500; transform: translateX(-50%); }
+.toast.success { color: var(--success); } .toast.warning { color: var(--working); } .toast.danger { color: var(--danger); }
+
+/* Impostazioni: finestra in sovrimpressione, con il resto sfocato dietro */
+.modal-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--bg) 45%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); animation: fade-in .25s var(--ease) both; }
+.modal { background: var(--menu-bg); display: flex; flex-direction: column; width: min(760px, 100%); height: min(720px, 100%); min-height: 0; animation: modal-in .32s var(--ease) both; }
+.modal-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
+.modal-head h2 { margin: 0; margin-right: auto; font-size: var(--fs-lg); font-weight: 600; }
+.modal-close { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; transition: background-color .2s, color .2s; }
+.modal-close:hover { background: var(--hover); color: var(--text); }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+/* Etichetta: palette dei colori (Profilo) */
+.palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { min-width: 28px; height: 26px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--swatch) 60%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--swatch) 22%, transparent); color: color-mix(in srgb, var(--swatch) 45%, var(--text)); font-size: var(--fs-xs); font-weight: 600; cursor: pointer; transition: transform .15s var(--ease), box-shadow .25s; }
+.swatch:hover { transform: scale(1.06); }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface-strong), 0 0 0 3px color-mix(in srgb, var(--swatch) 70%, transparent); }
+.field-label { color: var(--muted); font-size: var(--fs-sm); }
 
 /* Impostazioni */
-.settings { display: grid; gap: 14px; align-content: start; width: 100%; max-width: 720px; margin: 0 auto; padding: 16px; }
-.settings .tool { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .025); }
-.settings-head { width: 100%; max-width: 720px; margin: 0 auto; padding: 14px 16px 0; }
+.settings { display: grid; gap: 14px; align-content: start; padding: 16px; }
+.settings .tool { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); }
+.settings-head { padding: 12px 16px 0; }
 .new-item { justify-self: start; }
 .config-list { gap: 8px; }
-.config-item { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, .03); transition: border-color .3s, box-shadow .35s; }
+.config-item { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); transition: border-color .3s, box-shadow .35s; }
 .config-item.open { padding: 14px; border-color: var(--accent-line); box-shadow: var(--glow-rest); animation: enter-up .3s var(--ease) both; }
 .config-face { display: grid; gap: 4px; width: 100%; padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--radius); transition: background-color .2s; }
 .config-face:hover { background: var(--hover); }
@@ -443,6 +578,11 @@ button { font: inherit; color: inherit; }
         companies: '<rect x="4" y="3.5" width="12" height="13" rx="1.5"/><path d="M7.5 7h1M11.5 7h1M7.5 10h1M11.5 10h1M9 16.5v-3h2v3"/>',
         activities: '<path d="M8 5.5h8.5M8 10h8.5M8 14.5h8.5"/><circle cx="4.5" cy="5.5" r=".9"/><circle cx="4.5" cy="10" r=".9"/><circle cx="4.5" cy="14.5" r=".9"/>',
         caret: '<path d="M6 8l4 4 4-4"/>',
+        auto: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/>',
+        light: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M4.7 15.3L6 14M14 6l1.3-1.3"/>',
+        dark: '<path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/>',
+        flat: '<rect x="4" y="4" width="12" height="12" rx="2"/>',
+        glass: '<rect x="3" y="3" width="10" height="10" rx="2"/><rect x="7" y="7" width="10" height="10" rx="2"/>',
         trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>'
     };
 
@@ -486,6 +626,20 @@ button { font: inherit; color: inherit; }
     // Configurazioni dell'operatore (come nel pannello: profilo, agenzie, attività, risposte utili)
     // ------------------------------------------------------------------
     const SETTINGS_KEY = 'snow_ticket_assistant_v1';
+    // Colori dell'etichetta dell'operatore (gli stessi del pannello).
+    const LABELS = {
+        rosso: '#d13438', arancio: '#ca5010', ambra: '#c19c00', verde: '#107c10', acqua: '#038387',
+        azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
+    };
+    // Tema (automatico, chiaro, scuro) e stile (vetro, flat) delle preferenze, sulla radice della pagina.
+    const darkQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+    function applyAppearance(settings) {
+        const theme = settings.preferences.theme || 'auto';
+        const dark = theme === 'dark' || (theme === 'auto' && (darkQuery ? darkQuery.matches : true));
+        document.documentElement.dataset.mode = dark ? 'dark' : 'light';
+        document.documentElement.dataset.style = settings.preferences.style === 'flat' ? 'flat' : 'glass';
+        document.documentElement.style.setProperty('--label', LABELS[settings.profile.label] || LABELS.azzurro);
+    }
     function reference(value) {
         if (!value) return { value: '', displayValue: '' };
         if (typeof value === 'string') return { value: '', displayValue: value };
@@ -500,7 +654,8 @@ button { font: inherit; color: inherit; }
         });
         return {
             ...object(data),
-            profile: { ...object(data?.profile), assignedTo: reference(data?.profile?.assignedTo) },
+            profile: { ...object(data?.profile), assignedTo: reference(data?.profile?.assignedTo), label: LABELS[data?.profile?.label] ? data.profile.label : 'azzurro' },
+            preferences: { ...object(data?.preferences) },
             companies,
             activities: object(data?.activities),
             usefulResponses: object(data?.usefulResponses)
@@ -717,6 +872,7 @@ button { font: inherit; color: inherit; }
         forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
         busy: false,
         menuOpen: false, // menu a tendina dell'utente
+        settingsOpen: false, // finestra delle impostazioni
         settingsTab: 'profile',
         editing: null, // voce aperta nelle impostazioni { kind, id } (id null = nuova)
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
@@ -1076,7 +1232,7 @@ button { font: inherit; color: inherit; }
                 icon(ICONS.caret)),
             state.menuOpen ? h('div', { class: 'menu', role: 'menu' },
                 h('div', { class: 'menu-head' }, h('span', { class: 'name' }, state.user?.name || ''), h('span', { class: 'email' }, state.user?.email || '')),
-                item('Impostazioni', 'settings', () => { state.tab = 'settings'; state.editing = null; render(); }),
+                item('Impostazioni', 'settings', () => { state.settingsOpen = true; state.editing = null; render(); }),
                 item('Esci', 'logout', () => window.MagusAuth.logout())) : null);
     }
 
@@ -1385,9 +1541,24 @@ button { font: inherit; color: inherit; }
             SETTINGS_TABS.map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.settingsTab = id; state.editing = null; render(); } },
                 icon(ICONS[id === 'responses' ? 'responses' : id]), label,
                 id !== 'profile' ? h('span', { class: 'count' }, String(Object.keys(state.settings[collectionOf(id)]).length)) : null)));
-        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' },
-            h('div', { class: 'column-head settings-head' }, bar),
-            h('div', { class: 'scroll settings', 'data-scroll': `settings:${tab}` }, tab === 'profile' ? profileSection() : collectionSection(tab)))));
+        return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeSettings(); } },
+            h('section', { class: 'card modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Impostazioni' },
+                h('div', { class: 'modal-head' }, h('h2', {}, 'Impostazioni'),
+                    h('button', { type: 'button', class: 'modal-close', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: closeSettings }, icon(ICONS.close))),
+                h('div', { class: 'column-head settings-head' }, bar),
+                h('div', { class: 'scroll settings', 'data-scroll': `settings:${tab}` }, tab === 'profile' ? profileSection() : collectionSection(tab))));
+    }
+    function closeSettings() {
+        state.settingsOpen = false;
+        state.editing = null;
+        state.armed = null;
+        render();
+    }
+    function setPreference(key, value) {
+        state.settings.preferences[key] = value;
+        saveSettings(state.settings);
+        applyAppearance(state.settings);
+        render();
     }
     function profileSection() {
         const profile = state.settings.profile.assignedTo;
@@ -1398,6 +1569,7 @@ button { font: inherit; color: inherit; }
             try {
                 state.settings = normalizeSettings(JSON.parse(await file.text()));
                 saveSettings(state.settings);
+                applyAppearance(state.settings);
                 showStatus('Configurazioni importate');
             } catch { showStatus('File non valido', 'danger'); }
         } });
@@ -1413,11 +1585,22 @@ button { font: inherit; color: inherit; }
                 input('Assegnato a', draft.name, value => { draft.name = value; }, { id: 'profile-name', placeholder: currentUser().displayValue }),
                 input('sys_id su AMP', draft.sysId, value => { draft.sysId = value; }, { id: 'profile-sysid' }),
                 profile.displayValue && !profile.value ? h('div', {}, chip('Da verificare', 'working')) : null,
+                h('div', { class: 'field-input' }, h('span', { class: 'field-label' }, 'Etichetta'),
+                    h('div', { class: 'palette', role: 'group', 'aria-label': 'Colore dell\'etichetta' }, Object.entries(LABELS).map(([key, color]) => h('button', {
+                        type: 'button', class: 'swatch', style: `--swatch: ${color}`, title: key, 'aria-label': key, 'aria-pressed': String(key === state.settings.profile.label),
+                        onclick: () => { state.settings.profile.label = key; saveSettings(state.settings); applyAppearance(state.settings); render(); }
+                    }, key === state.settings.profile.label ? surname(currentUser().displayValue) : '')))),
                 h('div', { class: 'actions-row start' }, button('Salva', () => {
                     state.settings.profile.assignedTo = { displayValue: draft.name.trim(), value: draft.sysId.trim() };
                     saveSettings(state.settings);
                     showStatus('Salvato');
                 }, { kind: 'primary', iconName: 'check' }))),
+            h('section', { class: 'tool' },
+                h('h2', {}, 'Aspetto'),
+                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Tema' },
+                    [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.theme || 'auto') === id), onclick: () => setPreference('theme', id) }, icon(ICONS[id]), label))),
+                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Stile' },
+                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String((state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id), onclick: () => setPreference('style', id) }, icon(ICONS[id]), label)))),
             h('section', { class: 'tool' },
                 h('h2', {}, 'Copia di sicurezza'),
                 h('div', { class: 'link-actions' }, importFile,
@@ -1504,7 +1687,6 @@ button { font: inherit; color: inherit; }
 
     function workspace() {
         if (state.tab === 'tools') return toolsView();
-        if (state.tab === 'settings') return settingsView();
         if (state.tab === 'utility') return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, empty('utility', 'Utility'))));
         const item = selectedItem();
         return h('main', { class: `workspace${item || state.selected === 'new' ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
@@ -1545,7 +1727,7 @@ button { font: inherit; color: inherit; }
     function animate() {
         slideThumb(root.querySelector('.tabs'), '.tab[aria-selected="true"]', 'tabs');
         root.querySelectorAll('.segmented').forEach(group => slideThumb(group, '.segment[aria-pressed="true"]', `segmented:${group.getAttribute('aria-label')}`));
-        const order = state.tab === 'settings' ? TABS.length : TABS.findIndex(tab => tab.id === state.tab); // le impostazioni stanno a destra delle schede
+        const order = TABS.findIndex(tab => tab.id === state.tab);
         if (motion.tab !== null && motion.tab !== order && !reducedMotion()) root.querySelector('.workspace')?.classList.add(order > motion.tab ? 'enter-next' : 'enter-back');
         motion.tab = order;
         if (state.tab !== 'work') return;
@@ -1562,7 +1744,7 @@ button { font: inherit; color: inherit; }
         const scrolls = new Map([...root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll, node.scrollTop]));
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
-        root.replaceChildren(topbar(), workspace(), toast() || '');
+        root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '');
         animate();
         root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
         const field = focus && document.getElementById(focus.id);
@@ -1593,8 +1775,12 @@ button { font: inherit; color: inherit; }
         if (state.menuOpen && !event.target.closest('.account')) { state.menuOpen = false; render(); }
     });
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && state.menuOpen) { state.menuOpen = false; render(); }
+        if (event.key !== 'Escape') return;
+        if (state.menuOpen) { state.menuOpen = false; render(); }
+        else if (state.settingsOpen) closeSettings();
     });
+    applyAppearance(state.settings);
+    darkQuery?.addEventListener?.('change', () => applyAppearance(state.settings));
 
     (async () => {
         state.user = await Data.session();
