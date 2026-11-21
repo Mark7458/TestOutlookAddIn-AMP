@@ -277,7 +277,7 @@ button { font: inherit; color: inherit; }
 .menu-item .icon { color: var(--muted); }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 322px; gap: 12px; } /* destra: 300 px di contenuto, come il pannello AMP */
+.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 373px; gap: 12px; } /* destra: la scheda larga come nel pannello AMP */
 .column { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .column > .card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 6px 10px 10px; scrollbar-gutter: stable; }
@@ -579,7 +579,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
 
 /* Schede del pannello nella colonna dei dettagli */
-.side .ao-host { position: relative; margin: -4px; padding: 4px; font-size: 14px; line-height: 1.4; color: var(--ao-text); }
+.side .ao-host { position: relative; margin: -4px; padding: 4px; font-size: var(--ao-fs-base); line-height: 1.4; color: var(--ao-text); }
 .side .ao-host .ao-ticket-card.ao-expanded { transform: none; }
 .side .ao-host .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 
@@ -971,6 +971,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                                                                  passaggio bordo --accent-line e bagliore che respira
    Sezione chiusa (2)   .list-section-toggle                     come .ao-closed-toggle (Ignorate in fondo a Posta)
    Freccia di chiusura  .ao-collapse                             come nel pannello
+
+   Schede del pannello (#ao-root.ao-host): testo e misure sono quelli del pannello AMP (13 px base, 12 voci e
+   anteprima, 11 etichette, pulsanti e campi alti 32, seminero 600); i colori restano quelli della mappa.
    ========================================================================================================== */
 
 /* Valori del pannello ricondotti a quelli di Magus */
@@ -992,13 +995,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   --ao-radius-base: 10px;
   --ao-radius-pill: 999px;
   --ao-radius-badge: 999px;
-  --ao-fs-xs: var(--fs-xs);
-  --ao-fs-sm: var(--fs-sm);
-  --ao-fs-md: var(--fs-md);
-  --ao-fs-lg: var(--fs-lg);
+  /* testo e misure del pannello AMP, uguali all'originale */
+  --ao-fs-xs: 10px;
+  --ao-fs-sm: 11px;
+  --ao-fs-md: 12px;
+  --ao-fs-base: 13px;
+  --ao-fs-lg: 14px;
+  --ao-fs-xl: 16px;
   --ao-fw-normal: 400;
-  --ao-fw-medium: 500;
-  --ao-control-height: 36px;
+  --ao-fw-medium: 600;
+  --ao-fw-bold: 700;
+  --ao-control-height: 32px;
   --ao-blur: none;
   --ao-shadow-card: 0 0 transparent;
   --ao-item-hover-glow: 0 0 transparent;
@@ -1011,56 +1018,56 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   --ao-selection-shadow: var(--seg-shadow);
   --ao-btn-highlight: var(--btn-highlight);
   --ao-tone-line: var(--btn-line);
-  font-size: var(--fs-md);
-  line-height: 1.45;
+  font-size: var(--ao-fs-base);
+  line-height: 1.4;
   color: var(--text);
 }
 
 /* Scheda interna */
-#ao-root.ao-host .ao-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); box-shadow: none; transform: none; filter: none; }
+#ao-root.ao-host .ao-item { padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); box-shadow: none; transform: none; filter: none; }
 #ao-root.ao-host .ao-item.ao-expanded { border-color: var(--accent-line); box-shadow: var(--glow-rest); transform: none; }
 #ao-root.ao-host .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--hover); box-shadow: none; }
 #ao-root.ao-host .ao-update-card { border-color: var(--line); }
 
 /* Campo */
-#ao-root.ao-host .ao-input { min-height: 36px; padding: 6px 10px; border: 1px solid var(--line-strong) !important; border-radius: 10px; background: var(--field-bg) !important; color: var(--text) !important; font-size: var(--fs-md); }
+#ao-root.ao-host .ao-input { min-height: var(--ao-control-height); padding: 6px 10px; border: 1px solid var(--line-strong) !important; border-radius: 10px; background: var(--field-bg) !important; color: var(--text) !important; }
 #ao-root.ao-host textarea.ao-input { padding: 8px 10px; }
-#ao-root.ao-host .ao-mail-preview { border-radius: 10px; background: var(--field-bg); color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-mail-preview { border-radius: 10px; background: var(--field-bg); color: var(--muted); }
 
 /* Etichetta di campo e titolo di sezione */
-#ao-root.ao-host .ao-label { color: var(--muted); font-size: var(--fs-sm); font-weight: 400; letter-spacing: 0; text-transform: none; }
-#ao-root.ao-host .ao-card-title { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+#ao-root.ao-host .ao-label { color: var(--muted); letter-spacing: 0; text-transform: none; }
+#ao-root.ao-host .ao-card-title { color: var(--text); }
 
 /* Area del selettore, voci e pillola */
 #ao-root.ao-host :is(.ao-segmented, .ao-choice) { padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track-in-card); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
-#ao-root.ao-host :is(.ao-segment, .ao-choice-option) { min-height: 30px; border-radius: 9px; font-size: var(--fs-sm); font-weight: 500; }
-#ao-root.ao-host .ao-choice-sub { font-size: var(--fs-xs); font-weight: 400; } /* colore come nel pannello (si tinge sulla voce scelta) */
+#ao-root.ao-host :is(.ao-segment, .ao-choice-option) { border-radius: 9px; }
+#ao-root.ao-host .ao-choice-sub { } /* colore come nel pannello (si tinge sulla voce scelta) */
 #ao-root.ao-host :is(.ao-segment-thumb, .ao-choice-thumb) { top: 3px; bottom: 3px; border-radius: 9px; }
 
 /* Pulsanti */
-#ao-root.ao-host .ao-button { min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: var(--fs-md); font-weight: 500; }
+#ao-root.ao-host .ao-button { padding: 0 14px; border-radius: 10px; }
 #ao-root.ao-host .ao-button:not(.ao-primary) { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
 #ao-root.ao-host .ao-button.ao-primary:not(.ao-fill-forward, .ao-fill-danger, .ao-fill-resolve, .ao-fill-hold) { border-color: var(--btn-line); background: var(--btn-fill); box-shadow: var(--btn-highlight); }
 
 /* Comando di testo */
-#ao-root.ao-host .ao-link-button { color: var(--accent); font-size: var(--fs-sm); font-weight: 500; letter-spacing: 0; text-transform: none; }
+#ao-root.ao-host .ao-link-button { color: var(--accent); letter-spacing: 0; text-transform: none; }
 #ao-root.ao-host .ao-link-button:hover:not(:disabled) { color: var(--text); }
 
 /* Etichetta (tag) */
-#ao-root.ao-host :is(.ao-user-tag, .ao-chip) { height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; box-shadow: none; color: var(--text); font-size: var(--fs-xs); font-weight: 500; line-height: 18px; }
+#ao-root.ao-host :is(.ao-user-tag, .ao-chip) { height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; box-shadow: none; color: var(--text); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); line-height: 18px; }
 #ao-root.ao-host .ao-user-tag.mine { border-color: color-mix(in srgb, var(--label) 60%, transparent); background: color-mix(in srgb, var(--label) 22%, transparent); color: color-mix(in srgb, var(--label) 45%, var(--text)); }
 #ao-root.ao-host .ao-chip.ao-tone-hold { border-color: color-mix(in srgb, var(--working) 50%, transparent); color: var(--working); }
 
 /* Tempo lavorato: area come i selettori, pulsanti come la pillola */
 #ao-root.ao-host .ao-timer { height: 32px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track-in-card); }
 #ao-root.ao-host .ao-timer-step { border-radius: 9px; background: var(--seg-thumb); box-shadow: inset 0 0 0 1px var(--seg-line), var(--seg-shadow); color: var(--text); }
-#ao-root.ao-host .ao-timer-value { font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-timer-value { }
 
 /* Testo della scheda */
-#ao-root.ao-host .ao-item-number { color: var(--accent); font-size: var(--fs-md); font-weight: 600; }
-#ao-root.ao-host .ao-item-title { color: var(--text); font-size: var(--fs-md); font-weight: 500; }
-#ao-root.ao-host :is(.ao-item-company, .ao-item-activity, .ao-item-sub, .ao-ticket-dates, .ao-item-time) { color: var(--muted); font-size: var(--fs-sm); }
-#ao-root.ao-host .ao-ticket-dates b { color: var(--text); font-weight: 500; }
+#ao-root.ao-host .ao-item-number { color: var(--accent); }
+#ao-root.ao-host .ao-item-title { color: var(--text); }
+#ao-root.ao-host :is(.ao-item-company, .ao-item-activity, .ao-item-sub, .ao-ticket-dates, .ao-item-time) { color: var(--muted); }
+#ao-root.ao-host .ao-ticket-dates b { color: var(--text); }
 
 /* Magus: il modulo di risposta è una scheda interna come le altre */
 .composer { border-color: var(--line); background: var(--panel-bg); }
@@ -1070,18 +1077,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
 /* Menu a tendina: come il menu dell'utente */
 #ao-root.ao-host .ao-menu { padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--menu-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); }
-#ao-root.ao-host .ao-menu-item { min-height: 34px; border-radius: 8px; color: var(--text); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-menu-item { min-height: 34px; border-radius: 8px; color: var(--text); }
 #ao-root.ao-host .ao-menu-item:hover, #ao-root.ao-host .ao-menu-item.ao-active { background: var(--hover); }
-#ao-root.ao-host .ao-menu-group { color: var(--subtle); font-size: var(--fs-xs); }
-#ao-root.ao-host .ao-select-search { color: var(--text); font-size: var(--fs-md); }
-#ao-root.ao-host .ao-suggest-tag { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--selected); color: var(--accent); font-size: var(--fs-xs); font-weight: 500; }
+#ao-root.ao-host .ao-menu-group { color: var(--subtle); }
+#ao-root.ao-host .ao-select-search { color: var(--text); }
+#ao-root.ao-host .ao-suggest-tag { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--selected); color: var(--accent); font-size: var(--ao-fs-xs); font-weight: var(--ao-fw-medium); }
 #ao-root.ao-host .ao-suggest-mark { color: var(--accent); }
 /* Ticket chiusi */
-#ao-root.ao-host .ao-closed-toggle { border: 1px dashed var(--line-strong); border-radius: 10px; background: none; color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-closed-toggle { border: 1px dashed var(--line-strong); border-radius: 10px; background: none; color: var(--muted); font-size: var(--ao-fs-md); }
 #ao-root.ao-host .ao-closed-item { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); }
 #ao-root.ao-host .ao-ticket-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* Testo citato */
-#ao-root.ao-host .ao-ticket-description { padding: 8px 10px; border-radius: 10px; background: var(--field-bg); color: var(--muted); font-size: var(--fs-sm); white-space: pre-line; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+#ao-root.ao-host .ao-ticket-description { padding: 8px 10px; border-radius: 10px; background: var(--field-bg); color: var(--muted); font-size: var(--ao-fs-md); white-space: pre-line; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
 /* Etichetta di un collega da prendere (due clic) */
 #ao-root.ao-host .ao-tag-swap { cursor: pointer; }
 #ao-root.ao-host .ao-tag-swap.ao-armed-tag { gap: 4px; border-color: color-mix(in srgb, var(--label) 60%, transparent); }
@@ -1092,7 +1099,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 /* Selettore a icone nella colonna stretta: la voce scelta ha spazio per il nome intero */
 #ao-root.ao-host .ao-segmented-icons .ao-segment.ao-grow { flex: 4; }
 /* Tools: riga della connessione (pallino, esito, Prova a destra) */
-#ao-root.ao-host .ao-health { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-health { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--ao-fs-md); }
 #ao-root.ao-host .ao-health .statusbar-dot.danger { background: var(--danger); }
 #ao-root.ao-host .ao-health .statusbar-dot.neutral { background: var(--subtle); }
 </style>
@@ -1104,7 +1111,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 (() => {
   const ME = 'utente@esempio.it', BOX = 'servizio@esempio.it';
   const ago = minutes => new Date(Date.now() - minutes * 60000).toISOString();
-  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PEL: { name: 'PEL', code: 'PEL' }, PO: { name: 'Posta', code: 'PO' } },
+  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PEL: { name: 'Amministratori PEL', code: 'PEL' }, PO: { name: 'Post Office', code: 'PO' } },
     agencies: { 'AG-DEM': { shortName: 'DEM', displayName: 'Agenzia del Demanio' }, 'AG-BETA': { shortName: 'BETA', displayName: 'Agenzia Beta' } },
     utilities: { operations: [{ id: 'SharedMailboxAddMembers', name: 'Membri di una casella condivisa', service: 'Exchange Online', icon: '📬', auth: 'certificate', agencies: ['AG-DEM', 'AG-BETA'],
       fields: [{ id: 'mailbox', label: 'Casella condivisa', type: 'email', required: true }, { id: 'members', label: 'Membri', type: 'emailList', required: true, source: 'selectedMail' }, { id: 'rights', label: 'Permessi', type: 'choice', multiple: true, options: ['FullAccess', 'SendAs'], default: ['FullAccess'] }, { id: 'automap', label: 'Automapping', type: 'switch', default: true }],
