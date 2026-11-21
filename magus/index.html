@@ -1719,7 +1719,7 @@ button { font: inherit; color: inherit; }
                 action('Rispondi', 'reply', event => openComposer(item, thread, 'one', event.currentTarget, entry.id), { 'data-action': 'one' }),
                 action('Rispondi a tutti', 'replyAll', event => openComposer(item, thread, 'all', event.currentTarget, entry.id), { 'data-action': 'all' }),
                 queue ? action('Inoltra', 'cardForward', () => openCard(item, entry.id, 'forward')) : null,
-                queue ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null) : null);
+                queue && !service ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null) : null);
         return composing ? [article, composer(item, thread)] : article;
     }
     // Risposta precompilata dalla mail scelta: A = chi l'ha scritta (se è nostra, i suoi destinatari), Cc = gli altri
