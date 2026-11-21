@@ -37,8 +37,8 @@
   --option-bg: #1b2130;
   --menu-bg: rgba(24, 30, 44, .94);
   --toast-bg: rgba(22, 28, 42, .92);
-  --message-bg: rgba(255, 255, 255, .075);
-  --message-service-bg: rgba(15, 95, 191, .36);
+  --message-bg: rgba(255, 255, 255, .045);
+  --message-service-bg: rgba(40, 110, 220, .13);
   --panel-bg: rgba(255, 255, 255, .03);
   --card-shadow: 0 10px 30px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .07);
   --thumb-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .25);
@@ -59,8 +59,9 @@
   --glow-left: -7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
   --glow-right: 7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
   --label: #0078d4; /* colore della propria etichetta (Profilo) */
-  --chat-bg: rgba(0, 0, 0, .22);
+  --chat-bg: transparent;
   --message-service-text: #e8f1ff;
+  --message-service-line: rgba(124, 180, 255, .28);
 }
 /* Vetro chiaro */
 :root[data-mode="light"] {
@@ -91,16 +92,17 @@
   --option-bg: #fff;
   --menu-bg: rgba(251, 252, 254, .96);
   --toast-bg: rgba(255, 255, 255, .94);
-  --message-bg: rgba(255, 255, 255, .9);
-  --message-service-bg: rgba(0, 120, 212, .14);
+  --message-bg: rgba(255, 255, 255, .6);
+  --message-service-bg: rgba(0, 120, 212, .08);
   --panel-bg: rgba(255, 255, 255, .5);
   --card-shadow: 0 6px 20px rgba(30, 60, 110, .08), inset 0 1px 0 rgba(255, 255, 255, .6);
   --thumb-shadow: 0 1px 3px rgba(0, 0, 0, .1);
   --menu-shadow: 0 12px 32px rgba(30, 60, 110, .18);
   --highlight: inset 0 1px 0 rgba(255, 255, 255, .22);
   --blur: blur(14px) saturate(1.2);
-  --chat-bg: rgba(0, 40, 90, .035);
+  --chat-bg: transparent;
   --message-service-text: #0b2a4a;
+  --message-service-line: rgba(0, 120, 212, .3);
 }
 /* Flat scuro (come Outlook scuro): niente trasparenze, sfocature e bagliori */
 :root[data-style="flat"] {
@@ -131,8 +133,8 @@
   --option-bg: #2d2c2b;
   --menu-bg: #2d2c2b;
   --toast-bg: #2d2c2b;
-  --message-bg: #2d2c2b;
-  --message-service-bg: #173350;
+  --message-bg: #262524;
+  --message-service-bg: #1a2d42;
   --panel-bg: #292827;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, .3);
   --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .3);
@@ -143,8 +145,9 @@
   --glow-hover: 0 0 transparent;
   --glow-left: 0 0 transparent;
   --glow-right: 0 0 transparent;
-  --chat-bg: #191817;
+  --chat-bg: transparent;
   --message-service-text: #f3f2f1;
+  --message-service-line: #2f5a85;
 }
 /* Flat chiaro (come Outlook) */
 :root[data-style="flat"][data-mode="light"] {
@@ -173,13 +176,14 @@
   --menu-bg: #fff;
   --toast-bg: #fff;
   --message-bg: #fff;
-  --message-service-bg: #deecf9;
+  --message-service-bg: #eff6fc;
   --panel-bg: #faf9f8;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, .06);
   --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .1);
   --menu-shadow: 0 8px 24px rgba(0, 0, 0, .14);
-  --chat-bg: #f3f2f1;
+  --chat-bg: transparent;
   --message-service-text: #242424;
+  --message-service-line: #b4d6fa;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -308,12 +312,12 @@ button { font: inherit; color: inherit; }
 .thread-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; text-wrap: balance; }
 .thread-sub { margin-top: 2px; color: var(--muted); font-size: var(--fs-sm); }
 .messages { display: grid; gap: 10px; }
-/* Mail come in una chat, ma leggera: fumetti pieni su un fondo più scuro; le nostre a destra e di un altro colore */
-.thread-body { background: var(--chat-bg); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.message { justify-self: start; width: fit-content; min-width: min(260px, 100%); max-width: 86%; padding: 10px 14px 6px; border-radius: 14px 14px 14px 14px; border-top-left-radius: 4px; background: var(--message-bg); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
-.message.service { justify-self: end; border-top-left-radius: 14px; border-top-right-radius: 4px; background: var(--message-service-bg); color: var(--message-service-text); }
+/* Mail come mail, con un leggero spostamento: le nostre un po' a destra e di un altro colore, le altre un po' a sinistra */
+.message { margin-right: 9%; padding: 12px 14px 6px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--message-bg); }
+.message.service { margin-right: 0; margin-left: 9%; border-color: var(--message-service-line); background: var(--message-service-bg); }
 .message-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-bottom: 6px; color: var(--muted); font-size: var(--fs-sm); }
-.message-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: inherit; font-weight: 600; }
+.message-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
+.message.service .message-from { color: var(--accent); }
 .message-time { margin-left: auto; flex: none; color: var(--subtle); font-size: var(--fs-xs); }
 .message-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 /* Comandi della mail: in fondo al fumetto, discreti */
@@ -322,10 +326,10 @@ button { font: inherit; color: inherit; }
 .message-action:hover { background: var(--hover); color: var(--accent); }
 .message-action:active { transform: scale(.96); }
 .message-action .icon { width: 15px; height: 15px; }
-.message.service .message-action { color: color-mix(in srgb, var(--message-service-text) 70%, transparent); }
 :root[data-layout="mobile"] .message-action span { display: none; }
 :root[data-layout="mobile"] .message-action { width: 36px; height: 32px; justify-content: center; padding: 0; }
-:root[data-layout="mobile"] .message { max-width: 92%; }
+:root[data-layout="mobile"] .message { margin-right: 6%; }
+:root[data-layout="mobile"] .message.service { margin-right: 0; margin-left: 6%; }
 .message-body.loading { color: var(--subtle); }
 .attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .attachment { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: var(--fs-xs); }
@@ -495,7 +499,12 @@ button { font: inherit; color: inherit; }
 .card-modal #ao-root .ao-item { list-style: none; }
 .card-modal #ao-root .ao-mail-preview { max-height: 180px; overflow-y: auto; }
 
-/* Componenti della scheda del pannello AMP (CSS originale del pannello, solo le parti della scheda) */
+/* Schede del pannello nella colonna dei dettagli */
+.side .ao-host { position: relative; margin: -4px; padding: 4px; font-size: 14px; line-height: 1.4; color: var(--ao-text); }
+.side .ao-host .ao-ticket-card.ao-expanded { transform: none; }
+.side .ao-host .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+
+/* Componenti delle schede del pannello AMP (CSS originale del pannello, solo le parti delle schede) */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
 #ao-root[data-theme="dark"] { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; }
 @media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; } }
@@ -540,6 +549,7 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-button.ao-fill-danger { --ao-btn: var(--ao-tone-ignore); }
 #ao-root .ao-button.ao-fill-resolve { --ao-btn: var(--ao-tone-resolve); }
 #ao-root .ao-button.ao-fill-hold { --ao-btn: var(--ao-tone-hold); }
+#ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
 #ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
 #ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
 #ao-root .ao-segment:hover { color: var(--ao-text); }
@@ -579,8 +589,11 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-count { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-normal); }
 #ao-root .ao-card-title .ao-count { margin-left: 6px; }
 #ao-root .ao-item { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card), 0 0 0 transparent, inset 0 0 0 1px transparent; cursor: pointer; transition: background-color .35s ease, box-shadow .4s ease, filter .3s, transform .32s cubic-bezier(.3, .8, .2, 1); }
+#ao-root .ao-expanded, #ao-root .ao-expanded:hover { background: var(--ao-surface); }
 #ao-root .ao-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-title { font-weight: var(--ao-fw-medium); overflow-wrap: anywhere; }
+#ao-root .ao-primary-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 5px; vertical-align: -3px; border-radius: 5px; background: var(--ao-accent-bg); color: var(--ao-text-accent); }
+#ao-root .ao-primary-mark svg { width: 12px; height: 12px; }
 #ao-root .ao-item-number { font-weight: var(--ao-fw-bold); color: var(--ao-text-accent); }
 #ao-root .ao-item-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-md); overflow-wrap: anywhere; }
 #ao-root .ao-item-time { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); white-space: nowrap; }
@@ -601,6 +614,10 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .3s, box-shadow .4s ease; }
 #ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-tag-hover-edge), var(--ao-item-hover-glow); }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in, #ao-root .ao-armed-tag { animation: none; } }
+#ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
+#ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#ao-root .ao-card-title { margin: 0; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
@@ -630,10 +647,14 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; align-items: end; }
 #ao-root .ao-field-row.ao-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#ao-root .ao-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 #ao-root .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; cursor: pointer; border-radius: calc(var(--ao-radius-base) - 2px); }
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-mail-preview { min-height: 60px; max-height: 230px; overflow: hidden; padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; }
+#ao-root .ao-spacer { flex: 1; }
+#ao-root .ao-reply-tools, #ao-root .ao-reply-name { display: flex; align-items: center; gap: 6px; }
+#ao-root .ao-reply-tools { gap: 14px; }
 #ao-root .ao-queue-item .ao-item-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 #ao-root .ao-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 #ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -679,15 +700,34 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 #ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
+#ao-root .ao-ticket-steps { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-spinner { transition: none; animation: none; } }
+#ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
+#ao-root .ao-ticket-card.ao-static { cursor: default; }
+#ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded, #ao-root .ao-ticket-card.ao-raised { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
 #ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
+#ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
+#ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
 #ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
+#ao-root .ao-ticket-card.ao-away { visibility: hidden; }
+#ao-root .ao-ticket-more { display: grid; gap: 6px; padding-top: 6px; }
+#ao-root .ao-ticket-description { padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+#ao-root .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
+#ao-root .ao-ticket-dates b { color: var(--ao-text-muted); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-ticket-work { display: grid; gap: 6px; }
+#ao-root .ao-ticket-work > .ao-card { padding: 8px 0 0; border: 0; border-top: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; cursor: default; }
 #ao-root .ao-item-tags { display: flex; align-items: center; gap: 4px; flex: none; }
 #ao-root .ao-item-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #ao-root .ao-item-place { min-width: 0; }
 #ao-root .ao-item-company { color: var(--ao-text); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-item-activity { color: var(--ao-text); font-size: var(--ao-fs-md); }
+#ao-root .ao-timer { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
+#ao-root .ao-timer-value.ao-timer-changed { color: var(--ao-text-accent); }
+#ao-root .ao-timer-step { width: 24px; height: 100%; padding: 0; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-selection); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-selection-shadow); color: var(--ao-text); font: inherit; font-size: var(--ao-fs-lg); cursor: pointer; touch-action: none; user-select: none; transition: filter .3s, box-shadow .35s; }
+#ao-root .ao-timer-step:hover:where(:not(:disabled)) { filter: var(--ao-hover-filter); box-shadow: inset 0 0 0 1px var(--ao-selection-line), var(--ao-hover-glow); }
+#ao-root .ao-timer-value { width: 76px; text-align: center; color: var(--ao-text); font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: text; }
+#ao-root .ao-timer-input { width: 100%; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-badge); outline: none; background: var(--ao-surface); color: inherit; font: inherit; text-align: center; }
 #ao-root .ao-details { display: grid; }
 #ao-root .ao-details-toggle { display: flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); cursor: pointer; justify-self: start; }
 #ao-root .ao-details-toggle:disabled { opacity: .45; cursor: default; }
@@ -868,6 +908,11 @@ button { font: inherit; color: inherit; }
         cardTake: '<path d="M3 6.5V4h14v2.5a2 2 0 0 0 0 4V16H3v-5.5a2 2 0 0 0 0-4z"/><path d="M10 7.5v5M7.5 10h5"/>',
         cardForward: '<path d="M11.5 4.5l5 5-5 5"/><path d="M16.5 9.5H8a4.5 4.5 0 0 0-4.5 4.5v1.5"/>',
         cardIgnore: '<rect x="2.5" y="3.5" width="15" height="4" rx="1"/><path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4"/>',
+        actComment: '<path d="M3.5 4.5h13v8.5h-7l-3.5 3v-3H3.5z"/><path d="M7 8h6M7 10.5h4"/>',
+        actResolve: '<path d="M4.5 10.5l3.5 3.5 7.5-8"/>',
+        actHold: '<path d="M7 4.5v11M13 4.5v11"/>',
+        actCancel: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>',
+        bookmark: '<path d="M6 3.5h8v13l-4-3-4 3z"/>',
         reply: '<path d="M8 5L3.5 9.5 8 14"/><path d="M3.5 9.5H11a5 5 0 0 1 5 5v1"/>',
         replyAll: '<path d="M10 5L5.5 9.5 10 14"/><path d="M6 5L1.5 9.5 6 14"/><path d="M5.5 9.5H12a5 5 0 0 1 5 5v1"/>',
         back: '<path d="M12 4.5L6.5 10l5.5 5.5"/>',
@@ -965,8 +1010,11 @@ button { font: inherit; color: inherit; }
         const view = settings.preferences.view || 'auto';
         const narrow = !!narrowQuery?.matches;
         const layout = view === 'mobile' || (view === 'auto' && narrow) ? 'mobile' : mediumQuery?.matches ? 'medium' : 'wide';
+        const changed = document.documentElement.dataset.layout !== layout;
         document.documentElement.dataset.layout = layout;
         document.documentElement.toggleAttribute('data-wide', layout === 'mobile' && !narrow);
+        // i dettagli stanno a destra (computer largo) o sopra la mail: cambiando vista si ridisegna
+        if (changed && typeof state !== 'undefined' && state.user) render();
     }
     function reference(value) {
         if (!value) return { value: '', displayValue: '' };
@@ -1484,10 +1532,10 @@ button { font: inherit; color: inherit; }
     // Aggiornamento del ticket: commento, risoluzione, attesa, annullamento; minuti da aggiungere al tempo lavorato.
     const UPDATE_TYPES = [['comment', 'Aggiorna'], ['resolve', 'Risolvi'], ['hold', 'In attesa'], ['cancel', 'Annulla']];
     async function updateTicket(ticket) {
-        const draft = state.forms.get(`update:${ticket.number}`) || { type: 'comment', text: '', minutes: '' };
-        if (!draft.text.trim() && draft.type === 'comment' && !Number(draft.minutes)) return showStatus('Scrivi il commento', 'danger');
+        const draft = updateDraft(ticket);
+        if (!draft.text.trim() && !Number(draft.minutes)) return showStatus('Scrivi il testo', 'danger');
         const label = { comment: 'Ticket aggiornato', resolve: 'Ticket risolto', hold: 'Ticket in attesa', cancel: 'Ticket annullato' }[draft.type];
-        const done = await run(() => Data.updateTicket(ticket, draft.type, draft.text.trim(), draft.minutes), label);
+        const done = await run(() => Data.updateTicket(ticket, draft.type, draft.text.trim(), Number(draft.minutes) || 0), label);
         if (!done) return;
         state.forms.delete(`update:${ticket.number}`);
         state.panel = null;
@@ -1757,7 +1805,7 @@ button { font: inherit; color: inherit; }
     }
     // Selettore a segmenti del pannello (filterBar + iconBar): la voce scelta si allarga e mostra il nome; la pillola
     // e le larghezze si muovono insieme.
-    function aoIconBar(options, value, onchange, key) {
+    function aoIconBar(options, value, onchange, key, tones = ACTION_TONES) {
         const previous = segmentMemory.get(key);
         const chosen = options.some(option => option.value === value);
         const growing = segmentMemory.has(key) && chosen && previous !== value;
@@ -1765,7 +1813,7 @@ button { font: inherit; color: inherit; }
         const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
         const kept = previous === value && segmentPlace.get(key);
         if (kept) { thumb.style.width = kept.width; thumb.style.transform = kept.transform; thumb.classList.add('ao-ready'); }
-        const bar = h('div', { class: `ao-segmented ao-segmented-icons${chosen ? ` ao-toned ao-choice-${ACTION_TONES[value] || 'accent'}` : ''}`, role: 'group' },
+        const bar = h('div', { class: `ao-segmented ao-segmented-icons${chosen ? ` ao-toned ao-choice-${tones[value] || 'accent'}` : ''}`, role: 'group' },
             thumb,
             options.map(option => {
                 const active = option.value === value;
@@ -1855,13 +1903,13 @@ button { font: inherit; color: inherit; }
         host.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
         host.querySelectorAll('.ao-select.ao-open').forEach(field => field.classList.remove('ao-open'));
     }
-    function toggleAoSelect(field, options, value, onchange) {
+    function toggleAoSelect(field, options, value, onchange, wide = field) {
         const host = field.closest('#ao-root');
         const wasOpen = field.classList.contains('ao-open');
         closeAoSelects(host);
         if (wasOpen) return;
         const box = host.getBoundingClientRect();
-        const rect = field.getBoundingClientRect();
+        const rect = wide.getBoundingClientRect();
         const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
             options.map(([id, name]) => h('button', {
                 type: 'button', role: 'option', 'aria-selected': String(id === value), class: `ao-menu-item${id === value ? ' ao-active' : ''}`,
@@ -1873,22 +1921,6 @@ button { font: inherit; color: inherit; }
         const below = box.bottom - rect.bottom - 8;
         menu.style.top = menu.offsetHeight > below && rect.top - box.top > below ? `${rect.top - box.top - menu.offsetHeight - 4}px` : `${rect.bottom - box.top + 4}px`;
         field.classList.add('ao-open');
-    }
-    // Cambio di scelta dentro la scheda: il contenuto di prima svanisce, la zona cambia altezza, il nuovo compare.
-    async function swapCardZone(change) {
-        const zone = document.querySelector('.card-modal .ao-choice-zone');
-        const from = zone?.offsetHeight || 0;
-        const old = zone?.firstElementChild;
-        if (old && !reducedMotion()) await old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, easing: 'linear', fill: 'forwards' }).finished.catch(() => {});
-        change();
-        render();
-        const next = document.querySelector('.card-modal .ao-choice-zone');
-        if (!next || reducedMotion()) return;
-        const content = next.firstElementChild;
-        if (content) content.style.opacity = '0';
-        const to = next.scrollHeight;
-        if (to !== from) { next.style.overflow = 'hidden'; await next.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 240, easing: 'ease-in-out' }).finished.catch(() => {}); next.style.overflow = ''; }
-        if (content) { content.style.opacity = ''; content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 130, easing: 'linear' }); }
     }
     function cardView() {
         const win = state.cardWindow;
@@ -1936,8 +1968,8 @@ button { font: inherit; color: inherit; }
                 h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), tag)),
             h('div', { class: 'ao-inline-form' },
                 text ? h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, text)) : null,
-                aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapCardZone(() => { win.choice = value; }); }, 'card'),
-                h('div', { class: 'ao-choice-zone' }, h('div', { class: 'ao-choice-content' }, zone)),
+                aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapZone('card', () => { win.choice = value; }); }, 'card'),
+                h('div', { class: 'ao-choice-zone', 'data-zone': 'card' }, h('div', { class: 'ao-choice-content' }, zone)),
                 h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: closeCard }, icon('<path d="M5 12.5l5-5 5 5"/>'))));
         return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeCard(); else if (!event.target.closest('.ao-select-menu, .ao-select')) closeAoSelects(); } },
             h('section', { class: 'modal card-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': item.subject },
@@ -1959,7 +1991,7 @@ button { font: inherit; color: inherit; }
                     h('h1', { class: 'thread-title' }, item.subject),
                     h('div', { class: 'thread-sub' }, thread?.messages?.length ? `${thread.messages.length} mail` : '')),
                 h('div', { class: 'scroll thread-body', 'data-scroll': `thread:${item.key}` },
-                    h('div', { class: 'side side-inline' }, sideContent(item)),
+                    document.documentElement.dataset.layout !== 'wide' ? h('div', { class: 'side side-inline' }, sideContent(item)) : null,
                     content)));
     }
 
@@ -2051,36 +2083,151 @@ button { font: inherit; color: inherit; }
                     button('Inoltra', () => { state.panel = 'forward'; render(); }, { iconName: 'forward' }),
                     button('Ignora', () => ignoreThread(item), { kind: 'danger', iconName: 'ignore' })))];
     }
+    // Scheda del ticket aperto come nel pannello AMP: numero, etichetta, agenzia, oggetto, date; sotto Attività con il
+    // tempo lavorato (− valore +), Risposte / Salva / Copia, il testo, le azioni a icone e il pulsante del colore
+    // dell'azione. Stessi componenti e stesso CSS del pannello (panel-card.css).
+    const TICKET_ACTIONS = [['comment', 'Aggiorna', 'actComment'], ['resolve', 'Risolvi', 'actResolve'], ['hold', 'On Hold', 'actHold'], ['cancel', 'Annulla', 'actCancel']];
+    const TICKET_BUTTONS = { comment: 'Aggiorna', resolve: 'Risolvi', hold: 'Metti in On Hold', cancel: 'Annulla il ticket' };
+    const TICKET_FILLS = { comment: '', resolve: ' ao-fill-resolve', hold: ' ao-fill-hold', cancel: ' ao-fill-danger' };
+    const TICKET_TONES = { comment: 'accent', resolve: 'resolve', hold: 'hold', cancel: 'danger' };
+    const TIME_STEP = { base: 5, faster: 15, fastest: 30, after: [5, 12], repeat: 140, hold: 400 };
+    const formatMinutes = minutes => (minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`);
+    const aoHost = (...children) => h('div', { id: 'ao-root', class: 'ao-host', 'data-style': document.documentElement.dataset.style, 'data-theme': document.documentElement.dataset.mode }, children);
+    function updateDraft(item) {
+        const key = `update:${item.number}`;
+        if (!state.forms.has(key)) state.forms.set(key, { type: 'comment', text: '', minutes: 0 });
+        return state.forms.get(key);
+    }
+    // Tempo lavorato: − valore +. Un clic = 5 minuti; tenendo premuto il passo cresce. Va su ServiceNow con l'azione.
+    function timerControl(item, draft) {
+        let shown = item.minutes + (Number(draft.minutes) || 0);
+        const value = h('span', { class: 'ao-timer-value', title: 'Tempo lavorato' });
+        const paint = () => { value.textContent = formatMinutes(shown); value.classList.toggle('ao-timer-changed', shown !== item.minutes); };
+        const stepper = direction => {
+            let timer = null, repeats = 0;
+            const go = () => {
+                repeats += 1;
+                const step = repeats > TIME_STEP.after[1] ? TIME_STEP.fastest : repeats > TIME_STEP.after[0] ? TIME_STEP.faster : TIME_STEP.base;
+                shown = Math.max(item.minutes, shown + direction * step);
+                draft.minutes = shown - item.minutes;
+                paint();
+            };
+            const stop = () => { clearTimeout(timer); clearInterval(timer); repeats = 0; refreshUpdateButton(item); };
+            return h('button', {
+                type: 'button', class: 'ao-timer-step', 'aria-label': direction > 0 ? 'Più tempo' : 'Meno tempo',
+                onpointerdown: event => { event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); go(); timer = setTimeout(() => { timer = setInterval(go, TIME_STEP.repeat); }, TIME_STEP.hold); },
+                onpointerup: stop, onpointercancel: stop, onlostpointercapture: stop,
+                onkeydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); stop(); } }
+            }, direction > 0 ? '+' : '−');
+        };
+        paint();
+        return h('div', { class: 'ao-timer' }, stepper(-1), value, stepper(1));
+    }
+    function refreshUpdateButton(item) {
+        const draft = updateDraft(item);
+        document.querySelectorAll(`.ao-update-card[data-ticket="${CSS.escape(item.number)}"] .ao-actions .ao-button`).forEach(button => { button.disabled = state.busy || !(draft.text.trim() || Number(draft.minutes)); });
+    }
+    function replyTools(item, draft) {
+        const responses = Object.entries(state.settings.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
+        const naming = state.namingResponse === item.number;
+        const linkButton = (paths, label, onclick, extra = {}) => h('button', { type: 'button', class: 'ao-link-button', ...extra, onclick }, aoIcon(paths), label);
+        const tools = h('div', { class: 'ao-reply-tools' },
+            h('button', {
+                type: 'button', class: 'ao-link-button ao-menu-anchor', disabled: !responses.length,
+                onclick: event => { event.stopPropagation(); toggleAoSelect(event.currentTarget, responses.map(([id, entry]) => [id, entry.title]), '', id => { draft.text = state.settings.usefulResponses[id]?.response || ''; render(); }, tools); }
+            }, aoIcon(ICONS.responses), 'Risposte', h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
+            linkButton(ICONS.bookmark, 'Salva', () => { state.namingResponse = naming ? null : item.number; render(); }, { 'aria-pressed': String(naming) }),
+            h('span', { class: 'ao-spacer' }),
+            linkButton(ICONS.copy, 'Copia', async () => {
+                const text = draft.text.trim();
+                if (!text) return showStatus('Scrivi il testo', 'danger');
+                try { await navigator.clipboard.writeText([text, currentUser().displayValue, item.number].filter(Boolean).join('\n')); showStatus('Testo copiato'); }
+                catch { showStatus('Copia non riuscita', 'danger'); }
+            }));
+        if (!naming) return tools;
+        const save = () => {
+            const title = name.value.trim();
+            if (!title) return showStatus('Scrivi il nome', 'danger');
+            if (!draft.text.trim()) return showStatus('Scrivi il testo', 'danger');
+            const responsesMap = state.settings.usefulResponses;
+            const id = Object.keys(responsesMap).find(key => String(responsesMap[key].title).toLowerCase() === title.toLowerCase()) || `r${Date.now().toString(36)}`;
+            responsesMap[id] = { ...responsesMap[id], title, response: draft.text };
+            saveSettings(state.settings);
+            state.namingResponse = null;
+            render();
+            showStatus(`Risposta "${title}" salvata`);
+        };
+        const name = h('input', { class: 'ao-input', placeholder: 'Nome della risposta', 'aria-label': 'Nome della risposta', onkeydown: event => { if (event.key === 'Enter') save(); if (event.key === 'Escape') { state.namingResponse = null; render(); } } });
+        requestAnimationFrame(() => name.focus());
+        return [tools, h('div', { class: 'ao-reply-name' }, name, h('button', { type: 'button', class: 'ao-button ao-small', onclick: save }, 'Salva'))];
+    }
     function ticketSide(item) {
         const job = forwardJobFor(item);
-        const draft = state.forms.get(`update:${item.number}`) || { type: 'comment', text: '', minutes: '' };
-        const keep = () => state.forms.set(`update:${item.number}`, draft);
-        const parts = [h('h2', {}, item.number),
-            fields([
-                ['Stato', TICKET_STATUS[item.status] || item.status],
-                ['Agenzia', item.agency],
-                ['Operatore', operatorName(item.operator)],
-                ['AMP', item.ampReference],
-                ['Inoltrato a', item.forwardGroup],
-                ['Aperto', fullWhen(item.openedAt)],
-                ['Tempo lavorato', item.minutes ? `${item.minutes} min` : '']
-            ])];
-        if (item.found && !OPEN_TICKET_STATUSES.includes(item.status)) return parts;
-        if (job) parts.push(h('div', { class: 'forward-box' }, h('span', { class: 'hint' }, `Inoltro a ${job.group.tag}`), forwardStrip(job, index => resumeForward(job, index))));
-        parts.push(h('div', { class: 'form' },
-            h('div', { class: 'segmented small', role: 'group', 'aria-label': 'Azione' },
-                UPDATE_TYPES.map(([type, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(draft.type === type), onclick: () => { draft.type = type; keep(); render(); } }, label))),
-            input(draft.type === 'resolve' || draft.type === 'cancel' ? 'Note di risoluzione' : 'Commento', draft.text, value => { draft.text = value; keep(); }, { multiline: true, id: `update-text-${item.number}` }),
-            input('Minuti da aggiungere', draft.minutes, value => { draft.minutes = value; keep(); }, { type: 'number', min: '0', id: `update-minutes-${item.number}` }),
-            button(UPDATE_TYPES.find(([type]) => type === draft.type)[1], () => updateTicket(item), { kind: draft.type === 'cancel' ? 'danger' : 'primary', wide: true })));
-        return parts;
+        const thread = item.parentItemId && state.threads.get(item.parentItemId);
+        const open = !item.found || OPEN_TICKET_STATUSES.includes(item.status);
+        const mine = isMe(item.operator);
+        const tag = item.operator ? h('span', { class: 'ao-user-tag', style: `--ao-tag-color: ${mine ? LABELS[state.settings.profile.label] || LABELS.azzurro : LABELS.grafite}` }, surname(operatorName(item.operator))) : null;
+        const status = item.status && item.status !== 'In Progress' ? h('span', { class: `ao-chip ao-tone-${item.status === 'On Hold' ? 'hold' : 'neutral'}` }, TICKET_STATUS[item.status] || item.status) : null;
+        const draft = updateDraft(item);
+        const ready = !state.busy && Boolean(draft.text.trim() || Number(draft.minutes));
+        const work = open ? h('section', { class: 'ao-card ao-update-card', 'data-ticket': item.number },
+            h('div', { class: 'ao-card-head' }, h('h3', { class: 'ao-card-title' }, 'Attività'), timerControl(item, draft)),
+            replyTools(item, draft),
+            h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'Testo'),
+                h('textarea', { class: 'ao-input', id: `update-text-${item.number}`, rows: '4', oninput: event => { draft.text = event.target.value; refreshUpdateButton(item); } }, draft.text)),
+            aoIconBar(TICKET_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), draft.type,
+                value => { if (value !== draft.type) swapZone(`ticket:${item.number}`, () => { draft.type = value; }); }, `ticket:${item.number}`, TICKET_TONES),
+            h('div', { class: 'ao-choice-zone', 'data-zone': `ticket:${item.number}` }),
+            h('div', { class: 'ao-actions' },
+                h('button', { type: 'button', class: `ao-button ao-primary${TICKET_FILLS[draft.type]}`, disabled: !ready, onclick: () => updateTicket(item) }, TICKET_BUTTONS[draft.type]))) : h('p', { class: 'ao-muted' }, `Ticket ${TICKET_STATUS[item.status] || item.status}`);
+        return aoHost(h('section', { class: 'ao-item ao-ticket-card ao-expanded ao-static' },
+            h('div', { class: 'ao-ticket-face' },
+                h('div', { class: 'ao-item-top' },
+                    h('span', {}, h('span', { class: 'ao-item-number' }, item.parentItemId ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, aoIcon(ICONS.mail)) : null, item.number)),
+                    h('div', { class: 'ao-item-tags' }, status, tag)),
+                h('div', { class: 'ao-item-where' }, h('div', { class: 'ao-item-place' },
+                    h('div', { class: 'ao-item-company' }, item.agency || ''),
+                    h('div', { class: 'ao-item-activity' }, [item.ampReference, item.forwardGroup ? `Inoltrato a ${item.forwardGroup}` : ''].filter(Boolean).join(' · ')))),
+                h('div', { class: 'ao-item-title' }, item.subject)),
+            h('div', { class: 'ao-ticket-more' },
+                h('div', { class: 'ao-ticket-dates' },
+                    h('span', {}, h('b', {}, 'Aperto'), ' ', shortWhenLong(item.openedAt)),
+                    thread?.messages?.[0] ? h('span', {}, h('b', {}, 'Reported'), ' ', shortWhenLong(thread.messages[0].receivedAt)) : null),
+                job ? h('div', { class: 'forward-box' }, h('span', { class: 'hint' }, `Inoltro a ${job.group.tag}`), forwardStrip(job, index => resumeForward(job, index))) : null,
+                h('div', { class: 'ao-ticket-work' }, work))));
+    }
+    // "oggi 13:26", "ieri 13:26", "18/11 13:26" (come le date della scheda del pannello)
+    function shortWhenLong(value) {
+        const date = parseDate(value);
+        if (!date) return '';
+        const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const days = Math.round((new Date(new Date().toDateString()) - new Date(date.toDateString())) / 86400000);
+        return days === 0 ? `oggi ${time}` : days === 1 ? `ieri ${time}` : `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
+    }
+    // Cambio di scelta dentro una scheda (come swapZone del pannello): il contenuto di prima svanisce, la zona cambia
+    // altezza, il nuovo compare.
+    async function swapZone(id, change) {
+        const find = () => [...document.querySelectorAll(`.ao-choice-zone[data-zone="${CSS.escape(id)}"]`)].find(zone => zone.offsetParent !== null);
+        const zone = find();
+        const from = zone?.offsetHeight || 0;
+        const old = zone?.firstElementChild;
+        if (old && !reducedMotion()) await old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, easing: 'linear', fill: 'forwards' }).finished.catch(() => {});
+        change();
+        render();
+        const next = find();
+        if (!next || reducedMotion()) return;
+        const content = next.firstElementChild;
+        if (content) content.style.opacity = '0';
+        const to = content ? next.scrollHeight : 0;
+        if (to !== from) { next.style.overflow = 'hidden'; if (!content) next.style.display = 'block'; await next.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 240, easing: 'ease-in-out' }).finished.catch(() => {}); next.style.overflow = ''; next.style.display = ''; }
+        if (content) { content.style.opacity = ''; content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 130, easing: 'linear' }); }
     }
     function sideContent(item) {
         return item.key.startsWith('ticket:') ? ticketSide(item) : threadSide(item);
     }
     function sideColumn(item) {
         return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
-            h('div', { class: 'card' }, item ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item)) : empty('ticket', '')));
+            h('div', { class: 'card' }, item && document.documentElement.dataset.layout === 'wide' ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item)) : empty('ticket', '')));
     }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
