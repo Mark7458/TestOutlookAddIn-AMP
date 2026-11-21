@@ -68,6 +68,7 @@
   --seg-shadow: 0 1px 2px rgba(0, 0, 0, .3);
   --seg-edge: rgba(255, 255, 255, .09);
   --seg-blur: blur(14px) saturate(1.2);
+  --track-in-card: rgba(0, 3, 12, .6);
 }
 /* Vetro chiaro */
 :root[data-mode="light"] {
@@ -114,6 +115,7 @@
   --seg-line: rgba(255, 255, 255, .75);
   --seg-shadow: 0 1px 2px rgba(0, 0, 0, .06);
   --seg-edge: rgba(255, 255, 255, .75);
+  --track-in-card: rgba(197, 214, 238, .6);
 }
 /* Flat scuro (come Outlook scuro): niente trasparenze, sfocature e bagliori */
 :root[data-style="flat"] {
@@ -165,6 +167,7 @@
   --seg-shadow: 0 0 transparent;
   --seg-blur: none;
   --seg-edge: var(--line);
+  --track-in-card: var(--track);
 }
 /* Flat chiaro (come Outlook) */
 :root[data-style="flat"][data-mode="light"] {
@@ -206,6 +209,7 @@
   --seg-line: transparent;
   --seg-shadow: 0 0 transparent;
   --seg-edge: var(--line);
+  --track-in-card: var(--track);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -296,6 +300,9 @@ button { font: inherit; color: inherit; }
 
 /* Selettore della sezione (Attive / Ignorate) */
 .segmented { position: relative; display: flex; flex: 1; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track); } /* come le schede Thread / Utility / Tools */
+/* Dentro una card il fondo della card si somma a quello del selettore: un fondo più scuro compensa, così il colore che si
+   vede è lo stesso delle schede in alto (misurato tema per tema) */
+.card .segmented { background: var(--track-in-card); }
 .segment { position: relative; z-index: 1; transition: color .25s; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
 .segment[aria-pressed="true"] { color: var(--text); }
 .segment[aria-pressed="true"] .count { color: var(--accent); }
