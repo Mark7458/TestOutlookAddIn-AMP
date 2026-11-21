@@ -59,7 +59,6 @@
   --glow-left: -7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
   --glow-right: 7px 0 22px rgba(80, 150, 255, .62), 0 0 6px rgba(80, 150, 255, .36);
   --label: #0078d4; /* colore della propria etichetta (Profilo) */
-  --chat-bg: transparent;
   --message-service-text: #e8f1ff;
   --message-service-line: var(--line);
   --seg-track: rgba(28, 31, 38, .62);
@@ -107,7 +106,6 @@
   --menu-shadow: 0 12px 32px rgba(30, 60, 110, .18);
   --highlight: inset 0 1px 0 rgba(255, 255, 255, .22);
   --blur: blur(14px) saturate(1.2);
-  --chat-bg: transparent;
   --message-service-text: #0b2a4a;
   --message-service-line: var(--line);
   --seg-track: rgba(214, 224, 240, .6);
@@ -158,7 +156,6 @@
   --glow-hover: 0 0 transparent;
   --glow-left: 0 0 transparent;
   --glow-right: 0 0 transparent;
-  --chat-bg: transparent;
   --message-service-text: #f3f2f1;
   --message-service-line: var(--line);
   --seg-track: #2d2c2b;
@@ -201,7 +198,6 @@
   --card-shadow: 0 1px 2px rgba(0, 0, 0, .06);
   --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .1);
   --menu-shadow: 0 8px 24px rgba(0, 0, 0, .14);
-  --chat-bg: transparent;
   --message-service-text: #242424;
   --message-service-line: var(--line);
   --seg-track: #fff;
@@ -232,12 +228,6 @@ button { font: inherit; color: inherit; }
 .btn:hover { background: var(--hover); }
 .btn.primary { border-color: var(--btn-line); background: var(--btn-fill); color: #fff; box-shadow: var(--btn-highlight); }
 .btn.primary:hover:not(:disabled) { background: var(--btn-fill); filter: var(--btn-hover); }
-/* Pulsanti di chiamata (Rispondi, Rispondi a tutti), come i pulsanti del pannello che aprono un modulo: bagliore che
-   respira al passaggio del mouse */
-.pill { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); box-shadow: var(--glow-rest); color: var(--accent); font-weight: 500; cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease, transform .15s var(--ease); }
-.pill:hover { box-shadow: var(--highlight), var(--glow-hover); animation: call-on .4s ease-out, call-sway 4.8s ease-in-out .4s infinite; }
-.pill:active { transform: scale(.97); }
-.reply-bar { display: flex; flex-wrap: wrap; gap: 8px; }
 .composer-head { display: flex; align-items: center; gap: 8px; min-height: 34px; color: var(--muted); font-size: var(--fs-sm); font-weight: 600; }
 .composer-head .icon { color: var(--accent); }
 .composer-head .modal-close { margin-left: auto; width: 30px; height: 30px; }
@@ -327,6 +317,7 @@ button { font: inherit; color: inherit; }
 .item:active { transform: scale(.99); }
 .item:hover { background: var(--hover); }
 .item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
+.list-foot { flex: none; padding: 6px 12px 8px; border-top: 1px solid var(--line); color: var(--subtle); font-size: var(--fs-xs); }
 .item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .item-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
 .item-time { flex: none; color: var(--subtle); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
@@ -334,6 +325,18 @@ button { font: inherit; color: inherit; }
 .item-meta > span:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .tag { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text); font-size: var(--fs-xs); font-weight: 500; }
 .tag.mine { border-color: color-mix(in srgb, var(--label) 60%, transparent); background: color-mix(in srgb, var(--label) 22%, transparent); color: color-mix(in srgb, var(--label) 45%, var(--text)); }
+/* Etichette sulla coda: + per mettere la propria, la propria si toglie, quella di un collega si prende con due clic */
+button.tag { cursor: pointer; font: inherit; font-size: var(--fs-xs); font-weight: 500; transition: border-color .3s, background-color .3s; }
+button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transparent); }
+.tag-add { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 20px; padding: 0; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--track-in-card); color: var(--subtle); cursor: pointer; transition: color .3s, border-color .3s; }
+.tag-add:hover { border-color: var(--accent-line); color: var(--text); }
+.tag-add .icon { width: 13px; height: 13px; }
+.tag.swap.armed { gap: 4px; border-color: color-mix(in srgb, var(--label) 60%, transparent); }
+.tag.swap s { color: var(--muted); }
+.tag.swap .icon { width: 11px; height: 11px; color: var(--muted); }
+.tag-next { color: color-mix(in srgb, var(--label) 45%, var(--text)); }
+.tag-in { animation: tag-in .42s cubic-bezier(.32, 1.4, .5, 1) both; }
+@keyframes tag-in { from { opacity: 0; transform: scale(.6); } }
 .tag.working { border-color: color-mix(in srgb, var(--working) 50%, transparent); color: var(--working); }
 .count-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-fill); color: #fff; font-size: var(--fs-xs); font-weight: 600; text-align: center; line-height: 20px; }
 
@@ -349,7 +352,7 @@ button { font: inherit; color: inherit; }
 .message-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: inherit; font-weight: 600; }
 .message-time { margin-left: auto; flex: none; color: var(--subtle); font-size: var(--fs-xs); }
 .message-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
-/* Comandi della mail: in fondo al fumetto, discreti */
+/* Comandi della mail: in fondo al riquadro, discreti */
 .message.service .message-action { color: color-mix(in srgb, var(--message-service-text) 70%, transparent); }
 .message-actions { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px -8px 0; padding-top: 4px; border-top: 1px solid var(--line); }
 .message-action { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-xs); font-weight: 500; cursor: pointer; transition: background-color .2s, color .2s, transform .15s var(--ease); }
@@ -398,7 +401,6 @@ button { font: inherit; color: inherit; }
 .details[open] summary { margin-bottom: 4px; }
 .amp-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 8px; }
 .tag-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.choices { display: grid; gap: 6px; }
 .link.danger { color: var(--danger); }
 .btn:disabled, .link:disabled { opacity: .5; cursor: default; filter: none; }
 .btn.icon-only { flex: none; width: 36px; padding: 0; }
@@ -522,26 +524,19 @@ button { font: inherit; color: inherit; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
-/* Finestra con la scheda del pannello: la scheda galleggia sullo sfondo sfocato */
-.modal.card-modal { width: min(460px, 100%); height: auto; max-height: 100%; overflow: visible; border: 0; background: none; box-shadow: none; }
-:root[data-layout="mobile"] .modal.card-modal, :root[data-layout="mobile"][data-wide] .modal.card-modal { width: 100%; height: auto; }
-.card-modal #ao-root { position: relative; max-height: calc(100% + 40px); margin: -20px; padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.4; color: var(--ao-text); }
-.card-modal #ao-root .ao-item { list-style: none; }
-.card-modal #ao-root .ao-mail-preview { max-height: 180px; overflow-y: auto; }
 
 /* Schede del pannello nella colonna dei dettagli */
 .side .ao-host { position: relative; margin: -4px; padding: 4px; font-size: 14px; line-height: 1.4; color: var(--ao-text); }
 .side .ao-host .ao-ticket-card.ao-expanded { transform: none; }
 .side .ao-host .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 
-/* Campi di testo: un solo stile in tutta Magus (anche nelle schede del pannello), fondo pieno uguale ovunque */
-#ao-root.ao-host .ao-input, .card-modal #ao-root .ao-input { border-color: var(--line-strong) !important; background: var(--field-bg) !important; color: var(--text) !important; } /* il selettore del pannello è più forte */
 
 /* Mail classiche (Impostazioni > Aspetto > Mail): tutte a tutta larghezza, stesso fondo, come in un client di posta */
 :root[data-mail="classic"] .message, :root[data-mail="classic"] .message.service { margin-left: 0; margin-right: 0; border-color: var(--line); background: var(--message-bg); color: var(--text); }
 :root[data-mail="classic"] .message.service .message-action { color: var(--muted); }
 
-/* Componenti delle schede del pannello AMP (CSS originale del pannello, solo le parti delle schede) */
+/* Componenti delle schede del pannello AMP: CSS originale del pannello (estratto, solo le parti delle schede).
+   Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
 #ao-root[data-theme="dark"] { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; }
 @media (prefers-color-scheme: dark) { #ao-root:not([data-theme="light"]) { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; } }
@@ -650,6 +645,10 @@ button { font: inherit; color: inherit; }
 @keyframes ao-tag-in { from { transform: scale(.6); opacity: 0; } }
 #ao-root .ao-user-tag-add { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 20px; padding: 0; border: 0; border-radius: var(--ao-radius-pill); background: var(--ao-segment-track); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-chip-line); color: var(--ao-text-subtle); cursor: pointer; transition: color .3s, box-shadow .4s ease; }
 #ao-root .ao-user-tag-add:hover { color: var(--ao-text); box-shadow: inset 0 0 0 1px var(--ao-line), inset 0 0 0 1px var(--ao-tag-hover-edge), var(--ao-item-hover-glow); }
+#ao-root .ao-tag-swap { gap: 4px; }
+#ao-root .ao-tag-swap s { opacity: .7; }
+#ao-root .ao-tag-swap .ao-tag-next { color: color-mix(in srgb, var(--ao-tag-new) var(--ao-tag-ink), var(--ao-tag-ink-base)); }
+#ao-root .ao-armed-tag { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ao-tag-new) 55%, transparent); animation: ao-fade-in .2s linear; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-user-tag-in, #ao-root .ao-armed-tag { animation: none; } }
 #ao-root .ao-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-shadow-card); }
 #ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -678,7 +677,6 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#ao-root .ao-view:has(.ao-new-ticket-card) :is(.ao-list .ao-item, .ao-ticket-card) { filter: blur(5px); }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
 #ao-root .ao-new-ticket-card.ao-with-origin .ao-inline-form { padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
@@ -743,8 +741,6 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-ticket-card.ao-static { cursor: default; }
 #ao-root :is(.ao-ticket-card, .ao-config-item).ao-expanded, #ao-root .ao-ticket-card.ao-raised { position: relative; z-index: 1; cursor: default; transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-open-shadow), inset 0 0 0 1px var(--ao-open-edge); }
 #ao-root :is(.ao-queue-item, .ao-ticket-card, .ao-config-item).ao-expanded.ao-unlifted { transform: none; box-shadow: var(--ao-item-hover-glow), var(--ao-shadow-card), inset 0 0 0 1px var(--ao-item-hover-edge); }
-#ao-root .ao-view:has(.ao-ticket-card.ao-expanded:not(.ao-unlifted)) .ao-ticket-card:not(.ao-expanded) { filter: blur(5px); }
-#ao-root .ao-view:has(.ao-config-item.ao-expanded:not(.ao-unlifted)) .ao-config-item:not(.ao-expanded) { filter: blur(5px); }
 #ao-root .ao-item-head { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-item-head .ao-item-title { flex: 1; min-width: 0; }
 #ao-root .ao-ticket-card.ao-away { visibility: hidden; }
@@ -776,7 +772,10 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 #ao-root .ao-details-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
 #ao-root .ao-details-link .ao-input { font-size: var(--ao-fs-sm); color: var(--ao-text-muted); text-overflow: ellipsis; }
+#ao-root .ao-closed { display: grid; gap: 6px; }
+#ao-root .ao-closed-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px dashed var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-md); cursor: pointer; }
 #ao-root .ao-closed.ao-open .ao-select-caret { transform: rotate(180deg); }
+#ao-root .ao-closed-item { display: grid; gap: 2px; padding: 7px 10px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-surface); opacity: .8; }
 #ao-root .ao-item .ao-new-preview { background: var(--ao-accent-bg); }
 #ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
 #ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-mailbar, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
@@ -793,7 +792,165 @@ button { font: inherit; color: inherit; }
 #ao-root .ao-status.ao-tone-success { color: var(--ao-success); }
 #ao-root .ao-status.ao-tone-warning { color: var(--ao-warning); }
 #ao-root .ao-status.ao-tone-danger { color: var(--ao-danger); }
-@media (prefers-color-scheme: dark) { :has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }</style>
+@media (prefers-color-scheme: dark) { :has(> main #amp-view:not([hidden]) #ao-root[data-style="glass"]:not([data-theme="light"])) { background: radial-gradient(ellipse 260px 220px at 8% 4%, rgba(40, 100, 190, .45), transparent 70%), radial-gradient(ellipse 240px 220px at 95% 40%, rgba(110, 80, 190, .3), transparent 70%), linear-gradient(180deg, #1b1e26, #1d1b24) fixed; } }
+/* ==========================================================================================================
+   MAPPA DEGLI STILI DI MAGUS: un solo stile per ogni tipo di elemento, ovunque.
+   Si carica per ultimo: porta sugli stessi valori anche le schede prese dal pannello AMP (#ao-root.ao-host).
+   Ogni elemento nuovo usa uno di questi tipi; il controllo automatico (audit) misura tutte le schermate e
+   segnala qualunque tipo con più di una variante.
+
+   TIPO                 CLASSI                                   STILE
+   Colonna              .card                                    fondo --surface, bordo --line, angoli 16, ombra card
+   Scheda interna       .tool .config-item .composer .ao-item    fondo --panel-bg, bordo --line, angoli 12, niente ombra
+     aperta/attiva      .config-item.open .ao-item.ao-expanded   bordo --accent-line + bagliore --glow-rest
+   Campo                input select textarea .ao-input          fondo --field-bg (pieno), bordo --line-strong, angoli 10,
+                                                                 15 px, altezza 36 (nel modulo di risposta: senza bordo)
+   Etichetta di campo   .field-input>span .ao-label              13 px normale, colore --muted
+   Titolo di sezione    .side h2 .tool h2 .ao-card-title          15 px seminero, colore --text
+   Area del selettore   .tabs .segmented .ao-segmented .ao-choice fondo --track (in una card --track-in-card), bordo --line,
+                                                                 angoli 12, margine interno 3
+   Voce del selettore   .tab .segment .ao-segment .ao-choice-opt 13 px medio (schede in alto 15), --muted; scelta --text
+   Pillola della scelta .thumb .ao-segment-thumb .ao-choice-thumb fondo --seg-thumb, filo --seg-line, ombra --seg-shadow,
+                                                                 angoli 9
+   Pulsante principale  .btn.primary .ao-button.ao-primary       pieno --btn-fill (o colore dell'azione), angoli 10,
+                                                                 15 px medio, altezza 36
+   Pulsante secondario  .btn .ao-button                          contorno --line-strong, angoli 10, 15 px medio, altezza 36
+   Comando di testo     .link .ao-link-button                    13 px medio, colore --accent
+   Comando della mail   .message-action                          12 px medio, --muted; al passaggio fondo --hover
+   Etichetta (tag)      .tag .ao-user-tag .ao-chip               pillola alta 20, 12 px medio, bordo --line-strong;
+                                                                 la propria: colore dell'etichetta dell'operatore
+   Menu a tendina       .menu .ao-menu                           fondo --menu-bg (pieno), bordo --line-strong, angoli 12,
+                                                                 ombra --menu-shadow; voci 13 px, al passaggio --hover
+   Etichetta "suggerita" .ao-suggest-tag                         pillola piccola, fondo --selected, testo --accent
+   Sezione chiusa       .ao-closed-toggle                        contorno tratteggiato --line-strong, angoli 10
+   Testo citato         .ao-mail-preview .ao-ticket-description  fondo --field-bg, angoli 10, 13 px --muted
+   Freccia di chiusura  .ao-collapse                             come nel pannello
+   ========================================================================================================== */
+
+/* Valori del pannello ricondotti a quelli di Magus */
+#ao-root.ao-host {
+  --ao-surface: var(--panel-bg);
+  --ao-bg: var(--field-bg);
+  --ao-quote-bg: var(--field-bg);
+  --ao-line: var(--line);
+  --ao-line-light: var(--line);
+  --ao-line-strong: var(--line-strong);
+  --ao-text: var(--text);
+  --ao-text-muted: var(--muted);
+  --ao-text-subtle: var(--subtle);
+  --ao-text-accent: var(--accent);
+  --ao-accent: var(--accent);
+  --ao-accent-bg: var(--selected);
+  --ao-accent-border: var(--accent-line);
+  --ao-hover: var(--hover);
+  --ao-radius-base: 10px;
+  --ao-radius-pill: 999px;
+  --ao-radius-badge: 999px;
+  --ao-fs-xs: var(--fs-xs);
+  --ao-fs-sm: var(--fs-sm);
+  --ao-fs-md: var(--fs-md);
+  --ao-fs-lg: var(--fs-lg);
+  --ao-fw-normal: 400;
+  --ao-fw-medium: 500;
+  --ao-control-height: 36px;
+  --ao-blur: none;
+  --ao-shadow-card: 0 0 transparent;
+  --ao-item-hover-glow: 0 0 transparent;
+  --ao-open-shadow: var(--glow-rest);
+  --ao-open-edge: var(--accent-line);
+  --ao-segment-track: var(--track-in-card);
+  --ao-choice-track: var(--track-in-card);
+  --ao-selection: var(--seg-thumb);
+  --ao-selection-line: var(--seg-line);
+  --ao-selection-shadow: var(--seg-shadow);
+  --ao-selection-tone: 0%;
+  --ao-btn-highlight: var(--btn-highlight);
+  --ao-tone-line: var(--btn-line);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+/* Scheda interna */
+#ao-root.ao-host .ao-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); box-shadow: none; transform: none; filter: none; }
+#ao-root.ao-host .ao-item.ao-expanded { border-color: var(--accent-line); box-shadow: var(--glow-rest); transform: none; }
+#ao-root.ao-host .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--hover); box-shadow: none; }
+#ao-root.ao-host .ao-update-card { border-color: var(--line); }
+
+/* Campo */
+#ao-root.ao-host .ao-input { min-height: 36px; padding: 6px 10px; border: 1px solid var(--line-strong) !important; border-radius: 10px; background: var(--field-bg) !important; color: var(--text) !important; font-size: var(--fs-md); }
+#ao-root.ao-host textarea.ao-input { padding: 8px 10px; }
+#ao-root.ao-host .ao-mail-preview { border-radius: 10px; background: var(--field-bg); color: var(--muted); font-size: var(--fs-sm); }
+
+/* Etichetta di campo e titolo di sezione */
+#ao-root.ao-host .ao-label { color: var(--muted); font-size: var(--fs-sm); font-weight: 400; letter-spacing: 0; text-transform: none; }
+#ao-root.ao-host .ao-card-title { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+
+/* Area del selettore, voci e pillola */
+#ao-root.ao-host :is(.ao-segmented, .ao-choice) { padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track-in-card); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+#ao-root.ao-host :is(.ao-segment, .ao-choice-option) { min-height: 30px; border-radius: 9px; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; }
+#ao-root.ao-host :is(.ao-segment, .ao-choice-option):hover { color: var(--text); }
+#ao-root.ao-host :is(.ao-segment.ao-active, .ao-choice-option.ao-active),
+#ao-root.ao-host .ao-segmented.ao-toned .ao-segment.ao-active { color: var(--text) !important; }
+#ao-root.ao-host .ao-choice-sub { color: var(--muted); font-size: var(--fs-xs); font-weight: 400; }
+#ao-root.ao-host :is(.ao-segment-thumb, .ao-choice-thumb),
+#ao-root.ao-host .ao-segmented.ao-toned .ao-segment-thumb { top: 3px; bottom: 3px; border-radius: 9px; background: var(--seg-thumb) !important; box-shadow: inset 0 0 0 1px var(--seg-line), var(--seg-shadow) !important; }
+
+/* Pulsanti */
+#ao-root.ao-host .ao-button { min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: var(--fs-md); font-weight: 500; }
+#ao-root.ao-host .ao-button:not(.ao-primary) { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
+#ao-root.ao-host .ao-button.ao-primary:not(.ao-fill-forward, .ao-fill-danger, .ao-fill-resolve, .ao-fill-hold) { border-color: var(--btn-line); background: var(--btn-fill); box-shadow: var(--btn-highlight); }
+
+/* Comando di testo */
+#ao-root.ao-host .ao-link-button { color: var(--accent); font-size: var(--fs-sm); font-weight: 500; letter-spacing: 0; text-transform: none; }
+#ao-root.ao-host .ao-link-button:hover:not(:disabled) { color: var(--text); }
+
+/* Etichetta (tag) */
+#ao-root.ao-host :is(.ao-user-tag, .ao-chip) { height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; box-shadow: none; color: var(--text); font-size: var(--fs-xs); font-weight: 500; line-height: 18px; }
+#ao-root.ao-host .ao-user-tag.mine { border-color: color-mix(in srgb, var(--label) 60%, transparent); background: color-mix(in srgb, var(--label) 22%, transparent); color: color-mix(in srgb, var(--label) 45%, var(--text)); }
+#ao-root.ao-host .ao-chip.ao-tone-hold { border-color: color-mix(in srgb, var(--working) 50%, transparent); color: var(--working); }
+
+/* Tempo lavorato: area come i selettori, pulsanti come la pillola */
+#ao-root.ao-host .ao-timer { height: 32px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track-in-card); }
+#ao-root.ao-host .ao-timer-step { border-radius: 9px; background: var(--seg-thumb); box-shadow: inset 0 0 0 1px var(--seg-line), var(--seg-shadow); color: var(--text); }
+#ao-root.ao-host .ao-timer-value { font-size: var(--fs-sm); }
+
+/* Testo della scheda */
+#ao-root.ao-host .ao-item-number { color: var(--accent); font-size: var(--fs-md); font-weight: 600; }
+#ao-root.ao-host .ao-item-title { color: var(--text); font-size: var(--fs-md); font-weight: 500; }
+#ao-root.ao-host :is(.ao-item-company, .ao-item-activity, .ao-item-sub, .ao-ticket-dates, .ao-item-time) { color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-ticket-dates b { color: var(--text); font-weight: 500; }
+
+/* Magus: il modulo di risposta è una scheda interna come le altre */
+.composer { border-color: var(--line); background: var(--panel-bg); }
+.ticket-stack { display: grid; gap: 10px; }
+/* Sezione dentro una scheda (Attività del ticket): solo una riga sopra, niente riquadro */
+#ao-root.ao-host .ao-card { padding: 12px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
+
+/* Menu a tendina: come il menu dell'utente */
+#ao-root.ao-host .ao-menu { padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--menu-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); }
+#ao-root.ao-host .ao-menu-item { min-height: 34px; border-radius: 8px; color: var(--text); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-menu-item:hover, #ao-root.ao-host .ao-menu-item.ao-active { background: var(--hover); }
+#ao-root.ao-host .ao-menu-group { color: var(--subtle); font-size: var(--fs-xs); }
+#ao-root.ao-host .ao-select-search { color: var(--text); font-size: var(--fs-md); }
+#ao-root.ao-host .ao-suggest-tag { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--selected); color: var(--accent); font-size: var(--fs-xs); font-weight: 500; }
+#ao-root.ao-host .ao-suggest-mark { color: var(--accent); }
+/* Ticket chiusi */
+#ao-root.ao-host .ao-closed-toggle { border: 1px dashed var(--line-strong); border-radius: 10px; background: none; color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-closed-item { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); }
+#ao-root.ao-host .ao-ticket-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Testo citato */
+#ao-root.ao-host .ao-ticket-description { padding: 8px 10px; border-radius: 10px; background: var(--field-bg); color: var(--muted); font-size: var(--fs-sm); white-space: pre-line; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+/* Etichetta di un collega da prendere (due clic) */
+#ao-root.ao-host .ao-tag-swap { cursor: pointer; }
+#ao-root.ao-host .ao-tag-swap.ao-armed-tag { gap: 4px; border-color: color-mix(in srgb, var(--label) 60%, transparent); }
+#ao-root.ao-host .ao-tag-swap .icon { width: 11px; height: 11px; }
+/* Tempo scritto a mano */
+#ao-root.ao-host .ao-timer-value { cursor: text; }
+#ao-root.ao-host .ao-timer-input { background: var(--field-bg); color: var(--text); }
+/* Selettore a icone nella colonna stretta: la voce scelta ha spazio per il nome intero */
+#ao-root.ao-host .ao-segmented-icons .ao-segment.ao-grow { flex: 4; }
+</style>
 </head>
 <body>
 <div class="app" id="app"></div>
@@ -958,6 +1115,8 @@ button { font: inherit; color: inherit; }
         utility: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6.5 8.5l2 1.5-2 1.5M10.5 11.5h3"/>',
         tools: '<path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.6L3.8 13.5a1.5 1.5 0 0 0 2.1 2.1l5.4-5.4a3.5 3.5 0 0 0 4.6-3.3l-2 2-2.2-.6-.6-2.2z"/>',
         tag: '<path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/>',
+        tagAdd: '<path d="M3 3h6.5l7 7-6.5 6.5-7-7z"/><circle cx="6.8" cy="6.8" r="1.1"/><path d="M15.5 2.5v4M13.5 4.5h4"/>',
+        swap: '<path d="M4 10h12M12 6l4 4-4 4"/>',
         take: '<path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 16h12"/>',
         forward: '<path d="M11 5l5 5-5 5"/><path d="M16 10H8a4 4 0 0 0-4 4v1"/>',
         ignore: '<circle cx="10" cy="10" r="6.5"/><path d="M5.5 14.5l9-9"/>',
@@ -970,7 +1129,6 @@ button { font: inherit; color: inherit; }
         import: '<path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9"/><path d="M4 14v2.5h12V14"/>',
         export: '<path d="M10 12.5v-9M6.5 7L10 3.5 13.5 7"/><path d="M4 14v2.5h12V14"/>',
         refresh: '<path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/>',
-        save: '<path d="M6 3.5h8v13l-4-3-4 3z"/>',
         settings: '<circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/>',
         profile: '<circle cx="10" cy="7" r="3"/><path d="M4 16.5a6 6 0 0 1 12 0"/>',
         companies: '<rect x="4" y="3.5" width="12" height="13" rx="1.5"/><path d="M7.5 7h1M11.5 7h1M7.5 10h1M11.5 10h1M9 16.5v-3h2v3"/>',
@@ -1173,6 +1331,8 @@ button { font: inherit; color: inherit; }
             openedAt: record.created || '',
             minutes: Number(record.elapsedTime) || 0,
             notes: record.notes || '',
+            description: record.description || '',
+            resolutionNotes: record.resolutionNotes || '',
             forwardGroup: record.forwardGroup || '',
             repliedAt: record.repliedAt || '',
             unseen: unseen?.unseenCount || 0,
@@ -1198,6 +1358,11 @@ button { font: inherit; color: inherit; }
             ]);
             const unseen = new Map((mine?.threads || []).map(item => [Number(item.parentItemId), item]));
             return (found?.records || []).map(record => toTicket(record, unseen.get(Number(record.parentItemId))));
+        },
+        // Ticket chiusi (risolti, annullati) di un thread: si vedono soltanto, in fondo al pannello di destra.
+        async closedTickets(parentItemId) {
+            const result = await call('SearchTicketRecords', { parentItemId, statuses: ['Resolved', 'Canceled'], resultSize: 20 }, 'POST');
+            return (result?.records || []).map(record => ({ ...toTicket(record), found: true }));
         },
         async searchTickets(text) {
             const result = await call('SearchTicketRecords', { text, resultSize: 20 }, 'POST');
@@ -1286,6 +1451,9 @@ button { font: inherit; color: inherit; }
         composing: new Set(), // parentItemId con il modulo di risposta aperto (sotto la mail della bozza)
         sideCards: new Map(), // scheda del thread nel pannello di destra: key → { messageId, choice, group }
         openTicket: new Map(), // parentItemId → numero del ticket aperto (espanso) nel pannello di destra
+        closed: new Map(), // parentItemId → ticket chiusi del thread (null mentre si caricano)
+        closedOpen: null, // parentItemId con la sezione dei ticket chiusi aperta
+        tagEntering: null, // riga della coda con l'etichetta appena messa (piccolo rimbalzo)
         panel: null, // azione aperta nella colonna dei dettagli: take | forward | update
         forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
         forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
@@ -1299,7 +1467,6 @@ button { font: inherit; color: inherit; }
     };
     const allItems = () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored, ...state.lists.tickets, ...(state.found || [])];
     const selectedItem = () => allItems().find(item => item.key === state.selected) || null;
-    const threadItemFor = ticket => state.lists.active.find(item => item.parentItemId === ticket.parentItemId) || null;
 
     // Pillola dell'esito, in basso.
     let toastTimer = null;
@@ -1350,6 +1517,7 @@ button { font: inherit; color: inherit; }
         try {
             const [active, ignored, tickets] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets()]);
             Object.assign(state.lists, { active, ignored, tickets, threads: ticketThreads(tickets, active) });
+            state.listsAt = new Date(); // "Aggiornato alle…" in fondo all'elenco, come la barra di stato del pannello
             state.error = '';
         } catch (error) {
             state.error = error.message;
@@ -1361,7 +1529,13 @@ button { font: inherit; color: inherit; }
         state.threads.clear();
         loadLists().then(() => { const item = selectedItem(); if (item) openThread(item.parentItemId); });
     }
+    function loadClosed(parentItemId) {
+        if (!parentItemId || state.closed.has(parentItemId)) return;
+        state.closed.set(parentItemId, null);
+        Data.closedTickets(parentItemId).then(list => { state.closed.set(parentItemId, list); render(); }).catch(() => state.closed.set(parentItemId, []));
+    }
     async function openThread(parentItemId) {
+        loadClosed(parentItemId);
         if (!parentItemId || state.threads.has(parentItemId)) return;
         const thread = { messages: [], bodies: new Map(), loading: true, error: '' };
         state.threads.set(parentItemId, thread);
@@ -1397,8 +1571,11 @@ button { font: inherit; color: inherit; }
         const other = item.assignedTo && !mine && ['Working', 'Ignored'].includes(item.status);
         if (other && state.armed !== item.key) { state.armed = item.key; render(); return; }
         state.armed = null;
-        const done = await run(() => Data.thread(item, mine ? 'untag' : 'tag', other ? { force: true } : {}), mine ? 'Tag tolto' : 'Tag messo');
-        if (done) await loadLists();
+        const done = await run(() => Data.thread(item, mine ? 'untag' : 'tag', other ? { force: true } : {}), mine ? 'Etichetta tolta' : 'Etichetta messa');
+        if (!done) return;
+        state.tagEntering = mine ? null : item.key; // la propria etichetta compare con un piccolo rimbalzo
+        await loadLists();
+        state.tagEntering = null;
     }
     // Presa in carico, inoltro e ignora vogliono il proprio tag: se manca si mette prima.
     async function ensureTag(item) {
@@ -1413,13 +1590,48 @@ button { font: inherit; color: inherit; }
 
     // Presa in carico: Agenzia (suggerita dal dominio del mittente), Attività, Short description; i Dettagli mostrano
     // i campi del ticket e il link di AMP già compilato.
+    // Agenzia suggerita (come nel pannello): dal dominio del mittente, altrimenti dal nome nel testo; con il motivo.
     function suggestCompany(from, subject) {
         const domain = String(from?.email || '').split('@')[1]?.toLowerCase() || '';
         const companies = Object.entries(state.settings.companies);
         const byDomain = domain && companies.find(([, company]) => company.domains.some(item => domain === item || domain.endsWith(`.${item}`)));
-        if (byDomain) return byDomain[0];
+        if (byDomain) return { id: byDomain[0], reason: `dal dominio @${domain}` };
         const text = String(subject || '').toLowerCase();
-        return companies.find(([, company]) => company.name && text.includes(company.name.toLowerCase()))?.[0] || '';
+        const byText = companies.find(([, company]) => company.name && text.includes(company.name.toLowerCase()));
+        return byText ? { id: byText[0], reason: 'dal testo della mail' } : null;
+    }
+    // Attività suggerite per l'agenzia (come nel pannello): imparate dalle prese in carico di questo operatore, pesando
+    // le parole dell'oggetto e della mail. Restano in questo browser.
+    const USAGE_KEY = 'magus_usage_v1';
+    const Usage = {
+        load() { try { return JSON.parse(localStorage.getItem(USAGE_KEY) || '{}') || {}; } catch { return {}; } },
+        words: text => [...new Set(String(text || '').toLowerCase().split(/[^a-zà-ù0-9]+/).filter(word => word.length > 3))].slice(0, 40),
+        record(companyId, activityId, text) {
+            const data = Usage.load();
+            const entry = data[`${companyId}|${activityId}`] || { n: 0, w: {} };
+            entry.n += 1;
+            Usage.words(text).forEach(word => { entry.w[word] = (entry.w[word] || 0) + 1; });
+            data[`${companyId}|${activityId}`] = entry;
+            try { localStorage.setItem(USAGE_KEY, JSON.stringify(data)); } catch { /* memoria del browser non disponibile */ }
+        },
+        suggest(companyId, text) {
+            const words = Usage.words(text);
+            return Object.entries(Usage.load())
+                .filter(([key]) => key.startsWith(`${companyId}|`))
+                .map(([key, entry]) => ({ id: key.slice(companyId.length + 1), score: entry.n + 5 * words.reduce((sum, word) => sum + (entry.w[word] || 0), 0) }))
+                .filter(entry => state.settings.activities[entry.id])
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3)
+                .map(entry => entry.id);
+        }
+    };
+    const suggestText = draft => `${draft.subject || ''} ${String(draft.description || '').slice(0, 400)}`;
+    // Con l'agenzia scelta, se l'attività non è stata scelta a mano si propone la più probabile (etichetta "suggerita").
+    function proposeActivity(draft) {
+        if (draft.activityId && !draft.activityProposed) return;
+        const [top] = draft.companyId ? Usage.suggest(draft.companyId, suggestText(draft)) : [];
+        draft.activityId = top || (draft.activityProposed ? '' : draft.activityId);
+        draft.activityProposed = Boolean(top);
     }
     function takeDraft(item) {
         const key = `take:${item?.key || 'new'}`;
@@ -1427,12 +1639,15 @@ button { font: inherit; color: inherit; }
             const thread = item && state.threads.get(item.parentItemId);
             const first = thread?.messages?.[0];
             state.forms.set(key, {
-                companyId: item ? suggestCompany(item.from, item.subject) : '',
+                companyId: '',
+                suggestion: item ? suggestCompany(item.from, item.subject) : null,
                 activityId: '',
                 subject: item ? cleanSubject(item.subject) : '',
                 description: first ? thread.bodies.get(first.id)?.text || '' : '',
                 detailsOpen: false
             });
+            const draft = state.forms.get(key);
+            draft.companyId = draft.suggestion?.id || '';
         }
         return state.forms.get(key);
     }
@@ -1487,6 +1702,7 @@ button { font: inherit; color: inherit; }
                 { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes });
         }, created => `Ticket ${created.number} aperto`);
         if (!ticket) return;
+        Usage.record(draft.companyId, draft.activityId, suggestText(draft));
         state.forms.delete(`take:${item?.key || 'new'}`);
         if (item) state.sideCards.delete(item.key);
         state.panel = null;
@@ -1591,7 +1807,6 @@ button { font: inherit; color: inherit; }
     }
 
     // Aggiornamento del ticket: commento, risoluzione, attesa, annullamento; minuti da aggiungere al tempo lavorato.
-    const UPDATE_TYPES = [['comment', 'Aggiorna'], ['resolve', 'Risolvi'], ['hold', 'In attesa'], ['cancel', 'Annulla']];
     async function updateTicket(ticket) {
         const draft = updateDraft(ticket);
         if (!draft.text.trim() && !Number(draft.minutes)) return showStatus('Scrivi il testo', 'danger');
@@ -1676,17 +1891,26 @@ button { font: inherit; color: inherit; }
                 item('Esci', 'logout', () => window.MagusAuth.logout())) : null);
     }
 
-    function threadTag(item) {
-        if (['Working', 'Ignored'].includes(item.status) && item.assignedTo) {
-            return h('span', { class: `tag${isMe(item.assignedTo) ? ' mine' : ''}` }, surname(operatorName(item.assignedTo)));
-        }
-        if (item.status === 'New' || item.status === 'Ignored') return null;
-        return h('span', { class: 'tag' }, THREAD_STATUS[item.status] || item.status);
+    // Etichetta sulla riga della coda (come nel pannello): senza etichetta il pulsantino per mettere la propria; la propria
+    // si toglie con un clic; quella di un collega, sul thread aperto, al primo clic si prepara al passaggio (il suo
+    // cognome barrato, poi il proprio) e al secondo diventa propria. Le ignorate mostrano solo chi le ha ignorate.
+    function queueTag(item) {
+        const stop = handler => event => { event.stopPropagation(); handler(); };
+        const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
+        const entering = state.tagEntering === item.key ? ' tag-in' : '';
+        if (item.section !== 'active') return tagged ? h('span', { class: `tag${isMe(item.assignedTo) ? ' mine' : ''}` }, surname(operatorName(item.assignedTo))) : null;
+        if (!tagged) return h('button', { type: 'button', class: 'tag-add', title: 'Metti la tua etichetta', 'aria-label': 'Metti la tua etichetta', onclick: stop(() => toggleTag(item)) }, icon(ICONS.tagAdd));
+        if (isMe(item.assignedTo)) return h('button', { type: 'button', class: `tag mine${entering}`, title: 'Togli la tua etichetta', onclick: stop(() => toggleTag(item)) }, surname(operatorName(item.assignedTo)));
+        if (item.key !== state.selected) return h('span', { class: 'tag', title: operatorName(item.assignedTo) }, surname(operatorName(item.assignedTo)));
+        const armed = state.armed === item.key;
+        return h('button', { type: 'button', class: `tag swap${armed ? ' armed' : ''}`, title: armed ? 'Clic di nuovo per prenderla' : `Prendi la mail di ${operatorName(item.assignedTo)}`, onclick: stop(() => toggleTag(item)) },
+            armed ? [h('s', {}, surname(operatorName(item.assignedTo))), icon(ICONS.swap), h('span', { class: 'tag-next' }, surname(currentUser().displayValue))] : surname(operatorName(item.assignedTo)));
     }
     function listItem(item) {
         const ticket = item.key.startsWith('ticket:');
+        const pick = () => select(item);
         return h('li', {},
-            h('button', { type: 'button', class: 'item', 'aria-current': String(item.key === state.selected), onclick: () => select(item) },
+            h('div', { class: 'item', role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, item.subject),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
@@ -1696,11 +1920,11 @@ button { font: inherit; color: inherit; }
                     item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null) :
                 h('span', { class: 'item-meta' },
                     ticket ? h('span', {}, [item.number, item.agency].filter(Boolean).join(' · ')) : h('span', {}, item.from.name),
-                    ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : threadTag(item),
+                    ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
                     ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null)));
     }
-    // Una vista sola: i ticket aperti e, sotto, i thread in coda; le ignorate a parte. La ricerca filtra quello che
-    // c'è e, con Invio, cerca anche tra tutti i ticket.
+    // Elenco come in Outlook: solo le mail (un thread per riga, dal più recente); i ticket del thread stanno nel pannello
+    // di destra. Le ignorate a parte. La ricerca filtra quello che c'è e, con Invio, cerca anche tra tutti i ticket.
     function listColumn() {
         const needle = state.search.trim().toLowerCase();
         const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference, ...(item.tickets || []).flatMap(ticket => [ticket.number, ticket.ampReference, ticket.agency])].some(text => String(text || '').toLowerCase().includes(needle));
@@ -1728,12 +1952,13 @@ button { font: inherit; color: inherit; }
                     h('ul', { class: 'list' }, list.map(listItem))))
                     : empty('queue', needle ? 'Nessun risultato' : state.section === 'ignored' ? 'Nessuna ignorata' : 'Niente in coda');
         return h('section', { class: 'column', 'aria-label': 'Elenco' },
-            h('div', { class: 'card' }, head, h('div', { class: 'scroll', 'data-scroll': `list:${state.section}` }, body)));
+            h('div', { class: 'card' }, head, h('div', { class: 'scroll', 'data-scroll': `list:${state.section}` }, body),
+                state.listsAt ? h('div', { class: 'list-foot', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato alle ${pad(state.listsAt.getHours())}:${pad(state.listsAt.getMinutes())}`) : null));
     }
 
-    // Ogni mail è un fumetto (le nostre a destra, di un altro colore) con sotto i suoi comandi: Rispondi, Rispondi a
-    // tutti, Inoltra e Crea ticket. Rispondi apre il modulo sotto la mail, crescendo dal pulsante; Inoltra e Crea
-    // ticket aprono la finestra con la scheda del pannello.
+    // Ogni mail con sotto i suoi comandi: Rispondi e Rispondi a tutti aprono il modulo sotto la mail, crescendo dal
+    // pulsante; Inoltra (solo in coda) e Crea ticket (solo sulle mail ricevute) preparano la scheda del thread nel
+    // pannello di destra. Vista a chat (le nostre a destra, di un altro colore) o classica, dalle impostazioni.
     function message(entry, thread, item) {
         const body = thread.bodies.get(entry.id);
         const service = sameEmail(entry.from.email, serviceMailbox());
@@ -1848,8 +2073,8 @@ button { font: inherit; color: inherit; }
     }
 
     // ------------------------------------------------------------------
-    // Finestra con la scheda del pannello (Inoltra, Crea ticket): stessa scheda espansa di In coda, con il suo CSS
-    // (panel-card.css) e i suoi selettori; azioni collegate alle funzioni di Magus.
+    // Schede del pannello AMP nel pannello di destra (scheda del thread, ticket): stessi componenti e stessi selettori
+    // del pannello (panel-card.css), con colori e misure ricondotti alla mappa degli stili (style-map.css).
     // ------------------------------------------------------------------
     const ACTION_TONES = { take: 'accent', forward: 'forward', ignore: 'danger' };
     const CARD_ACTIONS = [['take', 'Prendi in carico', 'cardTake'], ['forward', 'Inoltra', 'cardForward'], ['ignore', 'Ignora', 'cardIgnore']];
@@ -1923,6 +2148,18 @@ button { font: inherit; color: inherit; }
                 from.classList.remove('ao-grow'); to.classList.add('ao-grow');
                 thumb.classList.add('ao-moving');
                 Object.assign(thumb.style, end);
+            } else if (growing && place(value, false)) {
+                // Prima scelta: la pillola compare sulla voce premuta e si allarga con lei, con lo stesso movimento
+                const to = find(value);
+                to.classList.add('ao-grow');
+                const end = { width: `${to.offsetWidth}px`, transform: `translateX(${to.offsetLeft - 2}px)` };
+                to.classList.remove('ao-grow');
+                bar.getBoundingClientRect();
+                bar.classList.add('ao-growing');
+                to.classList.add('ao-grow');
+                thumb.classList.add('ao-moving');
+                Object.assign(thumb.style, end);
+                thumb.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
             } else place(value, false);
             thumb.classList.add('ao-ready');
             if (window.ResizeObserver) new ResizeObserver(() => { if (!thumb.classList.contains('ao-moving')) place(value, false); }).observe(bar);
@@ -1965,38 +2202,70 @@ button { font: inherit; color: inherit; }
         });
         return bar;
     }
-    // Tendina del pannello: il menu si apre sotto il campo (sopra se manca spazio), largo come il campo.
-    function aoSelect(label, options, value, onchange) {
-        const current = options.find(([id]) => id === value);
+    // Tendina del pannello: il menu si apre sotto il campo (sopra se manca spazio), largo come il campo. Nel campo si
+    // scrive per filtrare (Invio sceglie la prima voce). Voci: [id, nome] oppure { group } per un titolo; mark: ✦.
+    function aoSelect(label, options, value, onchange, { tag = null } = {}) {
+        const current = options.find(option => Array.isArray(option) && option[0] === value);
         const field = h('div', {
             class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label,
-            onclick: event => { event.stopPropagation(); toggleAoSelect(field, options, value, onchange); },
-            onkeydown: event => { if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); field.click(); } }
+            onclick: event => { event.stopPropagation(); if (!event.target.closest('.ao-select-search')) toggleAoSelect(field, options, value, onchange); },
+            onkeydown: event => { if (event.target.closest('.ao-select-search')) return; if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); field.click(); } }
         }, h('span', { class: `ao-select-value${current ? '' : ' ao-select-placeholder'}` }, current ? current[1] : 'Seleziona…'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾'));
-        return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label), field);
+        return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label, tag ? h('span', { class: 'ao-suggest-tag', title: tag.title || '' }, tag.text) : null), field);
     }
     function closeAoSelects(host = document) {
         host.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
-        host.querySelectorAll('.ao-select.ao-open').forEach(field => field.classList.remove('ao-open'));
+        host.querySelectorAll('.ao-select-search').forEach(input => input.remove());
+        host.querySelectorAll('.ao-select.ao-open, .ao-menu-anchor.ao-open').forEach(field => field.classList.remove('ao-open'));
     }
     function toggleAoSelect(field, options, value, onchange, wide = field) {
         const host = field.closest('#ao-root');
         const wasOpen = field.classList.contains('ao-open');
-        closeAoSelects(host);
+        closeAoSelects(document);
         if (wasOpen) return;
         const box = host.getBoundingClientRect();
         const rect = wide.getBoundingClientRect();
+        const choose = id => { closeAoSelects(document); onchange(id); };
         const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
-            options.map(([id, name]) => h('button', {
-                type: 'button', role: 'option', 'aria-selected': String(id === value), class: `ao-menu-item${id === value ? ' ao-active' : ''}`,
-                onclick: event => { event.stopPropagation(); closeAoSelects(host); onchange(id); }
-            }, name)));
+            options.map(option => (!Array.isArray(option) ? h('div', { class: 'ao-menu-group' }, option.group)
+                : h('button', {
+                    type: 'button', role: 'option', 'aria-selected': String(option[0] === value), class: `ao-menu-item${option[0] === value ? ' ao-active' : ''}`,
+                    onclick: event => { event.stopPropagation(); choose(option[0]); }
+                }, option[2] ? h('span', { class: 'ao-suggest-mark', 'aria-hidden': 'true' }, '✦') : null, option[1]))));
         menu.style.left = `${rect.left - box.left}px`;
         menu.style.width = `${rect.width}px`;
         host.append(menu);
-        const below = box.bottom - rect.bottom - 8;
-        menu.style.top = menu.offsetHeight > below && rect.top - box.top > below ? `${rect.top - box.top - menu.offsetHeight - 4}px` : `${rect.bottom - box.top + 4}px`;
+        const place = () => {
+            const below = box.bottom - rect.bottom - 8;
+            menu.style.top = menu.offsetHeight > below && rect.top - box.top > below ? `${rect.top - box.top - menu.offsetHeight - 4}px` : `${rect.bottom - box.top + 4}px`;
+        };
+        place();
         field.classList.add('ao-open');
+        const active = menu.querySelector('.ao-active');
+        if (active) menu.scrollTop = active.offsetTop - (menu.clientHeight - active.offsetHeight) / 2;
+        if (!field.classList.contains('ao-select')) return; // Risposte: solo il menu
+        const input = h('input', {
+            class: 'ao-select-search', type: 'text', placeholder: field.querySelector('.ao-select-value')?.textContent || '', 'aria-label': field.getAttribute('aria-label'),
+            oninput: () => {
+                const query = input.value.trim().toLowerCase();
+                let group = null, groupHasItems = false;
+                const finish = () => { if (group) group.hidden = !groupHasItems; };
+                [...menu.children].forEach(child => {
+                    if (child.classList.contains('ao-menu-group')) { finish(); group = child; groupHasItems = false; return; }
+                    child.hidden = Boolean(query) && !child.textContent.toLowerCase().includes(query);
+                    if (!child.hidden) groupHasItems = true;
+                });
+                finish();
+                place();
+            },
+            onkeydown: event => {
+                if (event.key === 'Escape') { closeAoSelects(document); field.focus(); }
+                if (event.key === 'Enter') { event.preventDefault(); menu.querySelector('.ao-menu-item:not([hidden])')?.click(); }
+            },
+            onclick: event => event.stopPropagation()
+        });
+        field.append(input);
+        input.focus();
     }
     // Scheda del thread nel pannello di destra (come la scheda espansa di In coda nel pannello AMP): Prendi in carico,
     // Inoltra, Ignora. Su un thread che ha già ticket è la scheda del nuovo ticket collegato.
@@ -2010,12 +2279,17 @@ button { font: inherit; color: inherit; }
         const text = thread?.bodies.get(win.messageId)?.text || '';
         const mine = item.status === 'Working' && isMe(item.assignedTo);
         const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
-        const tag = tagged ? h('span', { class: 'ao-user-tag', style: `--ao-tag-color: ${mine ? LABELS[state.settings.profile.label] || LABELS.azzurro : '#69797e'}` }, surname(operatorName(item.assignedTo))) : null;
+        const tag = tagged ? h('span', { class: `ao-user-tag${mine ? ' mine' : ''}` }, surname(operatorName(item.assignedTo))) : null;
         const draft = takeDraft(item);
         let zone;
         if (win.choice === 'take') {
+            proposeActivity(draft);
             const companies = Object.entries(state.settings.companies).sort(byName).map(([id, company]) => [id, company.name]);
-            const activities = Object.entries(state.settings.activities).sort(byName).map(([id, activity]) => [id, activity.name]);
+            const suggested = draft.companyId ? Usage.suggest(draft.companyId, suggestText(draft)) : [];
+            const others = Object.entries(state.settings.activities).sort(byName).filter(([id]) => !suggested.includes(id)).map(([id, activity]) => [id, activity.name]);
+            const activities = suggested.length
+                ? [{ group: "Suggerite per l'agenzia" }, ...suggested.map(id => [id, state.settings.activities[id].name, true]), { group: 'Tutte' }, ...others]
+                : others;
             const details = ticketFields(draft);
             const detailsBody = details && draft.detailsOpen ? h('div', { class: 'ao-details-body' },
                 h('dl', { class: 'ao-details-list' },
@@ -2026,8 +2300,10 @@ button { font: inherit; color: inherit; }
                     h('input', { class: 'ao-input', value: ampLink(details), readonly: true, 'aria-label': 'Link di AMP', onfocus: event => event.target.select() }),
                     h('button', { type: 'button', class: 'ao-link-button', onclick: async () => { try { await navigator.clipboard.writeText(ampLink(details)); showStatus('Link copiato'); } catch { showStatus('Copia non riuscita', 'danger'); } } }, icon(ICONS.copy), 'Copia'))) : null;
             zone = [h('div', { class: 'ao-form-fields' },
-                aoSelect('Agenzia', companies, draft.companyId, value => { draft.companyId = value; render(); }),
-                aoSelect('Attività', activities, draft.activityId, value => { draft.activityId = value; render(); })),
+                aoSelect('Agenzia', companies, draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; render(); },
+                    { tag: draft.suggestion && draft.suggestion.id === draft.companyId ? { text: 'suggerita', title: `Suggerita ${draft.suggestion.reason}` } : null }),
+                aoSelect('Attività', activities, draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; render(); },
+                    { tag: draft.activityProposed && draft.activityId ? { text: 'suggerita' } : null })),
             h('div', { class: `ao-details${detailsBody ? ' ao-open' : ''}` },
                 h('button', { type: 'button', class: 'ao-details-toggle', disabled: !details, 'aria-expanded': String(Boolean(detailsBody)), onclick: () => { draft.detailsOpen = !draft.detailsOpen; render(); } },
                     h('span', {}, 'Dettagli'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
@@ -2044,7 +2320,7 @@ button { font: inherit; color: inherit; }
         const card = h('div', { class: 'ao-item ao-queue-item ao-expanded ao-unlifted', 'data-card': item.key },
             h('div', { class: 'ao-item-main' },
                 h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-title' }, item.subject), h('span', { class: 'ao-item-time' }, shortWhen(entry?.receivedAt || item.receivedAt))),
-                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), linked ? h('span', { class: 'ao-chip ao-tone-accent' }, `Nuovo ticket, collegato a ${(item.tickets || [item]).map(entry => entry.number).join(', ')}`) : tag)),
+                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), linked ? h('span', { class: 'ao-chip ao-tone-accent' }, `Collegato a ${(item.tickets || [item]).map(entry => entry.number).join(', ')}`) : tag)),
             h('div', { class: 'ao-inline-form' },
                 text ? h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, text)) : null,
                 linked ? null : aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapZone(zoneKey, () => { win.choice = value; }); }, zoneKey),
@@ -2052,14 +2328,17 @@ button { font: inherit; color: inherit; }
                 linked || win.choice ? h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => { if (linked) closeCard(item); else swapZone(zoneKey, () => { Object.assign(win, { choice: null, messageId: null }); }); } }, icon('<path d="M5 12.5l5-5 5 5"/>')) : null));
         return aoHost(card);
     }
-    // Senza un thread scelto: i ticket senza mail (non stanno nella coda delle mail) e Nuovo ticket senza mail.
-    function mailessSide() {
-        const tickets = state.lists.tickets.filter(ticket => !ticket.parentItemId);
-        const open = tickets.find(ticket => ticket.number === state.openTicket.get(0));
-        return h('div', { class: 'ticket-stack' },
-            h('h2', { class: 'group-title' }, 'Ticket senza mail', h('span', { class: 'count' }, String(tickets.length))),
-            tickets.map(ticket => ticket === open ? ticketSide(ticket) : ticketFace(ticket, () => { state.openTicket.set(0, ticket.number); render(); })),
-            aoHost(h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => { state.selected = 'new'; state.panel = null; render(); } }, icon(ICONS.plus), 'Nuovo ticket senza mail')));
+    // Ticket chiusi del thread (come nel pannello): una sezione chiusa, con un clic si vedono (solo da consultare).
+    function closedSection(parentItemId) {
+        const list = state.closed.get(parentItemId);
+        if (!list?.length) return null;
+        const shown = state.closedOpen === parentItemId;
+        return aoHost(h('div', { class: `ao-closed${shown ? ' ao-open' : ''}` },
+            h('button', { type: 'button', class: 'ao-closed-toggle', 'aria-expanded': String(shown), onclick: () => { state.closedOpen = shown ? null : parentItemId; render(); } },
+                h('span', {}, `Ticket chiusi (${list.length})`), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
+            shown ? list.map(ticket => h('div', { class: 'ao-closed-item' },
+                h('div', { class: 'ao-ticket-head' }, h('span', { class: 'ao-item-number' }, ticket.number), h('span', { class: 'ao-chip' }, TICKET_STATUS[ticket.status] || ticket.status)),
+                h('div', { class: 'ao-item-sub' }, ticket.subject))) : null));
     }
     function ticketFace(ticket, onclick) {
         return aoHost(h('section', { class: 'ao-item ao-ticket-card', tabindex: '0', role: 'button', 'aria-expanded': 'false', onclick },
@@ -2077,8 +2356,9 @@ button { font: inherit; color: inherit; }
         const lastReceived = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
         return h('div', { class: 'ticket-stack' },
             tickets.map(ticket => ticket === open ? ticketSide(ticket) : ticketFace(ticket, () => { state.openTicket.set(item.parentItemId, ticket.number); render(); })),
+            closedSection(item.parentItemId),
             state.sideCards.has(item.key) ? threadCard(item)
-                : aoHost(h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openCard(item, lastReceived?.id || null, 'take') }, icon(ICONS.plus), 'Nuovo ticket')));
+                : button('Nuovo ticket', () => openCard(item, lastReceived?.id || null, 'take'), { kind: 'primary new-item', iconName: 'plus' }));
     }
     function threadColumn(item) {
         if (state.selected === 'new') return newTicketColumn();
@@ -2154,13 +2434,11 @@ button { font: inherit; color: inherit; }
             return h('div', { class: `step ${status}`, role: 'listitem' }, dot, h('span', { class: 'step-label' }, label));
         }));
     }
-
+    // Thread ignorato (chi l'ha ignorato, Rimetti in coda) e inoltro in corso (la striscia dei passi).
     function threadSide(item) {
         const mine = item.status === 'Working' && isMe(item.assignedTo);
         const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
-        const tagRow = h('div', { class: 'tag-row' },
-            tagged ? h('span', { class: `tag${mine ? ' mine' : ''}` }, operatorName(item.assignedTo)) : h('span', { class: 'hint' }, 'Nessun tag'),
-            link(mine ? 'Togli' : tagged ? (state.armed === item.key ? 'Clic di nuovo per conferma' : 'Subentra') : 'Metti il tag', () => toggleTag(item), 'tag'));
+        const tagRow = tagged ? h('div', { class: 'tag-row' }, h('span', { class: `tag${mine ? ' mine' : ''}` }, operatorName(item.assignedTo))) : null;
         const info = fields([
             ['Stato', item.status === 'Working' ? 'In coda' : THREAD_STATUS[item.status] || item.status],
             ['Ignorata da', item.status === 'Ignored' ? operatorName(item.statusBy) : ''],
@@ -2171,22 +2449,7 @@ button { font: inherit; color: inherit; }
             return [h('h2', {}, 'Ignorata'), tagRow, info, h('div', { class: 'actions' }, button('Rimetti in coda', () => restoreThread(item), { kind: 'primary', iconName: 'restore', wide: true }))];
         }
         if (state.panel?.type === 'forwarding') return [h('h2', {}, `Inoltro a ${state.panel.job.group.tag}`), forwardStrip(state.panel.job)];
-        if (state.panel === 'take') {
-            return [h('h2', {}, 'Presa in carico'), takeForm(item),
-                h('div', { class: 'actions-row' }, button('Annulla', () => { state.panel = null; render(); }), button('Crea ticket', () => takeCharge(item), { kind: 'primary', iconName: 'check' }))];
-        }
-        if (state.panel === 'forward') {
-            const groups = forwardGroups();
-            return [h('h2', {}, 'Inoltra a'),
-                groups.length ? h('div', { class: 'choices' }, groups.map(group => button(group.name ? `${group.tag} · ${group.name}` : group.tag, () => forwardThread(item, group), { wide: true }))) : h('p', { class: 'hint' }, 'Nessun gruppo nella config'),
-                h('div', { class: 'actions-row' }, button('Annulla', () => { state.panel = null; render(); }))];
-        }
-        return [h('h2', {}, 'Thread'), tagRow, info,
-            h('div', { class: 'actions' },
-                button('Prendi in carico', () => { state.panel = 'take'; render(); }, { kind: 'primary', iconName: 'take', wide: true }),
-                h('div', { class: 'actions-row' },
-                    button('Inoltra', () => { state.panel = 'forward'; render(); }, { iconName: 'forward' }),
-                    button('Ignora', () => ignoreThread(item), { kind: 'danger', iconName: 'ignore' })))];
+        return [h('h2', {}, 'Thread'), tagRow, info];
     }
     // Scheda del ticket aperto come nel pannello AMP: numero, etichetta, agenzia, oggetto, date; sotto Attività con il
     // tempo lavorato (− valore +), Risposte / Salva / Copia, il testo, le azioni a icone e il pulsante del colore
@@ -2198,6 +2461,24 @@ button { font: inherit; color: inherit; }
     const TIME_STEP = { base: 5, faster: 15, fastest: 30, after: [5, 12], repeat: 140, hold: 400 };
     const formatMinutes = minutes => (minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`);
     const aoHost = (...children) => h('div', { id: 'ao-root', class: 'ao-host', 'data-style': document.documentElement.dataset.style, 'data-theme': document.documentElement.dataset.mode }, children);
+    // Etichetta del ticket: la propria si vede; quella di un collega al primo clic si prepara al passaggio (cognome barrato,
+    // poi il proprio) e al secondo il ticket diventa proprio (come nel pannello).
+    function ticketTag(item, mine, open) {
+        if (!item.operator) return null;
+        if (mine || !open) return h('span', { class: `ao-user-tag${mine ? ' mine' : ''}` }, surname(operatorName(item.operator)));
+        const key = `ticket:${item.number}`;
+        const armed = state.armed === key;
+        return h('button', {
+            type: 'button', class: `ao-user-tag ao-tag-swap${armed ? ' ao-armed-tag' : ''}`, title: armed ? 'Clic di nuovo per conferma' : `${operatorName(item.operator)}: clic per prenderlo tu`,
+            onclick: async event => {
+                event.stopPropagation();
+                if (!armed) { state.armed = key; render(); return; }
+                state.armed = null;
+                const done = await run(() => Data.editTicket(item.number, { operator: state.user.email }, true), `${item.number} ora è assegnato a te`);
+                if (done) await loadLists(); else render();
+            }
+        }, armed ? [h('s', {}, surname(operatorName(item.operator))), icon(ICONS.swap), h('span', { class: 'tag-next' }, surname(currentUser().displayValue))] : surname(operatorName(item.operator)));
+    }
     function updateDraft(item) {
         const key = `update:${item.number}`;
         if (!state.forms.has(key)) state.forms.set(key, { type: 'comment', text: '', minutes: 0 });
@@ -2225,8 +2506,48 @@ button { font: inherit; color: inherit; }
                 onkeydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); stop(); } }
             }, direction > 0 ? '+' : '−');
         };
+        // Clic sul valore: si scrive il tempo (2h, 1h30, 120) o la differenza (+2h, -30).
+        value.setAttribute('role', 'button');
+        value.tabIndex = 0;
+        const edit = () => {
+            if (value.querySelector('input')) return;
+            const input = h('input', { class: 'ao-timer-input', value: formatMinutes(shown), 'aria-label': 'Tempo lavorato' });
+            let finished = false;
+            const done = save => {
+                if (finished) return;
+                if (save) {
+                    const next = parseMinutes(input.value, shown);
+                    if (next === null) { showStatus('Scrivi per esempio 2h, 1h30, +2h o 120', 'danger'); input.focus(); return; }
+                    shown = Math.max(item.minutes, next);
+                    draft.minutes = shown - item.minutes;
+                    refreshUpdateButton(item);
+                }
+                finished = true;
+                paint();
+            };
+            input.onkeydown = key => { if (key.key === 'Enter') done(true); if (key.key === 'Escape') done(false); };
+            input.onblur = () => { if (value.contains(input)) done(true); };
+            value.replaceChildren(input);
+            input.focus();
+            input.select();
+        };
+        value.onclick = edit;
+        value.onkeydown = event => { if (event.key === 'Enter' && event.target === value) edit(); };
         paint();
         return h('div', { class: 'ao-timer' }, stepper(-1), value, stepper(1));
+    }
+    // "2h", "1h30", "1,5h", "120", "90m" = tempo totale; con + o − davanti = differenza da quello attuale.
+    function parseMinutes(text, current) {
+        const clean = String(text).trim().toLowerCase().replace(/\s+/g, '').replace(/min$/, 'm').replace('−', '-');
+        const sign = clean.startsWith('-') ? -1 : 1;
+        const relative = /^[+-]/.test(clean);
+        const body = clean.replace(/^[+-]/, '');
+        let minutes = null, match;
+        if ((match = body.match(/^(\d+)h(?:(\d+)m?)?$/))) minutes = Number(match[1]) * 60 + (Number(match[2]) || 0);
+        else if ((match = body.match(/^(\d+)[.,](\d+)h$/))) minutes = Math.round(parseFloat(`${match[1]}.${match[2]}`) * 60);
+        else if ((match = body.match(/^(\d+)m?$/))) minutes = Number(match[1]);
+        if (minutes === null) return null;
+        return Math.max(0, relative ? current + sign * minutes : minutes);
     }
     function refreshUpdateButton(item) {
         const draft = updateDraft(item);
@@ -2271,7 +2592,7 @@ button { font: inherit; color: inherit; }
         const thread = item.parentItemId && state.threads.get(item.parentItemId);
         const open = !item.found || OPEN_TICKET_STATUSES.includes(item.status);
         const mine = isMe(item.operator);
-        const tag = item.operator ? h('span', { class: 'ao-user-tag', style: `--ao-tag-color: ${mine ? LABELS[state.settings.profile.label] || LABELS.azzurro : LABELS.grafite}` }, surname(operatorName(item.operator))) : null;
+        const tag = ticketTag(item, mine, open);
         const status = item.status && item.status !== 'In Progress' ? h('span', { class: `ao-chip ao-tone-${item.status === 'On Hold' ? 'hold' : 'neutral'}` }, TICKET_STATUS[item.status] || item.status) : null;
         const draft = updateDraft(item);
         const ready = !state.busy && Boolean(draft.text.trim() || Number(draft.minutes));
@@ -2298,6 +2619,7 @@ button { font: inherit; color: inherit; }
                 h('div', { class: 'ao-ticket-dates' },
                     h('span', {}, h('b', {}, 'Aperto'), ' ', shortWhenLong(item.openedAt)),
                     thread?.messages?.[0] ? h('span', {}, h('b', {}, 'Reported'), ' ', shortWhenLong(thread.messages[0].receivedAt)) : null),
+                item.description ? h('div', { class: 'ao-ticket-description' }, item.description) : null,
                 job ? h('div', { class: 'forward-box' }, h('span', { class: 'hint' }, `Inoltro a ${job.group.tag}`), forwardStrip(job, index => resumeForward(job, index))) : null,
                 h('div', { class: 'ao-ticket-work' }, work))));
     }
@@ -2681,6 +3003,7 @@ button { font: inherit; color: inherit; }
     // Il menu dell'utente si chiude con un clic fuori o con Esc.
     document.addEventListener('click', event => {
         if (state.menuOpen && !event.target.closest('.account')) { state.menuOpen = false; render(); }
+        if (state.armed && !event.target.closest('.tag.swap, .ao-tag-swap')) { state.armed = null; render(); }
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
