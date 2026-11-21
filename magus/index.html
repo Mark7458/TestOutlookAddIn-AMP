@@ -1170,6 +1170,7 @@ button { font: inherit; color: inherit; }
             forwardGroup: record.forwardGroup || '',
             repliedAt: record.repliedAt || '',
             unseen: unseen?.unseenCount || 0,
+            threadInfo: unseen || null,
             lastAt: unseen?.lastReceived || record.modified || record.created
         };
     }
@@ -1268,7 +1269,7 @@ button { font: inherit; color: inherit; }
         settings: loadSettings(),
         tab: 'work',
         section: 'active',
-        lists: { active: [], ignored: [], tickets: [] },
+        lists: { active: [], ignored: [], tickets: [], threads: [] },
         found: null, // risultati della ricerca nei ticket
         search: '',
         loaded: false,
@@ -1277,7 +1278,8 @@ button { font: inherit; color: inherit; }
         threads: new Map(), // parentItemId → { messages, bodies: Map, loading, error }
         drafts: new Map(), // parentItemId → risposta in corso
         composing: new Set(), // parentItemId con il modulo di risposta aperto (sotto la mail della bozza)
-        cardWindow: null, // finestra con la scheda del pannello: { key, messageId, choice, group }
+        sideCards: new Map(), // scheda del thread nel pannello di destra: key → { messageId, choice, group }
+        openTicket: new Map(), // parentItemId → numero del ticket aperto (espanso) nel pannello di destra
         panel: null, // azione aperta nella colonna dei dettagli: take | forward | update
         forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
         forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
@@ -1289,7 +1291,7 @@ button { font: inherit; color: inherit; }
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
         toast: null
     };
-    const allItems = () => [...state.lists.active, ...state.lists.ignored, ...state.lists.tickets, ...(state.found || [])];
+    const allItems = () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored, ...state.lists.tickets, ...(state.found || [])];
     const selectedItem = () => allItems().find(item => item.key === state.selected) || null;
     const threadItemFor = ticket => state.lists.active.find(item => item.parentItemId === ticket.parentItemId) || null;
 
@@ -1323,10 +1325,25 @@ button { font: inherit; color: inherit; }
         }
     }
 
+    // Thread con ticket aperti: nell'elenco compare la mail (il thread), i suoi ticket stanno nel pannello di destra.
+    function ticketThreads(tickets, active) {
+        const groups = new Map();
+        tickets.filter(ticket => ticket.parentItemId && !active.some(item => item.parentItemId === ticket.parentItemId)).forEach(ticket => {
+            if (!groups.has(ticket.parentItemId)) groups.set(ticket.parentItemId, []);
+            groups.get(ticket.parentItemId).push(ticket);
+        });
+        return [...groups.entries()].map(([parentItemId, list]) => {
+            const info = list.find(ticket => ticket.threadInfo)?.threadInfo;
+            const base = info ? toThread(info, 'mine') : { subject: list[0].subject, from: { name: '', email: '' }, receivedAt: list[0].lastAt, messageCount: 0, status: 'Acquired' };
+            const latest = list.map(ticket => ticket.lastAt).sort().pop();
+            const subject = info?.subject || info?.lastMessage?.subject || list[0].subject;
+            return { ...base, subject, key: `thread:${parentItemId}`, parentItemId, section: 'mine', receivedAt: base.receivedAt || latest, tickets: list, unseen: Math.max(0, ...list.map(ticket => ticket.unseen || 0)) };
+        });
+    }
     async function loadLists() {
         try {
             const [active, ignored, tickets] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets()]);
-            Object.assign(state.lists, { active, ignored, tickets });
+            Object.assign(state.lists, { active, ignored, tickets, threads: ticketThreads(tickets, active) });
             state.error = '';
         } catch (error) {
             state.error = error.message;
@@ -1453,19 +1470,24 @@ button { font: inherit; color: inherit; }
         if (!fields) return showStatus('Scegli agenzia e attività', 'danger');
         const company = state.settings.companies[draft.companyId];
         const thread = item && state.threads.get(item.parentItemId);
+        // Su un thread che ha già un ticket se ne apre un altro (SHP-<thread>-<n>): niente tag né presa del thread.
+        const linked = item ? linkedThread(item) : false;
         const ticket = await run(async () => {
-            if (item) {
+            if (item && !linked) {
                 await ensureTag(item);
                 await Data.thread({ ...item, messageCount: thread?.messages?.length || item.messageCount }, 'acquire');
             }
-            return Data.createTicket(item ? { ...item, messageId: thread?.messages?.[0]?.id } : null,
+            return Data.createTicket(item ? { parentItemId: item.parentItemId, messageId: draft.messageId || thread?.messages?.[0]?.id } : null,
                 { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes });
         }, created => `Ticket ${created.number} aperto`);
         if (!ticket) return;
         state.forms.delete(`take:${item?.key || 'new'}`);
+        if (item) state.sideCards.delete(item.key);
         state.panel = null;
         await loadLists();
-        state.selected = ticket.key;
+        // si resta sul thread (ora con il ticket nel pannello di destra); il ticket senza mail si apre da solo
+        state.selected = ticket.parentItemId ? `thread:${ticket.parentItemId}` : null;
+        state.openTicket.set(ticket.parentItemId || 0, ticket.number);
         render();
         openThread(ticket.parentItemId);
     }
@@ -1572,7 +1594,7 @@ button { font: inherit; color: inherit; }
         if (!done) return;
         state.forms.delete(`update:${ticket.number}`);
         state.panel = null;
-        if (draft.type === 'resolve' || draft.type === 'cancel') closeSelected();
+        if ((draft.type === 'resolve' || draft.type === 'cancel') && !ticket.parentItemId) closeSelected();
         await loadLists();
     }
 
@@ -1626,7 +1648,7 @@ button { font: inherit; color: inherit; }
     }
 
     function topbar() {
-        const counts = { work: state.lists.tickets.length + state.lists.active.length };
+        const counts = { work: state.lists.active.length + state.lists.threads.length };
         return h('header', { class: 'topbar' },
             h('span', { class: 'brand' }, 'Magus'),
             h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sezioni' },
@@ -1662,6 +1684,10 @@ button { font: inherit; color: inherit; }
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, item.subject),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
+                item.section === 'mine' ? h('span', { class: 'item-meta' },
+                    item.from?.name ? h('span', {}, item.from.name) : null,
+                    item.tickets.map(entry => h('span', { class: `tag${entry.status === 'On Hold' ? ' working' : ''}`, title: TICKET_STATUS[entry.status] || entry.status }, entry.number)),
+                    item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null) :
                 h('span', { class: 'item-meta' },
                     ticket ? h('span', {}, [item.number, item.agency].filter(Boolean).join(' · ')) : h('span', {}, item.from.name),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : threadTag(item),
@@ -1671,15 +1697,16 @@ button { font: inherit; color: inherit; }
     // c'è e, con Invio, cerca anche tra tutti i ticket.
     function listColumn() {
         const needle = state.search.trim().toLowerCase();
-        const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference].some(text => String(text || '').toLowerCase().includes(needle));
+        const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference, ...(item.tickets || []).flatMap(ticket => [ticket.number, ticket.ampReference, ticket.agency])].some(text => String(text || '').toLowerCase().includes(needle));
         const sections = state.section === 'ignored'
             ? [['', state.lists.ignored.filter(match)]]
-            : [['Ticket aperti', state.lists.tickets.filter(match)], ['In coda', state.lists.active.filter(match)],
+            // ticket aperti e mail in coda in un solo elenco, dal più recente
+            : [['', [...state.lists.active, ...state.lists.threads].filter(match).sort((a, b) => (parseDate(b.lastAt || b.receivedAt)?.getTime() || 0) - (parseDate(a.lastAt || a.receivedAt)?.getTime() || 0))],
                 ...(state.found ? [['Ricerca nei ticket', state.found.filter(item => !state.lists.tickets.some(open => open.number === item.number))]] : [])];
         const shown = sections.filter(([, list]) => list.length);
         const head = h('div', { class: 'column-head stack' },
             h('div', { class: 'segmented', role: 'group', 'aria-label': 'Sezione' },
-                [['active', 'Attive', 'queue', state.lists.tickets.length + state.lists.active.length], ['ignored', 'Ignorate', 'ignored', state.lists.ignored.length]].map(([id, label, iconName, count]) =>
+                [['active', 'Attive', 'queue', state.lists.active.length + state.lists.threads.length], ['ignored', 'Ignorate', 'ignored', state.lists.ignored.length]].map(([id, label, iconName, count]) =>
                     h('button', { type: 'button', class: 'segment', 'aria-pressed': String(state.section === id), onclick: () => { state.section = id; closeSelected(); } },
                         icon(ICONS[iconName]), label, h('span', { class: 'count' }, String(count))))),
             h('div', { class: 'search-row' },
@@ -1704,7 +1731,7 @@ button { font: inherit; color: inherit; }
     function message(entry, thread, item) {
         const body = thread.bodies.get(entry.id);
         const service = sameEmail(entry.from.email, serviceMailbox());
-        const queue = item && !item.key.startsWith('ticket:') && item.section !== 'ignored';
+        const queue = item?.section === 'active';
         const action = (label, iconName, onclick, extra = {}) => h('button', { type: 'button', class: 'message-action', title: label, 'aria-label': label, ...extra, onclick }, icon(ICONS[iconName]), h('span', {}, label));
         const draft = state.drafts.get(item?.parentItemId);
         const composing = item && state.composing.has(item.parentItemId) && draft?.messageId === entry.id;
@@ -1722,7 +1749,7 @@ button { font: inherit; color: inherit; }
                 action('Rispondi', 'reply', event => openComposer(item, thread, 'one', event.currentTarget, entry.id), { 'data-action': 'one' }),
                 action('Rispondi a tutti', 'replyAll', event => openComposer(item, thread, 'all', event.currentTarget, entry.id), { 'data-action': 'all' }),
                 queue ? action('Inoltra', 'cardForward', () => openCard(item, entry.id, 'forward')) : null,
-                queue && !service ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null) : null);
+                !service ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null) : null);
         return composing ? [article, composer(item, thread)] : article;
     }
     // Risposta precompilata dalla mail scelta: A = chi l'ha scritta (se è nostra, i suoi destinatari), Cc = gli altri
@@ -1822,18 +1849,28 @@ button { font: inherit; color: inherit; }
     const CARD_ACTIONS = [['take', 'Prendi in carico', 'cardTake'], ['forward', 'Inoltra', 'cardForward'], ['ignore', 'Ignora', 'cardIgnore']];
     const segmentMemory = new Map(), segmentPlace = new Map(), choiceMemory = new Map();
     const aoIcon = paths => h('span', { class: 'ao-svg-icon', 'aria-hidden': 'true' }, icon(paths));
+    // Crea ticket / Inoltra su una mail: la scheda del thread nel pannello di destra si prepara con quella mail (la
+    // descrizione del ticket è il suo testo) e l'azione già scelta.
+    const linkedThread = item => item.section === 'mine' || item.key.startsWith('ticket:');
+    function sideCardFor(item) {
+        if (!state.sideCards.has(item.key)) state.sideCards.set(item.key, { messageId: null, choice: linkedThread(item) ? 'take' : null, group: null });
+        return state.sideCards.get(item.key);
+    }
     function openCard(item, messageId, choice) {
         const thread = state.threads.get(item.parentItemId);
         const draft = takeDraft(item);
         const text = thread?.bodies.get(messageId)?.text;
         if (text) draft.description = text;
-        segmentMemory.delete('card');
-        choiceMemory.delete('card-forward');
-        state.cardWindow = { key: item.key, messageId, choice, group: null };
+        draft.messageId = messageId; // il ticket nasce dalla mail scelta
+        const card = sideCardFor(item);
+        Object.assign(card, { messageId, choice });
         render();
+        const target = [...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent);
+        target?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
+        if (target && !reducedMotion()) target.animate([{ boxShadow: '0 0 0 2px var(--accent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 900, easing: 'ease-out' });
     }
-    function closeCard() {
-        state.cardWindow = null;
+    function closeCard(item) {
+        state.sideCards.delete(item.key);
         render();
     }
     // Selettore a segmenti del pannello (filterBar + iconBar): la voce scelta si allarga e mostra il nome; la pillola
@@ -1955,11 +1992,14 @@ button { font: inherit; color: inherit; }
         menu.style.top = menu.offsetHeight > below && rect.top - box.top > below ? `${rect.top - box.top - menu.offsetHeight - 4}px` : `${rect.bottom - box.top + 4}px`;
         field.classList.add('ao-open');
     }
-    function cardView() {
-        const win = state.cardWindow;
-        const item = allItems().find(entry => entry.key === win.key);
-        if (!item) { state.cardWindow = null; return ''; }
+    // Scheda del thread nel pannello di destra (come la scheda espansa di In coda nel pannello AMP): Prendi in carico,
+    // Inoltra, Ignora. Su un thread che ha già ticket è la scheda del nuovo ticket collegato.
+    function threadCard(item) {
+        const win = sideCardFor(item);
         const thread = state.threads.get(item.parentItemId);
+        const linked = linkedThread(item);
+        if (linked) win.choice = 'take';
+        const zoneKey = `card:${item.key}`;
         const entry = thread?.messages.find(message => message.id === win.messageId);
         const text = thread?.bodies.get(win.messageId)?.text || '';
         const mine = item.status === 'Working' && isMe(item.assignedTo);
@@ -1986,27 +2026,53 @@ button { font: inherit; color: inherit; }
                 h('button', { type: 'button', class: 'ao-details-toggle', disabled: !details, 'aria-expanded': String(Boolean(detailsBody)), onclick: () => { draft.detailsOpen = !draft.detailsOpen; render(); } },
                     h('span', {}, 'Dettagli'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
                 detailsBody),
-            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !details || state.busy, onclick: () => { closeCard(); takeCharge(item); } }, 'Prendi in carico'))];
+            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !details || state.busy, onclick: () => { takeCharge(item); } }, linked ? 'Crea ticket' : 'Prendi in carico'))];
         } else if (win.choice === 'forward') {
             const groups = forwardGroups();
             const group = groups.find(entry => entry.id === win.group);
             zone = [groups.length ? aoChoiceBar('card-forward', groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name })), win.group, value => { win.group = value; render(); }, 'forward') : h('p', { class: 'ao-mail-text' }, 'Nessun gruppo nella config'),
-                h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy, onclick: () => { closeCard(); forwardThread(item, group); } }, 'Inoltra'))];
-        } else {
-            zone = [h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-danger', disabled: state.busy, onclick: () => { closeCard(); ignoreThread(item); } }, 'Confermi?'))];
+                h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy, onclick: () => forwardThread(item, group) }, 'Inoltra'))];
+        } else if (win.choice === 'ignore') {
+            zone = [h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-danger', disabled: state.busy, onclick: () => ignoreThread(item) }, 'Confermi?'))];
         }
-        const card = h('div', { class: 'ao-item ao-queue-item ao-expanded' },
+        const card = h('div', { class: 'ao-item ao-queue-item ao-expanded ao-unlifted', 'data-card': item.key },
             h('div', { class: 'ao-item-main' },
                 h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-title' }, item.subject), h('span', { class: 'ao-item-time' }, shortWhen(entry?.receivedAt || item.receivedAt))),
-                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), tag)),
+                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), linked ? h('span', { class: 'ao-chip ao-tone-accent' }, `Nuovo ticket, collegato a ${(item.tickets || [item]).map(entry => entry.number).join(', ')}`) : tag)),
             h('div', { class: 'ao-inline-form' },
                 text ? h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, text)) : null,
-                aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapZone('card', () => { win.choice = value; }); }, 'card'),
-                h('div', { class: 'ao-choice-zone', 'data-zone': 'card' }, h('div', { class: 'ao-choice-content' }, zone)),
-                h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: closeCard }, icon('<path d="M5 12.5l5-5 5 5"/>'))));
-        return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeCard(); else if (!event.target.closest('.ao-select-menu, .ao-select')) closeAoSelects(); } },
-            h('section', { class: 'modal card-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': item.subject },
-                h('div', { id: 'ao-root', 'data-style': document.documentElement.dataset.style, 'data-theme': document.documentElement.dataset.mode }, card)));
+                linked ? null : aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapZone(zoneKey, () => { win.choice = value; }); }, zoneKey),
+                h('div', { class: 'ao-choice-zone', 'data-zone': zoneKey }, zone ? h('div', { class: 'ao-choice-content' }, zone) : null),
+                linked || win.choice ? h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => { if (linked) closeCard(item); else swapZone(zoneKey, () => { Object.assign(win, { choice: null, messageId: null }); }); } }, icon('<path d="M5 12.5l5-5 5 5"/>')) : null));
+        return aoHost(card);
+    }
+    // Senza un thread scelto: i ticket senza mail (non stanno nella coda delle mail) e Nuovo ticket senza mail.
+    function mailessSide() {
+        const tickets = state.lists.tickets.filter(ticket => !ticket.parentItemId);
+        const open = tickets.find(ticket => ticket.number === state.openTicket.get(0));
+        return h('div', { class: 'ticket-stack' },
+            h('h2', { class: 'group-title' }, 'Ticket senza mail', h('span', { class: 'count' }, String(tickets.length))),
+            tickets.map(ticket => ticket === open ? ticketSide(ticket) : ticketFace(ticket, () => { state.openTicket.set(0, ticket.number); render(); })),
+            aoHost(h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => { state.selected = 'new'; state.panel = null; render(); } }, icon(ICONS.plus), 'Nuovo ticket senza mail')));
+    }
+    function ticketFace(ticket, onclick) {
+        return aoHost(h('section', { class: 'ao-item ao-ticket-card', tabindex: '0', role: 'button', 'aria-expanded': 'false', onclick },
+            h('div', { class: 'ao-ticket-face' },
+                h('div', { class: 'ao-item-top' }, h('span', {}, h('span', { class: 'ao-item-number' }, ticket.number)),
+                    h('div', { class: 'ao-item-tags' }, ticket.status === 'On Hold' ? h('span', { class: 'ao-chip ao-tone-hold' }, TICKET_STATUS[ticket.status]) : null)),
+                h('div', { class: 'ao-item-where' }, h('div', { class: 'ao-item-place' }, h('div', { class: 'ao-item-company' }, ticket.agency || ''))),
+                h('div', { class: 'ao-item-title' }, ticket.subject))));
+    }
+    // Thread con ticket: i suoi ticket (uno aperto, gli altri chiusi: un clic li apre) e in fondo Nuovo ticket.
+    function ticketsSide(item) {
+        const tickets = state.lists.tickets.filter(ticket => ticket.parentItemId === item.parentItemId);
+        const open = tickets.find(ticket => ticket.number === state.openTicket.get(item.parentItemId)) || tickets[0];
+        const thread = state.threads.get(item.parentItemId);
+        const lastReceived = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
+        return h('div', { class: 'ticket-stack' },
+            tickets.map(ticket => ticket === open ? ticketSide(ticket) : ticketFace(ticket, () => { state.openTicket.set(item.parentItemId, ticket.number); render(); })),
+            state.sideCards.has(item.key) ? threadCard(item)
+                : aoHost(h('button', { type: 'button', class: 'ao-new-ticket', onclick: () => openCard(item, lastReceived?.id || null, 'take') }, icon(ICONS.plus), 'Nuovo ticket')));
     }
     function threadColumn(item) {
         if (state.selected === 'new') return newTicketColumn();
@@ -2256,11 +2322,16 @@ button { font: inherit; color: inherit; }
         if (content) { content.style.opacity = ''; content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 130, easing: 'linear' }); }
     }
     function sideContent(item) {
-        return item.key.startsWith('ticket:') ? ticketSide(item) : threadSide(item);
+        if (item.key.startsWith('ticket:')) return ticketSide(item);
+        if (item.section === 'mine') return ticketsSide(item);
+        if (item.section === 'ignored' || state.panel?.type === 'forwarding') return threadSide(item);
+        return threadCard(item);
     }
     function sideColumn(item) {
         return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
-            h('div', { class: 'card' }, item && document.documentElement.dataset.layout === 'wide' ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item)) : empty('ticket', '')));
+            h('div', { class: 'card' }, document.documentElement.dataset.layout !== 'wide' ? empty('ticket', '')
+                : item ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item))
+                    : h('div', { class: 'scroll side', 'data-scroll': 'side:mailless' }, mailessSide())));
     }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
@@ -2573,7 +2644,7 @@ button { font: inherit; color: inherit; }
         const scrolls = new Map([...root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll, node.scrollTop]));
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
-        root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', state.cardWindow ? cardView() : '', toast() || '');
+        root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '');
         animate();
         root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
         const field = focus && document.getElementById(focus.id);
@@ -2606,7 +2677,7 @@ button { font: inherit; color: inherit; }
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
         if (state.menuOpen) { state.menuOpen = false; render(); }
-        else if (state.cardWindow) { if (document.querySelector('.ao-select-menu')) closeAoSelects(); else closeCard(); }
+        else if (document.querySelector('.ao-select-menu')) closeAoSelects();
         else if (state.settingsOpen) closeSettings();
     });
     applyAppearance(state.settings);
