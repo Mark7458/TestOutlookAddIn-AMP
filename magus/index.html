@@ -328,15 +328,18 @@ button { font: inherit; color: inherit; }
 /* Etichette sulla coda: + per mettere la propria, la propria si toglie, quella di un collega si prende con due clic */
 button.tag { cursor: pointer; font: inherit; font-size: var(--fs-xs); font-weight: 500; transition: border-color .3s, background-color .3s; }
 button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transparent); }
-.tag-add { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 20px; padding: 0; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--track-in-card); color: var(--subtle); cursor: pointer; transition: color .3s, border-color .3s; }
-.tag-add:hover { border-color: var(--accent-line); color: var(--text); }
+.tag-add { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 20px; padding: 0; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--track-in-card); color: var(--subtle); cursor: pointer; transition: color .3s, border-color .4s ease, box-shadow .4s ease; }
+.tag-add:hover { border-color: var(--accent-line); box-shadow: var(--glow-rest); color: var(--text); } /* come nel pannello: si accendono bordo e bagliore */
 .tag-add .icon { width: 13px; height: 13px; }
 .tag.swap.armed { gap: 4px; border-color: color-mix(in srgb, var(--label) 60%, transparent); }
 .tag.swap s { color: var(--muted); }
 .tag.swap .icon { width: 11px; height: 11px; color: var(--muted); }
 .tag-next { color: color-mix(in srgb, var(--label) 45%, var(--text)); }
-.tag-in { animation: tag-in .42s cubic-bezier(.32, 1.4, .5, 1) both; }
-@keyframes tag-in { from { opacity: 0; transform: scale(.6); } }
+/* Stessi movimenti del pannello: la propria etichetta entra con un rimbalzo, il passaggio a due clic compare in dissolvenza */
+.tag-in { animation: tag-in .28s cubic-bezier(.32, 1.28, .5, 1); }
+@keyframes tag-in { from { transform: scale(.6); opacity: 0; } }
+.tag.swap.armed { animation: fade-in .2s linear; }
+@media (prefers-reduced-motion: reduce) { .tag-in, .tag.swap.armed { animation: none; } }
 .tag.working { border-color: color-mix(in srgb, var(--working) 50%, transparent); color: var(--working); }
 .count-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-fill); color: #fff; font-size: var(--fs-xs); font-weight: 600; text-align: center; line-height: 20px; }
 
@@ -959,7 +962,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 (() => {
   const ME = 'utente@esempio.it', BOX = 'servizio@esempio.it';
   const ago = minutes => new Date(Date.now() - minutes * 60000).toISOString();
-  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PO: { name: 'Posta', code: 'PO' } }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
+  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PEL: { name: 'PEL', code: 'PEL' }, PO: { name: 'Posta', code: 'PO' } }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
   const threads = [
     { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 2, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
     { id: 102, subject: 'Richiesta licenza Visio', from: 'Paolo Neri <paolo.neri@agenzia.it>', at: 48, count: 1, thread: { status: 'New' } },
@@ -1566,16 +1569,26 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Azioni
     // ------------------------------------------------------------------
     // Tag: tuo → lo togli; di un collega → secondo clic per subentrare; nessuno → lo metti.
+    // Come nel pannello (setLabel): l'etichetta cambia subito a schermo (la propria compare con un piccolo rimbalzo), poi
+    // si salva; se non riesce (per esempio l'ha presa un collega nel frattempo) torna com'era e lo si dice.
     async function toggleTag(item) {
         const mine = item.status === 'Working' && isMe(item.assignedTo);
         const other = item.assignedTo && !mine && ['Working', 'Ignored'].includes(item.status);
         if (other && state.armed !== item.key) { state.armed = item.key; render(); return; }
         state.armed = null;
-        const done = await run(() => Data.thread(item, mine ? 'untag' : 'tag', other ? { force: true } : {}), mine ? 'Etichetta tolta' : 'Etichetta messa');
-        if (!done) return;
-        state.tagEntering = mine ? null : item.key; // la propria etichetta compare con un piccolo rimbalzo
-        await loadLists();
+        const before = { status: item.status, assignedTo: item.assignedTo };
+        Object.assign(item, mine ? { assignedTo: '' } : { status: 'Working', assignedTo: state.user.email });
+        state.tagEntering = mine ? null : item.key;
+        render();
         state.tagEntering = null;
+        try {
+            await Data.thread(item, mine ? 'untag' : 'tag', other ? { force: true } : {});
+        } catch (error) {
+            Object.assign(item, before);
+            render();
+            showStatus(CHANGED[error.reason] || error.message || String(error), 'danger');
+        }
+        loadLists();
     }
     // Presa in carico, inoltro e ignora vogliono il proprio tag: se manca si mette prima.
     async function ensureTag(item) {
@@ -1943,8 +1956,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('label', { class: 'search' }, icon(ICONS.search),
                     h('input', { id: 'search', type: 'search', placeholder: 'Cerca', value: state.search, 'aria-label': 'Cerca',
                         oninput: event => { state.search = event.target.value; if (!state.search) state.found = null; render(); },
-                        onkeydown: event => { if (event.key === 'Enter') search(event.target.value); } })),
-                h('button', { type: 'button', class: 'btn icon-only', title: 'Nuovo ticket', 'aria-label': 'Nuovo ticket', onclick: () => { state.selected = 'new'; state.panel = null; render(); } }, icon(ICONS.plus))));
+                        onkeydown: event => { if (event.key === 'Enter') search(event.target.value); } }))));
         const body = !state.loaded ? empty('queue', 'Caricamento…')
             : state.error ? empty('queue', state.error)
                 : shown.length ? shown.map(([title, list]) => h('section', { class: 'group' },
