@@ -277,7 +277,7 @@ button { font: inherit; color: inherit; }
 .menu-item .icon { color: var(--muted); }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 320px); gap: 12px; }
+.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 322px; gap: 12px; } /* destra: 300 px di contenuto, come il pannello AMP */
 .column { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .column > .card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 6px 10px 10px; scrollbar-gutter: stable; }
@@ -317,7 +317,14 @@ button { font: inherit; color: inherit; }
 .item:active { transform: scale(.99); }
 .item:hover { background: var(--hover); }
 .item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
-.list-foot { flex: none; padding: 6px 12px 8px; border-top: 1px solid var(--line); color: var(--subtle); font-size: var(--fs-xs); }
+.list-foot { flex: none; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 12px 8px; border-top: 1px solid var(--line); color: var(--subtle); font-size: var(--fs-xs); }
+/* Barra di stato (come nel pannello): pallino, stato dei servizi, ora dell'ultimo aggiornamento */
+.statusbar-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.statusbar-neutral .statusbar-dot { background: var(--subtle); }
+.statusbar-danger .statusbar-dot { background: var(--danger); }
+.statusbar-danger .statusbar-text { color: var(--danger); }
+.statusbar-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.statusbar-sync { flex: none; margin-left: auto; }
 .item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .item-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
 .item-time { flex: none; color: var(--subtle); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
@@ -432,6 +439,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: calc(100% - 32px); padding: 9px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
   background: var(--toast-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); color: var(--text); font-size: var(--fs-sm); font-weight: 500; transform: translateX(-50%); }
 .toast.success { color: var(--success); } .toast.warning { color: var(--working); } .toast.danger { color: var(--danger); }
+/* Pillola dell'esito con l'icona dell'azione e, se serve, un comando (come nel pannello) */
+.toast { display: inline-flex; align-items: center; gap: 8px; }
+.toast .icon { flex: none; width: 15px; height: 15px; }
+.toast-action { margin-left: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+/* Riquadro che passa dalla pillola "Ticket" al modulo e ritorno */
+.morph-shell { position: fixed; z-index: 30; pointer-events: none; border: 1px solid var(--accent-line); background: var(--panel-bg); box-shadow: var(--glow-rest), 0 6px 16px rgba(0, 0, 0, .12); }
 
 /* Impostazioni: finestra in sovrimpressione, con il resto sfocato dietro */
 .modal-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
@@ -534,9 +547,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .side .ao-host .ao-ticket-dates { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 
 
-/* Mail classiche (Impostazioni > Aspetto > Mail): tutte a tutta larghezza, stesso fondo, come in un client di posta */
-:root[data-mail="classic"] .message, :root[data-mail="classic"] .message.service { margin-left: 0; margin-right: 0; border-color: var(--line); background: var(--message-bg); color: var(--text); }
-:root[data-mail="classic"] .message.service .message-action { color: var(--muted); }
+/* Mail classiche (Impostazioni > Aspetto > Mail): tutte a tutta larghezza come in un client di posta; le nostre con il loro colore */
+:root[data-mail="classic"] .message, :root[data-mail="classic"] .message.service { margin-left: 0; margin-right: 0; } /* le nostre restano del loro colore */
 
 /* Componenti delle schede del pannello AMP: CSS originale del pannello (estratto, solo le parti delle schede).
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -559,10 +571,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 @keyframes ao-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-notify-alert:not(.ao-notify-off) { animation: none; } }
 #ao-root .ao-segment:not(.ao-active) .ao-notify:not(.ao-notify-off) { opacity: .5; }
+#ao-root .ao-steps { display: flex; gap: 4px; margin-top: 8px; }
+#ao-root .ao-steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--ao-line-strong); transition: background-color .3s; }
+#ao-root .ao-steps span.ao-done { background: var(--ao-text-accent); }
+#ao-root .ao-step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#ao-root .ao-step-nav { justify-content: flex-end; }
 #ao-root .ao-step-nav .ao-button { flex: 1; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 #ao-root .ao-chip-toggle { padding: 4px 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-chip-toggle.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); color: var(--ao-text); }
+#ao-root .ao-step-center { justify-items: center; text-align: center; padding: 18px 12px; }
+#ao-root .ao-step-icon { font-size: 20px; }
+#ao-root .ao-run-step .ao-hint { grid-column: 2; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
 #ao-root .ao-bridge > .ao-label:empty { display: none; }
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
@@ -584,6 +604,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-button.ao-fill-danger { --ao-btn: var(--ao-tone-ignore); }
 #ao-root .ao-button.ao-fill-resolve { --ao-btn: var(--ao-tone-resolve); }
 #ao-root .ao-button.ao-fill-hold { --ao-btn: var(--ao-tone-hold); }
+#ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
 #ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
 #ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
@@ -657,11 +678,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #ao-root .ao-card-title { margin: 0; font-size: var(--ao-fs-lg); font-weight: var(--ao-fw-medium); }
 #ao-root .ao-muted { margin: 0; color: var(--ao-text-muted); }
+#ao-root .ao-hint { color: var(--ao-text-subtle); font-size: var(--ao-fs-sm); }
 #ao-root .ao-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ao-root .ao-actions .ao-primary { flex: 1; }
+#ao-root .ao-thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-thread-count { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
+#ao-root .ao-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: var(--ao-call-border); border-radius: var(--ao-radius-pill); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-md); font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
+#ao-root .ao-pill.ao-away { visibility: hidden; }
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
 #ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
-#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:is([type="text"], [type="number"], [type="email"], [type="date"], [type="datetime-local"]):not(.ao-select-search))) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
 #ao-root .ao-select { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 #ao-root .ao-select-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -676,11 +701,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-select-search:focus-visible { box-shadow: none; }
 #ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; }
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
-#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:not([type="checkbox"], .ao-select-search))):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ao-root .ao-new-ticket { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; padding: 8px; border: var(--ao-call-border); border-radius: var(--ao-radius-base); background: var(--ao-surface); box-shadow: var(--ao-call-glow-rest); color: var(--ao-text-accent); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
+#ao-root .ao-new-ticket-card { position: relative; z-index: 1; border-color: var(--ao-call-open-border); transform: translateY(-2px) scale(1.015); box-shadow: var(--ao-call-glow), 0 6px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08); }
 #ao-root .ao-new-ticket-card .ao-inline-form { border-top: 0; padding-top: 0; }
+#ao-root .ao-new-ticket-card.ao-with-origin { gap: 3px; padding: 9px 10px; }
 #ao-root .ao-new-ticket-card.ao-with-origin .ao-inline-form { padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-with-origin .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
 #ao-root .ao-field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; align-items: end; }
@@ -690,6 +717,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-inline-form { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line-light); }
 #ao-root .ao-mail-preview { min-height: 60px; max-height: 230px; overflow: hidden; padding: 6px 8px; border-radius: calc(var(--ao-radius-base) - 2px); background: var(--ao-quote-bg); color: var(--ao-text-muted); font-size: var(--ao-fs-md); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; scrollbar-width: thin; }
 #ao-root .ao-mail-preview.ao-scrollable { overflow-y: auto; }
+#ao-root .ao-message-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
+#ao-root .ao-message-step { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--ao-text-muted); cursor: pointer; transition: color .25s; }
+#ao-root .ao-message-step:hover:where(:not(:disabled)) { color: var(--ao-text); }
+#ao-root .ao-message-step:disabled { opacity: .4; cursor: default; }
+#ao-root .ao-message-where { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #ao-root .ao-spacer { flex: 1; }
 #ao-root .ao-reply-tools, #ao-root .ao-reply-name { display: flex; align-items: center; gap: 6px; }
 #ao-root .ao-reply-tools { gap: 14px; }
@@ -698,6 +730,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-queue-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ao-root .ao-queue-row > :last-child { flex: none; }
 #ao-root .ao-queue-item.ao-expanded .ao-queue-row .ao-item-title { white-space: normal; overflow-wrap: anywhere; }
+#ao-root .ao-handled { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
 #ao-root .ao-handled .ao-svg-icon svg { width: 13px; height: 13px; }
 #ao-root .ao-queue-item .ao-actions { flex-wrap: nowrap; }
 #ao-root .ao-queue-item .ao-actions .ao-primary { flex: 1; white-space: nowrap; }
@@ -736,8 +769,23 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-queue-item.ao-expanded[data-choice="take"] .ao-item-title { color: var(--ao-text-accent); }
 #ao-root .ao-queue-item.ao-expanded[data-choice="forward"] .ao-item-title { color: var(--ao-choice-forward-text); }
 #ao-root .ao-queue-item.ao-expanded[data-choice="ignore"] .ao-item-title { color: var(--ao-choice-danger-text); }
+#ao-root .ao-spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor var(--ao-spinner-track), transparent); border-top-color: currentColor; border-radius: 50%; animation: ao-spin .8s linear infinite; }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
+#ao-root .ao-steps { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; padding: 4px 0 2px; }
+#ao-root .ao-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ao-text-subtle); font-size: var(--ao-fs-xs); }
+#ao-root .ao-step + .ao-step::before { content: ""; position: absolute; top: 8px; left: calc(-50% + 12px); width: calc(100% - 24px); height: 2px; border-radius: 1px; background: var(--ao-line-strong); }
+#ao-root .ao-step + .ao-step-ok::before { background: var(--ao-progress); }
+#ao-root .ao-step + .ao-step-ko::before { background: var(--ao-danger); }
+#ao-root .ao-step-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; background: none; color: inherit; }
 #ao-root .ao-step-dot .ao-svg-icon svg { width: 11px; height: 11px; }
+#ao-root .ao-step-dot .ao-spinner { width: 10px; height: 10px; }
+#ao-root .ao-step-run { color: var(--ao-text); }
+#ao-root .ao-step-ok .ao-step-dot, #ao-root .ao-step-run .ao-step-dot { border-color: var(--ao-progress); color: var(--ao-progress); box-shadow: 0 0 10px color-mix(in srgb, var(--ao-progress) 70%, transparent); }
+#ao-root .ao-step-ok .ao-step-dot { background: color-mix(in srgb, var(--ao-progress) 18%, transparent); }
+#ao-root .ao-step-ko { color: var(--ao-danger); }
+#ao-root .ao-step-ko .ao-step-dot { border-color: var(--ao-danger); background: var(--ao-danger-bg); }
+#ao-root button.ao-step-dot { cursor: pointer; transition: transform .15s; }
+#ao-root button.ao-step-dot:hover { transform: scale(1.15); }
 #ao-root .ao-ticket-steps { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-queue-item, #ao-root .ao-spinner { transition: none; animation: none; } }
 #ao-root .ao-ticket-card { display: grid; gap: 0; cursor: pointer; }
@@ -783,6 +831,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-mailbar :is(.ao-chip, .ao-user-tag) { flex: none; height: 18px; padding: 0 6px; font-size: var(--ao-fs-xs); }
 #ao-root .ao-item, #ao-root .ao-card, #ao-root .ao-segmented, #ao-root .ao-bar-btn, #ao-root .ao-new-ticket, #ao-root .ao-mailbar, #ao-root .ao-statusbar { -webkit-backdrop-filter: var(--ao-blur); backdrop-filter: var(--ao-blur); }
 #ao-root .ao-item:not(.ao-expanded, .ao-static):hover { background: var(--ao-item-hover); box-shadow: var(--ao-shadow-card), var(--ao-item-hover-glow), inset 0 0 0 1px var(--ao-item-hover-edge); }
+#ao-root :is(.ao-new-ticket, .ao-thread-bar .ao-pill):hover { border-color: var(--ao-call-edge-hover); box-shadow: var(--ao-call-glow-hover); animation: ao-call-on .4s ease-out, ao-call-sway 4.8s ease-in-out .4s infinite; }
 @keyframes ao-call-on { from { box-shadow: var(--ao-call-glow-rest); } to { box-shadow: var(--ao-call-glow-hover); } }
 @keyframes ao-call-sway {
     0%, 100% { box-shadow: var(--ao-call-glow-hover); }
@@ -812,7 +861,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
    Titolo di sezione    .side h2 .tool h2 .ao-card-title          15 px seminero, colore --text
    Area del selettore   .tabs .segmented .ao-segmented .ao-choice fondo --track (in una card --track-in-card), bordo --line,
                                                                  angoli 12, margine interno 3
-   Voce del selettore   .tab .segment .ao-segment .ao-choice-opt 13 px medio (schede in alto 15), --muted; scelta --text
+   Voce del selettore   .tab .segment .ao-segment .ao-choice-opt 13 px medio (schede in alto 15), --muted; scelta --text;
+                                                                 nelle azioni delle schede: il colore dell'azione (come nel pannello)
    Pillola della scelta .thumb .ao-segment-thumb .ao-choice-thumb fondo --seg-thumb, filo --seg-line, ombra --seg-shadow,
                                                                  angoli 9
    Pulsante principale  .btn.primary .ao-button.ao-primary       pieno --btn-fill (o colore dell'azione), angoli 10,
@@ -866,7 +916,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   --ao-selection: var(--seg-thumb);
   --ao-selection-line: var(--seg-line);
   --ao-selection-shadow: var(--seg-shadow);
-  --ao-selection-tone: 0%;
   --ao-btn-highlight: var(--btn-highlight);
   --ao-tone-line: var(--btn-line);
   font-size: var(--fs-md);
@@ -891,13 +940,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
 /* Area del selettore, voci e pillola */
 #ao-root.ao-host :is(.ao-segmented, .ao-choice) { padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--track-in-card); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
-#ao-root.ao-host :is(.ao-segment, .ao-choice-option) { min-height: 30px; border-radius: 9px; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; }
-#ao-root.ao-host :is(.ao-segment, .ao-choice-option):hover { color: var(--text); }
-#ao-root.ao-host :is(.ao-segment.ao-active, .ao-choice-option.ao-active),
-#ao-root.ao-host .ao-segmented.ao-toned .ao-segment.ao-active { color: var(--text) !important; }
-#ao-root.ao-host .ao-choice-sub { color: var(--muted); font-size: var(--fs-xs); font-weight: 400; }
-#ao-root.ao-host :is(.ao-segment-thumb, .ao-choice-thumb),
-#ao-root.ao-host .ao-segmented.ao-toned .ao-segment-thumb { top: 3px; bottom: 3px; border-radius: 9px; background: var(--seg-thumb) !important; box-shadow: inset 0 0 0 1px var(--seg-line), var(--seg-shadow) !important; }
+#ao-root.ao-host :is(.ao-segment, .ao-choice-option) { min-height: 30px; border-radius: 9px; font-size: var(--fs-sm); font-weight: 500; }
+#ao-root.ao-host .ao-choice-sub { font-size: var(--fs-xs); font-weight: 400; } /* colore come nel pannello (si tinge sulla voce scelta) */
+#ao-root.ao-host :is(.ao-segment-thumb, .ao-choice-thumb) { top: 3px; bottom: 3px; border-radius: 9px; }
 
 /* Pulsanti */
 #ao-root.ao-host .ao-button { min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: var(--fs-md); font-weight: 500; }
@@ -1275,7 +1320,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     const OPEN_TICKET_STATUSES = ['In Progress', 'On Hold'];
     const THREAD_STATUS = { New: 'Nuovo', Working: 'In coda', Acquired: 'In carico', Ignored: 'Ignorata', Forwarded: 'Inoltrata', Solved: 'Risolta' };
-    const TICKET_STATUS = { 'In Progress': 'In lavorazione', 'On Hold': 'In attesa', Resolved: 'Risolto', Canceled: 'Annullato' };
+    const TICKET_STATUS = { 'In Progress': 'In Progress', 'On Hold': 'On Hold', Resolved: 'Resolved', Canceled: 'Canceled' }; // come nel pannello
+    const TICKET_TONE = { 'In Progress': 'accent', 'On Hold': 'hold', Resolved: 'success', Canceled: 'neutral' };
+    // Etichetta dello stato del ticket (come stateChip del pannello): In Progress non si mostra.
+    const stateChip = ticket => (ticket.status && ticket.status !== 'In Progress' ? h('span', { class: `ao-chip ao-tone-${TICKET_TONE[ticket.status] || 'neutral'}` }, TICKET_STATUS[ticket.status] || ticket.status) : null);
     const NOTES_MAX = 2000;
     // Il thread è cambiato nel frattempo: la function si è fermata, la vista si aggiorna.
     const CHANGED = {
@@ -1473,8 +1521,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     // Pillola dell'esito, in basso.
     let toastTimer = null;
-    function showStatus(text, tone = 'success') {
-        state.toast = { text, tone, id: Date.now() };
+    function showStatus(text, tone = 'success', action = null, iconPaths = null) {
+        state.toast = { text, tone, action, icon: iconPaths, id: Date.now() };
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => { state.toast = null; render(); }, 3800);
         render();
@@ -1713,8 +1761,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             }
             return Data.createTicket(item ? { parentItemId: item.parentItemId, messageId: draft.messageId || thread?.messages?.[0]?.id } : null,
                 { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes });
-        }, created => `Ticket ${created.number} aperto`);
+        }, null);
         if (!ticket) return;
+        await exitCard([...document.querySelectorAll(`[data-card="${CSS.escape(item?.key || '')}"]`)].find(node => node.offsetParent));
         Usage.record(draft.companyId, draft.activityId, suggestText(draft));
         state.forms.delete(`take:${item?.key || 'new'}`);
         if (item) state.sideCards.delete(item.key);
@@ -1722,17 +1771,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         await loadLists();
         // si resta sul thread (ora con il ticket nel pannello di destra); il ticket senza mail si apre da solo
         state.selected = ticket.parentItemId ? `thread:${ticket.parentItemId}` : null;
-        state.openTicket.set(ticket.parentItemId || 0, ticket.number);
+        state.lists.tickets.filter(entry => entry.parentItemId === ticket.parentItemId).forEach(entry => state.openTicket.set(entry.number, entry.number === ticket.number));
         render();
         openThread(ticket.parentItemId);
+        showStatus(`Ticket ${ticket.number} aperto e assegnato a te.`, 'success', null, ICONS.cardTake);
     }
     async function ignoreThread(item) {
-        const done = await run(async () => { await ensureTag(item); await Data.thread(item, 'ignore'); }, 'Ignorata');
-        if (done) { closeSelected(); await loadLists(); }
-    }
-    async function restoreThread(item) {
-        const done = await run(() => Data.thread(item, 'restore'), 'Rimessa in coda');
-        if (done) { closeSelected(); await loadLists(); }
+        const done = await run(async () => { await ensureTag(item); await Data.thread(item, 'ignore'); }, null);
+        if (!done) return;
+        await exitCard([...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent));
+        closeSelected();
+        await loadLists();
+        showStatus('Ignorata', 'success', null, ICONS.cardIgnore);
     }
 
     // Inoltro in quattro passi: ticket, risposta con la sigla del gruppo, inoltro, chiusura del ticket. Al primo passo
@@ -1781,17 +1831,22 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             return;
         }
         if (ok) {
+            // tutto bene: la scheda esce, poi "Inoltrata a PO"
+            await exitCard([...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent));
             state.panel = null;
-            showStatus(`Inoltrata a ${group.tag}`);
             closeSelected();
-        } else {
-            state.forwardJobs.set(job.ticket.number, job);
-            const stuck = FORWARD_STEPS[job.steps.indexOf('ko')][1];
-            showStatus(`Bloccato su ${stuck}`, 'warning');
-            state.selected = job.ticket.key;
-            state.panel = null;
+            await loadLists();
+            showStatus(`Inoltrata a ${group.tag}`, 'success', null, ICONS.cardForward);
+            return;
         }
+        // un passo non riuscito: il ticket resta In lavorazione con la striscia; la pillola dice dove si è fermato
+        state.forwardJobs.set(job.ticket.number, job);
+        const stuck = FORWARD_STEPS[job.steps.indexOf('ko')][1];
+        state.panel = null;
         await loadLists();
+        state.selected = `thread:${item.parentItemId}`;
+        render();
+        showStatus(`Inoltro fermo al passo ${stuck}: riprova dal ticket`, 'warning');
     }
     // Inoltro fermo a metà su un ticket: i passi si ricavano dal ticket se la pagina non l'ha seguito.
     function forwardJobFor(ticket) {
@@ -1822,14 +1877,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Aggiornamento del ticket: commento, risoluzione, attesa, annullamento; minuti da aggiungere al tempo lavorato.
     async function updateTicket(ticket) {
         const draft = updateDraft(ticket);
-        if (!draft.text.trim() && !Number(draft.minutes)) return showStatus('Scrivi il testo', 'danger');
-        const label = { comment: 'Ticket aggiornato', resolve: 'Ticket risolto', hold: 'Ticket in attesa', cancel: 'Ticket annullato' }[draft.type];
-        const done = await run(() => Data.updateTicket(ticket, draft.type, draft.text.trim(), Number(draft.minutes) || 0), label);
+        if (!draft.text.trim()) return showStatus('Scrivi o scegli prima la risposta.', 'danger');
+        const type = draft.type;
+        const done = await run(() => Data.updateTicket(ticket, type, draft.text.trim(), Number(draft.minutes) || 0), null);
         if (!done) return;
         state.forms.delete(`update:${ticket.number}`);
         state.panel = null;
-        if ((draft.type === 'resolve' || draft.type === 'cancel') && !ticket.parentItemId) closeSelected();
+        const closing = type === 'resolve' || type === 'cancel';
+        if (closing && !ticket.parentItemId) closeSelected();
+        if (closing) { state.closed.delete(ticket.parentItemId); state.openTicket.delete(ticket.number); } // passa tra i chiusi del thread
         await loadLists();
+        if (closing) loadClosed(ticket.parentItemId);
+        showStatus(closing ? `${ticket.number} chiuso` : `${ticket.number} aggiornato`, 'success', null, ICONS[{ comment: 'actComment', resolve: 'actResolve', hold: 'actHold', cancel: 'actCancel' }[type]]);
     }
 
     // Risposta a tutti con i destinatari e l'oggetto scelti.
@@ -1936,6 +1995,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
                     ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null)));
     }
+    // Barra di stato (come nel pannello): pallino e stato dei servizi, a destra l'ora dell'ultimo aggiornamento.
+    function statusBar() {
+        const tone = state.error ? 'danger' : !state.loaded ? 'neutral' : 'ok';
+        const text = state.error ? `Servizi in errore: ${state.error}` : !state.loaded ? 'Caricamento…' : 'Servizi attivi';
+        return h('div', { class: `list-foot statusbar-${tone}` },
+            h('span', { class: 'statusbar-dot', 'aria-hidden': 'true' }),
+            h('span', { class: 'statusbar-text', title: text }, text),
+            state.listsAt ? h('span', { class: 'statusbar-sync', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato ${shortWhen(state.listsAt.toISOString())}`) : null);
+    }
     // Elenco come in Outlook: solo le mail (un thread per riga, dal più recente); i ticket del thread stanno nel pannello
     // di destra. Le ignorate a parte. La ricerca filtra quello che c'è e, con Invio, cerca anche tra tutti i ticket.
     function listColumn() {
@@ -1965,7 +2033,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     : empty('queue', needle ? 'Nessun risultato' : state.section === 'ignored' ? 'Nessuna ignorata' : 'Niente in coda');
         return h('section', { class: 'column', 'aria-label': 'Elenco' },
             h('div', { class: 'card' }, head, h('div', { class: 'scroll', 'data-scroll': `list:${state.section}` }, body),
-                state.listsAt ? h('div', { class: 'list-foot', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato alle ${pad(state.listsAt.getHours())}:${pad(state.listsAt.getMinutes())}`) : null));
+                statusBar()));
     }
 
     // Ogni mail con sotto i suoi comandi: Rispondi e Rispondi a tutti aprono il modulo sotto la mail, crescendo dal
@@ -2100,6 +2168,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return state.sideCards.get(item.key);
     }
     function openCard(item, messageId, choice) {
+        if (linkedThread(item)) return openExtraTicket(item, null, messageId);
         const thread = state.threads.get(item.parentItemId);
         const draft = takeDraft(item);
         const text = thread?.bodies.get(messageId)?.text;
@@ -2134,7 +2203,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     ? h('span', { class: 'ao-segment-name ao-segment-name-out', onanimationend: event => event.currentTarget.remove() }, h('span', {}, option.label)) : null;
                 return h('button', {
                     type: 'button', class: `ao-segment${active ? ' ao-active' : ''}${option.value === wide ? ' ao-grow' : ''}`, 'data-value': option.value,
-                    title: active ? undefined : option.label, 'aria-label': option.label, 'aria-pressed': String(active), onclick: () => onchange(option.value)
+                    title: active ? undefined : option.label, 'aria-label': option.label, 'aria-pressed': String(active), disabled: Boolean(option.disabled), onclick: () => onchange(option.value)
                 }, aoIcon(option.icon), active ? h('span', { class: growing ? 'ao-segment-name ao-segment-name-in' : 'ao-segment-name' }, h('span', {}, option.label)) : leaving);
             }));
         segmentMemory.set(key, value);
@@ -2229,6 +2298,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         host.querySelectorAll('.ao-select-menu').forEach(menu => menu.remove());
         host.querySelectorAll('.ao-select-search').forEach(input => input.remove());
         host.querySelectorAll('.ao-select.ao-open, .ao-menu-anchor.ao-open').forEach(field => field.classList.remove('ao-open'));
+        if (renderPending && !renderHolds) { renderPending = false; setTimeout(render); } // il ridisegno rimandato mentre era aperta
     }
     function toggleAoSelect(field, options, value, onchange, wide = field) {
         const host = field.closest('#ao-root');
@@ -2279,66 +2349,143 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         field.append(input);
         input.focus();
     }
-    // Scheda del thread nel pannello di destra (come la scheda espansa di In coda nel pannello AMP): Prendi in carico,
-    // Inoltra, Ignora. Su un thread che ha già ticket è la scheda del nuovo ticket collegato.
+    // ---- Pannello di destra: informazioni sul thread scelto (come la pagina del thread del pannello) ----
+    // Barra dello stato (threadStateBar): a sinistra chi lo gestisce e da quando, a destra lo stato.
+    const THREAD_CHIP = { New: 'In coda', Working: 'In coda', Acquired: 'In carico', Solved: 'Risolta', Ignored: 'Ignorata' };
+    const THREAD_TONE = { New: 'accent', Working: 'accent', Acquired: 'success', Forwarded: 'forward' };
+    function threadStateBar(item) {
+        const when = shortWhen(item.statusAt || item.receivedAt);
+        const since = /^\d{2}:/.test(when) ? `dalle ${when}` : /^\d/.test(when) ? `dal ${when}` : `da ${when}`;
+        const who = {
+            New: 'Nessun operatore',
+            Working: surname(operatorName(item.assignedTo)) || 'Nessun operatore',
+            Ignored: surname(operatorName(item.statusBy || item.assignedTo)) || 'Nessun operatore',
+            Forwarded: surname(operatorName(item.statusBy)) || 'Nessun operatore'
+        }[item.status] || 'Nessun operatore';
+        const group = forwardGroups().find(entry => [entry.name, entry.id].includes(item.assignedTo))?.tag || item.assignedTo;
+        const label = item.status === 'Forwarded' ? `Inoltrata a ${group}` : THREAD_CHIP[item.status] || 'Non in coda';
+        return aoHost(h('div', { class: 'ao-thread-bar' },
+            h('span', { class: 'ao-thread-count' }, `${who} · ${['New', 'Working'].includes(item.status) ? since : when}`),
+            h('span', { class: `ao-chip ao-tone-${THREAD_TONE[item.status] || 'neutral'}` }, label)));
+    }
+    // Riga della gestione (handlingLine): chi l'ha ignorata, presa, inoltrata e quando, con l'icona dell'azione.
+    const HANDLED = { Ignored: ['cardIgnore', who => `Ignorata da ${who}`], Acquired: ['cardTake', who => `In carico a ${who}`], Forwarded: ['cardForward', who => `Inoltrata a ${who}`], Solved: ['actResolve', who => `Risolta da ${who}`] };
+    function handlingLine(item) {
+        const handled = HANDLED[item.status];
+        if (!handled) return null;
+        const who = item.status === 'Forwarded' ? item.assignedTo : operatorName(item.statusBy || item.assignedTo) || 'nessuno';
+        return h('p', { class: 'ao-handled' }, aoIcon(ICONS[handled[0]]), h('span', {}, [handled[1](who), item.statusAt ? shortWhen(item.statusAt) : ''].filter(Boolean).join(' · ')));
+    }
+    const PREVIEW_MAX_CHARS = 500;
+    const clipText = (text, max) => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
+    // Scheda del thread in coda (queueCard del pannello, sempre aperta qui): oggetto e ora, mittente ed etichetta, testo
+    // della mail, poi l'azione: Prendi in carico, Inoltra, Ignora (non sulle ignorate). Si gestisce solo con la propria
+    // etichetta: senza, o con quella di un collega, la mail si legge soltanto. Il titolo prende il colore dell'azione.
     function threadCard(item) {
         const win = sideCardFor(item);
         const thread = state.threads.get(item.parentItemId);
-        const linked = linkedThread(item);
-        if (linked) win.choice = 'take';
         const zoneKey = `card:${item.key}`;
-        const entry = thread?.messages.find(message => message.id === win.messageId);
-        const text = thread?.bodies.get(win.messageId)?.text || '';
-        const mine = item.status === 'Working' && isMe(item.assignedTo);
+        // Con più messaggi si scorrono con le frecce (si parte dall'ultimo): quello che si guarda è quello da cui nasce il ticket.
+        const messages = thread?.messages || [];
+        const index = win.messageId && messages.some(message => message.id === win.messageId) ? messages.findIndex(message => message.id === win.messageId) : messages.length - 1;
+        const entry = messages[index];
+        const body = entry ? thread.bodies.get(entry.id) : null;
+        const step = (direction, label) => h('button', {
+            type: 'button', class: 'ao-message-step', 'aria-label': label, title: label, disabled: index + direction < 0 || index + direction >= messages.length,
+            onclick: () => showCardMessage(item, messages[index + direction].id)
+        }, icon(direction < 0 ? '<path d="M12.5 5l-5 5 5 5"/>' : '<path d="M7.5 5l5 5-5 5"/>'));
+        const picker = messages.length > 1 ? h('div', { class: 'ao-message-nav' },
+            step(-1, 'Messaggio precedente'),
+            h('span', { class: 'ao-message-where' }, `${index + 1} di ${messages.length} · ${shortWhen(entry?.receivedAt)}`),
+            step(1, 'Messaggio successivo')) : null;
+        const locked = !(item.status === 'Working' && isMe(item.assignedTo));
         const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
-        const tag = tagged ? h('span', { class: `ao-user-tag${mine ? ' mine' : ''}` }, surname(operatorName(item.assignedTo))) : null;
-        const draft = takeDraft(item);
-        let zone;
-        if (win.choice === 'take') {
-            proposeActivity(draft);
-            const companies = Object.entries(state.settings.companies).sort(byName).map(([id, company]) => [id, company.name]);
-            const suggested = draft.companyId ? Usage.suggest(draft.companyId, suggestText(draft)) : [];
-            const others = Object.entries(state.settings.activities).sort(byName).filter(([id]) => !suggested.includes(id)).map(([id, activity]) => [id, activity.name]);
-            const activities = suggested.length
-                ? [{ group: "Suggerite per l'agenzia" }, ...suggested.map(id => [id, state.settings.activities[id].name, true]), { group: 'Tutte' }, ...others]
-                : others;
-            const details = ticketFields(draft);
-            const detailsBody = details && draft.detailsOpen ? h('div', { class: 'ao-details-body' },
-                h('dl', { class: 'ao-details-list' },
-                    [['Company', details.company.displayValue], ['Gruppo', details.assignmentGroup.displayValue], ['Assegnato a', details.assignedTo.displayValue],
-                        ['Categoria', details.category.displayValue], ['Impatto / Urgenza', `${SEVERITY[details.impact] || '?'} / ${SEVERITY[details.urgency] || '?'}`], ['Tempo lavorato', `${details.minutes} min`]]
-                        .flatMap(([label, value]) => [h('dt', {}, label), h('dd', {}, value || '—')])),
-                h('div', { class: 'ao-details-link' },
-                    h('input', { class: 'ao-input', value: ampLink(details), readonly: true, 'aria-label': 'Link di AMP', onfocus: event => event.target.select() }),
-                    h('button', { type: 'button', class: 'ao-link-button', onclick: async () => { try { await navigator.clipboard.writeText(ampLink(details)); showStatus('Link copiato'); } catch { showStatus('Copia non riuscita', 'danger'); } } }, icon(ICONS.copy), 'Copia'))) : null;
-            zone = [h('div', { class: 'ao-form-fields' },
-                aoSelect('Agenzia', companies, draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; render(); },
-                    { tag: draft.suggestion && draft.suggestion.id === draft.companyId ? { text: 'suggerita', title: `Suggerita ${draft.suggestion.reason}` } : null }),
-                aoSelect('Attività', activities, draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; render(); },
-                    { tag: draft.activityProposed && draft.activityId ? { text: 'suggerita' } : null })),
-            h('div', { class: `ao-details${detailsBody ? ' ao-open' : ''}` },
-                h('button', { type: 'button', class: 'ao-details-toggle', disabled: !details, 'aria-expanded': String(Boolean(detailsBody)), onclick: () => { draft.detailsOpen = !draft.detailsOpen; render(); } },
-                    h('span', {}, 'Dettagli'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
-                detailsBody),
-            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !details || state.busy, onclick: () => { takeCharge(item); } }, linked ? 'Crea ticket' : 'Prendi in carico'))];
-        } else if (win.choice === 'forward') {
-            const groups = forwardGroups();
-            const group = groups.find(entry => entry.id === win.group);
-            zone = [groups.length ? aoChoiceBar('card-forward', groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name })), win.group, value => { win.group = value; render(); }, 'forward') : h('p', { class: 'ao-mail-text' }, 'Nessun gruppo nella config'),
-                h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy, onclick: () => forwardThread(item, group) }, 'Inoltra'))];
-        } else if (win.choice === 'ignore') {
-            zone = [h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-danger', disabled: state.busy, onclick: () => ignoreThread(item) }, 'Confermi?'))];
-        }
-        const card = h('div', { class: 'ao-item ao-queue-item ao-expanded ao-unlifted', 'data-card': item.key },
+        const tag = tagged ? h('span', { class: `ao-user-tag${isMe(item.assignedTo) ? ' mine' : ''}` }, surname(operatorName(item.assignedTo))) : null;
+        const actions = [['take', 'Prendi in carico', 'cardTake'], ['forward', 'Inoltra', 'cardForward'], ...(item.section === 'ignored' ? [] : [['ignore', 'Ignora', 'cardIgnore']])]
+            .map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName], disabled: locked }));
+        const zone = win.choice === 'take' ? takeZone(item, 'Prendi in carico')
+            : state.panel?.type === 'forwarding' && state.panel.job.item.key === item.key ? [forwardStrip(state.panel.job)]
+            : win.choice === 'forward' ? forwardZone(item, win)
+                : win.choice === 'ignore' ? [h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-danger', disabled: state.busy, onclick: () => ignoreThread(item) }, 'Confermi?'))]
+                    : null;
+        return aoHost(h('div', { class: 'ao-item ao-queue-item ao-expanded', 'data-card': item.key, 'data-choice': win.choice || null },
             h('div', { class: 'ao-item-main' },
                 h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-title' }, item.subject), h('span', { class: 'ao-item-time' }, shortWhen(entry?.receivedAt || item.receivedAt))),
-                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), linked ? h('span', { class: 'ao-chip ao-tone-accent' }, `Collegato a ${(item.tickets || [item]).map(entry => entry.number).join(', ')}`) : tag)),
+                h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, entry?.from.name || item.from?.name || ''), tag)),
             h('div', { class: 'ao-inline-form' },
-                text ? h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, text)) : null,
-                linked ? null : aoIconBar(CARD_ACTIONS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), win.choice, value => { if (value !== win.choice) swapZone(zoneKey, () => { win.choice = value; }); }, zoneKey),
+                picker,
+                handlingLine(item),
+                h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, clipText(body?.text || '', PREVIEW_MAX_CHARS), body ? null : h('span', { class: 'ao-hint' }, ' Caricamento…'))),
+                aoIconBar(actions, win.choice, value => {
+                    if (value === win.choice) return;
+                    document.querySelector(`[data-card="${CSS.escape(item.key)}"]`)?.setAttribute('data-choice', value); // il titolo cambia colore subito
+                    swapZone(zoneKey, () => { win.choice = value; });
+                }, zoneKey),
                 h('div', { class: 'ao-choice-zone', 'data-zone': zoneKey }, zone ? h('div', { class: 'ao-choice-content' }, zone) : null),
-                linked || win.choice ? h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => { if (linked) closeCard(item); else swapZone(zoneKey, () => { Object.assign(win, { choice: null, messageId: null }); }); } }, icon('<path d="M5 12.5l5-5 5 5"/>')) : null));
-        return aoHost(card);
+                // la freccia richiude la scelta (la scheda resta: è il thread scelto)
+                h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => { if (win.choice) swapZone(zoneKey, () => { win.choice = null; }); } }, icon('<path d="M5 12.5l5-5 5 5"/>')))));
+    }
+    // Un altro messaggio del thread (showQueueMessage del pannello): svanisce solo il testo, il riquadro si adatta e il
+    // nuovo compare. Il ticket nascerà da questo messaggio.
+    async function showCardMessage(item, messageId) {
+        if (motion.busy) return;
+        const card = () => [...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent);
+        const changing = () => [...(card()?.querySelectorAll('.ao-message-where, .ao-handled, .ao-mail-text') || [])];
+        const box = card()?.querySelector('.ao-mail-preview');
+        const before = box?.offsetHeight || 0;
+        await holding(() => fadeAll(changing(), 1, 0, { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }));
+        const thread = state.threads.get(item.parentItemId);
+        const draft = takeDraft(item);
+        Object.assign(sideCardFor(item), { messageId });
+        draft.messageId = messageId;
+        const text = thread?.bodies.get(messageId)?.text;
+        if (text) draft.description = text;
+        render();
+        changing().forEach(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }));
+        const next = card()?.querySelector('.ao-mail-preview');
+        if (next && before && next.offsetHeight !== before) await holding(() => playOn(next, [{ height: `${before}px` }, { height: `${next.offsetHeight}px` }], MOTION.swap).then(result => { if (result) { result.animation.cancel(); next.style.overflow = result.overflow; } }));
+    }
+    // Campi della presa in carico (ticketForm + ticketDetails + pulsante del pannello).
+    function takeZone(item, label, extra = null) {
+        const draft = takeDraft(item);
+        proposeActivity(draft);
+        const companies = Object.entries(state.settings.companies).sort(byName).map(([id, company]) => [id, company.name]);
+        const suggested = draft.companyId ? Usage.suggest(draft.companyId, suggestText(draft)) : [];
+        const others = Object.entries(state.settings.activities).sort(byName).filter(([id]) => !suggested.includes(id)).map(([id, activity]) => [id, activity.name]);
+        const activities = suggested.length
+            ? [{ group: "Suggerite per l'agenzia" }, ...suggested.map(id => [id, state.settings.activities[id].name, true]), { group: 'Tutte' }, ...others]
+            : others;
+        const details = ticketFields(draft);
+        const detailsBody = details && draft.detailsOpen ? h('div', { class: 'ao-details-body' },
+            h('dl', { class: 'ao-details-list' },
+                [['Company', details.company.displayValue], ['Gruppo', details.assignmentGroup.displayValue], ['Assegnato a', details.assignedTo.displayValue],
+                    ['Categoria', details.category.displayValue], ['Impatto / Urgenza', `${SEVERITY[details.impact] || '?'} / ${SEVERITY[details.urgency] || '?'}`], ['Tempo lavorato', `${details.minutes} min`]]
+                    .flatMap(([name, value]) => [h('dt', {}, name), h('dd', {}, value || '—')])),
+            h('div', { class: 'ao-details-link' },
+                h('input', { class: 'ao-input', value: ampLink(details), readonly: true, 'aria-label': 'Link AMP', onfocus: event => event.target.select() }),
+                h('button', { type: 'button', class: 'ao-link-button', onclick: async () => { const copied = await copyText(ampLink(details)); showStatus(copied ? 'Link AMP copiato' : 'Copia non riuscita.', copied ? 'success' : 'danger'); } }, aoIcon(ICONS.copy), 'Copia'))) : null;
+        return [h('div', { class: 'ao-form-fields' },
+            aoSelect('Agenzia', companies, draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; render(); },
+                { tag: draft.suggestion && draft.suggestion.id === draft.companyId ? { text: 'suggerita', title: `Suggerita ${draft.suggestion.reason}` } : null }),
+            aoSelect('Attività', activities, draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; render(); },
+                { tag: draft.activityProposed && draft.activityId ? { text: 'suggerita' } : null })),
+        h('div', { class: `ao-details${detailsBody ? ' ao-open' : ''}` },
+            h('button', {
+                type: 'button', class: 'ao-details-toggle', disabled: !details, 'aria-expanded': String(Boolean(detailsBody)),
+                onclick: async event => {
+                    const section = event.currentTarget.closest('.ao-details');
+                    if (draft.detailsOpen) { await fold(section.querySelector('.ao-details-body')); draft.detailsOpen = false; render(); }
+                    else { draft.detailsOpen = true; render(); await unfold(document.querySelector(`[data-card] .ao-details-body`)); }
+                }
+            }, h('span', {}, 'Dettagli'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
+            detailsBody),
+        h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !details || state.busy, onclick: () => takeCharge(item) }, label), extra)];
+    }
+    function forwardZone(item, win) {
+        const groups = forwardGroups();
+        const group = groups.find(entry => entry.id === win.group);
+        return [groups.length ? aoChoiceBar(`group:${item.key}`, groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name })), win.group, value => { win.group = value; render(); }, 'forward') : h('p', { class: 'ao-hint' }, 'Nessun gruppo nella config'),
+            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy, onclick: () => forwardThread(item, group) }, 'Inoltra'))];
     }
     // Ticket chiusi del thread (come nel pannello): una sezione chiusa, con un clic si vedono (solo da consultare).
     function closedSection(parentItemId) {
@@ -2349,31 +2496,76 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             h('button', { type: 'button', class: 'ao-closed-toggle', 'aria-expanded': String(shown), onclick: () => { state.closedOpen = shown ? null : parentItemId; render(); } },
                 h('span', {}, `Ticket chiusi (${list.length})`), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
             shown ? list.map(ticket => h('div', { class: 'ao-closed-item' },
-                h('div', { class: 'ao-ticket-head' }, h('span', { class: 'ao-item-number' }, ticket.number), h('span', { class: 'ao-chip' }, TICKET_STATUS[ticket.status] || ticket.status)),
+                h('div', { class: 'ao-ticket-head' }, h('span', { class: 'ao-item-number' }, ticket.number), stateChip(ticket)),
                 h('div', { class: 'ao-item-sub' }, ticket.subject))) : null));
     }
-    function ticketFace(ticket, onclick) {
-        return aoHost(h('section', { class: 'ao-item ao-ticket-card', tabindex: '0', role: 'button', 'aria-expanded': 'false', onclick },
-            h('div', { class: 'ao-ticket-face' },
-                h('div', { class: 'ao-item-top' }, h('span', {}, h('span', { class: 'ao-item-number' }, ticket.number)),
-                    h('div', { class: 'ao-item-tags' }, ticket.status === 'On Hold' ? h('span', { class: 'ao-chip ao-tone-hold' }, TICKET_STATUS[ticket.status]) : null)),
-                h('div', { class: 'ao-item-where' }, h('div', { class: 'ao-item-place' }, h('div', { class: 'ao-item-company' }, ticket.agency || ''))),
-                h('div', { class: 'ao-item-title' }, ticket.subject))));
+    // Thread con ticket (ticketStack del pannello): in testa quanti sono e la pillola "Ticket", che si trasforma nel
+    // modulo per un altro ticket in cima alla pila; poi i ticket (i collegati dal più recente, il principale per ultimo
+    // con l'icona della mail), uno aperto alla volta; in fondo i chiusi.
+    function threadOrder(tickets) {
+        const byOpening = (a, b) => String(a.openedAt || '').localeCompare(String(b.openedAt || ''));
+        const primary = [...tickets].sort(byOpening)[0];
+        return [...tickets.filter(ticket => ticket !== primary).sort((a, b) => byOpening(b, a)), primary].filter(Boolean);
     }
-    // Thread con ticket: i suoi ticket (uno aperto, gli altri chiusi: un clic li apre) e in fondo Nuovo ticket.
     function ticketsSide(item) {
-        const tickets = state.lists.tickets.filter(ticket => ticket.parentItemId === item.parentItemId);
-        const open = tickets.find(ticket => ticket.number === state.openTicket.get(item.parentItemId)) || tickets[0];
+        const ordered = threadOrder(state.lists.tickets.filter(ticket => ticket.parentItemId === item.parentItemId));
+        const adding = state.sideCards.has(item.key);
+        const single = ordered.length === 1;
+        return h('div', { class: 'ticket-stack' },
+            aoHost(h('div', { class: 'ao-thread-bar' },
+                h('span', { class: 'ao-thread-count' }, `${ordered.length} ticket`),
+                h('button', { type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), onclick: event => openExtraTicket(item, event.currentTarget) }, aoIcon(ICONS.cardTake), 'Ticket'))),
+            adding ? extraTicketCard(item) : null,
+            ordered.map((ticket, index) => ticketSide(ticket, { primary: index === ordered.length - 1 && ordered.length > 1, expanded: state.openTicket.has(ticket.number) ? state.openTicket.get(ticket.number) : single })),
+            closedSection(item.parentItemId));
+    }
+    // Modulo per un altro ticket del thread (extraTicketCard): la mail da cui nasce come una scheda aperta di In coda,
+    // poi Agenzia, Attività, Dettagli, Prendi in carico e Annulla.
+    function extraTicketCard(item) {
+        const win = sideCardFor(item);
+        const thread = state.threads.get(item.parentItemId);
+        const origin = thread?.messages.find(message => message.id === win.messageId);
+        const cancel = h('button', { type: 'button', class: 'ao-button ao-subtle', onclick: () => closeExtraTicket(item) }, 'Annulla');
+        if (!origin) return aoHost(h('section', { class: 'ao-card ao-new-ticket-card' }, h('div', { class: 'ao-inline-form' }, h('p', { class: 'ao-item-sub' }, 'Scegli la mail da cui generare il ticket: Crea ticket sotto la mail.'), h('div', { class: 'ao-actions' }, h('span', { class: 'ao-spacer' }), cancel))));
+        return aoHost(h('section', { class: 'ao-card ao-new-ticket-card ao-with-origin', 'data-card': item.key },
+            h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-title' }, origin.subject || item.subject), h('span', { class: 'ao-item-time' }, shortWhen(origin.receivedAt))),
+            h('div', { class: 'ao-queue-row' }, h('span', { class: 'ao-item-sub' }, origin.from.name || origin.from.email)),
+            h('div', { class: 'ao-inline-form' },
+                h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, clipText(thread.bodies.get(origin.id)?.text || '', PREVIEW_MAX_CHARS))),
+                takeZone(item, 'Prendi in carico', [h('span', { class: 'ao-spacer' }), cancel]))));
+    }
+    // La pillola "Ticket" si trasforma nel modulo (morphInto); Annulla fa l'inverso. Crea ticket sotto una mail apre il
+    // modulo con quella mail.
+    async function openExtraTicket(item, pill = null, messageId = null) {
         const thread = state.threads.get(item.parentItemId);
         const lastReceived = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
-        return h('div', { class: 'ticket-stack' },
-            tickets.map(ticket => ticket === open ? ticketSide(ticket) : ticketFace(ticket, () => { state.openTicket.set(item.parentItemId, ticket.number); render(); })),
-            closedSection(item.parentItemId),
-            state.sideCards.has(item.key) ? threadCard(item)
-                : button('Nuovo ticket', () => openCard(item, lastReceived?.id || null, 'take'), { kind: 'primary new-item', iconName: 'plus' }));
+        const from = pill || [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent);
+        const shapeFrom = from ? shapeOfElement(from) : null;
+        const chosen = messageId || lastReceived?.id || null;
+        const draft = takeDraft(item);
+        const text = thread?.bodies.get(chosen)?.text;
+        if (text) draft.description = text;
+        draft.messageId = chosen;
+        Object.assign(sideCardFor(item), { messageId: chosen, choice: 'take' });
+        render();
+        const card = [...document.querySelectorAll('.ao-new-ticket-card')].find(node => node.offsetParent);
+        card?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+        if (card && shapeFrom && !reducedMotion()) await morphInto(card, shapeFrom);
+    }
+    async function closeExtraTicket(item) {
+        const card = [...document.querySelectorAll('.ao-new-ticket-card')].find(node => node.offsetParent);
+        const pill = [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent);
+        if (card && pill && !reducedMotion()) {
+            await Promise.all([...card.children].map(part => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => {})));
+            card.style.visibility = 'hidden';
+            await morphShell(shapeOfElement(card), shapeOfElement(pill));
+        }
+        state.sideCards.delete(item.key);
+        state.forms.delete(`take:${item.key}`);
+        render();
+        [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent)?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.hold });
     }
     function threadColumn(item) {
-        if (state.selected === 'new') return newTicketColumn();
         if (!item) return h('section', { class: 'column', 'aria-label': 'Thread' }, h('div', { class: 'card' }, empty('mail', 'Scegli un thread')));
         const thread = state.threads.get(item.parentItemId);
         const ready = thread && !thread.loading && !thread.error;
@@ -2392,76 +2584,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     content)));
     }
 
-    // Ticket senza mail: lo stesso modulo della presa in carico, con la descrizione scritta a mano.
-    function newTicketColumn() {
-        const draft = takeDraft(null);
-        return h('section', { class: 'column', 'aria-label': 'Nuovo ticket' },
-            h('div', { class: 'card' },
-                h('div', { class: 'thread-head' },
-                    h('button', { type: 'button', class: 'link back', onclick: closeSelected }, icon(ICONS.back), 'Elenco'),
-                    h('h1', { class: 'thread-title' }, 'Nuovo ticket')),
-                h('div', { class: 'scroll side' },
-                    takeForm(null),
-                    input('Descrizione', draft.description, value => { draft.description = value; }, { multiline: true, id: 'new-description' }),
-                    h('div', { class: 'actions-row' }, button('Annulla', closeSelected), button('Crea ticket', () => takeCharge(null), { kind: 'primary', iconName: 'check' })))));
-    }
-
-    function fields(rows) {
-        return h('dl', { class: 'fields' }, rows.filter(([, value]) => value).map(([label, value]) => h('div', { class: 'field' }, h('dt', {}, label), h('dd', {}, value))));
-    }
-    function takeForm(item) {
-        const draft = takeDraft(item);
-        const companies = Object.entries(state.settings.companies).sort(byName);
-        const activities = Object.entries(state.settings.activities).sort(byName);
-        const details = ticketFields(draft);
-        return h('div', { class: 'form' },
-            companies.length && activities.length ? null : h('p', { class: 'hint' }, 'Importa le configurazioni in Tools'),
-            dropdown('Agenzia', [['', 'Scegli'], ...companies.map(([id, company]) => [id, company.name])], draft.companyId, value => { draft.companyId = value; render(); }),
-            dropdown('Attività', [['', 'Scegli'], ...activities.map(([id, activity]) => [id, activity.name])], draft.activityId, value => { draft.activityId = value; render(); }),
-            input('Short description', draft.subject, value => { draft.subject = value; }, { id: `take-subject-${item?.key || 'new'}` }),
-            details ? h('details', { class: 'details', open: draft.detailsOpen, ontoggle: event => { draft.detailsOpen = event.target.open; } },
-                h('summary', {}, 'Dettagli'),
-                fields([
-                    ['Company', details.company.displayValue],
-                    ['Gruppo', details.assignmentGroup.displayValue],
-                    ['Assegnato a', details.assignedTo.displayValue],
-                    ['Categoria', details.category.displayValue],
-                    ['Impatto / Urgenza', `${SEVERITY[details.impact] || '?'} / ${SEVERITY[details.urgency] || '?'}`],
-                    ['Tempo lavorato', `${details.minutes} min`]
-                ]),
-                h('div', { class: 'amp-link' },
-                    h('input', { value: ampLink(details), readonly: true, 'aria-label': 'Link di AMP', onfocus: event => event.target.select() }),
-                    link('Copia', async () => {
-                        try { await navigator.clipboard.writeText(ampLink(details)); showStatus('Link copiato'); }
-                        catch { showStatus('Copia non riuscita', 'danger'); }
-                    }, 'copy'))) : null);
-    }
-    function forwardStrip(job, retry) {
-        return h('div', { class: 'steps', role: 'list' }, FORWARD_STEPS.map(([, label], index) => {
+    // Striscia dei quattro passi dell'inoltro (come nel pannello): ✓ fatto, ✕ non riuscito (cliccabile: riprova da lì).
+    function forwardStrip(job, retry = null) {
+        return aoHost(h('div', { class: 'ao-steps', role: 'list' }, FORWARD_STEPS.map(([, label], index) => {
             const status = job.steps[index];
-            const mark = status === 'ok' ? icon(ICONS.check) : status === 'ko' ? icon(ICONS.close) : status === 'run' ? h('span', { class: 'spinner' }) : null;
+            const mark = status === 'ok' ? icon(ICONS.check) : status === 'ko' ? icon(ICONS.close) : status === 'run' ? h('span', { class: 'ao-spinner' }) : null;
             const dot = status === 'ko' && retry
-                ? h('button', { type: 'button', class: 'step-dot', title: `Riprova: ${label}`, 'aria-label': `Riprova: ${label}`, onclick: () => retry(index) }, mark)
-                : h('span', { class: 'step-dot' }, mark);
-            return h('div', { class: `step ${status}`, role: 'listitem' }, dot, h('span', { class: 'step-label' }, label));
-        }));
-    }
-    // Thread ignorato (chi l'ha ignorato, Rimetti in coda) e inoltro in corso (la striscia dei passi).
-    function threadSide(item) {
-        const mine = item.status === 'Working' && isMe(item.assignedTo);
-        const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
-        const tagRow = tagged ? h('div', { class: 'tag-row' }, h('span', { class: `tag${mine ? ' mine' : ''}` }, operatorName(item.assignedTo))) : null;
-        const info = fields([
-            ['Stato', item.status === 'Working' ? 'In coda' : THREAD_STATUS[item.status] || item.status],
-            ['Ignorata da', item.status === 'Ignored' ? operatorName(item.statusBy) : ''],
-            ['Mail', String(item.messageCount || '')],
-            ['Ultima', fullWhen(item.receivedAt)]
-        ]);
-        if (item.section === 'ignored') {
-            return [h('h2', {}, 'Ignorata'), tagRow, info, h('div', { class: 'actions' }, button('Rimetti in coda', () => restoreThread(item), { kind: 'primary', iconName: 'restore', wide: true }))];
-        }
-        if (state.panel?.type === 'forwarding') return [h('h2', {}, `Inoltro a ${state.panel.job.group.tag}`), forwardStrip(state.panel.job)];
-        return [h('h2', {}, 'Thread'), tagRow, info];
+                ? h('button', { type: 'button', class: 'ao-step-dot', title: `Riprova: ${label}`, 'aria-label': `Riprova: ${label}`, onclick: event => { event.stopPropagation(); retry(index); } }, mark)
+                : h('span', { class: 'ao-step-dot' }, mark);
+            return h('div', { class: `ao-step ao-step-${status}`, role: 'listitem' }, dot, h('span', { class: 'ao-step-label' }, label));
+        })));
     }
     // Scheda del ticket aperto come nel pannello AMP: numero, etichetta, agenzia, oggetto, date; sotto Attività con il
     // tempo lavorato (− valore +), Risposte / Salva / Copia, il testo, le azioni a icone e il pulsante del colore
@@ -2599,15 +2731,24 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         requestAnimationFrame(() => name.focus());
         return [tools, h('div', { class: 'ao-reply-name' }, name, h('button', { type: 'button', class: 'ao-button ao-small', onclick: save }, 'Salva'))];
     }
-    function ticketSide(item) {
+    // Ticket nella pagina del thread (ticketBox del pannello): compatto di base, con un clic si apre (si solleva) e sotto
+    // scende Attività; un clic su un altro richiude prima quello aperto. Un ticket solo si apre già aperto.
+    function ticketSide(item, { primary = false, expanded = true } = {}) {
         const job = forwardJobFor(item);
         const thread = item.parentItemId && state.threads.get(item.parentItemId);
         const open = !item.found || OPEN_TICKET_STATUSES.includes(item.status);
         const mine = isMe(item.operator);
         const tag = ticketTag(item, mine, open);
-        const status = item.status && item.status !== 'In Progress' ? h('span', { class: `ao-chip ao-tone-${item.status === 'On Hold' ? 'hold' : 'neutral'}` }, TICKET_STATUS[item.status] || item.status) : null;
+        const status = stateChip(item);
         const draft = updateDraft(item);
-        const ready = !state.busy && Boolean(draft.text.trim() || Number(draft.minutes));
+        const ready = !state.busy && Boolean(draft.text.trim()); // come nel pannello: serve il testo
+        const isOpen = open && expanded;
+        const pick = event => {
+            if (motion.busy || event.target.closest('.ao-ticket-work, button, a, input, textarea')) return;
+            const other = [...document.querySelectorAll('.ao-ticket-card.ao-expanded')].find(node => node.offsetParent && node !== event.currentTarget);
+            if (other) return collapseTicket(other);
+            if (!isOpen) expandTicket(item);
+        };
         const work = open ? h('section', { class: 'ao-card ao-update-card', 'data-ticket': item.number },
             h('div', { class: 'ao-card-head' }, h('h3', { class: 'ao-card-title' }, 'Attività'), timerControl(item, draft)),
             replyTools(item, draft),
@@ -2617,23 +2758,47 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 value => { if (value !== draft.type) swapZone(`ticket:${item.number}`, () => { draft.type = value; }); }, `ticket:${item.number}`, TICKET_TONES),
             h('div', { class: 'ao-choice-zone', 'data-zone': `ticket:${item.number}` }),
             h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: `ao-button ao-primary${TICKET_FILLS[draft.type]}`, disabled: !ready, onclick: () => updateTicket(item) }, TICKET_BUTTONS[draft.type]))) : h('p', { class: 'ao-muted' }, `Ticket ${TICKET_STATUS[item.status] || item.status}`);
-        return aoHost(h('section', { class: 'ao-item ao-ticket-card ao-expanded ao-static' },
+                h('button', { type: 'button', class: `ao-button ao-primary${TICKET_FILLS[draft.type]}`, disabled: !ready, onclick: () => updateTicket(item) }, TICKET_BUTTONS[draft.type]))) : h('p', { class: 'ao-muted' }, `Ticket ${TICKET_STATUS[item.status] || item.status}: nessuna azione disponibile.`);
+        const lifted = isOpen && state.liftTicket !== item.number;
+        return aoHost(h('section', {
+            class: `ao-item ao-ticket-card${open ? '' : ' ao-static'}${isOpen ? ' ao-expanded' : ''}${isOpen && !lifted ? ' ao-unlifted' : ''}`, 'data-ticket-card': item.number,
+            tabindex: open ? '0' : null, 'aria-expanded': open ? String(isOpen) : null, onclick: open ? pick : null,
+            onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pick(event); }
+        },
             h('div', { class: 'ao-ticket-face' },
                 h('div', { class: 'ao-item-top' },
-                    h('span', {}, h('span', { class: 'ao-item-number' }, item.parentItemId ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, aoIcon(ICONS.mail)) : null, item.number)),
+                    h('span', {}, h('span', { class: 'ao-item-number' }, primary ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, aoIcon(ICONS.mail)) : null, item.number)),
                     h('div', { class: 'ao-item-tags' }, status, tag)),
                 h('div', { class: 'ao-item-where' }, h('div', { class: 'ao-item-place' },
                     h('div', { class: 'ao-item-company' }, item.agency || ''),
                     h('div', { class: 'ao-item-activity' }, [item.ampReference, item.forwardGroup ? `Inoltrato a ${item.forwardGroup}` : ''].filter(Boolean).join(' · ')))),
-                h('div', { class: 'ao-item-title' }, item.subject)),
+                h('div', { class: 'ao-item-title' }, item.subject),
+                open && job ? h('div', { class: 'ao-ticket-steps' }, forwardStrip(job, job.group ? index => resumeForward(job, index) : null)) : null),
             h('div', { class: 'ao-ticket-more' },
                 h('div', { class: 'ao-ticket-dates' },
                     h('span', {}, h('b', {}, 'Aperto'), ' ', shortWhenLong(item.openedAt)),
                     thread?.messages?.[0] ? h('span', {}, h('b', {}, 'Reported'), ' ', shortWhenLong(thread.messages[0].receivedAt)) : null),
                 item.description ? h('div', { class: 'ao-ticket-description' }, item.description) : null,
-                job ? h('div', { class: 'forward-box' }, h('span', { class: 'hint' }, `Inoltro a ${job.group.tag}`), forwardStrip(job, index => resumeForward(job, index))) : null,
-                h('div', { class: 'ao-ticket-work' }, work))));
+                isOpen ? h('div', { class: 'ao-ticket-work' }, work,
+                    h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: event => collapseTicket(event.currentTarget.closest('.ao-ticket-card')) }, icon('<path d="M5 12.5l5-5 5 5"/>'))) : null)));
+    }
+    async function expandTicket(item) {
+        state.lists.tickets.filter(ticket => ticket.parentItemId === item.parentItemId).forEach(ticket => state.openTicket.set(ticket.number, ticket.number === item.number));
+        state.liftTicket = item.number; // si disegna ancora a terra, poi si solleva con la transizione
+        render();
+        state.liftTicket = null;
+        const card = [...document.querySelectorAll(`[data-ticket-card="${CSS.escape(item.number)}"]`)].find(node => node.offsetParent);
+        card?.getBoundingClientRect();
+        card?.classList.remove('ao-unlifted');
+        await holding(() => unfold(card?.querySelector('.ao-ticket-work')));
+    }
+    async function collapseTicket(card) {
+        const number = card?.dataset.ticketCard;
+        if (!number || motion.busy) return;
+        card.classList.add('ao-unlifted'); // torna a terra mentre Attività risale
+        await holding(() => fold(card.querySelector('.ao-ticket-work')));
+        state.openTicket.set(number, false);
+        render();
     }
     // "oggi 13:26", "ieri 13:26", "18/11 13:26" (come le date della scheda del pannello)
     function shortWhenLong(value) {
@@ -2664,8 +2829,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     function sideContent(item) {
         if (item.key.startsWith('ticket:')) return ticketSide(item);
         if (item.section === 'mine') return ticketsSide(item);
-        if (item.section === 'ignored' || state.panel?.type === 'forwarding') return threadSide(item);
-        return threadCard(item);
+        return h('div', { class: 'ticket-stack' }, threadStateBar(item), threadCard(item));
     }
     function sideColumn(item) {
         return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
@@ -2897,10 +3061,100 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (state.tab === 'tools') return toolsView();
         if (state.tab === 'utility') return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, empty('utility', 'Utility'))));
         const item = selectedItem();
-        return h('main', { class: `workspace${item || state.selected === 'new' ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
+        return h('main', { class: `workspace${item ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
     }
     function toast() {
-        return state.toast ? h('div', { class: `toast ${state.toast.tone}`, role: 'status' }, state.toast.text) : null;
+        if (!state.toast) return null;
+        const { text, tone, action, icon: paths } = state.toast;
+        return h('div', { class: `toast ${tone}`, role: 'status' },
+            paths ? icon(paths) : null,
+            h('span', {}, text),
+            action ? h('button', { type: 'button', class: 'toast-action', onclick: () => { state.toast = null; action.onclick(); } }, action.label) : null);
+    }
+
+    // ---- Movimenti delle schede (gli stessi del pannello: unfold, fold, exitCard, morph) ----
+    // unfold: prima si apre lo spazio, poi il contenuto compare; fold: prima il contenuto si affievolisce, poi lo spazio
+    // si chiude. Durante un movimento Magus non si ridisegna: i ridisegni chiesti nel frattempo si fanno alla fine.
+    const MOTION = { unfold: 320, fold: 320, swap: 240, hold: 150, exit: 380, remove: 260 };
+    const JOURNEY = { build: 200, easing: 'cubic-bezier(.3, .8, .2, 1)' };
+    function playOn(element, frames, duration, easing = 'ease-in-out') {
+        if (!element?.animate || reducedMotion()) return Promise.resolve(null);
+        const overflow = element.style.overflow;
+        element.style.overflow = 'hidden';
+        const animation = element.animate(frames, { duration, easing, fill: 'forwards' });
+        return animation.finished.catch(() => {}).then(() => ({ animation, overflow }));
+    }
+    async function unfold(element, from = 0) {
+        if (!element) return;
+        const height = `${element.scrollHeight}px`;
+        const pad = getComputedStyle(element).paddingTop;
+        const result = await playOn(element, [
+            { maxHeight: `${from}px`, paddingTop: '0px', opacity: 0 },
+            { maxHeight: height, paddingTop: pad, opacity: 0, offset: .55 },
+            { maxHeight: height, paddingTop: pad, opacity: 1 }
+        ], MOTION.unfold);
+        if (result) { result.animation.cancel(); element.style.overflow = result.overflow; }
+    }
+    function fold(element) {
+        if (!element) return Promise.resolve();
+        const height = `${element.scrollHeight}px`;
+        const pad = getComputedStyle(element).paddingTop;
+        return playOn(element, [
+            { maxHeight: height, paddingTop: pad, opacity: 1 },
+            { maxHeight: height, paddingTop: pad, opacity: 0, offset: .4 },
+            { maxHeight: '0px', paddingTop: '0px', opacity: 0 }
+        ], MOTION.fold);
+    }
+    let renderHolds = 0, renderPending = false;
+    async function holding(task) {
+        renderHolds += 1;
+        motion.busy = true;
+        try { return await task(); } finally {
+            renderHolds -= 1;
+            if (!renderHolds) { motion.busy = false; if (renderPending) { renderPending = false; render(); } }
+        }
+    }
+    // Uscita di una scheda dopo un'azione riuscita: svanisce rimpicciolendosi appena, poi il suo spazio si chiude.
+    async function exitCard(card) {
+        if (!card?.isConnected || reducedMotion()) return;
+        await holding(async () => {
+            await playOn(card, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.97)' }], MOTION.exit, 'ease-out');
+            card.style.visibility = 'hidden';
+            await playOn(card, [{ maxHeight: `${card.offsetHeight}px` }, { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-6px', borderWidth: '0px' }], MOTION.remove);
+        });
+    }
+    const fadeAll = (elements, from, to, options) => Promise.all(elements.map(element => element.animate([{ opacity: from }, { opacity: to }], options).finished.catch(() => {})));
+    // Forma di un elemento (posizione, misura, angoli) per il riquadro che si trasforma (pillola → modulo e ritorno).
+    const shapeOfElement = element => {
+        const rect = element.getBoundingClientRect();
+        return { rect, radius: `${Math.min(parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0, rect.height / 2)}px` };
+    };
+    async function morphShell(from, to) {
+        const shell = h('div', { class: 'morph-shell' });
+        document.body.append(shell);
+        Object.assign(shell.style, { left: `${to.rect.left}px`, top: `${to.rect.top}px`, width: `${to.rect.width}px`, height: `${to.rect.height}px` });
+        const frame = form => ({ transform: `translate(${form.rect.left - to.rect.left}px, ${form.rect.top - to.rect.top}px)`, width: `${form.rect.width}px`, height: `${form.rect.height}px`, borderRadius: form.radius });
+        await shell.animate([frame(from), frame(to)], { duration: JOURNEY.build + 60, easing: JOURNEY.easing, fill: 'forwards' }).finished.catch(() => {});
+        shell.remove();
+    }
+    async function morphInto(element, from) {
+        await holding(async () => {
+            element.style.visibility = 'hidden';
+            await morphShell(from, shapeOfElement(element));
+            element.style.visibility = '';
+            await fadeAll([...element.children], 0, 1, { duration: MOTION.swap, easing: 'ease-in' });
+        });
+    }
+    async function copyText(text) {
+        try { await navigator.clipboard.writeText(text); return true; } catch {
+            const area = h('textarea', { style: 'position: fixed; opacity: 0;' });
+            area.value = text;
+            document.body.append(area);
+            area.select();
+            const copied = document.execCommand('copy');
+            area.remove();
+            return copied;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -2908,7 +3162,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // cambiano contenuto entrano con una breve dissolvenza; le schede in alto fanno scorrere la vista nel loro verso.
     // Il ridisegno ricrea tutto: si anima solo ciò che è cambiato dal disegno precedente.
     // ------------------------------------------------------------------
-    const motion = { keys: new Map(), thumbs: new Map(), icons: new Map(), modal: false, settingsTab: null, tab: null, toast: null };
+    const motion = { keys: new Map(), thumbs: new Map(), icons: new Map(), modal: false, settingsTab: null, tab: null, toast: null, busy: false };
     const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     // Pillola sotto la voce scelta: parte da dove era e scivola sulla nuova.
     function slideThumb(group, selector, key) {
@@ -2983,6 +3237,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
     function render() {
         if (!state.user) return;
+        // durante un movimento, o con una tendina aperta, si ridisegna alla fine (un ridisegno chiuderebbe la tendina)
+        if (renderHolds || document.querySelector('.ao-select-menu')) { renderPending = true; return; }
         const scrolls = new Map([...root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll, node.scrollTop]));
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
