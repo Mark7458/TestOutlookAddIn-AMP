@@ -492,6 +492,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .empty .icon { width: 28px; height: 28px; }
 .back { display: none; }
 .workspace.single { grid-template-columns: minmax(0, 1fr); }
+/* Utility e Tools: una colonna larga come il pannello AMP, al centro */
+.tools-column { width: min(420px, 100%); justify-self: center; }
 .workspace.single > .column { display: flex !important; }
 
 /* Vista: computer (tre colonne, o due sotto i 1100 px con i dettagli sopra il thread) o mobile (una colonna con il
@@ -550,7 +552,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 /* Mail classiche (Impostazioni > Aspetto > Mail): tutte a tutta larghezza come in un client di posta; le nostre con il loro colore */
 :root[data-mail="classic"] .message, :root[data-mail="classic"] .message.service { margin-left: 0; margin-right: 0; } /* le nostre restano del loro colore */
 
-/* Componenti delle schede del pannello AMP: CSS originale del pannello (estratto, solo le parti delle schede).
+/* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
 #ao-root[data-theme="dark"] { --ao-text-accent: #6cb8f6; --ao-progress: #8dabfc; --ao-accent-border: #3a6a8f; --ao-accent-bg: #19344a; --ao-surface: #2d2c2b; --ao-text: #f3f2f1; --ao-text-muted: #c8c6c4; --ao-text-subtle: #a19f9d; --ao-bg: #201f1e; --ao-bg-soft: #292827; --ao-hover: #3b3a39; --ao-line-light: #3b3a39; --ao-line: #484644; --ao-line-strong: #605e5c; --ao-success: #6ccb5f; --ao-success-bg: #1f3a1d; --ao-warning: #f2c661; --ao-warning-bg: #3d3214; --ao-danger: #ffb3b8; --ao-danger-bg: #442726; --ao-hold: #f0d257; --ao-hold-bg: #3d3410; --ao-choice-forward-bg: color-mix(in srgb, #7c5bbf 26%, #2d2c2b); --ao-choice-forward-text: #b79bff; --ao-choice-danger-bg: color-mix(in srgb, #d13438 24%, #2d2c2b); --ao-choice-danger-text: #ff8f94; --ao-choice-resolve-bg: color-mix(in srgb, #2e8b57 26%, #2d2c2b); --ao-choice-resolve-text: #7fd1a3; --ao-choice-hold-bg: color-mix(in srgb, #d4ac0d 24%, #2d2c2b); --ao-choice-hold-text: #f0d257; --ao-backdrop: #201f1e; --ao-tag-fill: 30%; --ao-tag-base: #2d2c2b; --ao-tag-ink: 45%; --ao-tag-ink-base: #fff; color-scheme: dark; }
@@ -571,26 +573,71 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 @keyframes ao-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { #ao-root .ao-notify-alert:not(.ao-notify-off) { animation: none; } }
 #ao-root .ao-segment:not(.ao-active) .ao-notify:not(.ao-notify-off) { opacity: .5; }
+#ao-root .ao-tools { display: grid; gap: 10px; }
 #ao-root .ao-steps { display: flex; gap: 4px; margin-top: 8px; }
 #ao-root .ao-steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--ao-line-strong); transition: background-color .3s; }
 #ao-root .ao-steps span.ao-done { background: var(--ao-text-accent); }
 #ao-root .ao-step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 #ao-root .ao-step-nav { justify-content: flex-end; }
 #ao-root .ao-step-nav .ao-button { flex: 1; }
+#ao-root .ao-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: var(--ao-radius-base); background: none; color: var(--ao-text); font: inherit; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root .ao-pick:hover { background: var(--ao-hover); }
+#ao-root .ao-pick.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); }
+#ao-root .ao-pick-icon { flex: none; width: 20px; text-align: center; }
+#ao-root .ao-pick-text { display: grid; gap: 1px; min-width: 0; }
 #ao-root .ao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 #ao-root .ao-chip-toggle { padding: 4px 10px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: none; color: var(--ao-text-muted); font: inherit; font-size: var(--ao-fs-sm); cursor: pointer; }
 #ao-root .ao-chip-toggle.ao-active { border-color: var(--ao-field-focus-line); background: var(--ao-selection); color: var(--ao-text); }
 #ao-root .ao-step-center { justify-items: center; text-align: center; padding: 18px 12px; }
 #ao-root .ao-step-icon { font-size: 20px; }
+#ao-root .ao-run-step { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 8px; color: var(--ao-text-muted); font-size: var(--ao-fs-sm); }
 #ao-root .ao-run-step .ao-hint { grid-column: 2; }
+#ao-root .ao-run-dot { width: 14px; height: 14px; border: 1.5px solid var(--ao-line-strong); border-radius: 50%; }
+#ao-root .ao-run-step.ao-running { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-running .ao-run-dot { border-color: var(--ao-text-accent); border-top-color: transparent; animation: ao-spin .8s linear infinite; }
+#ao-root .ao-run-step.ao-ok { color: var(--ao-text); }
+#ao-root .ao-run-step.ao-ok .ao-run-dot { border-color: var(--ao-success); background: var(--ao-success); }
+#ao-root .ao-run-step.ao-failed .ao-run-dot { border-color: var(--ao-danger); background: var(--ao-danger); }
+#ao-root .ao-run-item { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--ao-line); font-size: var(--ao-fs-sm); overflow-wrap: anywhere; }
+#ao-root .ao-text-accent { color: var(--ao-text-accent); }
+#ao-root .ao-text-danger { color: var(--ao-danger); }
+#ao-root .ao-text-warning { color: var(--ao-warning); }
+#ao-root .ao-text-success { color: var(--ao-success); }
 @keyframes ao-spin { to { transform: rotate(360deg); } }
+#ao-root .ao-tools-card :is(label, .developer-field-heading, dt, .diagnostic-subheading) { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root .ao-tools-card :is(dd, .developer-create-help, .diagnostic-inline-status, .auth-diagnostics-status, .settings-status) { color: var(--ao-text); font-size: var(--ao-fs-sm); }
+#ao-root .ao-tools-card select { display: none !important; }
 #ao-root .ao-bridge > .ao-label:empty { display: none; }
+#ao-root .ao-tools-card :is(.primary-button, .secondary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ao-control-height); padding: 0 12px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: transparent; color: var(--ao-text); font: inherit; font-weight: var(--ao-fw-medium); cursor: pointer; box-shadow: none; transition: background-color .3s, border-color .3s; }
+#ao-root .ao-tools-card .secondary-button:hover:where(:not(:disabled)) { background: var(--ao-hover); border-color: var(--ao-text-subtle); }
+#ao-root .ao-tools-card .primary-button { --ao-btn: var(--ao-tone-take); background: color-mix(in srgb, var(--ao-btn) var(--ao-tone-fill), transparent); border-color: var(--ao-tone-line); color: var(--ao-white); box-shadow: var(--ao-btn-highlight); }
+#ao-root .ao-tools-card .primary-button:hover:where(:not(:disabled)) { filter: var(--ao-tone-hover-filter); }
+#ao-root .ao-tools-card .diagnostic-health { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+#ao-root .ao-tools-card .diagnostic-auth-tools { margin: 0; }
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)) { display: inline-flex; align-items: center; gap: 5px; width: auto; min-height: 0; padding: 3px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ao-text-accent); font: inherit; font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); white-space: nowrap; cursor: pointer; transition: color .2s; }
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):hover:where(:not(:disabled)) { background: none; color: var(--ao-text); }
 #ao-root :is(.ao-link-button, .ao-tools-card :is(#auth-diagnostics-refresh, #auth-diagnostics-copy, #auth-diagnostics-clear, .developer-category-refresh, #header-back-button, .identifier-view-toggle, .result-view-toggle, .result-close-button)):disabled { opacity: .45; cursor: default; }
 #ao-root .ao-link-button[aria-pressed="true"] { color: var(--ao-text); }
 #ao-root :is(.ao-link-button.ao-danger, .ao-tools-card #auth-diagnostics-clear) { color: var(--ao-danger); }
+#ao-root .ao-tools-card .result-close-button { color: var(--ao-text-muted); font-size: var(--ao-fs-lg); }
+#ao-root :is(.ao-link-actions, .ao-tools-card .auth-diagnostics-actions) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
 #ao-root .ao-actions-split { justify-content: space-between; align-items: center; }
+#ao-root .ao-tools-card :is(.developer-get-form, .developer-create-form, .developer-edit-form, .developer-search-form, .developer-category-form, .developer-graph-category-form, .developer-forward-form, .developer-record-mode, .developer-editable-field, .developer-field-card, .developer-search-record, .developer-existing-ticket, .developer-conflict, .function-result) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .function-result { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ao-line); }
+#ao-root .ao-tools-card .function-result-toolbar { display: flex; justify-content: flex-end; gap: 14px; }
+#ao-root :is(.ao-switch-row, .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row)) { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; color: var(--ao-text) !important; font-size: var(--ao-fs-sm) !important; cursor: pointer; }
+#ao-root .ao-tools-card :is(.developer-create-checkbox, .developer-field-heading, .setting-row) { flex-direction: row-reverse; }
+#ao-root .ao-tools-card .message-fields { gap: 0; }
+#ao-root .ao-tools-card .field { border: 0; border-bottom: 1px solid var(--ao-line); border-radius: 0; background: none; box-shadow: none; }
+#ao-root .ao-tools-card .field:last-child { border-bottom: 0; }
+#ao-root .ao-tools-card .field dt { padding: 8px 0 2px; text-transform: none; letter-spacing: 0; }
+#ao-root .ao-tools-card .field dd { padding: 0 0 8px; color: var(--ao-text); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]) { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border: 1px solid var(--ao-line-strong); border-radius: 9px; background: var(--ao-segment-track); cursor: pointer; transition: background-color .2s, border-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"])::before { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ao-text-muted); transition: transform .2s, background-color .2s; }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked { border-color: var(--ao-tone-line); background: color-mix(in srgb, var(--ao-tone-take) var(--ao-tone-fill), transparent); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):checked::before { transform: translateX(12px); background: var(--ao-white); }
+#ao-root :is(.ao-switch, .ao-tools-card input[type="checkbox"]):focus-visible { box-shadow: var(--ao-field-focus-glow); outline: none; }
+#ao-root .ao-tools-log { max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); color: var(--ao-text); font-family: var(--ao-font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 #ao-root .ao-fixed .ao-segmented,
 #ao-root .ao-fixed .ao-bar-btn,
 #ao-root .ao-fixed .ao-back-row { box-shadow: 0 3px 10px rgba(0,0,0, calc(.18 * var(--ao-lift))); transition: box-shadow .25s ease-out, background-color .25s ease-out; }
@@ -606,6 +653,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-button.ao-fill-hold { --ao-btn: var(--ao-tone-hold); }
 #ao-root .ao-subtle { border-color: transparent; background: transparent; color: var(--ao-text-muted); }
 #ao-root .ao-small { min-height: 26px; padding: 0 9px; font-size: var(--ao-fs-md); }
+#ao-root .ao-danger:hover { color: var(--ao-danger); }
 #ao-root .ao-segmented { position: relative; display: flex; padding: 2px; border: 1px solid var(--ao-line); border-radius: var(--ao-radius-base); background: var(--ao-segment-track); }
 #ao-root .ao-segment { position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; border: 0; border-radius: calc(var(--ao-radius-base) - 2px); background: none; color: var(--ao-text-muted); font-size: var(--ao-fs-md); cursor: pointer; white-space: nowrap; transition: color .25s; }
 #ao-root .ao-segment:hover { color: var(--ao-text); }
@@ -687,6 +735,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-pill.ao-away { visibility: hidden; }
 #ao-root .ao-field { display: grid; gap: 3px; min-width: 0; }
 #ao-root .ao-label { color: var(--ao-text-muted); font-size: var(--ao-fs-sm); font-weight: var(--ao-fw-medium); }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:is([type="text"], [type="number"], [type="email"], [type="date"], [type="datetime-local"]):not(.ao-select-search))) { width: 100%; min-height: var(--ao-control-height); padding: 5px 8px; border: 1px solid var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
 #ao-root textarea.ao-input { resize: vertical; line-height: 1.4; }
 #ao-root .ao-select { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 #ao-root .ao-select-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -701,6 +750,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root .ao-select-search:focus-visible { box-shadow: none; }
 #ao-root .ao-select:has(.ao-select-search) .ao-select-value { display: none; }
 #ao-root .ao-select-menu { z-index: 20; max-height: 240px; overflow-y: auto; min-width: 0; scrollbar-width: thin; }
+#ao-root :is(.ao-input, .ao-tools-card :is(.developer-input, textarea, input:not([type="checkbox"], .ao-select-search))):focus { border-color: var(--ao-field-focus-line); box-shadow: var(--ao-field-focus-glow); outline: none; }
 #ao-root .ao-form-fields { display: grid; gap: 8px; }
 #ao-root .ao-form-fields .ao-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #ao-root .ao-suggest-tag { padding: 0 6px; border-radius: var(--ao-radius-badge); background: var(--ao-accent-bg); color: var(--ao-text-accent); font-weight: var(--ao-fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -998,6 +1048,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root.ao-host .ao-timer-input { background: var(--field-bg); color: var(--text); }
 /* Selettore a icone nella colonna stretta: la voce scelta ha spazio per il nome intero */
 #ao-root.ao-host .ao-segmented-icons .ao-segment.ao-grow { flex: 4; }
+/* Tools: riga della connessione (pallino, esito, Prova a destra) */
+#ao-root.ao-host .ao-health { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--fs-sm); }
+#ao-root.ao-host .ao-health .statusbar-dot.danger { background: var(--danger); }
+#ao-root.ao-host .ao-health .statusbar-dot.neutral { background: var(--subtle); }
 </style>
 </head>
 <body>
@@ -1007,7 +1061,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 (() => {
   const ME = 'utente@esempio.it', BOX = 'servizio@esempio.it';
   const ago = minutes => new Date(Date.now() - minutes * 60000).toISOString();
-  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PEL: { name: 'PEL', code: 'PEL' }, PO: { name: 'Posta', code: 'PO' } }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
+  const config = { payload: { ticketing: { email: BOX }, forwardingTargets: { ES: { name: 'Email Security', code: 'ES' }, PEL: { name: 'PEL', code: 'PEL' }, PO: { name: 'Posta', code: 'PO' } },
+    agencies: { 'AG-DEM': { shortName: 'DEM', displayName: 'Agenzia del Demanio' }, 'AG-BETA': { shortName: 'BETA', displayName: 'Agenzia Beta' } },
+    utilities: { operations: [{ id: 'SharedMailboxAddMembers', name: 'Membri di una casella condivisa', service: 'Exchange Online', icon: '📬', auth: 'certificate', agencies: ['AG-DEM', 'AG-BETA'],
+      fields: [{ id: 'mailbox', label: 'Casella condivisa', type: 'email', required: true }, { id: 'members', label: 'Membri', type: 'emailList', required: true, source: 'selectedMail' }, { id: 'rights', label: 'Permessi', type: 'choice', multiple: true, options: ['FullAccess', 'SendAs'], default: ['FullAccess'] }, { id: 'automap', label: 'Automapping', type: 'switch', default: true }],
+      steps: ['Connessione', 'Controllo della casella', 'Permessi', 'Verifica'] }] }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
   const threads = [
     { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 2, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
     { id: 102, subject: 'Richiesta licenza Visio', from: 'Paolo Neri <paolo.neri@agenzia.it>', at: 48, count: 1, thread: { status: 'New' } },
@@ -1059,6 +1117,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     await delay(250 + Math.random() * 300);
     const name = path.slice(5), q = url.searchParams;
     if (name === 'PluginConfig') return json(config);
+    if (name === 'Health') return json({ status: 'ok' });
     if (name === 'ListQueue') {
       const section = q.get('section');
       if (section === 'active') return json({ threads: threads.map(toItem) });
@@ -1066,6 +1125,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
       return json({ threads: [{ parentItemId: 106, unseenCount: 1, lastReceived: ago(30) }] });
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
+    if (name === 'RunUtility') { await new Promise(next => setTimeout(next, 600)); const members = body?.params?.members || []; return json({ status: 'ok', steps: [{ ok: true }, { ok: true, detail: body?.params?.mailbox }, { ok: true }, { ok: true }], items: members.map(member => ({ name: member, result: 'Aggiunto' })) }); }
     if (name === 'SearchTicketRecords') {
       if (body.text) { const t = body.text.toLowerCase(); return json({ records: [...tickets, ...closed].filter(r => [r.ticketId, r.shortDescription, r.ampReference].some(v => String(v || '').toLowerCase().includes(t))) }); }
       return json({ records: tickets.filter(r => ['In Progress', 'On Hold'].includes(r.status)) });
@@ -1156,6 +1216,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         actCancel: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>',
         bookmark: '<path d="M6 3.5h8v13l-4-3-4 3z"/>',
         chat: '<path d="M4 4.5h12v8.5H9l-3.5 3v-3H4z"/>',
+        diagnostics: '<path d="M2.5 10h3l2-5 3.5 10 2-5h4.5"/>',
+        sliders: '<path d="M4 5.5h7M15 5.5h1M4 10h2M10 10h6M4 14.5h8"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="8" cy="10" r="1.8"/><circle cx="14" cy="14.5" r="1.8"/>',
         reply: '<path d="M8 5L3.5 9.5 8 14"/><path d="M3.5 9.5H11a5 5 0 0 1 5 5v1"/>',
         replyAll: '<path d="M10 5L5.5 9.5 10 14"/><path d="M6 5L1.5 9.5 6 14"/><path d="M5.5 9.5H12a5 5 0 0 1 5 5v1"/>',
         back: '<path d="M12 4.5L6.5 10l5.5 5.5"/>',
@@ -1309,6 +1371,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const response = await fetch(url, request);
         if (response.status === 401 && !retried) return call(name, params, method, true);
         const data = await response.json().catch(() => null);
+        const reading = ['PluginConfig', 'ListQueue', 'ListThreadMessages', 'GetMailBody', 'SearchTicketRecords', 'Health'].includes(name);
+        if (!reading || !response.ok) ActionLog.add('function', name, `${response.status}${params.action ? ` ${params.action}` : ''}${data?.reason ? ` ${data.reason}` : ''}`); // registro: azioni ed errori
         if (!response.ok || data?.status === 'error') {
             const error = new Error(data?.message || `${name}: errore ${response.status}`);
             error.reason = data?.reason || data?.error || null;
@@ -1504,7 +1568,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         openTicket: new Map(), // parentItemId → numero del ticket aperto (espanso) nel pannello di destra
         closed: new Map(), // parentItemId → ticket chiusi del thread (null mentre si caricano)
         closedOpen: null, // parentItemId con la sezione dei ticket chiusi aperta
-        tagEntering: null, // riga della coda con l'etichetta appena messa (piccolo rimbalzo)
+        tagEntering: null,
+        utility: { step: 0, operation: '', agency: '', values: {}, run: null }, // Utility: passo e dati dell'attività
+        toolsTab: 'diagnostics', health: null, refreshDraft: null, // riga della coda con l'etichetta appena messa (piccolo rimbalzo)
         panel: null, // azione aperta nella colonna dei dettagli: take | forward | update
         forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
         forwardJobs: new Map(), // numero del ticket → inoltro in corso o fermo a metà
@@ -2195,7 +2261,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const thumb = h('span', { class: 'ao-segment-thumb', 'aria-hidden': 'true' });
         const kept = previous === value && segmentPlace.get(key);
         if (kept) { thumb.style.width = kept.width; thumb.style.transform = kept.transform; thumb.classList.add('ao-ready'); }
-        const bar = h('div', { class: `ao-segmented ao-segmented-icons${chosen ? ` ao-toned ao-choice-${tones[value] || 'accent'}` : ''}`, role: 'group' },
+        const toned = chosen && tones ? ` ao-toned ao-choice-${tones[value] || 'accent'}` : ''; // tones null: senza tono (Tools)
+        const bar = h('div', { class: `ao-segmented ao-segmented-icons${toned}`, role: 'group' },
             thumb,
             options.map(option => {
                 const active = option.value === value;
@@ -2839,11 +2906,213 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
+    // ------------------------------------------------------------------
+    // Utility (come nel pannello): un'attività alla volta, in cinque passi. Attività e agenzie dalla config
+    // (utilities.operations, agencies); l'esecuzione è RunUtility, che restituisce l'esito per passo e per voce.
+    // ------------------------------------------------------------------
+    const UTILITY_FIELD_TYPES = ['text', 'email', 'emailList', 'number', 'choice', 'switch'];
+    const UTILITY_STEPS = ['Attività', 'Agenzia', 'Dati', 'Accesso', 'Esecuzione'];
+    const mailAddresses = text => [...new Set(String(text || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [])];
+    const emptyValue = value => (Array.isArray(value) ? !value.length : value === '' || value === null || value === undefined);
+    function utilityCatalog() {
+        const agencies = Object.entries(state.config.agencies || {}).filter(([, agency]) => agency?.enabled !== false);
+        const operations = (Array.isArray(state.config.utilities?.operations) ? state.config.utilities.operations : [])
+            .filter(operation => operation?.id && operation?.name && Array.isArray(operation.fields))
+            .map(operation => ({
+                ...operation,
+                fields: operation.fields.filter(field => field?.id && UTILITY_FIELD_TYPES.includes(field.type)),
+                agencies: agencies.filter(([id, agency]) => (operation.agencies || []).includes(id) || (agency.operationsEnabled || []).includes(operation.id))
+            }));
+        return { operations };
+    }
+    // "selectedMail": gli indirizzi della mail del thread scelto (l'ultima ricevuta).
+    function utilityDefault(field) {
+        if (field.source === 'selectedMail') {
+            const thread = state.threads.get(selectedItem()?.parentItemId);
+            const last = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
+            return mailAddresses(last ? thread.bodies.get(last.id)?.text : '').join('\n');
+        }
+        if (field.default !== undefined) return Array.isArray(field.default) ? [...field.default] : field.default;
+        return field.type === 'choice' && field.multiple ? [] : field.type === 'switch' ? false : '';
+    }
+    function utilityView() {
+        const flow = state.utility;
+        const { operations } = utilityCatalog();
+        const operation = operations.find(item => item.id === flow.operation) || null;
+        const delegated = operation?.auth === 'delegated';
+        const steps = delegated ? [0, 1, 2, 3, 4] : [0, 1, 2, 4]; // con il certificato il passo Accesso non c'è
+        const at = Math.max(0, steps.indexOf(flow.step));
+        const go = step => { flow.step = step; render(); };
+        const next = () => go(steps[at + 1]);
+        const back = () => go(steps[at - 1]);
+        const progress = h('div', { class: 'ao-steps ao-progress', 'aria-hidden': 'true' }, steps.map((_, index) => h('span', { class: index <= at ? 'ao-done' : '' })));
+        const head = h('div', { class: 'ao-step-head' }, h('h3', { class: 'ao-card-title' }, UTILITY_STEPS[flow.step]), h('span', { class: 'ao-hint' }, `${at + 1} di ${steps.length}${operation && flow.step > 0 ? ` · ${operation.name}` : ''}`));
+        const nav = (nextLabel, ready, onNext = next) => h('div', { class: 'ao-actions ao-step-nav' },
+            at > 0 ? h('button', { type: 'button', class: 'ao-button', onclick: back }, 'Indietro') : null,
+            nextLabel ? h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !ready, onclick: onNext }, nextLabel) : null);
+        const pick = (selected, mark, title, subtitle, onclick) => h('button', { type: 'button', class: `ao-pick${selected ? ' ao-active' : ''}`, 'aria-pressed': String(selected), onclick },
+            mark ? h('span', { class: 'ao-pick-icon', 'aria-hidden': 'true' }, mark) : null,
+            h('span', { class: 'ao-pick-text' }, h('span', {}, title), subtitle ? h('span', { class: 'ao-hint' }, subtitle) : null));
+        let body;
+        if (flow.step === 0) {
+            body = [h('section', { class: 'ao-card' }, operations.length
+                ? operations.map(item => pick(item.id === flow.operation, item.icon || '⚙', item.name, item.service, () => {
+                    if (flow.operation !== item.id) Object.assign(flow, { operation: item.id, agency: '', values: Object.fromEntries(item.fields.map(field => [field.id, utilityDefault(field)])) });
+                    render();
+                }))
+                : h('p', { class: 'ao-hint' }, 'Nessuna attività configurata.')), nav('Avanti', Boolean(operation))];
+        } else if (flow.step === 1) {
+            body = [h('section', { class: 'ao-card' }, operation.agencies.length
+                ? [operation.agencies.map(([id, agency]) => pick(id === flow.agency, '🏛', `${agency.shortName || id} · ${agency.displayName || ''}`, null, () => { flow.agency = id; render(); })),
+                    h('p', { class: 'ao-hint' }, "Solo le agenzie dove l'attività è abilitata")]
+                : h('p', { class: 'ao-hint' }, "L'attività non è abilitata su nessuna agenzia.")), nav('Avanti', operation.agencies.some(([id]) => id === flow.agency))];
+        } else if (flow.step === 2) {
+            const values = flow.values;
+            const missing = operation.fields.find(field => field.required && emptyValue(values[field.id]));
+            const hint = h('p', { class: 'ao-hint' }, missing ? `Manca: ${missing.label}` : '');
+            const actions = nav(delegated ? 'Avanti' : 'Avvia', !missing, () => { if (delegated) next(); else runUtility(operation); });
+            const refreshNav = () => {
+                const gap = operation.fields.find(item => item.required && emptyValue(values[item.id]));
+                actions.querySelector('.ao-primary').disabled = Boolean(gap);
+                hint.textContent = gap ? `Manca: ${gap.label}` : '';
+            };
+            const field = item => {
+                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, ' · dalla mail selezionata')] : item.label;
+                if (item.type === 'switch') return h('label', { class: 'ao-switch-row' }, h('span', {}, item.label),
+                    h('input', { type: 'checkbox', class: 'ao-switch', checked: Boolean(values[item.id]), onchange: event => { values[item.id] = event.target.checked; } }));
+                if (item.type === 'choice') return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
+                    h('div', { class: 'ao-chips' }, (item.options || []).map(option => {
+                        const on = item.multiple ? (values[item.id] || []).includes(option) : values[item.id] === option;
+                        return h('button', { type: 'button', class: `ao-chip-toggle${on ? ' ao-active' : ''}`, 'aria-pressed': String(on), onclick: () => {
+                            values[item.id] = item.multiple ? (on ? values[item.id].filter(value => value !== option) : [...(values[item.id] || []), option]) : option;
+                            render();
+                        } }, option);
+                    })));
+                const multiline = item.type === 'emailList';
+                return h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
+                    h(multiline ? 'textarea' : 'input', {
+                        class: 'ao-input', id: `utility-${item.id}`, ...(multiline ? { rows: '3' } : { type: item.type === 'number' ? 'number' : item.type === 'email' ? 'email' : 'text', value: String(values[item.id] ?? '') }),
+                        placeholder: item.placeholder || '', oninput: event => { values[item.id] = event.target.value; refreshNav(); }
+                    }, multiline ? String(values[item.id] ?? '') : null));
+            };
+            body = [h('section', { class: 'ao-card' }, operation.fields.map(field), hint), actions];
+        } else if (flow.step === 3) {
+            body = [h('section', { class: 'ao-card ao-step-center' },
+                h('span', { class: 'ao-step-icon', 'aria-hidden': 'true' }, '🔒'),
+                h('div', {}, "Accedi al tenant dell'agenzia"), h('p', { class: 'ao-hint' }, "Con il tuo account e l'MFA, solo per questa operazione"),
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => showStatus("L'accesso con l'operatore non è ancora disponibile", 'warning') }, 'Accedi e avvia')), nav(null, false)];
+        } else {
+            const run = flow.run;
+            const names = operation?.steps || [];
+            const results = run?.result?.steps || [];
+            const failed = run?.error || results.some(step => step.ok === false);
+            body = [h('section', { class: 'ao-card' },
+                names.map((name, index) => {
+                    const result = results[index];
+                    const status = result ? (result.ok === false ? 'ao-failed' : 'ao-ok') : run?.pending && index === 0 ? 'ao-running' : run?.pending ? '' : run?.error && index === 0 ? 'ao-failed' : '';
+                    return h('div', { class: `ao-run-step ${status}` }, h('span', { class: 'ao-run-dot', 'aria-hidden': 'true' }), h('span', {}, name), result?.detail ? h('span', { class: 'ao-hint' }, result.detail) : null);
+                }),
+                (run?.result?.items || []).map(item => h('div', { class: 'ao-run-item' }, h('span', {}, item.name), h('span', { class: item.ok === false ? 'ao-text-danger' : item.warning ? 'ao-text-warning' : 'ao-text-success' }, item.result || ''))),
+                run?.error ? h('p', { class: 'ao-text-danger' }, run.error) : null),
+            run?.pending ? null : h('div', { class: 'ao-actions ao-step-nav' },
+                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => { flow.step = 2; render(); } }, 'Indietro') : null,
+                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => runUtility(operation) }, 'Riprova') : null,
+                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => { Object.assign(flow, { step: 0, operation: '', agency: '', values: {}, run: null }); render(); } }, 'Nuova attività'))];
+        }
+        return h('main', { class: 'workspace single' }, h('section', { class: 'column tools-column' }, h('div', { class: 'card' }, h('div', { class: 'scroll', 'data-scroll': 'utility' },
+            aoHost(h('div', { class: 'ao-tools' }, progress, head, body))))));
+    }
+    // Esecuzione: parte da sola dopo i Dati (o l'Accesso). I passi si colorano con l'esito di RunUtility.
+    async function runUtility(operation) {
+        const flow = state.utility;
+        const params = Object.fromEntries(operation.fields.map(field => {
+            const value = flow.values[field.id];
+            return [field.id, field.type === 'emailList' ? mailAddresses(value) : field.type === 'number' ? Number(value) : value];
+        }));
+        flow.step = 4;
+        flow.run = { pending: true };
+        render();
+        try {
+            flow.run = { result: await call('RunUtility', { operationId: operation.id, agencyId: flow.agency, params }, 'POST') };
+        } catch (error) {
+            flow.run = { error: error?.message || String(error), result: error?.data || null };
+        }
+        render();
+    }
+
+    // ------------------------------------------------------------------
+    // Tools (come nel pannello, senza le sezioni di Outlook): Diagnostica (connessione, registro delle azioni) e
+    // Impostazioni (frequenza degli aggiornamenti).
+    // ------------------------------------------------------------------
+    const ACTION_LOG_KEY = 'magus_action_log_v1';
+    const ActionLog = {
+        read() { try { return JSON.parse(localStorage.getItem(ACTION_LOG_KEY) || '[]') || []; } catch { return []; } },
+        add(kind, name, details = '') {
+            const list = [...ActionLog.read(), { at: new Date().toISOString(), kind, name, details }].slice(-300);
+            try { localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(list)); } catch { /* memoria del browser non disponibile */ }
+        },
+        clear() { try { localStorage.removeItem(ACTION_LOG_KEY); } catch { /* niente */ } },
+        text() { return ActionLog.read().map(entry => `${entry.at} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n'); }
+    };
+    const REFRESH_KEY = 'magus_refresh_v1';
+    const REFRESH_LIMITS = [15, 900];
+    function refreshSettings() {
+        let local = null;
+        try { local = JSON.parse(localStorage.getItem(REFRESH_KEY) || 'null'); } catch { local = null; }
+        const fromConfig = Number(state.config.refresh?.listsSeconds);
+        const listsSeconds = Number(local?.listsSeconds) || fromConfig || 60;
+        return { listsSeconds: Math.min(REFRESH_LIMITS[1], Math.max(REFRESH_LIMITS[0], listsSeconds)), source: local ? 'impostata qui' : fromConfig ? 'dalla config' : 'valore predefinito' };
+    }
+    const TOOLS_TABS = [['diagnostics', 'Diagnostica', 'diagnostics'], ['settings', 'Impostazioni', 'sliders']];
     function toolsView() {
-        return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll tools' },
-            h('section', { class: 'tool' },
-                h('h2', {}, 'Elenchi'),
-                h('div', { class: 'link-actions' }, link('Aggiorna adesso', () => reloadAll(), 'refresh')))))));
+        const tab = state.toolsTab || 'diagnostics';
+        const bar = aoIconBar(TOOLS_TABS.map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName] })), tab, value => { state.toolsTab = value; render(); }, 'tools', null); // come nel pannello: senza tono
+        const linkButton = (paths, label, onclick, extra = {}) => h('button', { type: 'button', class: `ao-link-button${extra.danger ? ' ao-danger' : ''}`, onclick }, aoIcon(paths), label);
+        let cards;
+        if (tab === 'diagnostics') {
+            const health = state.health;
+            const output = h('pre', { class: 'ao-tools-log' }, ActionLog.read().slice().reverse().map(entry => `${entry.at.slice(11, 19)} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n') || 'Nessuna azione registrata.');
+            cards = [
+                h('section', { class: 'ao-card' },
+                    h('h3', { class: 'ao-card-title' }, 'Connessione'),
+                    h('div', { class: 'ao-health' },
+                        h('span', { class: `statusbar-dot${health?.ok === false ? ' danger' : health?.ok ? '' : ' neutral'}`, 'aria-hidden': 'true' }),
+                        h('span', {}, health ? (health.ok ? `Function raggiungibili (${health.ms} ms)` : `Function non raggiungibili: ${health.error}`) : 'Non ancora provata'),
+                        h('span', { class: 'ao-spacer' }),
+                        linkButton(ICONS.refresh, 'Prova', testConnection))),
+                h('section', { class: 'ao-card' },
+                    h('h3', { class: 'ao-card-title' }, 'Azioni di Magus'),
+                    h('div', { class: 'ao-link-actions' },
+                        linkButton(ICONS.refresh, 'Aggiorna', () => render()),
+                        linkButton(ICONS.copy, 'Copia', async () => { if (await copyText(ActionLog.text())) showStatus('Registro copiato'); }),
+                        linkButton(ICONS.trash, 'Pulisci', () => { ActionLog.clear(); render(); }, { danger: true })),
+                    output)];
+        } else {
+            const current = refreshSettings();
+            const draft = state.refreshDraft || (state.refreshDraft = { listsSeconds: String(current.listsSeconds) });
+            cards = [h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, 'Frequenza degli aggiornamenti'),
+                h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'Elenchi, ogni (s)'),
+                    h('input', { class: 'ao-input', id: 'refresh-lists', type: 'number', min: String(REFRESH_LIMITS[0]), max: String(REFRESH_LIMITS[1]), inputmode: 'numeric', value: draft.listsSeconds, oninput: event => { draft.listsSeconds = event.target.value; } })),
+                h('p', { class: 'ao-hint' }, `In uso: elenchi ogni ${current.listsSeconds} s (${current.source}).`),
+                h('div', { class: 'ao-actions ao-actions-split' },
+                    linkButton(ICONS.restore || ICONS.refresh, 'Ripristina predefiniti', () => { try { localStorage.removeItem(REFRESH_KEY); } catch { /* niente */ } state.refreshDraft = null; scheduleRefresh(); render(); }),
+                    h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => {
+                        try { localStorage.setItem(REFRESH_KEY, JSON.stringify({ listsSeconds: Number(draft.listsSeconds) })); } catch { /* niente */ }
+                        state.refreshDraft = null; scheduleRefresh(); render(); showStatus('Frequenza applicata');
+                    } }, 'Applica'))),
+            h('section', { class: 'ao-card' },
+                h('h3', { class: 'ao-card-title' }, 'Elenchi'),
+                h('div', { class: 'ao-link-actions' }, linkButton(ICONS.refresh, 'Aggiorna adesso', () => reloadAll())))];
+        }
+        return h('main', { class: 'workspace single' }, h('section', { class: 'column tools-column' }, h('div', { class: 'card' }, h('div', { class: 'scroll', 'data-scroll': `tools:${tab}` },
+            aoHost(bar, h('div', { class: 'ao-tools' }, cards))))));
+    }
+    async function testConnection() {
+        const start = performance.now();
+        try { await call('Health'); state.health = { ok: true, ms: Math.round(performance.now() - start) }; }
+        catch (error) { state.health = { ok: false, error: error.message || String(error) }; }
+        render();
     }
 
     // ------------------------------------------------------------------
@@ -3059,7 +3328,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     function workspace() {
         if (state.tab === 'tools') return toolsView();
-        if (state.tab === 'utility') return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, empty('utility', 'Utility'))));
+        if (state.tab === 'utility') return utilityView();
         const item = selectedItem();
         return h('main', { class: `workspace${item ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
     }
@@ -3262,10 +3531,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }
 
     // Aggiornamento degli elenchi: ogni config.refresh.listsSeconds (60 s) e quando la pagina torna in primo piano.
+    let refreshTimer = null, refreshWatching = false;
     function scheduleRefresh() {
-        const seconds = Math.min(900, Math.max(15, Number(state.config.refresh?.listsSeconds) || 60));
-        setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); }, seconds * 1000);
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); });
+        clearInterval(refreshTimer);
+        refreshTimer = setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); }, refreshSettings().listsSeconds * 1000);
+        if (!refreshWatching) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); });
+        refreshWatching = true;
     }
 
     // Il menu dell'utente si chiude con un clic fuori o con Esc.
