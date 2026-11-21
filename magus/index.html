@@ -32,6 +32,8 @@
   --working: #e3b65c;
   --danger: #f08a8a;
   --success: #8fd6b0;
+  --forward: #a58be6;
+  --warning: #f0c36a;
   --track: #0c1323; /* fondo di schede e selettori */
   --field-bg: #101620;
   --option-bg: #1b2130;
@@ -93,6 +95,8 @@
   --working: #8a5a00;
   --danger: #a4262c;
   --success: #107c10;
+  --forward: #6b47b0;
+  --warning: #8a5300;
   --track: rgba(214, 224, 240, .6);
   --field-bg: #fcfdff;
   --option-bg: #fff;
@@ -139,6 +143,8 @@
   --working: #f0d257;
   --danger: #ffb3b8;
   --success: #6ccb5f;
+  --forward: #a58be6;
+  --warning: #f0c36a;
   --track: #252423;
   --field-bg: #252423;
   --option-bg: #2d2c2b;
@@ -187,6 +193,8 @@
   --working: #8a5a00;
   --danger: #a4262c;
   --success: #107c10;
+  --forward: #6b47b0;
+  --warning: #8a5300;
   --track: #edebe9;
   --field-bg: #fff;
   --option-bg: #fff;
@@ -277,7 +285,7 @@ button { font: inherit; color: inherit; }
 .menu-item .icon { color: var(--muted); }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 373px; gap: 12px; } /* destra: la scheda larga come nel pannello AMP */
+.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 425px; transition: grid-template-columns .32s var(--ease); gap: 12px; } /* destra: 373 di contenuto (la scheda larga come nel pannello AMP) + 52 di barra a icone */
 .column { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .column > .card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 6px 10px 10px; scrollbar-gutter: stable; }
@@ -420,9 +428,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 /* Moduli */
 .form { display: grid; gap: 10px; }
 .field-input { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: var(--fs-sm); }
-.field-input :is(input, select, textarea), .search input, .amp-link input { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--text); font: inherit; font-size: var(--fs-md); }
+.field-input :is(input, select, textarea), .search input, .amp-link input, .task-add :is(input, select), .chat-compose input { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--text); font: inherit; font-size: var(--fs-md); }
 .field-input textarea { height: auto; min-height: 90px; padding: 8px 10px; resize: vertical; }
-.field-input select option { background: var(--option-bg); }
+.field-input select option, .task-add select option { background: var(--option-bg); }
 .hint { margin: 0; color: var(--subtle); font-size: var(--fs-sm); }
 .details { border-top: 1px solid var(--line); padding-top: 8px; font-size: var(--fs-sm); }
 .details summary { color: var(--accent); font-weight: 500; cursor: pointer; }
@@ -596,6 +604,95 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root.ao-host .u-main .ao-pick { min-height: 64px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); text-align: left; transition: border-color .3s, box-shadow .3s; }
 #ao-root.ao-host .u-main .ao-pick:hover { border-color: var(--line-strong); }
 #ao-root.ao-host .u-main .ao-pick.ao-active { border-color: var(--accent-line); box-shadow: var(--glow-rest); }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Migliorie dell'elenco e del thread (concept 21/11)
+   --------------------------------------------------------------------------------------------------------------------- */
+/* Riga dell'elenco: quante mail, allegati, da quanto aspetta */
+.item-extra { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--subtle); font-size: var(--fs-xs); }
+.item-extra > span { display: inline-flex; align-items: center; gap: 3px; }
+.item-extra .icon { width: 13px; height: 13px; }
+.item-wait.late { color: var(--warning); }
+/* Filtri rapidi sopra Posta: selettore come le schede, più basso */
+.segmented.filters { flex: none; }
+.segmented.filters .segment { height: 26px; font-size: var(--fs-xs); }
+/* Eventi tra le mail */
+.thread-event { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; color: var(--subtle); font-size: var(--fs-xs); }
+.thread-event .icon { flex: none; width: 13px; height: 13px; }
+.thread-event > span:nth-child(2) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.thread-event-time { flex: none; }
+.thread-event-time::before { content: '·'; margin-right: 6px; }
+/* Mail su una riga (le vecchie): un clic la apre; un clic sull'intestazione di una vecchia aperta la richiude */
+.message.compact { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding: 8px 14px; cursor: pointer; transition: background-color .2s, border-color .2s; }
+.message.compact:hover { border-color: var(--line-strong); }
+.message.compact .message-from { flex: none; max-width: 40%; }
+.message-snippet { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); font-size: var(--fs-sm); }
+.message.service .message-snippet { color: color-mix(in srgb, var(--message-service-text) 70%, transparent); }
+.message-head.foldable { cursor: pointer; }
+/* Colori per tipo: gli inoltri nostri hanno il filo del colore dell'Inoltra */
+.message.service.forwarded { border-color: var(--forward); background: color-mix(in srgb, var(--forward) 22%, var(--message-bg)); }
+/* Scorciatoie: icona in fondo all'elenco, l'elenco nel suggerimento */
+.statusbar-keys { flex: none; display: inline-flex; color: var(--subtle); cursor: help; }
+.statusbar-keys .icon { width: 15px; height: 15px; }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Pannello di destra multitasking: contenuto + barra a icone (Thread, Task, Teams); richiuso resta la barra
+   --------------------------------------------------------------------------------------------------------------------- */
+.workspace.side-collapsed { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 54px; }
+.side-card { flex-direction: row !important; overflow: hidden; }
+.side-card > .scroll { flex: 1; min-width: 0; }
+.side-rail { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; padding: 10px 0; border-left: 1px solid var(--line); }
+.side-collapsed .side-rail { width: 100%; border-left: 0; }
+.rail-button { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
+.rail-button:hover { background: var(--hover); color: var(--text); }
+.rail-button[aria-pressed="true"] { border-color: var(--accent-line); background: var(--selected); color: var(--accent); }
+.rail-button .icon { width: 18px; height: 18px; }
+.rail-badge { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent-fill); color: #fff; font-size: 10px; font-weight: 600; line-height: 17px; text-align: center; }
+/* Task */
+.tasks { display: grid; gap: 12px; }
+.tool h2 { display: flex; align-items: baseline; gap: 8px; }
+.tool h2 .hint { margin-left: auto; font-size: var(--fs-xs); font-weight: 400; }
+.task-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.task-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.task-row:last-child { border-bottom: 0; }
+.task-check { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; padding: 0; border: 1.5px solid var(--line-strong); border-radius: 50%; background: none; color: #fff; cursor: pointer; transition: background-color .2s, border-color .2s, transform .2s; }
+.task-check:hover { border-color: var(--accent); }
+.task-check:active { transform: scale(.9); }
+.task-check[aria-pressed="true"] { border-color: var(--accent-fill); background: var(--accent-fill); }
+.task-check .icon { width: 12px; height: 12px; }
+.task-text { display: grid; gap: 2px; min-width: 0; }
+.task-title { overflow-wrap: anywhere; }
+.task-row.done .task-title { color: var(--subtle); text-decoration: line-through; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: var(--fs-xs); }
+.task-meta:empty { display: none; }
+.task-source { padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 999px; line-height: 16px; }
+.task-meta .link { font-size: var(--fs-xs); }
+.task-add { display: grid; gap: 8px; }
+.task-add-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px auto; gap: 6px; }
+.task-add-row .btn { padding: 0 12px; }
+/* Teams */
+.people-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.person { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: 10px; background: none; color: var(--text); text-align: left; cursor: pointer; }
+.person:hover { background: var(--hover); }
+.person .avatar { position: relative; }
+.person-text { display: grid; flex: 1; min-width: 0; }
+.person-name { font-weight: 500; }
+.person-status { overflow: hidden; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; text-overflow: ellipsis; }
+.presence { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border: 2px solid var(--panel-bg, var(--surface)); border-radius: 50%; background: var(--subtle); }
+.chat-who .presence { position: static; display: inline-block; margin-right: 6px; border: 0; }
+.presence.ok { background: var(--success); }
+.presence.danger { background: var(--danger); }
+.presence.warn { background: var(--warning); }
+.chat { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chat-who { display: inline-flex; align-items: center; font-weight: 600; }
+.chat-messages { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.chat-bubble { display: grid; gap: 2px; max-width: 85%; padding: 7px 10px; border-radius: 12px 12px 12px 4px; background: var(--message-bg); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-bubble.mine { align-self: flex-end; border-radius: 12px 12px 4px 12px; border-color: var(--message-service-line); background: var(--message-service-bg); color: var(--message-service-text); }
+.chat-time { color: var(--subtle); font-size: var(--fs-xs); justify-self: end; }
+.chat-share { justify-self: start; }
+.chat-compose { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.chat-compose .btn { width: 36px; padding: 0; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1124,23 +1221,23 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
       fields: [{ id: 'mailbox', label: 'Casella condivisa', type: 'email', required: true }, { id: 'members', label: 'Membri', type: 'emailList', required: true, source: 'selectedMail' }, { id: 'rights', label: 'Permessi', type: 'choice', multiple: true, options: ['FullAccess', 'SendAs'], default: ['FullAccess'] }, { id: 'automap', label: 'Automapping', type: 'switch', default: true }],
       steps: ['Connessione', 'Controllo della casella', 'Permessi', 'Verifica'] }] }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' } } } };
   const threads = [
-    { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 2, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
+    { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 3, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
     { id: 102, subject: 'Richiesta licenza Visio', from: 'Paolo Neri <paolo.neri@agenzia.it>', at: 48, count: 1, thread: { status: 'New' } },
-    { id: 103, subject: 'Abilitazione Teams per utente esterno', from: 'Sara Gialli <sara.gialli@agenzia.it>', at: 95, count: 3, thread: { status: 'Working', assignedTo: 'luigi.verdi@esempio.it', statusAt: ago(60) } },
+    { id: 103, subject: 'Abilitazione Teams per utente esterno', from: 'Sara Gialli <sara.gialli@agenzia.it>', at: 95, count: 4, thread: { status: 'Working', assignedTo: 'luigi.verdi@esempio.it', statusAt: ago(60) } },
     { id: 104, subject: 'Aggiunta membri a lista di distribuzione', from: 'Marco Blu <marco.blu@agenzia.it>', at: 160, count: 1, thread: { status: 'New' } },
     { id: 105, subject: 'Reset MFA', from: 'Elena Viola <elena.viola@agenzia.it>', at: 1500, count: 2, thread: { status: 'New' } }
   ];
   const ignored = [{ id: 201, subject: 'Newsletter servizi cloud', from: 'Notifiche <noreply@fornitore.it>', at: 300, count: 1, thread: { status: 'Ignored', statusBy: 'luigi.verdi@esempio.it', statusAt: ago(280) } }];
-  const toItem = t => ({ parentItemId: t.id, conversationId: 'C' + t.id, subject: t.subject, from: t.from, lastReceived: ago(t.at), messageCount: t.count, lastMessage: { messageId: 'M' + t.id + '-' + t.count, from: t.from, subject: t.subject, receivedDate: ago(t.at), to: t.id === 104 ? 'marco.rossi@agenzia.it' : BOX, cc: t.id === 104 ? BOX : '' }, thread: t.thread });
+  const toItem = t => ({ parentItemId: t.id, conversationId: 'C' + t.id, subject: t.subject, from: t.from, lastReceived: ago(t.at), messageCount: t.count, hasAttachment: (conversations[t.id] || []).some(row => row[3]), lastMessage: { messageId: 'M' + t.id + '-' + t.count, from: ((conversations[t.id] || []).slice().sort((a, b) => a[1] - b[1])[0] || [t.from])[0], subject: t.subject, receivedDate: ago(t.at), to: t.id === 104 ? 'marco.rossi@agenzia.it' : BOX, cc: t.id === 104 ? BOX : '' }, thread: t.thread });
   const tickets = [
     { id: '11', ticketId: 'SHP-0042', parentItemId: 106, status: 'In Progress', agency: 'DEM', operator: ME, shortDescription: 'Casella condivisa protocollo non visibile', ampReference: 'INC0123456', created: ago(200), elapsedTime: 25 },
     { id: '12', ticketId: 'SHP-0039', parentItemId: 107, status: 'On Hold', agency: 'AG1', operator: ME, shortDescription: 'Migrazione archivio PST', ampReference: 'INC0123311', created: ago(3000), elapsedTime: 90 },
     { id: '13', ticketId: 'SHP-M-7', parentItemId: null, status: 'In Progress', agency: 'AG2', operator: 'luigi.verdi@esempio.it', shortDescription: 'Verifica regole di inoltro', created: ago(500), elapsedTime: 10 }
   ];
   const conversations = {
-    101: [['Anna Bianchi <anna.bianchi@agenzia.it>', 22 + 30, 'Buongiorno,\n\nda stamattina non riesco ad aprire la casella condivisa protocollo@agenzia.it da Outlook: compare un errore di autorizzazione.\n\nGrazie\nAnna Bianchi', true], [BOX, 22, 'Salve,\n\nsi prende in carico la richiesta.\n\nSaluti,\nMario Rossi\nService Desk', false]],
+    101: [[BOX, 40, 'Inoltro per la verifica delle licenze della casella.\n\nSaluti,\nMario Rossi', false, 'I: Errore accesso casella condivisa'], ['Anna Bianchi <anna.bianchi@agenzia.it>', 22 + 30, 'Buongiorno,\n\nda stamattina non riesco ad aprire la casella condivisa protocollo@agenzia.it da Outlook: compare un errore di autorizzazione.\n\nGrazie\nAnna Bianchi', true], [BOX, 22, 'Salve,\n\nsi prende in carico la richiesta.\n\nSaluti,\nMario Rossi\nService Desk', false]],
     102: [['Paolo Neri <paolo.neri@agenzia.it>', 48, 'Buongiorno,\n\nchiedo l\'assegnazione di una licenza Visio per il collega Luca Rossi.\n\nCordiali saluti\nPaolo Neri', false]],
-    103: [['Sara Gialli <sara.gialli@agenzia.it>', 200, 'Buongiorno,\n\nserve abilitare la chat Teams con un consulente esterno.\n\nSara', false], [BOX, 150, 'Salve,\n\nci indica l\'indirizzo del consulente?\n\nSaluti,\nLuigi Verdi', false], ['Sara Gialli <sara.gialli@agenzia.it>', 95, 'È consulente@studio-esterno.it, grazie.', false]],
+    103: [['Sara Gialli <sara.gialli@agenzia.it>', 260, 'Aggiungo: serve anche l\'accesso ai file condivisi del canale.', false], ['Sara Gialli <sara.gialli@agenzia.it>', 200, 'Buongiorno,\n\nserve abilitare la chat Teams con un consulente esterno.\n\nSara', false], [BOX, 150, 'Salve,\n\nci indica l\'indirizzo del consulente?\n\nSaluti,\nLuigi Verdi', false], ['Sara Gialli <sara.gialli@agenzia.it>', 95, 'È consulente@studio-esterno.it, grazie.', false]],
     104: [['Marco Blu <marco.blu@agenzia.it>', 160, 'Buongiorno,\n\nvanno aggiunti alla lista uffici-roma@agenzia.it i colleghi in allegato.\n\nGrazie', true]],
     105: [['Elena Viola <elena.viola@agenzia.it>', 1560, 'Ho cambiato telefono e non riesco più ad approvare l\'accesso.', false], [BOX, 1500, 'Salve,\n\nprocediamo con il reset del metodo di autenticazione.\n\nSaluti,\nLuigi Verdi', false]],
     106: [['Giorgio Rosa <giorgio.rosa@agenzia.it>', 260, 'La casella protocollo non compare più in Outlook.', false], [BOX, 200, 'Salve,\n\nsi prende in carico la richiesta, riferimento INC0123456.\n\nSaluti,\nMario Rossi', false], ['Giorgio Rosa <giorgio.rosa@agenzia.it>', 30, 'Ora la vedo ma non riesco a inviare per conto della casella.', false]],
@@ -1149,6 +1246,24 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   };
   const closed = [{ id: '9', ticketId: 'SHP-0031', parentItemId: null, status: 'Resolved', agency: 'DEM', operator: ME, shortDescription: 'Reset password casella protocollo', ampReference: 'INC0122001', created: ago(9000), elapsedTime: 15 }];
   const bodies = {};
+  const day = days => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  const planner = [
+    { id: 'P1', parentItemId: 101, title: 'Richiamare Anna Bianchi dopo il reset dei permessi', assignedTo: ME, due: day(0), done: false, source: 'planner' },
+    { id: 'P2', parentItemId: 101, title: 'Verificare la licenza della casella in AMP', assignedTo: 'luigi.verdi@esempio.it', due: day(1), done: false, source: 'planner' },
+    { id: 'P3', parentItemId: 101, title: 'Controllare i permessi della casella protocollo', assignedTo: ME, due: '', done: true, source: 'planner' },
+    { id: 'P4', parentItemId: 106, title: 'Aggiornare Giorgio Rosa sull\'esito', assignedTo: ME, due: day(2), done: false, source: 'planner' }
+  ];
+  const todo = [
+    { id: 'T1', title: 'Report settimanale delle code', due: day(0), done: false, source: 'todo' },
+    { id: 'T2', title: 'Rinnovo certificato PEL', due: day(4), done: false, source: 'todo' }
+  ];
+  const people = [
+    { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', presence: 'Available', unread: 2 },
+    { email: 'sara.neri@esempio.it', displayName: 'Sara Neri', presence: 'InAMeeting', note: 'In riunione fino alle 11' },
+    { email: 'paolo.gialli@esempio.it', displayName: 'Paolo Gialli', presence: 'Away' },
+    { email: 'chiara.blu@esempio.it', displayName: 'Chiara Blu', presence: 'Offline' }
+  ];
+  const chats = { 'luigi.verdi@esempio.it': [{ from: 'luigi.verdi@esempio.it', text: 'Ti giro quello della casella protocollo?', at: ago(12) }, { from: 'luigi.verdi@esempio.it', text: 'Ha già un ticket aperto', at: ago(11) }] };
   try {
     if (!localStorage.getItem('snow_ticket_assistant_v1')) localStorage.setItem('snow_ticket_assistant_v1', JSON.stringify({
       profile: { assignedTo: { displayValue: 'Mario Rossi', value: 'abc123' } },
@@ -1158,9 +1273,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }));
   } catch {}
   const subjects = Object.fromEntries([...threads, ...ignored].map(t => [t.id, t.subject]).concat([[106, 'Casella protocollo non visibile'], [107, 'Importazione archivio PST']]));
-  const messages = id => (conversations[id] || []).map(([from, at, text, attach], index) => {
+  const messages = id => (conversations[id] || []).map(([from, at, text, attach, own], index) => {
     const messageId = `M${id}-${index + 1}`;
-    const subject = (index ? 'RE: ' : '') + (subjects[id] || '');
+    const subject = own || (index ? 'RE: ' : '') + (subjects[id] || '');
     bodies[messageId] = { subject, from, to: [BOX], cc: id === 101 || id === 106 ? ['ufficio.it@agenzia.it'] : [], receivedDate: ago(at), hasAttachments: attach, text, newText: text };
     return { messageId, subject, from, receivedDate: ago(at), hasAttachment: attach, status: 'New' };
   });
@@ -1179,7 +1294,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
       const section = q.get('section');
       if (section === 'active') return json({ threads: threads.map(toItem) });
       if (section === 'ignored') return json({ threads: ignored.map(toItem) });
-      return json({ threads: [{ parentItemId: 106, unseenCount: 1, lastReceived: ago(30) }] });
+      return json({ threads: [{ parentItemId: 106, subject: 'Casella protocollo non visibile', unseenCount: 1, lastReceived: ago(30), messageCount: (conversations[106] || []).length, hasAttachment: false, lastMessage: { from: 'Giorgio Rosa <giorgio.rosa@agenzia.it>', to: BOX, cc: '' }, thread: { status: 'Acquired', assignedTo: ME, statusAt: ago(205) } }] });
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
     if (name === 'RunUtility') { await new Promise(next => setTimeout(next, 600)); const members = body?.params?.members || []; return json({ status: 'ok', steps: [{ ok: true }, { ok: true, detail: body?.params?.mailbox }, { ok: true }, { ok: true }], items: members.map(member => ({ name: member, result: 'Aggiunto' })) }); }
@@ -1211,6 +1326,22 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
       const id = Number(body.parentItemId); (conversations[id] = conversations[id] || []).push([BOX, 0, body.text || 'Salve,\n\nsi prende in carico la richiesta.\n\nSaluti,\nMario Rossi', false]);
       const r = tickets.find(x => x.ticketId === body.ticketId); if (r) r.repliedAt = ago(0);
       return json({ status: 'ok' });
+    }
+    // Concept: task (Planner del team + To Do personale) e Teams (colleghi, presenza, chat)
+    if (name === 'ThreadTasks') {
+      if (body.action === 'create') { const task = { id: 'P' + Date.now(), parentItemId: Number(body.parentItemId), title: body.title, assignedTo: body.assignedTo || ME, due: body.due || '', done: false, source: 'planner' }; planner.push(task); return json({ status: 'ok', task }); }
+      if (body.action === 'update') { const task = planner.find(x => x.id === body.taskId); if (task) task.done = Boolean(body.done); return json({ status: 'ok' }); }
+      return json({ tasks: planner.filter(task => task.parentItemId === Number(q.get('parentItemId'))) });
+    }
+    if (name === 'MyTasks') {
+      if (body.action === 'update') { const task = todo.find(x => x.id === body.taskId); if (task) task.done = Boolean(body.done); return json({ status: 'ok' }); }
+      return json({ tasks: [...planner.filter(task => task.assignedTo === ME), ...todo] });
+    }
+    if (name === 'TeamsPeople') return json({ people });
+    if (name === 'TeamsChat') {
+      const list = chats[body.with || q.get('with')] = chats[body.with || q.get('with')] || [];
+      if (body.text) { list.push({ from: ME, text: body.text, at: ago(0) }); return json({ status: 'ok' }); }
+      return json({ messages: list });
     }
     if (name === 'ListThreadMessages') return json({ messages: messages(Number(q.get('parentItemId'))) });
     if (name === 'GetMailBody') return json(bodies[q.get('messageId')] || { text: '' });
@@ -1257,6 +1388,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return node;
     }
     const ICONS = {
+        tasks: '<path d="M9 6h7.5M9 10h7.5M9 14h7.5"/><path d="M3.5 6l1.3 1.3L7 5M3.5 10l1.3 1.3L7 9M3.5 14l1.3 1.3L7 13"/>',
+        panel: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M12.5 4v12"/>',
+        keys: '<rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><path d="M5.5 8.5h.01M8.5 8.5h.01M11.5 8.5h.01M14.5 8.5h.01M6.5 11.5h7"/>',
+        plus: '<path d="M10 4.5v11M4.5 10h11"/>',
+        send: '<path d="M3.5 10l13-6-4.5 13-2.5-5.5z"/><path d="M9.5 11.5l7-7.5"/>',
         queue: '<path d="M3 10.5h4l1.5 2h3l1.5-2h4"/><path d="M5 4.5h10l2 6v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-4z"/>',
         ignored: '<rect x="3" y="4" width="14" height="3.5" rx="1"/><path d="M4.5 7.5v7A1.5 1.5 0 0 0 6 16h8a1.5 1.5 0 0 0 1.5-1.5v-7M8.5 10.5h3"/>',
         ticket: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h11A1.5 1.5 0 0 1 17 6.5v2a1.5 1.5 0 0 0 0 3v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5v-2a1.5 1.5 0 0 0 0-3z"/><path d="M8 8.5h4M8 11.5h4"/>',
@@ -1489,14 +1625,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             parentItemId: Number(item.parentItemId),
             section,
             subject: item.subject || last.subject || '(senza oggetto)',
-            from: sender(last.from || item.from),
+            from: sameEmail(sender(last.from).email, serviceMailbox()) || !last.from ? sender(item.from || last.from) : sender(last.from), // l'ultima nostra: si mostra chi ha scritto
             receivedAt: item.lastReceived || last.receivedDate,
             messageCount: Number(item.messageCount) || 0,
             status: thread.status || 'New',
             assignedTo: thread.assignedTo || '',
             statusBy: thread.statusBy || '',
             statusAt: thread.statusAt || '',
-            addressed: addressedAs(last)
+            addressed: addressedAs(last),
+            hasAttachment: Boolean(item.hasAttachment),
+            lastFromService: sameEmail(sender(last.from || item.from).email, serviceMailbox())
         };
     }
     function toTicket(record, unseen) {
@@ -1524,6 +1662,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     const Data = {
         session: () => window.MagusAuth.start(),
+        // Task del thread (Planner, piano del team) e i miei task (To Do + Planner assegnati a me). Teams: colleghi con
+        // la presenza e chat uno a uno. Function da creare: ThreadTasks, MyTasks, TeamsPeople, TeamsChat.
+        threadTasks: async parentItemId => (await call('ThreadTasks', { parentItemId }))?.tasks || [],
+        addThreadTask: (parentItemId, task) => call('ThreadTasks', { action: 'create', parentItemId, ...task }, 'POST'),
+        setTask: (task, done) => call(task.source === 'todo' ? 'MyTasks' : 'ThreadTasks', { action: 'update', taskId: task.id, done }, 'POST'),
+        myTasks: async () => (await call('MyTasks'))?.tasks || [],
+        people: async () => (await call('TeamsPeople'))?.people || [],
+        chat: async email => (await call('TeamsChat', { with: email }))?.messages || [],
+        sendChat: (email, text) => call('TeamsChat', { with: email, text }, 'POST'),
         async config() {
             const raw = await call('PluginConfig');
             return raw?.payload || raw || {};
@@ -1622,6 +1769,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         tab: 'work',
         section: 'mail', // Posta | Ticket
         ignoredOpen: false, // sezione delle ignorate aperta in fondo a Posta
+        postaFilter: 'all', // filtri rapidi sopra Posta: all | mine | free | cc
+        expanded: new Map(), // parentItemId → mail aperte a mano (le altre, tranne l'ultima, restano su una riga)
+        sideTab: 'thread', // pannello di destra: thread | tasks | teams
+        sideCollapsed: (() => { try { return localStorage.getItem('magus_side_collapsed_v1') === '1'; } catch { return false; } })(),
+        tasks: { thread: new Map(), mine: null, loading: new Set(), draft: { title: '', assignedTo: '', due: '' } }, // Task: Planner (del thread) e To Do
+        teams: { people: null, loading: false, open: null, chats: new Map(), draft: '' }, // Teams: colleghi, presenza, chat
         lists: { active: [], ignored: [], tickets: [], threads: [] },
         found: null, // risultati della ricerca nei ticket
         search: '',
@@ -1741,6 +1894,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         state.armed = null;
         render();
         openThread(item.parentItemId);
+        loadThreadTasks(item.parentItemId);
     }
     function closeSelected() {
         state.selected = null;
@@ -2134,7 +2288,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const ticket = item.key.startsWith('ticket:');
         const pick = () => select(item);
         return h('li', {},
-            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, title: item.addressed === 'cc' ? 'Siamo in copia' : null, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
+            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, title: item.addressed === 'cc' ? 'Siamo in copia' : null, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, markText(item.subject, state.search)),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
@@ -2145,8 +2299,22 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('span', { class: 'item-meta' },
                     ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, item.addressed === 'cc' ? 'Cc · ' : null, markText(item.from.name, state.search)),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
-                    ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null)));
+                    ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null),
+                ticket ? null : itemExtra(item)));
     }
+    // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
+    function itemExtra(item) {
+        const waited = item.section === 'active' && !item.lastFromService ? minutesSince(item.receivedAt) : null;
+        const late = waited !== null && waited >= WAIT_LATE_MINUTES;
+        if (!item.messageCount && !item.hasAttachment && waited === null) return null;
+        return h('span', { class: 'item-extra' },
+            item.messageCount ? h('span', { title: 'Mail del thread' }, icon(ICONS.mail), String(item.messageCount)) : null,
+            item.hasAttachment ? h('span', { title: 'Allegati' }, icon(ICONS.attach)) : null,
+            waited !== null ? h('span', { class: `item-wait${late ? ' late' : ''}`, title: 'Da quanto aspetta una risposta' }, `aspetta da ${duration(waited)}`) : null);
+    }
+    const WAIT_LATE_MINUTES = 120; // oltre, "aspetta da" diventa del colore dell'attenzione
+    const minutesSince = when => { const date = parseDate(when); return date ? Math.max(0, Math.round((Date.now() - date.getTime()) / 60000)) : null; };
+    const duration = minutes => minutes < 60 ? `${minutes} min` : minutes < 1440 ? `${Math.floor(minutes / 60)}h${minutes % 60 ? String(minutes % 60).padStart(2, '0') : ''}` : `${Math.floor(minutes / 1440)} g`;
     // Barra di stato (come nel pannello): pallino e stato dei servizi, a destra l'ora dell'ultimo aggiornamento.
     function statusBar() {
         const tone = state.error ? 'danger' : !state.loaded ? 'neutral' : 'ok';
@@ -2154,7 +2322,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return h('div', { class: `list-foot statusbar-${tone}` },
             h('span', { class: 'statusbar-dot', 'aria-hidden': 'true' }),
             h('span', { class: 'statusbar-text', title: text }, text),
-            state.listsAt ? h('span', { class: 'statusbar-sync', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato ${shortWhen(state.listsAt.toISOString())}`) : null);
+            state.listsAt ? h('span', { class: 'statusbar-sync', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato ${shortWhen(state.listsAt.toISOString())}`) : null,
+            h('span', { class: 'statusbar-keys', title: SHORTCUTS.map(([keys, label]) => `${keys}  ${label}`).join('\n'), 'aria-label': 'Scorciatoie da tastiera' }, icon(ICONS.keys)));
     }
     // Elenco come in Outlook: solo le mail (un thread per riga, dal più recente); i ticket del thread stanno nel pannello
     // di destra. Le ignorate a parte. La ricerca filtra quello che c'è e, con Invio, cerca anche tra tutti i ticket.
@@ -2162,11 +2331,22 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     //  - Posta: le mail (in coda e quelle con ticket), dal più recente; in fondo le ignorate, in una sezione che si apre.
     //  - Ticket: i ticket senza mail (non stanno nella coda delle mail), Nuovo ticket in cima; con Invio la ricerca
     //    cerca tra tutti i ticket.
+    // Filtri rapidi sopra Posta: tutte, mie (con la mia etichetta o in carico a me), libere (in coda senza etichetta), in copia.
+    const POSTA_FILTERS = {
+        all: () => true,
+        mine: item => isMe(item.assignedTo) && ['Working', 'Acquired'].includes(item.status) || item.section === 'mine',
+        free: item => item.section === 'active' && !item.assignedTo,
+        cc: item => item.addressed === 'cc'
+    };
+    // Voci dell'elenco nell'ordine in cui si vedono (per le frecce della tastiera).
+    function visibleItems() {
+        return [...document.querySelectorAll('.workspace > .column:first-child .list .item')].map(node => allItems().find(item => item.key === node.dataset.key)).filter(Boolean);
+    }
     function listColumn() {
         const needle = state.search.trim().toLowerCase();
         const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference, ...(item.tickets || []).flatMap(ticket => [ticket.number, ticket.ampReference, ticket.agency])].some(text => String(text || '').toLowerCase().includes(needle));
         const byDate = (a, b) => (parseDate(b.lastAt || b.receivedAt)?.getTime() || 0) - (parseDate(a.lastAt || a.receivedAt)?.getTime() || 0);
-        const mails = [...state.lists.active, ...state.lists.threads].filter(match).sort(byDate);
+        const mails = [...state.lists.active, ...state.lists.threads].filter(match).filter(POSTA_FILTERS[state.postaFilter] || Boolean).sort(byDate);
         const ignored = state.lists.ignored.filter(match);
         const mailless = state.lists.tickets.filter(ticket => !ticket.parentItemId);
         const tickets = mailless.filter(match).sort(byDate);
@@ -2180,7 +2360,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('label', { class: 'search' }, icon(ICONS.search),
                     h('input', { id: 'search', type: 'search', placeholder: state.section === 'tickets' ? 'Cerca (Invio: tra tutti i ticket)' : 'Cerca', value: state.search, 'aria-label': 'Cerca',
                         oninput: event => { state.search = event.target.value; if (!state.search) state.found = null; render(); },
-                        onkeydown: event => { if (event.key === 'Enter' && state.section === 'tickets') search(event.target.value); } }))));
+                        onkeydown: event => { if (event.key === 'Enter' && state.section === 'tickets') search(event.target.value); } }))),
+            state.section === 'mail' ? h('div', { class: 'segmented filters', role: 'group', 'aria-label': 'Filtri' },
+                [['all', 'Tutte'], ['mine', 'Mie'], ['free', 'Libere'], ['cc', 'Cc']].map(([id, label]) =>
+                    h('button', { type: 'button', class: 'segment', 'aria-pressed': String(state.postaFilter === id), onclick: () => { state.postaFilter = id; render(); } }, label))) : null);
         const list = items => h('ul', { class: 'list' }, items.map(listItem));
         let body;
         if (!state.loaded) body = empty('queue', 'Caricamento…');
@@ -2193,7 +2376,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         } else {
             const open = state.ignoredOpen || Boolean(needle && ignored.length);
             body = [
-                mails.length ? list(mails) : empty('queue', needle ? 'Nessun risultato' : 'Niente in coda'),
+                mails.length ? list(mails) : empty('queue', needle || state.postaFilter !== 'all' ? 'Nessun risultato' : 'Niente in coda'),
                 state.lists.ignored.length ? h('div', { class: `list-section${open ? ' open' : ''}` },
                     h('button', { type: 'button', class: 'list-section-toggle', 'aria-expanded': String(open), onclick: () => { state.ignoredOpen = !state.ignoredOpen; render(); } },
                         icon(ICONS.ignored), h('span', {}, `Ignorate (${needle ? ignored.length : state.lists.ignored.length})`), h('span', { class: 'caret', 'aria-hidden': 'true' }, '▾')),
@@ -2207,16 +2390,23 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Ogni mail con sotto i suoi comandi: Rispondi e Rispondi a tutti aprono il modulo sotto la mail, crescendo dal
     // pulsante; Inoltra (solo in coda) e Crea ticket (solo sulle mail ricevute) preparano la scheda del thread nel
     // pannello di destra. Vista a chat (le nostre a destra, di un altro colore) o classica, dalle impostazioni.
-    function message(entry, thread, item) {
+    const FORWARD_SUBJECT = /^\s*(i|fw|fwd|inoltro|inoltrata)\s*:/i;
+    function message(entry, thread, item, { compact = false, latest = true } = {}) {
         const body = thread.bodies.get(entry.id);
         const service = sameEmail(entry.from.email, serviceMailbox());
+        const kind = service ? (FORWARD_SUBJECT.test(entry.subject) ? ' service forwarded' : ' service') : '';
+        if (compact) return h('article', { class: `message compact${kind}`, 'data-message': entry.id, role: 'button', tabindex: '0', title: 'Apri la mail',
+            onclick: () => toggleMessage(item, entry.id), onkeydown: event => { if (event.key === 'Enter') toggleMessage(item, entry.id); } },
+            h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
+            h('span', { class: 'message-snippet' }, body?.text ? body.text.replace(/\s+/g, ' ').slice(0, 140) : ''),
+            h('span', { class: 'message-time' }, shortWhen(entry.receivedAt)));
         const queue = item?.section === 'active';
         const action = (label, iconName, onclick, extra = {}) => h('button', { type: 'button', class: 'message-action', title: label, 'aria-label': label, ...extra, onclick }, icon(ICONS[iconName]), h('span', {}, label));
         const draft = state.drafts.get(item?.parentItemId);
         const composing = item && state.composing.has(item.parentItemId) && draft?.messageId === entry.id;
-        const article = h('article', { class: `message${service ? ' service' : ''}`, 'data-message': entry.id },
-            h('div', { class: 'message-head' },
-                h('span', { class: 'message-from' }, entry.from.name),
+        const article = h('article', { class: `message${kind}`, 'data-message': entry.id },
+            h('div', { class: `message-head${latest ? '' : ' foldable'}`, title: latest ? null : 'Richiudi', onclick: latest ? null : () => toggleMessage(item, entry.id) },
+                h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
                 h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
             !body ? h('p', { class: 'message-body loading' }, 'Caricamento…')
                 : body.error ? h('p', { class: 'message-body loading' }, body.error)
@@ -2228,7 +2418,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 action('Rispondi', 'reply', event => openComposer(item, thread, 'one', event.currentTarget, entry.id), { 'data-action': 'one' }),
                 action('Rispondi a tutti', 'replyAll', event => openComposer(item, thread, 'all', event.currentTarget, entry.id), { 'data-action': 'all' }),
                 queue ? action('Inoltra', 'cardForward', () => openCard(item, entry.id, 'forward')) : null,
-                !service ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null) : null);
+                !service ? action('Crea ticket', 'cardTake', () => openCard(item, entry.id, 'take')) : null,
+                action('Task', 'tasks', () => taskFromMail(item, entry), { 'data-action': 'task' })) : null);
         return composing ? [article, composer(item, thread)] : article;
     }
     // Risposta precompilata dalla mail scelta: A = chi l'ha scritta (se è nostra, i suoi destinatari), Cc = gli altri
@@ -2336,6 +2527,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return state.sideCards.get(item.key);
     }
     function openCard(item, messageId, choice) {
+        showThreadSide();
         if (linkedThread(item)) return openExtraTicket(item, messageId);
         const thread = state.threads.get(item.parentItemId);
         const draft = takeDraft(item);
@@ -2726,6 +2918,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Crea ticket sotto una mail di un thread con ticket: il modulo compare in cima alla pila con quella mail;
     // Annulla lo richiude.
     async function openExtraTicket(item, messageId) {
+        showThreadSide();
         const thread = state.threads.get(item.parentItemId);
         const draft = takeDraft(item);
         const text = thread?.bodies.get(messageId)?.text;
@@ -2747,6 +2940,47 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         state.forms.delete(`take:${item.key}`);
         render();
     }
+    // Sotto l'oggetto: chi partecipa e quante mail.
+    function threadSubtitle(thread) {
+        if (!thread?.messages?.length) return '';
+        const names = [...new Set(thread.messages.map(entry => sameEmail(entry.from.email, serviceMailbox()) ? 'Servizio' : entry.from.name || entry.from.email))];
+        return `${names.join(', ')} · ${thread.messages.length} mail`;
+    }
+    // Il thread dal più recente: le mail con in mezzo gli eventi (etichetta, presa in carico, inoltro, ticket aperti).
+    // Aperta solo l'ultima mail (e quelle aperte a mano o con la risposta in corso); le altre su una riga.
+    function threadEvents(item) {
+        const events = [];
+        const who = email => surname(operatorName(email)) || email || '';
+        if (item.statusAt) {
+            const text = {
+                Working: `${who(item.assignedTo)} ha messo l'etichetta`,
+                Acquired: `${who(item.assignedTo)} ha preso in carico`,
+                Ignored: `${who(item.statusBy || item.assignedTo)} ha ignorato il thread`,
+                Forwarded: `${who(item.statusBy)} ha inoltrato a ${forwardGroups().find(entry => [entry.name, entry.id].includes(item.assignedTo))?.tag || item.assignedTo}`
+            }[item.status];
+            if (text) events.push({ at: item.statusAt, text, iconName: item.status === 'Forwarded' ? 'cardForward' : item.status === 'Ignored' ? 'ignored' : 'tag' });
+        }
+        state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && ticket.openedAt)
+            .forEach(ticket => events.push({ at: ticket.openedAt, text: `Aperto ${ticket.number}${ticket.operator ? ` · ${who(ticket.operator)}` : ''}`, iconName: 'ticket' }));
+        return events;
+    }
+    function timeline(item, thread) {
+        const newest = thread.messages[thread.messages.length - 1];
+        const opened = state.expanded.get(item.parentItemId) || new Set();
+        const draft = state.drafts.get(item.parentItemId);
+        const time = when => parseDate(when)?.getTime() || 0;
+        const entries = [
+            ...thread.messages.map(entry => ({ at: time(entry.receivedAt), node: () => message(entry, thread, item, { compact: entry !== newest && !opened.has(entry.id) && !(state.composing.has(item.parentItemId) && draft?.messageId === entry.id), latest: entry === newest }) })),
+            ...threadEvents(item).map(event => ({ at: time(event.at), node: () => h('div', { class: 'thread-event' }, icon(ICONS[event.iconName] || ICONS.tag), h('span', {}, event.text), h('span', { class: 'thread-event-time' }, shortWhen(event.at))) }))
+        ];
+        return entries.sort((a, b) => b.at - a.at).map(entry => entry.node());
+    }
+    function toggleMessage(item, messageId) {
+        const opened = state.expanded.get(item.parentItemId) || new Set();
+        opened.has(messageId) ? opened.delete(messageId) : opened.add(messageId);
+        state.expanded.set(item.parentItemId, opened);
+        render();
+    }
     function threadColumn(item) {
         if (!item) return h('section', { class: 'column', 'aria-label': 'Thread' }, h('div', { class: 'card' }, empty('mail', 'Scegli un thread')));
         const thread = state.threads.get(item.parentItemId);
@@ -2754,13 +2988,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const content = !item.parentItemId ? empty('mail', 'Ticket senza mail')
             : !thread || thread.loading ? empty('mail', 'Caricamento…')
                 : thread.error ? empty('mail', thread.error)
-                    : h('div', { class: 'messages' }, [...thread.messages].reverse().map(entry => message(entry, thread, item)));
+                    : h('div', { class: 'messages' }, timeline(item, thread));
         return h('section', { class: 'column', 'aria-label': 'Thread' },
             h('div', { class: 'card' },
                 h('div', { class: 'thread-head' },
                     h('button', { type: 'button', class: 'link back', onclick: closeSelected }, icon(ICONS.back), 'Elenco'),
                     h('h1', { class: 'thread-title' }, item.subject),
-                    h('div', { class: 'thread-sub' }, thread?.messages?.length ? `${thread.messages.length} mail` : '')),
+                    h('div', { class: 'thread-sub' }, threadSubtitle(thread))),
                 h('div', { class: 'scroll thread-body', 'data-scroll': `thread:${item.key}` },
                     document.documentElement.dataset.layout !== 'wide' ? h('div', { class: 'side side-inline' }, sideContent(item)) : null,
                     content)));
@@ -3014,11 +3248,194 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (item.section === 'mine') return ticketsSide(item);
         return h('div', { class: 'ticket-stack' }, threadStateBar(item), state.sideCards.has(item.key) ? threadCard(item) : null);
     }
+    // Pannello di destra multitasking: a destra una barra a icone (Thread, Task, Teams) che cambia il contenuto; in
+    // fondo alla barra si richiude il pannello (resta la barra). Thread = la scheda del thread scelto (vuota se non c'è).
+    const SIDE_TABS = [['thread', 'Thread', 'mail'], ['tasks', 'Task', 'tasks'], ['teams', 'Teams', 'chat']];
+    function setSide(tab, collapsed = state.sideCollapsed) {
+        state.sideTab = tab;
+        state.sideCollapsed = collapsed;
+        try { localStorage.setItem('magus_side_collapsed_v1', collapsed ? '1' : '0'); } catch { /* solo per comodità */ }
+        render();
+    }
+    function sideRail(item) {
+        const openTasks = item?.parentItemId ? (state.tasks.thread.get(item.parentItemId) || []).filter(task => !task.done).length : 0;
+        const unread = (state.teams.people || []).reduce((total, person) => total + (person.unread || 0), 0);
+        const badges = { thread: 0, tasks: openTasks, teams: unread };
+        return h('nav', { class: 'side-rail', 'aria-label': 'Pannello' },
+            SIDE_TABS.map(([id, label, iconName]) => h('button', {
+                type: 'button', class: 'rail-button', title: label, 'aria-label': label, 'aria-pressed': String(!state.sideCollapsed && state.sideTab === id),
+                onclick: () => setSide(id, state.sideCollapsed ? false : state.sideTab === id ? true : false)
+            }, icon(ICONS[iconName]), badges[id] ? h('span', { class: 'rail-badge' }, String(badges[id])) : null)),
+            h('span', { class: 'ao-spacer' }),
+            h('button', { type: 'button', class: 'rail-button', title: state.sideCollapsed ? 'Apri il pannello' : 'Richiudi il pannello', 'aria-label': state.sideCollapsed ? 'Apri il pannello' : 'Richiudi il pannello', onclick: () => setSide(state.sideTab, !state.sideCollapsed) }, icon(ICONS.panel)));
+    }
     function sideColumn(item) {
-        return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
-            h('div', { class: 'card' }, document.documentElement.dataset.layout !== 'wide' ? empty('ticket', '')
-                : item ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item))
-                    : empty('ticket', '')));
+        if (document.documentElement.dataset.layout !== 'wide') return h('aside', { class: 'column', 'aria-label': 'Dettagli' }, h('div', { class: 'card' }, empty('ticket', '')));
+        const tab = state.sideTab;
+        const content = tab === 'tasks' ? tasksPanel(item) : tab === 'teams' ? teamsPanel(item) : item ? sideContent(item) : empty('ticket', '');
+        return h('aside', { class: 'column side-column', 'aria-label': 'Dettagli' },
+            h('div', { class: 'card side-card' },
+                state.sideCollapsed ? null : h('div', { class: 'scroll side', 'data-scroll': `side:${tab}:${tab === 'thread' ? item?.key || '' : ''}` }, content),
+                sideRail(item)));
+    }
+    // Crea ticket / Inoltra sotto una mail riportano il pannello sul thread.
+    function showThreadSide() {
+        state.sideTab = 'thread';
+        if (state.sideCollapsed) { state.sideCollapsed = false; try { localStorage.setItem('magus_side_collapsed_v1', '0'); } catch { /* comodità */ } }
+    }
+
+    // Task: in cima quelli del thread (Planner, visibili a tutto il team), sotto i miei (To Do e Planner assegnati a me).
+    function loadThreadTasks(parentItemId, force = false) {
+        if (!parentItemId || state.tasks.loading.has(parentItemId) || (!force && state.tasks.thread.has(parentItemId))) return;
+        state.tasks.loading.add(parentItemId);
+        Data.threadTasks(parentItemId).then(list => state.tasks.thread.set(parentItemId, list), () => state.tasks.thread.set(parentItemId, null))
+            .finally(() => { state.tasks.loading.delete(parentItemId); render(); });
+    }
+    function loadMyTasks(force = false) {
+        if (state.tasks.loading.has('mine') || (!force && state.tasks.mine)) return;
+        state.tasks.loading.add('mine');
+        Data.myTasks().then(list => { state.tasks.mine = list; }, () => { state.tasks.mine = []; })
+            .finally(() => { state.tasks.loading.delete('mine'); render(); });
+    }
+    // Scadenza di un task: oggi, domani, ieri o la data (giorno/mese), in rosso se passata e non fatto.
+    function dueText(value) {
+        if (!value) return '';
+        const day = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+        if (Number.isNaN(day.getTime())) return '';
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const diff = Math.round((day - today) / 86400000);
+        return diff === 0 ? 'oggi' : diff === 1 ? 'domani' : diff === -1 ? 'ieri' : day.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+    }
+    function taskRow(task, { showThread = false } = {}) {
+        const due = dueText(task.due);
+        const owner = task.assignedTo ? surname(operatorName(task.assignedTo)) : '';
+        const thread = showThread && task.parentItemId ? allItems().find(item => item.parentItemId === Number(task.parentItemId) && item.key.startsWith('thread:')) : null;
+        return h('li', { class: `task-row${task.done ? ' done' : ''}` },
+            h('button', { type: 'button', class: 'task-check', 'aria-pressed': String(Boolean(task.done)), title: task.done ? 'Da fare' : 'Fatto', 'aria-label': task.done ? 'Da fare' : 'Fatto', onclick: () => toggleTask(task) }, task.done ? icon(ICONS.check) : null),
+            h('span', { class: 'task-text' },
+                h('span', { class: 'task-title' }, task.title),
+                h('span', { class: 'task-meta' },
+                    [owner, due].filter(Boolean).join(' · '),
+                    showThread ? h('span', { class: 'task-source' }, task.source === 'todo' ? 'To Do' : 'Planner') : null,
+                    thread ? h('button', { type: 'button', class: 'link', onclick: () => { state.section = 'mail'; select(thread); } }, 'Apri il thread') : null)));
+    }
+    async function toggleTask(task) {
+        task.done = !task.done;
+        render();
+        try { await Data.setTask(task, task.done); }
+        catch (error) { task.done = !task.done; render(); showStatus(error.message || String(error), 'danger'); }
+    }
+    function tasksPanel(item) {
+        const pid = item?.parentItemId || null;
+        if (pid) loadThreadTasks(pid);
+        loadMyTasks();
+        const list = pid ? state.tasks.thread.get(pid) : undefined;
+        const draft = state.tasks.draft;
+        const people = operators().filter(operator => operator?.email);
+        const add = async () => {
+            const title = draft.title.trim();
+            if (!title) return document.getElementById('task-title')?.focus();
+            const task = { title, assignedTo: draft.assignedTo || state.user.email, due: draft.due || '' };
+            const result = await run(() => Data.addThreadTask(pid, task), null);
+            if (!result) return;
+            state.tasks.draft = { title: '', assignedTo: '', due: '' };
+            loadThreadTasks(pid, true);
+            loadMyTasks(true);
+            showStatus('Task aggiunto al thread', 'success', null, ICONS.tasks);
+        };
+        const mine = (state.tasks.mine || []).slice().sort((a, b) => Number(a.done) - Number(b.done) || String(a.due || '9').localeCompare(String(b.due || '9')));
+        return h('div', { class: 'tasks' },
+            pid ? h('section', { class: 'tool tasks-thread' },
+                h('h2', {}, 'Task del thread', h('span', { class: 'hint' }, 'visibili al team')),
+                list === undefined ? h('p', { class: 'hint' }, 'Caricamento…')
+                    : list === null ? h('p', { class: 'hint' }, 'Task non disponibili')
+                        : list.length ? h('ul', { class: 'task-list' }, list.map(task => taskRow(task))) : h('p', { class: 'hint' }, 'Nessun task su questo thread'),
+                h('div', { class: 'task-add' },
+                    h('input', { id: 'task-title', placeholder: 'Nuovo task del thread', value: draft.title, 'aria-label': 'Nuovo task', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
+                    h('div', { class: 'task-add-row' },
+                        h('select', { 'aria-label': 'Assegnato a', onchange: event => { draft.assignedTo = event.target.value; } },
+                            people.map(person => h('option', { value: person.email, selected: sameEmail(person.email, draft.assignedTo || state.user.email) }, person.displayName || person.email))),
+                        h('input', { type: 'date', 'aria-label': 'Scadenza', value: draft.due, onchange: event => { draft.due = event.target.value; } }),
+                        h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.plus), 'Aggiungi')))) : null,
+            h('section', { class: 'tool tasks-mine' },
+                h('h2', {}, 'I miei task', h('span', { class: 'hint' }, 'To Do e Planner')),
+                state.tasks.mine === null ? h('p', { class: 'hint' }, 'Caricamento…')
+                    : mine.length ? h('ul', { class: 'task-list' }, mine.map(task => taskRow(task, { showThread: true }))) : h('p', { class: 'hint' }, 'Nessun task')));
+    }
+    // "Task" sotto una mail: apre la scheda Task con il titolo proposto dalla mail.
+    function taskFromMail(item, entry) {
+        state.tasks.draft = { title: `Seguire: ${entry.subject || item.subject}`, assignedTo: '', due: '' };
+        setSide('tasks', false);
+        requestAnimationFrame(() => { const field = document.getElementById('task-title'); if (field) { field.focus(); field.select(); } });
+    }
+
+    // Teams: i colleghi con la presenza; con un clic la chat uno a uno; "Manda il thread" scrive il link del thread scelto.
+    const PRESENCE = { Available: ['Disponibile', 'ok'], Busy: ['Occupato', 'danger'], DoNotDisturb: ['Non disturbare', 'danger'], InAMeeting: ['In riunione', 'danger'], Away: ['Assente', 'warn'], BeRightBack: ['Torno subito', 'warn'], Offline: ['Non in linea', 'off'] };
+    function loadPeople(force = false) {
+        if (state.teams.loading || (!force && state.teams.people)) return;
+        state.teams.loading = true;
+        Data.people().then(list => { state.teams.people = list; }, () => { state.teams.people = []; })
+            .finally(() => { state.teams.loading = false; render(); });
+    }
+    async function openChat(person) {
+        state.teams.open = person.email;
+        person.unread = 0;
+        render();
+        try { state.teams.chats.set(person.email, await Data.chat(person.email)); }
+        catch { state.teams.chats.set(person.email, null); }
+        render();
+        const box = document.querySelector('.chat-messages');
+        if (box) box.scrollTop = box.scrollHeight;
+    }
+    async function sendChat(email, text) {
+        text = String(text || '').trim();
+        if (!text) return;
+        const list = state.teams.chats.get(email) || [];
+        list.push({ from: state.user.email, text, at: new Date().toISOString(), mine: true });
+        state.teams.chats.set(email, list);
+        state.teams.draft = '';
+        render();
+        const box = document.querySelector('.chat-messages');
+        if (box) box.scrollTop = box.scrollHeight;
+        try { await Data.sendChat(email, text); }
+        catch (error) { showStatus(error.message || String(error), 'danger'); }
+    }
+    const threadLink = item => `${location.origin}${location.pathname}#thread=${item.parentItemId}`;
+    function presenceDot(person) {
+        const [label, tone] = PRESENCE[person.presence] || PRESENCE.Offline;
+        return h('span', { class: `presence ${tone}`, title: label });
+    }
+    function teamsPanel(item) {
+        loadPeople();
+        const people = state.teams.people;
+        const person = people?.find(entry => sameEmail(entry.email, state.teams.open));
+        if (person) {
+            const messages = state.teams.chats.get(person.email);
+            const shareable = item?.parentItemId ? item : null;
+            return h('section', { class: 'tool chat' },
+                h('div', { class: 'chat-head' },
+                    h('button', { type: 'button', class: 'link back-link', onclick: () => { state.teams.open = null; render(); } }, icon(ICONS.back), 'Colleghi'),
+                    h('span', { class: 'chat-who' }, presenceDot(person), person.displayName)),
+                h('div', { class: 'chat-messages' },
+                    messages === undefined ? h('p', { class: 'hint' }, 'Caricamento…')
+                        : messages === null ? h('p', { class: 'hint' }, 'Chat non disponibile')
+                            : messages.length ? messages.map(entry => h('div', { class: `chat-bubble${entry.mine || isMe(entry.from) ? ' mine' : ''}` }, h('span', {}, entry.text), h('span', { class: 'chat-time' }, shortWhen(entry.at))))
+                                : h('p', { class: 'hint' }, 'Nessun messaggio')),
+                shareable ? h('button', { type: 'button', class: 'btn chat-share', onclick: () => sendChat(person.email, `Thread: ${shareable.subject}\n${threadLink(shareable)}`) }, icon(ICONS.send), 'Manda questo thread') : null,
+                h('div', { class: 'chat-compose' },
+                    h('input', { id: 'chat-text', placeholder: `Scrivi a ${person.displayName.split(' ')[0]}`, value: state.teams.draft, 'aria-label': 'Messaggio', oninput: event => { state.teams.draft = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') sendChat(person.email, state.teams.draft); } }),
+                    h('button', { type: 'button', class: 'btn primary', 'aria-label': 'Invia', title: 'Invia', onclick: () => sendChat(person.email, state.teams.draft) }, icon(ICONS.send))));
+        }
+        return h('section', { class: 'tool people' },
+            h('h2', {}, 'Colleghi'),
+            people === null ? h('p', { class: 'hint' }, 'Caricamento…')
+                : people.length ? h('ul', { class: 'people-list' }, people.map(entry => {
+                    const [label] = PRESENCE[entry.presence] || PRESENCE.Offline;
+                    return h('li', {}, h('button', { type: 'button', class: 'person', onclick: () => openChat(entry) },
+                        h('span', { class: 'avatar' }, initials(entry.displayName), presenceDot(entry)),
+                        h('span', { class: 'person-text' }, h('span', { class: 'person-name' }, entry.displayName), h('span', { class: 'person-status' }, entry.note || label)),
+                        entry.unread ? h('span', { class: 'count-badge' }, String(entry.unread)) : null));
+                })) : h('p', { class: 'hint' }, 'Nessun collega'));
     }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
@@ -3469,7 +3886,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (state.tab === 'tools') return toolsView();
         if (state.tab === 'utility') return utilityView();
         const item = selectedItem();
-        return h('main', { class: `workspace${item ? ' detail-open' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
+        return h('main', { class: `workspace${item ? ' detail-open' : ''}${state.sideCollapsed ? ' side-collapsed' : ''}` }, listColumn(), threadColumn(item), sideColumn(item));
     }
     function toast() {
         if (!state.toast) return null;
@@ -3678,6 +4095,41 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         refreshWatching = true;
     }
 
+    // Scorciatoie (come Front e Help Scout), fuori dai campi di testo: frecce per cambiare thread, R / A rispondi (a tutti)
+    // all'ultima mail ricevuta, T crea ticket, E etichetta, K task, P apre o chiude il pannello di destra.
+    const SHORTCUTS = [['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Crea ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Pannello di destra']];
+    document.addEventListener('keydown', event => {
+        if (!state.user || state.tab !== 'work' || state.settingsOpen || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.target.closest?.('input, textarea, select, [contenteditable="true"]') || document.querySelector('.ao-select-menu')) return;
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (key === 'ArrowDown' || key === 'ArrowUp') {
+            const items = visibleItems();
+            if (!items.length) return;
+            event.preventDefault();
+            const index = items.findIndex(item => item.key === state.selected);
+            const next = items[Math.min(items.length - 1, Math.max(0, index < 0 ? 0 : index + (key === 'ArrowDown' ? 1 : -1)))];
+            if (next && next.key !== state.selected) { select(next); document.querySelector(`.item[data-key="${CSS.escape(next.key)}"]`)?.scrollIntoView({ block: 'nearest' }); }
+            return;
+        }
+        if (key === 'p') { event.preventDefault(); setSide(state.sideTab, !state.sideCollapsed); return; }
+        const item = selectedItem();
+        const thread = item && state.threads.get(item.parentItemId);
+        if (!item || !thread?.messages?.length) return;
+        if (key === 'e' && item.key.startsWith('thread:') && item.section === 'active') { event.preventDefault(); toggleTag(item); return; }
+        const received = [...thread.messages].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
+        const target = { r: '[data-action="one"]', a: '[data-action="all"]', t: '[aria-label="Crea ticket"]', k: '[data-action="task"]' }[key];
+        if (!target || !received) return;
+        event.preventDefault();
+        const press = () => document.querySelector(`.message[data-message="${CSS.escape(received.id)}"] ${target}`)?.click();
+        if (!document.querySelector(`.message[data-message="${CSS.escape(received.id)}"]:not(.compact)`)) {
+            const opened = state.expanded.get(item.parentItemId) || new Set();
+            opened.add(received.id);
+            state.expanded.set(item.parentItemId, opened);
+            render();
+        }
+        press();
+    });
+
     // Il menu dell'utente si chiude con un clic fuori o con Esc.
     document.addEventListener('click', event => {
         if (state.menuOpen && !event.target.closest('.account')) { state.menuOpen = false; render(); }
@@ -3700,6 +4152,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         render();
         try { state.config = await Data.config(); } catch { state.config = {}; }
         await loadLists();
+        loadPeople();
         scheduleRefresh();
     })();
 })();
