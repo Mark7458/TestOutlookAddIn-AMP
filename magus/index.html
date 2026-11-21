@@ -2320,22 +2320,19 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return state.sideCards.get(item.key);
     }
     function openCard(item, messageId, choice) {
-        if (linkedThread(item)) return openExtraTicket(item, null, messageId);
+        if (linkedThread(item)) return openExtraTicket(item, messageId);
         const thread = state.threads.get(item.parentItemId);
         const draft = takeDraft(item);
         const text = thread?.bodies.get(messageId)?.text;
         if (text) draft.description = text;
         draft.messageId = messageId; // il ticket nasce dalla mail scelta
-        const card = sideCardFor(item);
-        Object.assign(card, { messageId, choice });
+        const opening = !state.sideCards.has(item.key);
+        Object.assign(sideCardFor(item), { messageId, choice });
         render();
         const target = [...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent);
         target?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
+        if (target && opening && !reducedMotion()) return holding(() => unfold(target));
         if (target && !reducedMotion()) target.animate([{ boxShadow: '0 0 0 2px var(--accent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 900, easing: 'ease-out' });
-    }
-    function closeCard(item) {
-        state.sideCards.delete(item.key);
-        render();
     }
     // Selettore a segmenti del pannello (filterBar + iconBar): la voce scelta si allarga e mostra il nome; la pillola
     // e le larghezze si muovono insieme.
@@ -2554,6 +2551,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const locked = !(item.status === 'Working' && isMe(item.assignedTo));
         const tagged = ['Working', 'Ignored'].includes(item.status) && item.assignedTo;
         const tag = tagged ? h('span', { class: `ao-user-tag${isMe(item.assignedTo) ? ' mine' : ''}` }, surname(operatorName(item.assignedTo))) : null;
+        // La scheda compare solo con Crea ticket o Inoltra sotto una mail; la freccia la richiude.
         const actions = [['take', 'Prendi in carico', 'cardTake'], ['forward', 'Inoltra', 'cardForward'], ...(item.section === 'ignored' ? [] : [['ignore', 'Ignora', 'cardIgnore']])]
             .map(([value, label, iconName]) => ({ value, label, icon: ICONS[iconName], disabled: locked }));
         const zone = win.choice === 'take' ? takeZone(item, 'Prendi in carico')
@@ -2575,8 +2573,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     swapZone(zoneKey, () => { win.choice = value; });
                 }, zoneKey),
                 h('div', { class: 'ao-choice-zone', 'data-zone': zoneKey }, zone ? h('div', { class: 'ao-choice-content' }, zone) : null),
-                // la freccia richiude la scelta (la scheda resta: è il thread scelto)
-                h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => { if (win.choice) swapZone(zoneKey, () => { win.choice = null; }); } }, icon('<path d="M5 12.5l5-5 5 5"/>')))));
+                h('button', { type: 'button', class: 'ao-collapse', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: event => closeThreadCard(item, event.currentTarget.closest('[data-card]')) }, icon('<path d="M5 12.5l5-5 5 5"/>')))));
+    }
+    async function closeThreadCard(item, card) {
+        if (card && !reducedMotion()) await holding(() => fold(card));
+        state.sideCards.delete(item.key);
+        render();
     }
     // Un altro messaggio del thread (showQueueMessage del pannello): svanisce solo il testo, il riquadro si adatta e il
     // nuovo compare. Il ticket nascerà da questo messaggio.
@@ -2652,8 +2654,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('div', { class: 'ao-ticket-head' }, h('span', { class: 'ao-item-number' }, ticket.number), stateChip(ticket)),
                 h('div', { class: 'ao-item-sub' }, ticket.subject))) : null));
     }
-    // Thread con ticket (ticketStack del pannello): in testa quanti sono e la pillola "Ticket", che si trasforma nel
-    // modulo per un altro ticket in cima alla pila; poi i ticket (i collegati dal più recente, il principale per ultimo
+    // Thread con ticket (ticketStack del pannello): in testa quanti sono; il modulo per un altro ticket compare in cima
+    // alla pila solo con Crea ticket sotto una mail; poi i ticket (i collegati dal più recente, il principale per ultimo
     // con l'icona della mail), uno aperto alla volta; in fondo i chiusi.
     function threadOrder(tickets) {
         const byOpening = (a, b) => String(a.openedAt || '').localeCompare(String(b.openedAt || ''));
@@ -2665,9 +2667,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const adding = state.sideCards.has(item.key);
         const single = ordered.length === 1;
         return h('div', { class: 'ticket-stack' },
-            aoHost(h('div', { class: 'ao-thread-bar' },
-                h('span', { class: 'ao-thread-count' }, `${ordered.length} ticket`),
-                h('button', { type: 'button', class: `ao-pill${adding ? ' ao-away' : ''}`, 'aria-expanded': String(adding), onclick: event => openExtraTicket(item, event.currentTarget) }, aoIcon(ICONS.cardTake), 'Ticket'))),
+            aoHost(h('div', { class: 'ao-thread-bar' }, h('span', { class: 'ao-thread-count' }, `${ordered.length} ticket`))),
             adding ? extraTicketCard(item) : null,
             ordered.map((ticket, index) => ticketSide(ticket, { primary: index === ordered.length - 1 && ordered.length > 1, expanded: state.openTicket.has(ticket.number) ? state.openTicket.get(ticket.number) : single })),
             closedSection(item.parentItemId));
@@ -2707,36 +2707,29 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('div', { class: 'ao-mail-preview' }, h('span', { class: 'ao-mail-text' }, clipText(thread.bodies.get(origin.id)?.text || '', PREVIEW_MAX_CHARS))),
                 takeZone(item, 'Prendi in carico', [h('span', { class: 'ao-spacer' }), cancel]))));
     }
-    // La pillola "Ticket" si trasforma nel modulo (morphInto); Annulla fa l'inverso. Crea ticket sotto una mail apre il
-    // modulo con quella mail.
-    async function openExtraTicket(item, pill = null, messageId = null) {
+    // Crea ticket sotto una mail di un thread con ticket: il modulo compare in cima alla pila con quella mail;
+    // Annulla lo richiude.
+    async function openExtraTicket(item, messageId) {
         const thread = state.threads.get(item.parentItemId);
-        const lastReceived = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
-        const from = pill || [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent);
-        const shapeFrom = from ? shapeOfElement(from) : null;
-        const chosen = messageId || lastReceived?.id || null;
         const draft = takeDraft(item);
-        const text = thread?.bodies.get(chosen)?.text;
+        const text = thread?.bodies.get(messageId)?.text;
         if (text) draft.description = text;
-        draft.messageId = chosen;
-        Object.assign(sideCardFor(item), { messageId: chosen, choice: 'take' });
+        draft.messageId = messageId;
+        const opening = !state.sideCards.has(item.key);
+        Object.assign(sideCardFor(item), { messageId, choice: 'take' });
         render();
         const card = [...document.querySelectorAll('.ao-new-ticket-card')].find(node => node.offsetParent);
         card?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
-        if (card && shapeFrom && !reducedMotion()) await morphInto(card, shapeFrom);
+        if (!card || reducedMotion()) return;
+        if (opening) await holding(() => unfold(card));
+        else card.animate([{ boxShadow: '0 0 0 2px var(--accent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 900, easing: 'ease-out' });
     }
     async function closeExtraTicket(item) {
         const card = [...document.querySelectorAll('.ao-new-ticket-card')].find(node => node.offsetParent);
-        const pill = [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent);
-        if (card && pill && !reducedMotion()) {
-            await Promise.all([...card.children].map(part => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOTION.hold, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => {})));
-            card.style.visibility = 'hidden';
-            await morphShell(shapeOfElement(card), shapeOfElement(pill));
-        }
+        if (card && !reducedMotion()) await holding(() => fold(card));
         state.sideCards.delete(item.key);
         state.forms.delete(`take:${item.key}`);
         render();
-        [...document.querySelectorAll('.ao-thread-bar .ao-pill')].find(node => node.offsetParent)?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.hold });
     }
     function threadColumn(item) {
         if (!item) return h('section', { class: 'column', 'aria-label': 'Thread' }, h('div', { class: 'card' }, empty('mail', 'Scegli un thread')));
@@ -3003,7 +2996,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (item.newTicket) return newTicketCard();
         if (item.key.startsWith('ticket:')) return ticketSide(item);
         if (item.section === 'mine') return ticketsSide(item);
-        return h('div', { class: 'ticket-stack' }, threadStateBar(item), threadCard(item));
+        return h('div', { class: 'ticket-stack' }, threadStateBar(item), state.sideCards.has(item.key) ? threadCard(item) : null);
     }
     function sideColumn(item) {
         return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
