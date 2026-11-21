@@ -2337,7 +2337,7 @@ button { font: inherit; color: inherit; }
         return h('aside', { class: 'column', 'aria-label': 'Dettagli' },
             h('div', { class: 'card' }, document.documentElement.dataset.layout !== 'wide' ? empty('ticket', '')
                 : item ? h('div', { class: 'scroll side', 'data-scroll': `side:${item.key}` }, sideContent(item))
-                    : h('div', { class: 'scroll side', 'data-scroll': 'side:mailless' }, mailessSide())));
+                    : empty('ticket', '')));
     }
 
     // Tools: profilo (assegnatario di ServiceNow), configurazioni (importa / esporta il JSON del pannello), aggiornamento.
