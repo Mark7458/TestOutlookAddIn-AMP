@@ -295,7 +295,7 @@ button { font: inherit; color: inherit; }
 .column-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 0; }
 
 /* Selettore della sezione (Attive / Ignorate) */
-.segmented { position: relative; display: flex; flex: 1; padding: 2px; border: 1px solid var(--seg-edge, var(--line)); border-radius: 12px; background: var(--seg-track); -webkit-backdrop-filter: var(--seg-blur, none); backdrop-filter: var(--seg-blur, none); }
+.segmented { position: relative; display: flex; flex: 1; padding: 2px; border: 1px solid transparent; border-radius: 12px; background: var(--seg-track); -webkit-backdrop-filter: var(--seg-blur, none); backdrop-filter: var(--seg-blur, none); }
 .segment { position: relative; z-index: 1; transition: color .25s; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
 .segment[aria-pressed="true"] { color: var(--accent); } /* come nel pannello: la voce scelta in blu */
 /* Pillola della voce scelta (schede e selettori): un elemento solo che scivola (animate() in app.js) */
