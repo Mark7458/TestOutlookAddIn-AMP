@@ -4570,12 +4570,14 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         }, icon(ICONS[iconName]), h('span', {}, label));
         const open = choiceName => () => { if (choice === choiceName) return closeTicketPanel(item); makeRoom(); openCard(item, received?.id || null, choiceName); };
         return h('div', { class: 'head-actions' },
-            // Solo le azioni disponibili: Apri ticket con una mail ricevuta, Inoltra in coda, Chiudi / In attesa con un ticket aperto.
+            // Solo le azioni disponibili. In coda: Apri ticket, Inoltra, Ignora. Altrimenti le azioni sul ticket
+            // (Apri ticket resta per un altro ticket da un'altra mail del thread).
             item.section !== 'ignored' && received ? action('Apri ticket', 'cardTake', open('take'), { pressed: choice === 'take', tone: 'accent' }) : null,
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
-            hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
-            hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null,
-            hasTicket ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
+            queue ? action('Ignora', 'ignored', () => ignoreThread(item)) : null,
+            !queue && hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
+            !queue && hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null,
+            !queue && hasTicket ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
     }
     // Rimanda (come Later di Help Scout): il thread esce dalle cartelle e torna all'ora scelta. Per ora resta in
     // questo browser (serve un campo su MailEvents per condividerlo col team).
