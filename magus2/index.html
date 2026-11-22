@@ -846,6 +846,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .head-button.tone-success:hover:not(:disabled) { color: var(--success); }
 .menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 /* Cerca o comando (Ctrl K) nella barra in alto */
+.top-search { position: relative; width: 340px; margin-left: 18px; }
+.top-search .search input { height: 34px; padding-right: 58px; }
+.top-search .search .icon { top: 9px; }
+.top-search kbd { position: absolute; right: 8px; top: 7px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--subtle); font: var(--fs-xs) var(--font); pointer-events: none; }
+.top-search-menu { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 480px; background: var(--option-bg); }
+.top-search .search input:not(:placeholder-shown) { padding-right: 10px; }
+.top-search .search input:not(:placeholder-shown) + kbd { display: none; }
 .command-button { display: inline-flex; align-items: center; gap: 8px; height: 34px; min-width: 260px; margin-left: 18px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--subtle); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
 .command-button .icon { width: 15px; height: 15px; }
 .command-button kbd { margin-left: auto; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; font: var(--fs-xs) var(--font); }
@@ -922,7 +929,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 @keyframes drawer-in { from { transform: translateX(-30px); opacity: 0; } }
 .drawer .folders { min-height: 100%; border: 0; border-radius: 0; padding-top: max(14px, env(safe-area-inset-top, 0px)); }
 .reminder-alert { max-width: calc(100vw - 24px); right: 12px; bottom: 12px; }
-:root[data-layout="mobile"] .command-button { display: none; }
+:root[data-layout="mobile"] .command-button, :root[data-layout="mobile"] .top-search { display: none; }
 /* Testata del thread allineata al corpo: le azioni stanno sopra la colonna Ticket e promemoria, larghe quanto lei */
 .v2-head.with-actions { display: grid; grid-template-columns: minmax(0, 1fr) 373px; gap: 0; padding: 0; }
 .v2-head-main { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px 14px 10px; }
@@ -2531,7 +2538,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 accountMenu());
         }
         if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, h('span', { class: 'brand' }, 'Magus'),
-            h('button', { type: 'button', class: 'command-button', onclick: () => openPalette() }, icon(ICONS.search), h('span', {}, 'Cerca o comando'), h('kbd', {}, 'Ctrl K')),
+            topSearch(),
             h('span', { class: 'ao-spacer' }), accountMenu());
         return h('header', { class: 'topbar' },
             h('span', { class: 'brand' }, 'Magus'),
@@ -4373,8 +4380,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             h('div', { class: 'v2-list-head' },
                 h('h2', {}, title, h('span', { class: 'count' }, String(items.length))),
                 wide ? null : h('button', { type: 'button', class: 'head-action', title: 'Richiudi la lista', 'aria-label': 'Richiudi la lista', onclick: () => { state.listHidden = true; render(); } }, icon(ICONS.panelLeft))),
-            h('label', { class: 'search' }, icon(ICONS.search),
-                h('input', { id: 'search', type: 'search', placeholder: 'Cerca', value: state.search, 'aria-label': 'Cerca', oninput: event => { state.search = event.target.value; render(); } })),
             h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}` },
                 mailless ? h('button', { type: 'button', class: `new-ticket${state.selected === 'new-ticket' ? ' active' : ''}`, onclick: () => { state.selected = 'new-ticket'; state.panel = null; render(); } }, icon(ICONS.cardTake), 'Nuovo ticket') : null,
                 !state.loaded ? empty('queue', 'Caricamento…') : state.error ? empty('queue', state.error)
@@ -4684,13 +4689,19 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return actions;
     }
     function openPalette() {
+        if (document.documentElement.dataset.layout === 'wide') {
+            state.palette = { text: state.search, index: 0, inline: true };
+            render();
+            const field = document.getElementById('top-search');
+            field?.focus(); field?.select();
+            return;
+        }
         state.palette = { text: '', index: 0, opening: true };
         render();
         state.palette.opening = false; // la dissolvenza solo all'apertura, non a ogni tasto
         requestAnimationFrame(() => document.getElementById('palette-text')?.focus());
     }
-    function palette() {
-        if (!state.palette) return null;
+    function paletteEntries() {
         const needle = state.palette.text.trim().toLowerCase();
         // Con almeno due lettere cerca anche nelle mail e nei ticket (oggetto, mittente, numero, AMP): prima i risultati,
         // poi i comandi.
@@ -4699,21 +4710,43 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             .map(item => [item.subject, item.number || item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
         const list = [...found, ...paletteActions().filter(([label]) => !needle || label.toLowerCase().includes(needle))];
         const index = Math.min(state.palette.index, Math.max(0, list.length - 1));
-        const runAt = position => { const chosen = list[position]; state.palette = null; render(); chosen?.[2](); };
+        const runAt = position => { const chosen = list[position]; const inline = state.palette.inline; state.palette = null; if (inline) { state.search = ''; document.activeElement?.blur(); } render(); chosen?.[2](); };
+        return { list, index, runAt };
+    }
+    function paletteKeys(event, list, index, runAt) {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); state.palette.index = Math.max(0, Math.min(list.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))); render(); }
+        else if (event.key === 'Enter') { event.preventDefault(); runAt(index); }
+        else if (event.key === 'Escape') { state.palette = null; render(); }
+    }
+    function paletteList(list, index, runAt) {
+        return h('ul', { class: 'palette-list' }, list.length ? list.map(([label, keys, , kind], position) => h('li', {},
+            h('button', { type: 'button', class: `palette-item${kind ? ' result' : ''}`, 'aria-current': String(position === index), onclick: () => runAt(position) },
+                kind ? icon(ICONS[kind === 'ticket' ? 'ticket' : 'mail']) : null, h('span', { class: 'palette-label' }, label), kind ? h('span', { class: 'palette-hint' }, keys) : keys ? h('kbd', {}, keys) : null)))
+            : h('li', { class: 'hint' }, 'Niente trovato'));
+    }
+    // Una sola ricerca, in alto: scrivendo filtra la lista della cartella e sotto propone mail, ticket e comandi (Ctrl K).
+    function topSearch() {
+        const open = state.palette?.inline;
+        const menu = open ? paletteEntries() : null;
+        return h('div', { class: 'top-search' },
+            h('label', { class: 'search' }, icon(ICONS.search),
+                h('input', { id: 'top-search', type: 'search', placeholder: 'Cerca o comando', value: state.search, 'aria-label': 'Cerca o comando', autocomplete: 'off',
+                    onclick: () => { if (!state.palette) { state.palette = { text: state.search, index: 0, inline: true }; render(); } },
+                    oninput: event => { state.search = event.target.value; state.palette = { text: state.search, index: 0, inline: true }; render(); },
+                    onkeydown: event => { if (menu) paletteKeys(event, menu.list, menu.index, menu.runAt); else if (event.key === 'ArrowDown') { state.palette = { text: state.search, index: 0, inline: true }; render(); } } }),
+                h('kbd', {}, 'Ctrl K')),
+            menu ? h('div', { class: 'command-palette top-search-menu', role: 'listbox', 'aria-label': 'Risultati e comandi' }, paletteList(menu.list, menu.index, menu.runAt)) : null);
+    }
+    function palette() {
+        if (!state.palette || state.palette.inline) return null;
+        const { list, index, runAt } = paletteEntries();
         return h('div', { class: `palette-backdrop${state.palette.opening ? ' opening' : ''}`, onclick: event => { if (event.target === event.currentTarget) { state.palette = null; render(); } } },
             h('div', { class: 'command-palette', role: 'dialog', 'aria-label': 'Comandi' },
                 h('label', { class: 'search' }, icon(ICONS.search),
                     h('input', { id: 'palette-text', type: 'search', placeholder: 'Cerca una mail, un ticket o un comando', value: state.palette.text, 'aria-label': 'Cerca un comando',
                         oninput: event => { state.palette.text = event.target.value; state.palette.index = 0; render(); },
-                        onkeydown: event => {
-                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); state.palette.index = Math.max(0, Math.min(list.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))); render(); }
-                            else if (event.key === 'Enter') { event.preventDefault(); runAt(index); }
-                            else if (event.key === 'Escape') { state.palette = null; render(); }
-                        } })),
-                h('ul', { class: 'palette-list' }, list.length ? list.map(([label, keys, , kind], position) => h('li', {},
-                    h('button', { type: 'button', class: `palette-item${kind ? ' result' : ''}`, 'aria-current': String(position === index), onclick: () => runAt(position) },
-                        kind ? icon(ICONS[kind === 'ticket' ? 'ticket' : 'mail']) : null, h('span', { class: 'palette-label' }, label), kind ? h('span', { class: 'palette-hint' }, keys) : keys ? h('kbd', {}, keys) : null)))
-                    : h('li', { class: 'hint' }, 'Niente trovato'))));
+                        onkeydown: event => paletteKeys(event, list, index, runAt) })),
+                paletteList(list, index, runAt)));
     }
     function v2Workspace() {
         const item = state.tab === 'work' ? selectedItem() : null;
@@ -4982,7 +5015,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     document.addEventListener('keydown', event => {
         if (state.user && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && document.documentElement.dataset.layout === 'wide') {
             event.preventDefault();
-            if (state.palette) { state.palette = null; render(); } else openPalette();
+            if (state.palette) { state.palette = null; document.activeElement?.blur(); render(); } else openPalette();
             return;
         }
         if (!state.user || state.tab !== 'work' || state.settingsOpen || state.palette || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -5030,6 +5063,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (state.armed && !event.target.closest('.tag.swap, .ao-tag-swap')) { state.armed = null; render(); }
         if (state.snoozeMenu && !event.target.closest('.snooze')) { state.snoozeMenu = null; render(); }
         if (state.manageMenu && !event.target.closest('.manage')) { state.manageMenu = null; render(); }
+        if (state.palette?.inline && !event.target.closest('.top-search')) { state.palette = null; render(); }
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
