@@ -818,6 +818,25 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .item-meta > span:empty { display: none; } .v2-list.wide .item-meta > span:empty { display: block; }
 
 .tag.cc-pill { height: 18px; padding: 0 6px; color: var(--muted); font-size: var(--fs-xs); }
+/* Editor in cima al thread (v2): schede Rispondi | Nota interna; la nota è gialla */
+.editor { flex: none; display: grid; gap: 8px; margin: 12px 14px 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); transition: background-color .25s, border-color .25s; }
+.editor.note-mode { border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: color-mix(in srgb, var(--warning) 10%, var(--panel-bg)); }
+.editor-tabs { flex: none; justify-self: start; }
+.editor-tabs .segment { height: 28px; padding: 0 12px; font-size: var(--fs-xs); }
+.editor-tabs kbd { margin-left: 4px; padding: 0 4px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--subtle); font: 10px var(--font); }
+.editor .composer { margin: 0; }
+.composer-switch + .modal-close { margin-left: 8px; }
+.editor .note-box { margin: 0; border: 0; background: none; padding: 0 0 0 4px; }
+.editor-start { height: 38px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--subtle); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: text; }
+.editor-start:hover:not(:disabled) { border-color: var(--accent-line); color: var(--muted); }
+.composer-ref { color: var(--subtle); font-size: var(--fs-xs); font-weight: 400; }
+.composer-switch { margin-left: auto; font-size: var(--fs-xs); }
+/* Nota: larga quanto le mail, con avatar; non si allinea come una risposta */
+.thread-note, .thread-note.mine { justify-self: stretch; max-width: none; }
+.thread-note-head .avatar { width: 22px; height: 22px; font-size: 9px; background: color-mix(in srgb, var(--warning) 25%, transparent); color: var(--warning); }
+.thread-note-teams { margin-left: 0; }
+.thread-note-time { margin-left: auto; }
+.editor-tabs .segment { flex: none; white-space: nowrap; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1925,7 +1944,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         contactOpen: (() => { try { return localStorage.getItem('magus_contact_v1') !== '0'; } catch { return true; } })(),
         ticketHidden: new Set(), // thread con ticket con il pannello dei ticket chiuso a mano
         snoozed: (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem('magus_snooze_v1') || '{}'))); } catch { return new Map(); } })(),
-        notes: new Map(), noteDraft: '', mentions: [], // note interne del thread (anche sul canale Teams) e menzioni non lette
+        notes: new Map(), noteDraft: '', mentions: [], editorMode: 'reply', // editor in cima al thread: reply | note // note interne del thread (anche sul canale Teams) e menzioni non lette
         snoozeMenu: null, palette: null, manageMenu: null, // Gestisci aperto sotto la mail (id) // menu di Rimanda; menu dei comandi (Ctrl+K): { text, index }
         expanded: new Map(), // parentItemId → mail aperte a mano (le altre, tranne l'ultima, restano su una riga)
         sideTab: 'thread', // pannello di destra: thread | tasks | teams
@@ -2579,7 +2598,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 action('Rispondi a tutti', 'replyAll', event => openComposer(item, thread, 'all', event.currentTarget, entry.id), { 'data-action': 'all' }),
                 !service ? manageButton(item, entry, queue) : null,
                 action('Task', 'tasks', () => taskFromMail(item, entry), { 'data-action': 'task' })) : null);
-        return composing ? [article, composer(item, thread)] : article;
+        return composing && !isV2() ? [article, composer(item, thread)] : article; // nella v2 la risposta si scrive nell'editor in cima
     }
     // Gestisci (sotto ogni mail ricevuta): Prendi in carico e, in coda, Inoltra. Il ticket nasce da questa mail.
     function manageButton(item, entry, queue) {
@@ -2622,6 +2641,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             key === 'cc' && !draft.bccOpen ? h('button', { type: 'button', class: 'link', onclick: () => { change('bccOpen', true); render(); document.getElementById(`reply-bcc-${id}`)?.focus(); } }, 'Ccn') : null);
         return h('div', { class: 'composer' },
             h('div', { class: 'composer-head' }, icon(ICONS[draft.mode === 'one' ? 'reply' : 'replyAll']), draft.mode === 'one' ? 'Rispondi' : 'Rispondi a tutti',
+                isV2() ? h('span', { class: 'composer-ref' }, `alla mail delle ${shortWhen(thread.messages.find(entry => entry.id === draft.messageId)?.receivedAt)}`) : null,
+                isV2() ? h('button', { type: 'button', class: 'link composer-switch', onclick: () => { const mode = draft.mode === 'one' ? 'all' : 'one'; state.drafts.set(id, { ...replyDraft(item, thread, draft.messageId, mode), text: draft.text }); render(); } }, draft.mode === 'one' ? 'Rispondi a tutti' : 'Solo al mittente') : null,
                 h('button', { type: 'button', class: 'modal-close', title: 'Scarta', 'aria-label': 'Scarta', onclick: () => closeComposer(item) }, icon(ICONS.trash))),
             field('to', 'A'),
             field('cc', 'Cc'),
@@ -2639,8 +2660,21 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const list = button.closest('.messages');
         return { left: button.getBoundingClientRect().left - list.getBoundingClientRect().left, width: button.offsetWidth, height: button.offsetHeight, radius: getComputedStyle(button).borderTopLeftRadius };
     }
+    const isV2 = () => document.documentElement.dataset.layout === 'wide';
     async function openComposer(item, thread, mode, button, messageId) {
         const id = item.parentItemId;
+        if (isV2()) {
+            const current = state.drafts.get(id);
+            state.drafts.set(id, { ...replyDraft(item, thread, messageId, mode), text: current?.text || '' });
+            state.composing.add(id);
+            state.editorMode = 'reply';
+            render();
+            document.querySelector('.v2-conversation')?.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
+            const card = document.querySelector('.editor .composer');
+            if (card && !reducedMotion()) card.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+            document.getElementById(`reply-text-${id}`)?.focus({ preventScroll: true });
+            return;
+        }
         const shape = shapeOf(button);
         const current = state.drafts.get(id);
         const open = state.composing.has(id);
@@ -2655,7 +2689,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const id = item.parentItemId;
         const card = document.querySelector('.composer');
         const shape = state.drafts.get(id)?.shape;
-        if (card && shape) await shrinkTo(card, shape);
+        if (card && shape && !isV2()) await shrinkTo(card, shape);
         state.composing.delete(id);
         state.drafts.delete(id);
         render();
@@ -3150,8 +3184,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     function noteNode(note) {
         const mine = isMe(note.author);
         const parts = String(note.text || '').split(/(@[\p{L}'-]+)/u).map(part => part.startsWith('@') ? h('span', { class: 'mention' }, part) : part);
+        const name = operatorName(note.author);
         return h('div', { class: `thread-note${mine ? ' mine' : ''}` },
-            h('div', { class: 'thread-note-head' }, icon(ICONS.note), h('b', {}, surname(operatorName(note.author)) || note.author), h('span', {}, shortWhen(note.at)), note.teams ? h('span', { class: 'thread-note-teams', title: 'Inviata anche sul canale Teams' }, icon(ICONS.chat)) : null),
+            h('div', { class: 'thread-note-head' }, h('span', { class: 'avatar' }, initials(name)), h('b', {}, `${surname(name) || note.author} · Nota interna`), note.teams ? h('span', { class: 'thread-note-teams', title: 'Inviata anche sul canale Teams' }, icon(ICONS.chat)) : null, h('span', { class: 'thread-note-time' }, shortWhen(note.at))),
             h('div', { class: 'thread-note-text' }, parts));
     }
     function loadNotes(parentItemId, force = false) {
@@ -3184,6 +3219,22 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 oninput: event => { const before = /@[\p{L}'-]*$/u.test(state.noteDraft); state.noteDraft = event.target.value; if (before !== /@[\p{L}'-]*$/u.test(state.noteDraft) || /@[\p{L}'-]*$/u.test(state.noteDraft)) render(); },
                 onkeydown: event => { if (event.key === 'Enter') { event.preventDefault(); if (matches.length && asking) pick(matches[0]); else send(); } } }),
             h('button', { type: 'button', class: 'btn note-send', disabled: state.busy, onclick: send }, 'Aggiungi nota'));
+    }
+    // Editor in cima al thread (v2, come Help Scout): una scheda per la risposta e una per la nota interna. Rispondi
+    // sotto una mail apre qui la risposta a quella mail; la nota è gialla, senza destinatari, e va anche su Teams.
+    function threadEditor(item, thread) {
+        const mode = state.editorMode || 'reply';
+        const received = latestReceived(item);
+        const tab = (id, label, iconName, keyHint) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(mode === id), onclick: () => { state.editorMode = id; render(); document.getElementById(id === 'note' ? 'note-text' : `reply-text-${item.parentItemId}`)?.focus(); } },
+            icon(ICONS[iconName]), label, h('kbd', {}, keyHint));
+        let body;
+        if (mode === 'note') body = noteBox(item);
+        else if (state.composing.has(item.parentItemId) && thread) body = composer(item, thread);
+        else body = h('button', { type: 'button', class: 'editor-start', disabled: !received || item.section === 'ignored', onclick: () => thread && received && openComposer(item, thread, 'one', null, received.id) },
+            received ? `Rispondi all'ultima mail di ${received.from.name || received.from.email}…` : 'Nessuna mail a cui rispondere');
+        return h('div', { class: `editor${mode === 'note' ? ' note-mode' : ''}` },
+            h('div', { class: 'segmented editor-tabs', role: 'group', 'aria-label': 'Editor' }, tab('reply', 'Rispondi', 'reply', 'R'), tab('note', 'Nota interna', 'note', 'N')),
+            body);
     }
     function toggleMessage(item, messageId) {
         const opened = state.expanded.get(item.parentItemId) || new Set();
@@ -4247,7 +4298,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return h('section', { class: `v2-main${panel ? ' with-panel' : ''}${contact ? ' with-contact' : ''}` },
             head,
             h('div', { class: 'v2-body' },
-                h('div', { class: 'v2-conversation-wrap' }, h('div', { class: 'scroll v2-conversation', 'data-scroll': `thread:${item.key}` }, conversation), item.parentItemId ? noteBox(item) : null),
+                h('div', { class: 'v2-conversation-wrap' }, item.parentItemId ? threadEditor(item, thread) : null, h('div', { class: 'scroll v2-conversation', 'data-scroll': `thread:${item.key}` }, conversation)),
                 panel ? h('aside', { class: 'v2-panel', 'aria-label': 'Ticket' },
                     h('div', { class: 'v2-panel-head' }, h('h2', {}, state.sideCards.has(item.key) ? ({ take: 'Nuovo ticket', forward: 'Inoltra', ignore: 'Ignora' }[state.sideCards.get(item.key).choice] || 'Thread') : 'Ticket del thread'),
                         h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close))),
@@ -4573,7 +4624,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     // Scorciatoie (come Front e Help Scout), fuori dai campi di testo: frecce per cambiare thread, R / A rispondi (a tutti)
     // all'ultima mail ricevuta, T crea ticket, E etichetta, K task, P apre o chiude il pannello di destra.
-    const SHORTCUTS = [['Ctrl K', 'Comandi'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Crea ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Pannello di destra']];
+    const SHORTCUTS = [['Ctrl K', 'Comandi'], ['N', 'Nota interna'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Crea ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Pannello di destra']];
     document.addEventListener('keydown', event => {
         if (state.user && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && document.documentElement.dataset.layout === 'wide') {
             event.preventDefault();
@@ -4603,6 +4654,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (!item || !thread?.messages?.length) return;
         if (key === 'e' && item.key.startsWith('thread:') && item.section === 'active') { event.preventDefault(); toggleTag(item); return; }
         const received = [...thread.messages].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
+        if (key === 'n' && isV2() && item.parentItemId) { event.preventDefault(); state.editorMode = 'note'; render(); document.getElementById('note-text')?.focus(); return; }
         if (key === 't' && received && item.section !== 'ignored') { event.preventDefault(); openCard(item, received.id, 'take'); return; }
         const target = { r: '[data-action="one"]', a: '[data-action="all"]', k: '[data-action="task"]' }[key];
         if (!target || !received) return;
