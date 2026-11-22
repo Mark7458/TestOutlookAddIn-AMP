@@ -4537,10 +4537,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         }, icon(ICONS[iconName]), h('span', {}, label));
         const open = choiceName => () => { if (choice === choiceName) return closeTicketPanel(item); makeRoom(); openCard(item, received?.id || null, choiceName); };
         return h('div', { class: 'head-actions' },
-            item.section !== 'ignored' ? action('Prendi in carico', 'cardTake', open('take'), { pressed: choice === 'take', disabled: !received, tone: 'accent' }) : null,
+            // Solo le azioni disponibili: Apri ticket con una mail ricevuta, Inoltra in coda, Chiudi / In attesa con un ticket aperto.
+            item.section !== 'ignored' && received ? action('Apri ticket', 'cardTake', open('take'), { pressed: choice === 'take', tone: 'accent' }) : null,
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
-            action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', disabled: !hasTicket, tone: 'success' }),
-            action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', disabled: !hasTicket, tone: 'warning' }));
+            hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
+            hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null);
     }
     // Rimanda (come Later di Help Scout): il thread esce dalle cartelle e torna all'ora scelta. Per ora resta in
     // questo browser (serve un campo su MailEvents per condividerlo col team).
@@ -4759,7 +4760,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             if (received && thread) {
                 actions.push(['Rispondi', 'R', () => openComposer(item, thread, 'one', null, received.id)]);
                 actions.push(['Rispondi a tutti', 'A', () => openComposer(item, thread, 'all', null, received.id)]);
-                if (item.section !== 'ignored') actions.push(['Crea ticket', 'T', () => { makeRoom(); openCard(item, received.id, 'take'); }]);
+                if (item.section !== 'ignored') actions.push(['Apri ticket', 'T', () => { makeRoom(); openCard(item, received.id, 'take'); }]);
             }
             if (item.section === 'active') {
                 forwardGroups().forEach(group => actions.push([`Inoltra a ${group.tag} · ${group.name}`, '', () => { makeRoom(); openCard(item, received?.id || null, 'forward'); sideCardFor(item).group = group.id; render(); }]));
@@ -5095,7 +5096,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     // Scorciatoie (come Front e Help Scout), fuori dai campi di testo: frecce per cambiare thread, R / A rispondi (a tutti)
     // all'ultima mail ricevuta, T crea ticket, E etichetta, K task, P apre o chiude il pannello di destra.
-    const SHORTCUTS = [['Ctrl K', 'Comandi'], ['N', 'Nota interna'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Prendi in carico'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Lista / pannello di destra']];
+    const SHORTCUTS = [['Ctrl K', 'Comandi'], ['N', 'Nota interna'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Apri ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Lista / pannello di destra']];
     document.addEventListener('keydown', event => {
         if (state.user && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && document.documentElement.dataset.layout === 'wide') {
             event.preventDefault();
