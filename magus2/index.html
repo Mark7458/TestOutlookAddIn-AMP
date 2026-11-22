@@ -934,6 +934,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .reminder-chips .segment { flex: 1; min-width: 0; padding: 0 4px; }
 .reminder-when { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
 .reminder-time { width: 100%; min-width: 0; box-sizing: border-box; height: 36px; }
+/* Ticket nella colonna di destra: fermi, con il tempo di lavorazione sulla card; scelto = bordo dell'accento */
+#ao-root.ao-host .ticket-tile { cursor: default; }
+#ao-root.ao-host .ticket-tile.ticket-pickable { cursor: pointer; }
+#ao-root.ao-host .ticket-tile.ticket-picked { border-color: var(--accent-line); box-shadow: var(--glow-rest); }
+#ao-root.ao-host .ticket-tile-time { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line, var(--line)); }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1928,7 +1933,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         // la presenza e chat uno a uno. Function da creare: ThreadTasks, MyTasks, TeamsPeople, TeamsChat.
         // Note interne: si salvano col thread e partono sul canale Teams del servizio con le @menzioni. Function da creare: ThreadNotes.
         notes: async parentItemId => (await call('ThreadNotes', { parentItemId }))?.notes || [],
-        addNote: (parentItemId, text, mentions) => call('ThreadNotes', { action: 'create', parentItemId, text, mentions }, 'POST'),
+        // Sul canale Teams la nota arriva con il link che riapre il thread in Magus.
+        addNote: (parentItemId, text, mentions, link) => call('ThreadNotes', { action: 'create', parentItemId, text, mentions, link }, 'POST'),
         mentions: async () => (await call('ThreadNotes', { mentions: 'me' }))?.notes || [],
         readMentions: parentItemId => call('ThreadNotes', { action: 'read', parentItemId }, 'POST'),
         threadTasks: async parentItemId => (await call('ThreadTasks', { parentItemId }))?.tasks || [],
@@ -2044,6 +2050,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         drawerOpen: false, mobileTab: 'mail', // telefono: menu delle cartelle; scheda del thread (mail | tickets)
         snoozed: (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem('magus_snooze_v1') || '{}'))); } catch { return new Map(); } })(),
         picked: new Map(), // v2: parentItemId → mail scelta nel thread
+        pickedTicket: new Map(), // v2: parentItemId → ticket scelto a destra
         notes: new Map(), noteDraft: '', mentions: [], editorMode: 'reply', // editor in cima al thread: reply | note // note interne del thread (anche sul canale Teams) e menzioni non lette
         snoozeMenu: null, palette: null, manageMenu: null, // Gestisci aperto sotto la mail (id) // menu di Rimanda; menu dei comandi (Ctrl+K): { text, index }
         expanded: new Map(), // parentItemId → mail aperte a mano (le altre, tranne l'ultima, restano su una riga)
@@ -3350,7 +3357,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             const text = state.noteDraft.trim();
             if (!text) return;
             const mentioned = mentionables().filter(person => new RegExp(`@${person.handle}(?![\\p{L}])`, 'iu').test(text));
-            const done = await run(() => Data.addNote(item.parentItemId, text, mentioned.map(person => person.email)), null);
+            const done = await run(() => Data.addNote(item.parentItemId, text, mentioned.map(person => person.email), threadLink(item)), null);
             if (!done) return;
             state.noteDraft = '';
             loadNotes(item.parentItemId, true);
@@ -3809,6 +3816,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         try { await Data.sendChat(email, text); }
         catch (error) { showStatus(error.message || String(error), 'danger'); }
     }
+    // Link al thread (dalle note sul canale Teams): #thread=<ParentItemId> apre quel thread nella sua cartella.
+    function openFromLink() {
+        const id = Number((/#thread=(\d+)/.exec(location.hash) || [])[1]);
+        if (!id) return;
+        const item = allItems().find(entry => entry.parentItemId === id && entry.key.startsWith('thread:'));
+        if (!item) return showStatus('Thread non trovato', 'danger');
+        state.view = item.section === 'ignored' ? 'ignored' : item.section === 'mine' ? (state.lists.threads.includes(item) ? 'tickets' : 'mine') : !item.assignedTo ? 'free' : isMe(item.assignedTo) ? 'mine' : 'others';
+        history.replaceState(null, '', location.pathname + location.search);
+        select(item);
+    }
+    window.addEventListener('hashchange', () => { if (state.user) openFromLink(); });
     const threadLink = item => `${location.origin}${location.pathname}#thread=${item.parentItemId}`;
     function presenceDot(person) {
         const [label, tone] = PRESENCE[person.presence] || PRESENCE.Offline;
@@ -4315,7 +4333,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         ['attention', 'Da guardare', 'alert', () => attentionItems(), true],
         ['ignored', 'Ignorate', 'ignored', () => state.lists.ignored]
     ];
-    const TOOLS = [['mailless', 'Ticket senza mail', 'cardTake'], ['tasks', 'Task', 'tasks'], ['teams', 'Teams', 'chat'], ['utility', 'Utility', 'utility'], ['tools', 'Tools', 'tools']];
+    const TOOLS = [['mailless', 'Ticket senza mail', 'cardTake'], ['tasks', 'Task', 'tasks'], ['utility', 'Utility', 'utility'], ['tools', 'Tools', 'tools']];
     function goTo(view) {
         state.view = view;
         state.section = view === 'mailless' ? 'tickets' : 'mail';
@@ -4404,7 +4422,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Chiudi ticket e In attesa lavorano su un ticket del thread: si parte dal principale aperto, un clic su un altro ticket
     // a destra lo cambia; il pannello chiede il testo (e per In attesa fino a quando) e conferma.
     function startTicketAction(item, choice) {
-        const ticket = openThreadTicket(item);
+        const ticket = pickedTicket(item);
         if (!ticket) return;
         if (state.sideCards.get(item.key)?.choice === choice) return closeTicketPanel(item);
         makeRoom();
@@ -4532,7 +4550,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return h('aside', { class: 'scroll side v2-right', 'aria-label': 'Ticket e promemoria', 'data-scroll': `right:${item.key}` },
             h('section', { class: 'right-section' },
                 h('h2', { class: 'right-title' }, 'Ticket', h('span', { class: 'count' }, String(tickets.length))),
-                tickets.length ? h('div', { class: 'ticket-stack' }, tickets.map((ticket, index) => pickableTicket(item, ticket, ticketSide(ticket, { primary: index === tickets.length - 1 && tickets.length > 1, expanded: state.openTicket.has(ticket.number) ? state.openTicket.get(ticket.number) : single }))))
+                tickets.length ? h('div', { class: 'ticket-stack' }, tickets.map((ticket, index) => ticketTile(item, ticket, index === tickets.length - 1 && tickets.length > 1)))
                     : h('p', { class: 'hint' }, 'Nessun ticket aperto'),
                 closedSection(item.parentItemId)),
             item.parentItemId ? remindersSection(item) : null);
@@ -4546,6 +4564,38 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         updateDraft(ticket).text = (body.newText || body.text || '').trim();
         render();
         document.getElementById(`action-text-${ticket.number}`)?.focus({ preventScroll: true });
+    }
+    // Ticket nella colonna di destra (v2): fermi, non si aprono. Sulla card il tempo di lavorazione (− + o scritto a mano),
+    // che si registra con Chiudi ticket o In attesa. Un clic sceglie il ticket (riferimento per Chiudi ticket e In attesa).
+    const pickedTicket = item => {
+        const open = threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)));
+        const chosen = state.sideCards.get(item.key)?.ticket || state.pickedTicket.get(item.parentItemId);
+        return open.find(ticket => ticket.number === chosen) || open[open.length - 1] || null;
+    };
+    function pickTicket(item, ticket) {
+        state.pickedTicket.set(item.parentItemId, ticket.number);
+        const card = state.sideCards.get(item.key);
+        if (card && ['close', 'hold'].includes(card.choice)) { card.ticket = ticket.number; updateDraft(ticket).type = card.choice === 'close' ? 'resolve' : 'hold'; }
+        render();
+    }
+    function ticketTile(item, ticket, primary) {
+        const open = OPEN_TICKET_STATUSES.includes(ticket.status);
+        const picked = open && pickedTicket(item)?.number === ticket.number;
+        const draft = updateDraft(ticket);
+        return aoHost(h('section', {
+            class: `ao-item ao-ticket-card ao-static ticket-tile${open ? ' ticket-pickable' : ''}${picked ? ' ticket-picked' : ''}`, 'data-ticket-card': ticket.number,
+            tabindex: open ? '0' : null, 'aria-selected': open ? String(picked) : null,
+            onclick: event => { if (open && !event.target.closest('button, input, a')) pickTicket(item, ticket); },
+            onkeydown: event => { if (open && event.key === 'Enter' && event.target === event.currentTarget) pickTicket(item, ticket); }
+        },
+            h('div', { class: 'ao-item-top' },
+                h('span', {}, h('span', { class: 'ao-item-number' }, primary ? h('span', { class: 'ao-primary-mark', 'aria-hidden': 'true' }, aoIcon(ICONS.mail)) : null, ticket.number)),
+                h('div', { class: 'ao-item-tags' }, picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Scelto') : null, stateChip(ticket), ticketTag(ticket, isMe(ticket.operator), open))),
+            h('div', { class: 'ao-item-where' }, h('div', { class: 'ao-item-place' },
+                h('div', { class: 'ao-item-company' }, ticket.agency || ''),
+                h('div', { class: 'ao-item-activity' }, [ticket.ampReference, ticket.forwardGroup ? `Inoltrato a ${ticket.forwardGroup}` : ''].filter(Boolean).join(' · ')))),
+            h('div', { class: 'ao-item-title' }, ticket.subject),
+            open ? h('div', { class: 'ticket-tile-time' }, h('span', { class: 'ao-label' }, 'Tempo di lavorazione'), timerControl(ticket, draft)) : null));
     }
     function pickableTicket(item, ticket, node) {
         const card = state.sideCards.get(item.key);
@@ -4994,7 +5044,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         render();
         try { state.config = await Data.config(); } catch { state.config = {}; }
         await loadLists();
-        loadPeople();
+        openFromLink();
         loadMentions();
         loadMyTasks();
         scheduleRefresh();
