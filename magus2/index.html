@@ -948,6 +948,25 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root.ao-host .ticket-tile-time { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line, var(--line)); }
 .empty-thread .v2-head.with-actions { min-height: 69px; } .empty-thread .v2-conversation-wrap { justify-content: center; }
 
+/* Colonna di destra a due zone: ticket sopra, attività (linea del tempo) sotto */
+.v2-right.zoned { gap: 0; padding: 0; overflow: hidden; }
+.right-zone { padding: 14px 16px; min-height: 0; }
+.zone-tickets { flex: 0 1 auto; max-height: 46%; overflow-y: auto; align-content: start; }
+.zone-activities { flex: 1 1 0; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); background: var(--panel-bg); }
+.zone-activities > .scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.timeline { position: relative; display: grid; margin: 0; padding: 0; list-style: none; }
+.timeline::before { content: ""; position: absolute; left: 61px; top: 10px; bottom: 10px; width: 1.5px; background: var(--line); }
+.timeline-row { display: grid; grid-template-columns: 50px 24px minmax(0, 1fr); align-items: start; padding: 6px 0; }
+.timeline-time { padding-top: 1px; color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
+.timeline-dot { position: relative; z-index: 1; justify-self: center; width: 9px; height: 9px; margin-top: 5px; border: 2px solid var(--accent); border-radius: 50%; background: var(--option-bg); }
+.timeline-row.late .timeline-dot { border-color: var(--danger); background: var(--danger); }
+.timeline-row.late .timeline-time { color: var(--danger); }
+.timeline-row.hold .timeline-dot { border-color: var(--working); border-radius: 2px; }
+.timeline-row.done .timeline-dot { border-color: var(--line-strong); }
+.timeline-row.done .task-title { color: var(--subtle); text-decoration: line-through; }
+.timeline-task { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.zone-activities .reminder-chips { display: flex; } .zone-activities .reminder-chips .segment { flex: 1 1 auto; min-width: 0; padding: 0 4px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1484,7 +1503,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   const toItem = t => ({ parentItemId: t.id, conversationId: 'C' + t.id, subject: t.subject, from: t.from, lastReceived: ago(t.at), messageCount: t.count, hasAttachment: (conversations[t.id] || []).some(row => row[3]), lastMessage: { messageId: 'M' + t.id + '-' + t.count, from: ((conversations[t.id] || []).slice().sort((a, b) => a[1] - b[1])[0] || [t.from])[0], subject: t.subject, receivedDate: ago(t.at), to: t.id === 104 ? 'marco.rossi@agenzia.it' : BOX, cc: t.id === 104 ? BOX : '' }, thread: t.thread });
   const tickets = [
     { id: '11', ticketId: 'SHP-0042', parentItemId: 106, status: 'In Progress', agency: 'DEM', operator: ME, shortDescription: 'Casella condivisa protocollo non visibile', ampReference: 'INC0123456', created: ago(200), elapsedTime: 25 },
-    { id: '12', ticketId: 'SHP-0039', parentItemId: 107, status: 'On Hold', agency: 'AG1', operator: ME, shortDescription: 'Migrazione archivio PST', ampReference: 'INC0123311', created: ago(3000), elapsedTime: 90 },
+    { id: '12', ticketId: 'SHP-0039', parentItemId: 107, status: 'On Hold', agency: 'AG1', operator: ME, shortDescription: 'Migrazione archivio PST', ampReference: 'INC0123311', created: ago(3000), elapsedTime: 90, holdUntil: new Date(Date.now() + 26 * 3600000).toISOString() },
     { id: '13', ticketId: 'SHP-M-7', parentItemId: null, status: 'In Progress', agency: 'AG2', operator: 'luigi.verdi@esempio.it', shortDescription: 'Verifica regole di inoltro', created: ago(500), elapsedTime: 10 }
   ];
   const conversations = {
@@ -4560,13 +4579,14 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const tickets = threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId));
         const single = tickets.length === 1;
         loadClosed(item.parentItemId);
-        return h('aside', { class: 'scroll side v2-right', 'aria-label': 'Ticket e promemoria', 'data-scroll': `right:${item.key}` },
-            h('section', { class: 'right-section' },
+        // Due zone fisse: sopra i ticket (azioni sul ticket), sotto le attività in ordine di tempo (promemoria e scadenze).
+        return h('aside', { class: 'side v2-right zoned', 'aria-label': 'Ticket e attività' },
+            h('section', { class: 'right-section right-zone zone-tickets scroll', 'data-scroll': `right:${item.key}` },
                 h('h2', { class: 'right-title' }, 'Ticket', h('span', { class: 'count' }, String(tickets.length))),
                 tickets.length ? h('div', { class: 'ticket-stack' }, tickets.map((ticket, index) => ticketTile(item, ticket, index === tickets.length - 1 && tickets.length > 1)))
                     : h('p', { class: 'hint' }, 'Nessun ticket aperto'),
                 closedSection(item.parentItemId)),
-            item.parentItemId ? remindersSection(item) : null);
+            item.parentItemId ? remindersSection(item, tickets) : null);
     }
     // Chiudi ticket / In attesa: il testo si scrive o si prende da una mail del thread (per esempio la risposta appena mandata).
     function useMessageText(item, entry) {
@@ -4634,7 +4654,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (date < new Date()) date.setDate(date.getDate() + 1);
         return date;
     }
-    function remindersSection(item) {
+    // Ora in colonna per la linea del tempo: oggi solo l'ora, domani "Domani", poi la data.
+    function timelineTime(value) {
+        const at = value ? new Date(value) : null;
+        if (!at || Number.isNaN(at.getTime())) return '';
+        const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const diff = Math.round((day - today) / 86400000);
+        return diff === 0 ? at.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : diff === 1 ? 'Domani' : diff === -1 ? 'Ieri' : at.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+    }
+    function remindersSection(item, tickets = []) {
         loadThreadTasks(item.parentItemId);
         const list = state.tasks.thread.get(item.parentItemId);
         const draft = state.tasks.draft;
@@ -4653,16 +4682,26 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const chip = (id, label) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(when === id), onclick: () => { draft.when = id; render(); } }, label);
         // Personalizzato: giorno e ora (proposta: tra un'ora, arrotondata al quarto d'ora).
         if (when === 'custom' && !draft.customAt) { const date = new Date(Date.now() + 3600000); date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0); draft.customAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
-        const sorted = (list || []).slice().sort((a, b) => Number(a.done) - Number(b.done) || String(a.due || '9').localeCompare(String(b.due || '9')));
-        return h('section', { class: 'right-section reminders' },
-            h('h2', { class: 'right-title' }, 'Promemoria', h('span', { class: 'count' }, String((list || []).filter(task => !task.done).length))),
-            list === undefined ? h('p', { class: 'hint' }, 'Caricamento…') : list === null ? h('p', { class: 'hint' }, 'Promemoria non disponibili')
-                : sorted.length ? h('ul', { class: 'task-list' }, sorted.map(task => taskRow(task))) : null,
+        // Attività: i promemoria e la fine dell'attesa dei ticket In attesa, in ordine di tempo; i fatti in fondo.
+        const holds = tickets.filter(ticket => ticket.status === 'On Hold' && ticket.holdUntil).map(ticket => ({ hold: ticket, due: ticket.holdUntil }));
+        const entries = [...(list || []), ...holds].sort((a, b) => Number(Boolean(a.done)) - Number(Boolean(b.done)) || String(a.due || '9').localeCompare(String(b.due || '9')));
+        const now = Date.now();
+        const row = entry => h('li', { class: `timeline-row${entry.done ? ' done' : ''}${entry.due && !entry.done && new Date(entry.due).getTime() < now ? ' late' : ''}${entry.hold ? ' hold' : ''}` },
+            h('span', { class: 'timeline-time' }, timelineTime(entry.due)),
+            h('span', { class: 'timeline-dot' }),
+            entry.hold ? h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, `${entry.hold.number} torna attivo`), h('span', { class: 'task-meta' }, `Fine attesa · ${dueText(entry.due)}`))
+                : h('div', { class: 'timeline-task' }, h('button', { type: 'button', class: 'task-check', 'aria-pressed': String(Boolean(entry.done)), title: entry.done ? 'Da fare' : 'Fatto', 'aria-label': entry.done ? 'Da fare' : 'Fatto', onclick: () => toggleTask(entry) }, entry.done ? icon(ICONS.check) : null),
+                    h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, entry.title), h('span', { class: 'task-meta' }, entry.assignedTo ? surname(operatorName(entry.assignedTo)) : ''))));
+        return h('section', { class: 'right-section right-zone zone-activities' },
+            h('h2', { class: 'right-title' }, 'Attività', h('span', { class: 'count' }, String(entries.filter(entry => !entry.done).length))),
+            h('div', { class: 'scroll', 'data-scroll': `activities:${item.key}` },
+                list === undefined ? h('p', { class: 'hint' }, 'Caricamento…') : list === null && !holds.length ? h('p', { class: 'hint' }, 'Attività non disponibili')
+                    : entries.length ? h('ul', { class: 'timeline' }, entries.map(row)) : h('p', { class: 'hint' }, 'Nessuna attività')),
             h('div', { class: 'task-add' },
-                h('input', { id: 'task-title', placeholder: 'Nuovo promemoria', value: draft.title, 'aria-label': 'Nuovo promemoria', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
+                h('input', { id: 'task-title', placeholder: 'Nuova attività', value: draft.title, 'aria-label': 'Nuova attività', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
                 h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('15m', 'Tra 15 min'), chip('1h', 'Tra 1 ora'), chip('3h', 'Tra 3 ore'), chip('custom', 'Personalizzato')),
                 when === 'custom' ? h('input', { type: 'datetime-local', id: 'reminder-at', class: 'reminder-time', 'aria-label': 'Giorno e ora', value: draft.customAt || '', onchange: event => { draft.customAt = event.target.value; } }) : null,
-                h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi promemoria')));
+                h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi')));
     }
     // Menu dei comandi (Ctrl+K, come Help Scout): azioni cercabili sul thread aperto e salti alle cartelle.
     function paletteActions() {
