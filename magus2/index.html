@@ -325,10 +325,7 @@ button { font: inherit; color: inherit; }
 .item:active { transform: scale(.99); }
 .item:hover { background: var(--hover); }
 .item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
-/* Destinatario: filo a sinistra, colore dell'accento se siamo in A, spento se siamo solo in Cc (titolo più leggero) */
-.item { position: relative; padding-left: 16px; } /* spazio del filo anche quando manca, così le righe restano allineate */
-.item:is(.addr-to, .addr-cc)::before { content: ''; position: absolute; left: 6px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); }
-.item.addr-cc::before { background: var(--line-strong); }
+/* Destinatario: solo in Cc → pillola "Cc" e titolo più leggero */
 .item.addr-cc .item-title { color: var(--muted); font-weight: 400; }
 /* Nuovo ticket in cima a Ticket (ao-new-ticket del pannello): pulsante di chiamata, bagliore che respira al passaggio */
 .new-ticket { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); box-shadow: var(--glow-rest); color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
@@ -820,6 +817,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .folder.hot .folder-count { min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-fill); color: #fff; text-align: center; }
 .item-meta > span:empty { display: none; } .v2-list.wide .item-meta > span:empty { display: block; }
 
+.tag.cc-pill { height: 18px; padding: 0 6px; color: var(--muted); font-size: var(--fs-xs); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1199,8 +1198,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                                                                  passaggio bordo --accent-line e bagliore che respira
    Sezione chiusa (2)   .list-section-toggle                     come .ao-closed-toggle (Ignorate in fondo a Posta)
    Freccia di chiusura  .ao-collapse                             come nel pannello
-   Filo del destinatario .item.addr-to .item.addr-cc             filo di 3 a sinistra: --accent se siamo in A, --line-strong
-                                                                 se siamo solo in Cc (titolo --muted normale, "Cc ·" davanti al mittente)
+   Pillola Cc            .tag.cc-pill                           etichetta piccola, testo --muted: il servizio è solo in Cc
 
    Schede del pannello (#ao-root.ao-host): testo e misure sono quelli del pannello AMP (13 px base, 12 voci e
    anteprima, 11 etichette, pulsanti e campi alti 32, seminero 600); i colori restano quelli della mappa.
@@ -2448,21 +2446,23 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const ticket = item.key.startsWith('ticket:');
         const pick = () => select(item);
         return h('li', {},
-            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, title: item.addressed === 'cc' ? 'Siamo in copia' : null, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
+            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, markText(item.subject, state.search)),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
                 item.section === 'mine' ? h('span', { class: 'item-meta' },
-                    h('span', {}, item.from?.name ? [item.addressed === 'cc' ? 'Cc · ' : null, markText(item.from.name, state.search)] : null),
+                    h('span', {}, item.from?.name ? markText(item.from.name, state.search) : null), ccPill(item),
                     item.tickets.map(entry => h('span', { class: `tag${entry.status === 'On Hold' ? ' working' : ''}`, title: TICKET_STATUS[entry.status] || entry.status }, markText(entry.number, state.search))),
-                    item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null) :
+                    null) :
                 h('span', { class: 'item-meta' },
-                    ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, item.addressed === 'cc' ? 'Cc · ' : null, markText(item.from.name, state.search)),
+                    ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, markText(item.from.name, state.search)), ticket ? null : ccPill(item),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
-                    ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null),
+                    null),
                 ticket ? null : itemExtra(item)));
     }
     // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
+    // Pillola "Cc" quando il servizio è solo in copia nell'ultima mail (nessuna azione richiesta).
+    const ccPill = item => item.addressed === 'cc' ? h('span', { class: 'tag cc-pill', title: 'Siamo in copia' }, 'Cc') : null;
     function itemExtra(item) {
         const waited = item.section === 'active' && !item.lastFromService ? minutesSince(item.receivedAt) : null;
         const late = waited !== null && waited >= WAIT_LATE_MINUTES;

@@ -325,10 +325,7 @@ button { font: inherit; color: inherit; }
 .item:active { transform: scale(.99); }
 .item:hover { background: var(--hover); }
 .item[aria-current="true"] { border-color: var(--accent-line); background: var(--selected); }
-/* Destinatario: filo a sinistra, colore dell'accento se siamo in A, spento se siamo solo in Cc (titolo più leggero) */
-.item { position: relative; padding-left: 16px; } /* spazio del filo anche quando manca, così le righe restano allineate */
-.item:is(.addr-to, .addr-cc)::before { content: ''; position: absolute; left: 6px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); }
-.item.addr-cc::before { background: var(--line-strong); }
+/* Destinatario: solo in Cc → pillola "Cc" e titolo più leggero */
 .item.addr-cc .item-title { color: var(--muted); font-weight: 400; }
 /* Nuovo ticket in cima a Ticket (ao-new-ticket del pannello): pulsante di chiamata, bagliore che respira al passaggio */
 .new-ticket { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); box-shadow: var(--glow-rest); color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; transition: border-color .4s ease, box-shadow .4s ease; }
@@ -693,6 +690,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .chat-share { justify-self: start; }
 .chat-compose { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
 .chat-compose .btn { width: 36px; padding: 0; }
+
+.tag.cc-pill { height: 18px; padding: 0 6px; color: var(--muted); font-size: var(--fs-xs); }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1073,8 +1072,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                                                                  passaggio bordo --accent-line e bagliore che respira
    Sezione chiusa (2)   .list-section-toggle                     come .ao-closed-toggle (Ignorate in fondo a Posta)
    Freccia di chiusura  .ao-collapse                             come nel pannello
-   Filo del destinatario .item.addr-to .item.addr-cc             filo di 3 a sinistra: --accent se siamo in A, --line-strong
-                                                                 se siamo solo in Cc (titolo --muted normale, "Cc ·" davanti al mittente)
+   Pillola Cc            .tag.cc-pill                           etichetta piccola, testo --muted: il servizio è solo in Cc
 
    Schede del pannello (#ao-root.ao-host): testo e misure sono quelli del pannello AMP (13 px base, 12 voci e
    anteprima, 11 etichette, pulsanti e campi alti 32, seminero 600); i colori restano quelli della mappa.
@@ -2288,21 +2286,23 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const ticket = item.key.startsWith('ticket:');
         const pick = () => select(item);
         return h('li', {},
-            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, title: item.addressed === 'cc' ? 'Siamo in copia' : null, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
+            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, markText(item.subject, state.search)),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
                 item.section === 'mine' ? h('span', { class: 'item-meta' },
-                    item.from?.name ? h('span', {}, item.addressed === 'cc' ? 'Cc · ' : null, markText(item.from.name, state.search)) : null,
+                    item.from?.name ? h('span', {}, markText(item.from.name, state.search)) : null, ccPill(item),
                     item.tickets.map(entry => h('span', { class: `tag${entry.status === 'On Hold' ? ' working' : ''}`, title: TICKET_STATUS[entry.status] || entry.status }, markText(entry.number, state.search))),
-                    item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null) :
+                    null) :
                 h('span', { class: 'item-meta' },
-                    ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, item.addressed === 'cc' ? 'Cc · ' : null, markText(item.from.name, state.search)),
+                    ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, markText(item.from.name, state.search)), ticket ? null : ccPill(item),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
-                    ticket && item.unseen ? h('span', { class: 'count-badge', title: 'Mail nuove' }, String(item.unseen)) : null),
+                    null),
                 ticket ? null : itemExtra(item)));
     }
     // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
+    // Pillola "Cc" quando il servizio è solo in copia nell'ultima mail (nessuna azione richiesta).
+    const ccPill = item => item.addressed === 'cc' ? h('span', { class: 'tag cc-pill', title: 'Siamo in copia' }, 'Cc') : null;
     function itemExtra(item) {
         const waited = item.section === 'active' && !item.lastFromService ? minutesSince(item.receivedAt) : null;
         const late = waited !== null && waited >= WAIT_LATE_MINUTES;
