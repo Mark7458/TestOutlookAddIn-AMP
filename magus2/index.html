@@ -765,8 +765,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .v2-pane > .scroll { flex: 1; display: grid; justify-content: center; }
 .v2-pane > .scroll > * { width: min(640px, 100%); }
 /* Menu dei comandi (Ctrl+K) */
-.palette-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; justify-items: center; align-items: start; padding-top: 14vh; background: rgba(0, 0, 0, .35); animation: fade-in .15s linear; }
-.palette { display: grid; gap: 8px; width: min(560px, calc(100vw - 32px)); padding: 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--menu-bg); box-shadow: var(--menu-shadow); }
+.palette-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; justify-items: center; align-items: start; padding-top: 14vh; background: rgba(0, 0, 0, .35); }
+.palette-backdrop.opening { animation: fade-in .15s linear; }
+.palette-item .icon { flex: none; width: 15px; height: 15px; color: var(--muted); }
+.palette-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.palette-hint { flex: none; color: var(--subtle); font-size: var(--fs-xs); }
+.command-palette { display: grid; gap: 8px; width: min(560px, calc(100vw - 32px)); padding: 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--menu-bg); box-shadow: var(--menu-shadow); }
 .palette-list { display: grid; gap: 2px; max-height: 50vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--text); font-size: var(--fs-sm); text-align: left; cursor: pointer; }
 .palette-item:hover, .palette-item[aria-current="true"] { background: var(--selected); color: var(--accent); }
@@ -813,13 +817,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .tag.cc-pill { height: 18px; padding: 0 6px; color: var(--muted); font-size: var(--fs-xs); }
 /* Editor in cima al thread (v2): schede Rispondi | Nota interna; la nota è gialla */
 .editor { flex: none; display: grid; gap: 8px; margin: 12px 14px 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-bg); transition: background-color .25s, border-color .25s; }
-.editor.note-mode { border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: color-mix(in srgb, var(--warning) 10%, var(--panel-bg)); }
+/* stessa struttura nei due modi: selettore sopra, campo sotto; la nota si riconosce dal campo giallo */
 .editor-tabs { flex: none; justify-self: start; }
 .editor-tabs .segment { height: 28px; padding: 0 12px; font-size: var(--fs-xs); }
 .editor-tabs kbd { margin-left: 4px; padding: 0 4px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--subtle); font: 10px var(--font); }
 .editor .composer { margin: 0; }
 .composer-switch + .modal-close { margin-left: 8px; }
-.editor .note-box { margin: 0; border: 0; background: none; padding: 0 0 0 4px; }
+.editor .note-box { margin: 0; min-height: 38px; padding: 3px 3px 3px 12px; border-radius: 10px; box-sizing: border-box; }
 .editor-start { height: 38px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--subtle); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: text; }
 .editor-start:hover:not(:disabled) { border-color: var(--accent-line); color: var(--muted); }
 .composer-ref { color: var(--subtle); font-size: var(--fs-xs); font-weight: 400; }
@@ -929,7 +933,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .reminder-chips { display: flex; }
 .reminder-chips .segment { flex: 1; min-width: 0; padding: 0 4px; }
 .reminder-when { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
-.reminder-time { width: 100%; min-width: 0; box-sizing: border-box; }
+.reminder-time { width: 100%; min-width: 0; box-sizing: border-box; height: 36px; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -4395,10 +4399,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }
     const latestReceived = item => { const thread = state.threads.get(item.parentItemId); return thread ? [...thread.messages].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox())) : null; };
     // Azioni del thread in alto a destra: Prendi in carico, Inoltra (in coda), Chiudi ticket (se c'è un ticket aperto),
-    // Rimanda (con Ignora in fondo, per i thread in coda).
+    // In attesa (sul ticket).
     const openThreadTicket = item => threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)))[0] || null;
-    // Chiudi ticket e Rimanda lavorano su un ticket del thread: si parte dal principale aperto, un clic su un altro ticket
-    // a destra lo cambia; il pannello chiede il testo (e per Rimanda fino a quando) e conferma.
+    // Chiudi ticket e In attesa lavorano su un ticket del thread: si parte dal principale aperto, un clic su un altro ticket
+    // a destra lo cambia; il pannello chiede il testo (e per In attesa fino a quando) e conferma.
     function startTicketAction(item, choice) {
         const ticket = openThreadTicket(item);
         if (!ticket) return;
@@ -4433,7 +4437,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, closing ? 'Testo della chiusura' : 'Messaggio'),
                 h('textarea', { class: 'ao-input', id: `action-text-${ticket.number}`, rows: '4', placeholder: 'Scrivilo o scegli una mail nel thread', oninput: event => { draft.text = event.target.value; const button = document.querySelector('.action-card .ao-primary'); if (button) button.disabled = !(draft.text.trim() && (closing || draft.holdUntil)); } }, draft.text)),
             h('div', { class: 'ao-actions' },
-                h('button', { type: 'button', class: `ao-button ao-primary${closing ? TICKET_FILLS.resolve : TICKET_FILLS.hold}`, disabled: !ready || state.busy, onclick: () => updateTicket(ticket) }, closing ? 'Chiudi ticket' : 'Rimanda'))));
+                h('button', { type: 'button', class: `ao-button ao-primary${closing ? TICKET_FILLS.resolve : TICKET_FILLS.hold}`, disabled: !ready || state.busy, onclick: () => updateTicket(ticket) }, closing ? 'Chiudi ticket' : 'Metti in attesa'))));
     }
     function headActions(item) {
         const queue = item.section === 'active';
@@ -4448,7 +4452,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             item.section !== 'ignored' ? action('Prendi in carico', 'cardTake', open('take'), { pressed: choice === 'take', disabled: !received, tone: 'accent' }) : null,
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
             action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', disabled: !hasTicket, tone: 'success' }),
-            action('Rimanda', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', disabled: !hasTicket, tone: 'warning' }));
+            action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', disabled: !hasTicket, tone: 'warning' }));
     }
     // Rimanda (come Later di Help Scout): il thread esce dalle cartelle e torna all'ora scelta. Per ora resta in
     // questo browser (serve un campo su MailEvents per condividerlo col team).
@@ -4516,7 +4520,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 panel ? h('aside', { class: 'v2-panel', 'aria-label': 'Ticket' }, panelHead(item), panelBody(item)) : null,
                 rightColumn(item)));
     }
-    const panelHead = item => h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'Rimanda' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
+    const panelHead = item => h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'In attesa' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
         h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close)));
     const panelBody = item => h('div', { class: 'scroll side', 'data-scroll': `side:thread:${item.key}` },
         ['close', 'hold'].includes(state.sideCards.get(item.key).choice) ? ticketActionPanel(item) : linkedThread(item) ? extraTicketCard(item) : h('div', { class: 'ticket-stack' }, threadCard(item)));
@@ -4533,7 +4537,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 closedSection(item.parentItemId)),
             item.parentItemId ? remindersSection(item) : null);
     }
-    // Chiudi ticket / Rimanda: il testo si scrive o si prende da una mail del thread (per esempio la risposta appena mandata).
+    // Chiudi ticket / In attesa: il testo si scrive o si prende da una mail del thread (per esempio la risposta appena mandata).
     function useMessageText(item, entry) {
         const card = state.sideCards.get(item.key);
         const ticket = state.lists.tickets.find(other => other.number === card?.ticket);
@@ -4555,8 +4559,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // in Magus. Esempi: "configura la casella dopo la sync AD", "follow up dopo pranzo".
     function reminderTime(choice) {
         const date = new Date();
+        if (choice === '15m') return new Date(Date.now() + 15 * 60000);
         if (choice === '30m') return new Date(Date.now() + 30 * 60000);
         if (choice === '1h') return new Date(Date.now() + 60 * 60000);
+        if (choice === '3h') return new Date(Date.now() + 3 * 60 * 60000);
         if (choice === '14') { date.setHours(14, 0, 0, 0); if (date < new Date()) date.setDate(date.getDate() + 1); return date; }
         if (choice === 'tomorrow') { date.setDate(date.getDate() + 1); date.setHours(9, 0, 0, 0); return date; }
         const [hours, minutes] = String(choice || '').split(':').map(Number);
@@ -4569,19 +4575,21 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         loadThreadTasks(item.parentItemId);
         const list = state.tasks.thread.get(item.parentItemId);
         const draft = state.tasks.draft;
-        const when = draft.when || '30m';
+        const when = draft.when || '15m';
         const add = async () => {
             const title = draft.title.trim();
             if (!title) return document.getElementById('task-title')?.focus();
-            const due = reminderTime(when);
+            const due = when === 'custom' ? (draft.customAt ? new Date(draft.customAt) : null) : reminderTime(when);
+            if (when === 'custom' && !due) return document.getElementById('reminder-at')?.focus();
             const done = await run(() => Data.addThreadTask(item.parentItemId, { title, assignedTo: state.user.email, due: due ? due.toISOString() : '' }), null);
             if (!done) return;
-            state.tasks.draft = { title: '', assignedTo: '', due: '', when };
+            state.tasks.draft = { title: '', assignedTo: '', due: '', when, customAt: draft.customAt };
             loadThreadTasks(item.parentItemId, true); loadMyTasks(true);
             showStatus(due ? `Promemoria per ${dueText(due.toISOString())}` : 'Promemoria aggiunto', 'success', null, ICONS.clock);
         };
         const chip = (id, label) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(when === id), onclick: () => { draft.when = id; render(); } }, label);
-        const custom = /^\d{1,2}:\d{2}$/.test(when) ? when : '';
+        // Personalizzato: giorno e ora (proposta: tra un'ora, arrotondata al quarto d'ora).
+        if (when === 'custom' && !draft.customAt) { const date = new Date(Date.now() + 3600000); date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0); draft.customAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
         const sorted = (list || []).slice().sort((a, b) => Number(a.done) - Number(b.done) || String(a.due || '9').localeCompare(String(b.due || '9')));
         return h('section', { class: 'right-section reminders' },
             h('h2', { class: 'right-title' }, 'Promemoria', h('span', { class: 'count' }, String((list || []).filter(task => !task.done).length))),
@@ -4589,10 +4597,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 : sorted.length ? h('ul', { class: 'task-list' }, sorted.map(task => taskRow(task))) : null,
             h('div', { class: 'task-add' },
                 h('input', { id: 'task-title', placeholder: 'Nuovo promemoria', value: draft.title, 'aria-label': 'Nuovo promemoria', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
-                h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('30m', 'Tra 30 min'), chip('1h', 'Tra 1 ora'), chip('14', 'Alle 14'), chip('tomorrow', 'Domani 9')),
-                h('div', { class: 'reminder-when' },
-                    h('input', { type: 'time', class: 'reminder-time', 'aria-label': 'A che ora', value: custom, onchange: event => { draft.when = event.target.value || '30m'; render(); } }),
-                    h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi promemoria'))));
+                h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('15m', 'Tra 15 min'), chip('1h', 'Tra 1 ora'), chip('3h', 'Tra 3 ore'), chip('custom', 'Personalizzato')),
+                when === 'custom' ? h('input', { type: 'datetime-local', id: 'reminder-at', class: 'reminder-time', 'aria-label': 'Giorno e ora', value: draft.customAt || '', onchange: event => { draft.customAt = event.target.value; } }) : null,
+                h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi promemoria')));
     }
     // Menu dei comandi (Ctrl+K, come Help Scout): azioni cercabili sul thread aperto e salti alle cartelle.
     function paletteActions() {
@@ -4612,36 +4619,43 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 actions.push([isMe(item.assignedTo) ? 'Togli la mia etichetta' : 'Metti la mia etichetta', 'E', () => toggleTag(item)]);
                 actions.push(['Ignora (sposta nelle Ignorate)', '', () => ignoreThread(item)]);
             }
-            if (openThreadTicket(item)) { actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['Rimanda', '', () => startTicketAction(item, 'hold')]); }
+            if (openThreadTicket(item)) { actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['In attesa', '', () => startTicketAction(item, 'hold')]); }
         }
         [...FOLDERS, ...TOOLS].forEach(([id, label]) => actions.push([`Vai a ${label}`, '', () => goTo(id)]));
         actions.push(['Impostazioni', '', () => { state.settingsOpen = true; render(); }]);
         return actions;
     }
     function openPalette() {
-        state.palette = { text: '', index: 0 };
+        state.palette = { text: '', index: 0, opening: true };
         render();
+        state.palette.opening = false; // la dissolvenza solo all'apertura, non a ogni tasto
         requestAnimationFrame(() => document.getElementById('palette-text')?.focus());
     }
     function palette() {
         if (!state.palette) return null;
         const needle = state.palette.text.trim().toLowerCase();
-        const list = paletteActions().filter(([label]) => !needle || label.toLowerCase().includes(needle));
+        // Con almeno due lettere cerca anche nelle mail e nei ticket (oggetto, mittente, numero, AMP): prima i risultati,
+        // poi i comandi.
+        const found = needle.length >= 2 ? allItems().filter(item => [item.subject, item.from?.name, item.from?.email, item.number, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
+            .some(text => String(text || '').toLowerCase().includes(needle))).slice(0, 8)
+            .map(item => [item.subject, item.number || item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
+        const list = [...found, ...paletteActions().filter(([label]) => !needle || label.toLowerCase().includes(needle))];
         const index = Math.min(state.palette.index, Math.max(0, list.length - 1));
         const runAt = position => { const chosen = list[position]; state.palette = null; render(); chosen?.[2](); };
-        return h('div', { class: 'palette-backdrop', onclick: event => { if (event.target === event.currentTarget) { state.palette = null; render(); } } },
-            h('div', { class: 'palette', role: 'dialog', 'aria-label': 'Comandi' },
+        return h('div', { class: `palette-backdrop${state.palette.opening ? ' opening' : ''}`, onclick: event => { if (event.target === event.currentTarget) { state.palette = null; render(); } } },
+            h('div', { class: 'command-palette', role: 'dialog', 'aria-label': 'Comandi' },
                 h('label', { class: 'search' }, icon(ICONS.search),
-                    h('input', { id: 'palette-text', type: 'search', placeholder: 'Cerca un comando', value: state.palette.text, 'aria-label': 'Cerca un comando',
+                    h('input', { id: 'palette-text', type: 'search', placeholder: 'Cerca una mail, un ticket o un comando', value: state.palette.text, 'aria-label': 'Cerca un comando',
                         oninput: event => { state.palette.text = event.target.value; state.palette.index = 0; render(); },
                         onkeydown: event => {
                             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); state.palette.index = Math.max(0, Math.min(list.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))); render(); }
                             else if (event.key === 'Enter') { event.preventDefault(); runAt(index); }
                             else if (event.key === 'Escape') { state.palette = null; render(); }
                         } })),
-                h('ul', { class: 'palette-list' }, list.length ? list.map(([label, keys], position) => h('li', {},
-                    h('button', { type: 'button', class: 'palette-item', 'aria-current': String(position === index), onclick: () => runAt(position) }, h('span', {}, label), keys ? h('kbd', {}, keys) : null)))
-                    : h('li', { class: 'hint' }, 'Nessun comando'))));
+                h('ul', { class: 'palette-list' }, list.length ? list.map(([label, keys, , kind], position) => h('li', {},
+                    h('button', { type: 'button', class: `palette-item${kind ? ' result' : ''}`, 'aria-current': String(position === index), onclick: () => runAt(position) },
+                        kind ? icon(ICONS[kind === 'ticket' ? 'ticket' : 'mail']) : null, h('span', { class: 'palette-label' }, label), kind ? h('span', { class: 'palette-hint' }, keys) : keys ? h('kbd', {}, keys) : null)))
+                    : h('li', { class: 'hint' }, 'Niente trovato'))));
     }
     function v2Workspace() {
         const item = state.tab === 'work' ? selectedItem() : null;
