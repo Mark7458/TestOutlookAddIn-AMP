@@ -14,7 +14,7 @@
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <style>
 /* Magus: tema e stile del pannello AMP (Impostazioni → Profilo → Aspetto). Vetro scuro in :root; data-mode (light/dark)
-   e data-style (glass/flat) su <html> ridefiniscono solo i token. Gli elementi usano solo i token. */
+   su <html> ridefinisce solo i token. Gli elementi usano solo i token. */
 :root {
   /* Pulsanti pieni come nel pannello (vetro scuro: zaffiro scurito, vetro colorato) */
   --btn-fill: color-mix(in srgb, color-mix(in srgb, #0f5fbf 82%, #000) 86%, transparent);
@@ -904,16 +904,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
 .tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--danger); vertical-align: 2px; }
 
-/* Flat: gli stessi colori dei temi a vetro, senza l'effetto vetro (niente sfocature, bagliori, riflessi, sfumature). */
-:root[data-style="flat"] {
-  --blur: none; --seg-blur: none; --glow-a: transparent; --glow-b: transparent;
-  --glow-rest: 0 0 transparent; --glow-hover: 0 0 transparent; --glow-left: 0 0 transparent; --glow-right: 0 0 transparent;
-  --highlight: 0 0 transparent; --btn-highlight: 0 0 transparent; --btn-line: transparent;
-  --card-shadow: none; --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .12); --seg-shadow: 0 0 transparent;
-}
 
-/* Cornice tinta, per tutti i temi: lo sfondo fa da cornice, le cartelle ci stanno sopra senza riquadro, lista e thread
-   sono card piene che staccano. Vetro: sfondo sfumato e card in rilievo; flat: sfondo pieno e card con il solo bordo. */
+/* Cornice tinta, chiaro e scuro: lo sfondo sfumato fa da cornice, le cartelle ci stanno sopra senza riquadro, lista e
+   thread sono card piene in rilievo che staccano. */
 .workspace.v2 > .folders { border-color: transparent; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .folder .icon { color: var(--accent); }
 .workspace.v2 > :is(.v2-list, .v2-main) { -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -925,13 +918,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 :root[data-mode="light"] .item[aria-current="true"] { border-color: transparent; background: #e8f2fc; }
 :root[data-mode="light"] .message:not(.service) { border-color: #e1eaf5; }
 :root[data-mode="light"] .drawer { border-right-color: rgba(16, 110, 190, .18); }
-:root[data-mode="light"]:not([data-style="flat"]) body, :root[data-mode="light"]:not([data-style="flat"]) .drawer { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
-:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 4px 14px rgba(16, 80, 160, .08); }
-:root[data-mode="light"]:not([data-style="flat"]) .folder[aria-current="true"] { box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
-:root[data-mode="light"][data-style="flat"] { --bg: #e3ecf7; }
-:root[data-mode="light"][data-style="flat"] body, :root[data-mode="light"][data-style="flat"] .drawer { background: var(--bg); }
-:root[data-mode="light"][data-style="flat"] .workspace.v2 > :is(.v2-list, .v2-main) { border-color: #cddbec; box-shadow: none; }
-:root[data-mode="light"][data-style="flat"] .folder[aria-current="true"] { border-color: #cddbec; background: #fff; }
+:root[data-mode="light"] body, :root[data-mode="light"] .drawer { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
+:root[data-mode="light"] .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 4px 14px rgba(16, 80, 160, .08); }
+:root[data-mode="light"] .folder[aria-current="true"] { box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
 /* scuro (definito): sfondo quasi nero, card blu notte più chiare con il bordo azzurro */
 :root:not([data-mode="light"]) { --bg: #070c19; --message-bg: #202c47; }
 :root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(124, 180, 255, .26); background: #18223a; }
@@ -940,11 +929,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 :root:not([data-mode="light"]) .item[aria-current="true"] { border-color: rgba(124, 180, 255, .3); background: rgba(124, 180, 255, .16); }
 :root:not([data-mode="light"]) .message:not(.service) { border-color: rgba(124, 180, 255, .12); }
 :root:not([data-mode="light"]) .drawer { border-right-color: rgba(124, 180, 255, .26); }
-:root:not([data-mode="light"]):not([data-style="flat"]) body, :root:not([data-mode="light"]):not([data-style="flat"]) .drawer { background: linear-gradient(135deg, #060b18 0%, #0a1022 55%, #120c22 100%) fixed; }
-:root:not([data-mode="light"]):not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08); }
-:root:not([data-mode="light"]):not([data-style="flat"]) .folder[aria-current="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
-:root:not([data-mode="light"])[data-style="flat"] body, :root:not([data-mode="light"])[data-style="flat"] .drawer { background: var(--bg); }
-:root:not([data-mode="light"])[data-style="flat"] .workspace.v2 > :is(.v2-list, .v2-main) { border-color: #2a3a5a; box-shadow: none; }
+:root:not([data-mode="light"]) body, :root:not([data-mode="light"]) .drawer { background: linear-gradient(135deg, #060b18 0%, #0a1022 55%, #120c22 100%) fixed; }
+:root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08); }
+:root:not([data-mode="light"]) .folder[aria-current="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1713,7 +1700,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         auto: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/>',
         light: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M4.7 15.3L6 14M14 6l1.3-1.3"/>',
         dark: '<path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/>',
-        flat: '<rect x="4" y="4" width="12" height="12" rx="2"/>',
         desktop: '<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/>',
         mobile: '<rect x="6" y="2.5" width="8" height="15" rx="2"/><path d="M9 15h2"/>',
         glass: '<rect x="3" y="3" width="10" height="10" rx="2"/><rect x="7" y="7" width="10" height="10" rx="2"/>',
@@ -1765,13 +1751,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         rosso: '#d13438', arancio: '#ca5010', ambra: '#c19c00', verde: '#107c10', acqua: '#038387',
         azzurro: '#0078d4', indaco: '#4f6bed', viola: '#8764b8', rosa: '#c239b3', grafite: '#69797e'
     };
-    // Tema (automatico, chiaro, scuro) e stile (vetro, flat) delle preferenze, sulla radice della pagina.
+    // Tema (automatico, chiaro, scuro) delle preferenze, sulla radice della pagina.
     const darkQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
     function applyAppearance(settings) {
         const theme = settings.preferences.theme || 'auto';
         const dark = theme === 'dark' || (theme === 'auto' && (darkQuery ? darkQuery.matches : true));
         document.documentElement.dataset.mode = dark ? 'dark' : 'light';
-        document.documentElement.dataset.style = settings.preferences.style === 'flat' ? 'flat' : 'glass';
+        document.documentElement.dataset.style = 'glass'; // un solo stile (il flat è stato tolto)
         document.documentElement.dataset.mail = settings.preferences.mailView === 'classic' ? 'classic' : 'chat'; // mail: a chat leggera o classiche
         document.documentElement.style.setProperty('--label', LABELS[settings.profile.label] || LABELS.azzurro);
         applyLayout(settings);
@@ -4295,8 +4281,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('h2', {}, 'Aspetto'),
                 h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Tema' },
                     [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => iconSegment(label, id, (state.settings.preferences.theme || 'auto') === id, () => setPreference('theme', id)))),
-                h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Stile' },
-                    [['glass', 'Vetro'], ['flat', 'Flat']].map(([id, label]) => iconSegment(label, id, (state.settings.preferences.style === 'flat' ? 'flat' : 'glass') === id, () => setPreference('style', id)))),
                 h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Vista' },
                     [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => iconSegment(label, iconName, (state.settings.preferences.view || 'auto') === id, () => setPreference('view', id)))),
                 h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Mail' },
