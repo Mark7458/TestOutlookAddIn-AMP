@@ -939,6 +939,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 #ao-root.ao-host .ticket-tile.ticket-pickable { cursor: pointer; }
 #ao-root.ao-host .ticket-tile.ticket-picked { border-color: var(--accent-line); box-shadow: var(--glow-rest); }
 #ao-root.ao-host .ticket-tile-time { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ao-line, var(--line)); }
+.empty-thread .v2-head.with-actions { min-height: 69px; } .empty-thread .v2-conversation-wrap { justify-content: center; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -4542,6 +4543,13 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close)));
     const panelBody = item => h('div', { class: 'scroll side', 'data-scroll': `side:thread:${item.key}` },
         ['close', 'hold'].includes(state.sideCards.get(item.key).choice) ? ticketActionPanel(item) : linkedThread(item) ? extraTicketCard(item) : h('div', { class: 'ticket-stack' }, threadCard(item)));
+    function emptyThread() {
+        return h('section', { class: 'v2-main with-contact empty-thread' },
+            h('div', { class: 'v2-head with-actions' }, h('div', { class: 'v2-head-main' }), h('div', { class: 'head-actions' })),
+            h('div', { class: 'v2-body' },
+                h('div', { class: 'v2-conversation-wrap' }, empty('mail', state.view === 'mailless' ? 'Scegli un ticket' : 'Scegli un thread')),
+                h('aside', { class: 'side v2-right', 'aria-label': 'Ticket e promemoria' })));
+    }
     // Colonna di destra: i ticket del thread (le card del pannello, uno aperto alla volta, poi i chiusi) e i promemoria.
     function rightColumn(item) {
         const tickets = threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId));
@@ -4714,10 +4722,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         let content;
         if (tool === 'utility' || tool === 'tools') content = h('div', { class: 'v2-tool' }, tool === 'utility' ? utilityView() : toolsView());
         else if (tool) content = h('section', { class: 'v2-main v2-pane' }, h('div', { class: 'scroll side', 'data-scroll': `pane:${tool}` }, tool === 'tasks' ? tasksPanel(null) : teamsPanel(null)));
-        // Senza un thread aperto la lista prende tutto lo spazio (come Helpwise); aprendone uno si stringe a colonna.
-        else if (!item) content = v2List(true);
+        // Senza un thread scelto: lista a colonna e pannelli vuoti (stessa struttura di quando è aperto).
+        else if (!item) content = [state.listHidden ? null : v2List(), emptyThread()];
         else content = [state.listHidden ? null : v2List(), v2Thread(item)];
-        const single = Boolean(tool) || !item || state.listHidden;
+        const single = Boolean(tool) || state.listHidden;
         if (isCompact()) {
             // Telefono: una cosa alla volta (lista o thread); cartelle e strumenti nel menu ☰.
             const body = tool ? content : item ? v2Thread(item) : v2List(false);
