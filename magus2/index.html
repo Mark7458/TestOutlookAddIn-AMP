@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#080b11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Magus">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -225,6 +225,8 @@
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html { background: var(--bg); } /* sotto la zona del gesto dell'iPhone, niente fascia di un altro colore */
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
 body {
   margin: 0; font: var(--fs-md)/1.45 var(--font); color: var(--text);
   background: radial-gradient(ellipse 620px 460px at 8% 0%, var(--glow-a), transparent 70%), radial-gradient(ellipse 560px 460px at 96% 100%, var(--glow-b), transparent 70%), var(--bg);
