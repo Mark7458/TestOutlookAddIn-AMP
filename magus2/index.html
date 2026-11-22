@@ -3957,17 +3957,29 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             }));
         return { operations };
     }
-    // "selectedMail": gli indirizzi della mail del thread scelto (l'ultima ricevuta).
+    // "selectedMail": gli indirizzi della mail scelta nel thread aperto (di norma l'ultima ricevuta; un clic su un'altra
+    // mail la cambia e ricompila il campo).
+    function utilitySourceMail() {
+        const item = selectedItem();
+        const thread = state.threads.get(item?.parentItemId);
+        if (!thread) return null;
+        return pickedMessage(item) || [...(thread.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox())) || null;
+    }
     function utilityDefault(field) {
         if (field.source === 'selectedMail') {
             const thread = state.threads.get(selectedItem()?.parentItemId);
-            const last = [...(thread?.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox()));
-            return mailAddresses(last ? thread.bodies.get(last.id)?.text : '').join('\n');
+            const mail = utilitySourceMail();
+            return mailAddresses(mail ? thread.bodies.get(mail.id)?.text : '').join('\n');
         }
         if (field.default !== undefined) return Array.isArray(field.default) ? [...field.default] : field.default;
         return field.type === 'choice' && field.multiple ? [] : field.type === 'switch' ? false : '';
     }
-    function utilityView() {
+    // Ricompila i campi che leggono dalla mail (Utility aperta dal thread, dopo un clic su una mail).
+    function refillUtilityFromMail() {
+        const operation = utilityCatalog().operations.find(entry => entry.id === state.utility.operation);
+        (operation?.fields || []).filter(field => field.source === 'selectedMail').forEach(field => { state.utility.values[field.id] = utilityDefault(field); });
+    }
+    function utilityView(inPanel = false) {
         const flow = state.utility;
         const { operations } = utilityCatalog();
         const operation = operations.find(item => item.id === flow.operation) || null;
@@ -4009,7 +4021,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 hint.textContent = gap ? `Manca: ${gap.label}` : '';
             };
             const field = item => {
-                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, ' · dalla mail selezionata')] : item.label;
+                const source = item.source === 'selectedMail' ? utilitySourceMail() : null;
+                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, source ? ` · dalla mail di ${source.from.name || source.from.email} · ${shortWhen(source.receivedAt)}` : ' · dalla mail selezionata')] : item.label;
                 if (item.type === 'switch') return h('label', { class: 'ao-switch-row' }, h('span', {}, item.label),
                     h('input', { type: 'checkbox', class: 'ao-switch', checked: Boolean(values[item.id]), onchange: event => { values[item.id] = event.target.checked; } }));
                 if (item.type === 'choice') return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
@@ -4053,6 +4066,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         }
         // Su computer a tutto schermo: in alto i passi con il nome, a sinistra il riepilogo, al centro il passo;
         // su telefono come nel pannello (barra dei passi, titolo, contenuto).
+        if (inPanel) return aoHost(h('div', { class: 'ao-tools utility-panel' }, progress, head, body));
         const wide = document.documentElement.dataset.layout !== 'mobile';
         if (!wide) return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll', 'data-scroll': 'utility' },
             aoHost(h('div', { class: 'ao-tools' }, progress, head, body))))));
@@ -4482,6 +4496,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (draft && state.composing.has(item.parentItemId) && thread) state.drafts.set(item.parentItemId, { ...replyDraft(item, thread, entry.id, draft.mode), text: draft.text });
         const card = state.sideCards.get(item.key);
         if (card?.choice === 'close') return render();
+        if (card?.choice === 'utility') { refillUtilityFromMail(); return render(); }
         if (card) return linkedThread(item) ? openExtraTicket(item, entry.id) : showCardMessage(item, entry.id);
         render();
     }
@@ -4491,6 +4506,14 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     const openThreadTicket = item => threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)))[0] || null;
     // Chiudi ticket e In attesa lavorano su un ticket del thread: si parte dal principale aperto, un clic su un altro ticket
     // a destra lo cambia; il pannello chiede il testo (e per In attesa fino a quando) e conferma.
+    // Utility dal thread: stesso pannello di lato; i campi che leggono gli indirizzi prendono quelli della mail scelta.
+    function openUtilityPanel(item) {
+        if (state.sideCards.get(item.key)?.choice === 'utility') return closeTicketPanel(item);
+        makeRoom();
+        state.sideCards.set(item.key, { messageId: pickedMessage(item)?.id || null, choice: 'utility', group: null });
+        refillUtilityFromMail();
+        render();
+    }
     function startTicketAction(item, choice) {
         const ticket = pickedTicket(item);
         if (!ticket) return;
@@ -4541,7 +4564,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             item.section !== 'ignored' && received ? action('Apri ticket', 'cardTake', open('take'), { pressed: choice === 'take', tone: 'accent' }) : null,
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
             hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
-            hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null);
+            hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null,
+            item.parentItemId ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
     }
     // Rimanda (come Later di Help Scout): il thread esce dalle cartelle e torna all'ora scelta. Per ora resta in
     // questo browser (serve un campo su MailEvents per condividerlo col team).
@@ -4609,9 +4633,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 panel ? h('aside', { class: 'v2-panel', 'aria-label': 'Ticket' }, panelHead(item), panelBody(item)) : null,
                 rightColumn(item)));
     }
-    const panelHead = item => h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'In attesa' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
+    const panelHead = item => h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'In attesa', utility: 'Utility' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
         h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close)));
     const panelBody = item => h('div', { class: 'scroll side', 'data-scroll': `side:thread:${item.key}` },
+        state.sideCards.get(item.key).choice === 'utility' ? utilityView(true) :
         ['close', 'hold'].includes(state.sideCards.get(item.key).choice) ? ticketActionPanel(item) : linkedThread(item) ? extraTicketCard(item) : h('div', { class: 'ticket-stack' }, threadCard(item)));
     function emptyThread() {
         return h('section', { class: 'v2-main with-contact empty-thread' },
@@ -4767,6 +4792,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 actions.push([isMe(item.assignedTo) ? 'Togli la mia etichetta' : 'Metti la mia etichetta', 'E', () => toggleTag(item)]);
                 actions.push(['Ignora (sposta nelle Ignorate)', '', () => ignoreThread(item)]);
             }
+            actions.push(['Utility sul thread', '', () => openUtilityPanel(item)]);
             if (openThreadTicket(item)) { actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['In attesa', '', () => startTicketAction(item, 'hold')]); }
         }
         [...FOLDERS, ...TOOLS].forEach(([id, label]) => actions.push([`Vai a ${label}`, '', () => goTo(id)]));
