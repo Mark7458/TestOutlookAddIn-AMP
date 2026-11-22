@@ -1011,6 +1011,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .utility-logged { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); font-size: var(--fs-sm); }
 .utility-logged .icon { width: 14px; height: 14px; }
 
+.tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--danger); vertical-align: 2px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1567,6 +1569,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     { id: 'P1', parentItemId: 101, title: 'Richiamare Anna Bianchi dopo il reset dei permessi', assignedTo: ME, due: new Date(Date.now() + 2 * 3600000).toISOString(), done: false, source: 'planner' },
     { id: 'P2', parentItemId: 101, title: 'Verificare la licenza della casella in AMP', assignedTo: 'luigi.verdi@esempio.it', due: day(1), done: false, source: 'planner' },
     { id: 'P3', parentItemId: 101, title: 'Controllare i permessi della casella protocollo', assignedTo: ME, due: '', done: true, source: 'planner' },
+    { id: 'P5', parentItemId: 106, title: 'Controllare la sync della casella', assignedTo: ME, due: new Date(Date.now() - 3600000).toISOString(), done: false, source: 'planner' },
     { id: 'P4', parentItemId: 106, title: 'Aggiornare Giorgio Rosa sull\'esito', assignedTo: ME, due: day(2), done: false, source: 'planner' }
   ];
   const todo = [
@@ -4695,12 +4698,32 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             // Telefono: schede Mail | Ticket e attività, azioni nella barra in basso, pannello dell'azione dal basso.
             const tab = state.mobileTab || 'mail';
             const tickets = state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)).length;
-            const tabButton = (id, label) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.mobileTab = id; render(); } }, label);
-            return h('section', { class: 'v2-main compact-thread' },
+            // Pallino rosso sulla scheda quando un'attività del thread (o la fine di un'attesa) è scaduta.
+            loadThreadTasks(item.parentItemId);
+            const now = Date.now();
+            const late = [...(state.tasks.thread.get(item.parentItemId) || []).filter(task => !task.done).map(task => task.due),
+                ...state.lists.tickets.filter(ticket => ticket.parentItemId === item.parentItemId && ticket.status === 'On Hold').map(ticket => ticket.holdUntil)]
+                .some(due => due && String(due).includes('T') && new Date(due).getTime() < now);
+            const tabButton = (id, label, dot = false) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.mobileTab = id; render(); } }, label, dot ? h('span', { class: 'tab-dot', title: 'Attività scaduta' }) : null);
+            // Scorrimento orizzontale sul contenuto: passa fra Mail e Ticket e attività (non dal bordo, che è il gesto Indietro).
+            let touch = null;
+            const swipe = {
+                ontouchstart: event => { const point = event.touches[0]; touch = point.clientX > 24 && event.touches.length === 1 ? { x: point.clientX, y: point.clientY } : null; },
+                ontouchend: event => {
+                    if (!touch || panel) return;
+                    const point = event.changedTouches[0];
+                    const dx = point.clientX - touch.x, dy = point.clientY - touch.y;
+                    touch = null;
+                    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+                    const next = dx < 0 ? 'tickets' : 'mail';
+                    if (next !== tab) { state.mobileTab = next; render(); }
+                }
+            };
+            return h('section', { class: 'v2-main compact-thread', ...swipe },
                 h('div', { class: 'compact-head' },
                     h('div', { class: 'thread-sub' }, threadSubtitle(thread)),
                     h('div', { class: 'compact-tags' }, status, item.key.startsWith('thread:') ? h('span', { class: 'v2-tag' }, queueTag(item)) : null)),
-                h('div', { class: 'segmented compact-tabs', role: 'group', 'aria-label': 'Vista' }, tabButton('mail', 'Mail'), tabButton('tickets', tickets ? `Ticket e attività · ${tickets}` : 'Ticket e attività')),
+                h('div', { class: 'segmented compact-tabs', role: 'group', 'aria-label': 'Vista' }, tabButton('mail', 'Mail'), tabButton('tickets', tickets ? `Ticket e attività · ${tickets}` : 'Ticket e attività', late)),
                 tab === 'mail' ? mails : rightColumn(item),
                 h('nav', { class: 'compact-actions', 'aria-label': 'Azioni' }, headActions(item)),
                 panel ? h('div', { class: 'sheet-backdrop', onclick: event => { if (event.target === event.currentTarget) closeTicketPanel(item); } },
@@ -5163,6 +5186,34 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (toastNode && motion.toast !== state.toast.id) { motion.toast = state.toast.id; toastNode.classList.add('enter'); }
     }
 
+    // Telefono: ogni livello aperto (thread, pannello dell'azione, cassetto delle cartelle) è un passo nella cronologia,
+    // così il gesto o il tasto Indietro chiude prima quello in cima invece di uscire dal thread.
+    let navLayers = [], skipPops = 0;
+    function wantedLayers() {
+        if (!isCompact() || !isV2() || !state.user) return [];
+        const item = state.tab === 'work' ? selectedItem() : null;
+        const layers = [];
+        if (item) layers.push('thread');
+        if (item && state.sideCards.has(item.key)) layers.push('panel');
+        if (state.drawerOpen) layers.push('drawer');
+        return layers;
+    }
+    function syncHistory() {
+        const want = wantedLayers();
+        if (want.length > navLayers.length) want.slice(navLayers.length).forEach((layer, index) => history.pushState({ magusLayer: navLayers.length + index + 1 }, '', location.href));
+        else if (want.length < navLayers.length) { skipPops += 1; history.go(want.length - navLayers.length); }
+        navLayers = want;
+    }
+    window.addEventListener('popstate', () => {
+        if (skipPops) { skipPops -= 1; return; }
+        const top = navLayers.pop();
+        if (!top) return;
+        const item = selectedItem();
+        if (top === 'drawer') state.drawerOpen = false;
+        else if (top === 'panel' && item) { state.sideCards.delete(item.key); state.forms.delete(`take:${item.key}`); }
+        else if (top === 'thread') { state.selected = null; state.mobileTab = 'mail'; }
+        render();
+    });
     // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
     function render() {
         if (!state.user) return;
@@ -5172,6 +5223,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
         root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '', reminderAlert() || '');
+        syncHistory();
         animate();
         root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
         const field = focus && document.getElementById(focus.id);
