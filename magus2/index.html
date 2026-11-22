@@ -2601,7 +2601,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 item ? h('button', { type: 'button', class: 'head-action', title: 'Indietro', 'aria-label': 'Indietro', onclick: () => { state.selected = null; state.mobileTab = 'mail'; render(); } }, icon(ICONS.back))
                     : h('button', { type: 'button', class: 'head-action', title: 'Cartelle', 'aria-label': 'Cartelle', onclick: () => { state.drawerOpen = true; render(); } }, icon(ICONS.menu)),
                 h('h1', { class: 'compact-title' }, title),
-                h('button', { type: 'button', class: 'head-action', title: 'Cerca o comando', 'aria-label': 'Cerca o comando', onclick: () => openPalette() }, icon(ICONS.search)),
+                h('button', { type: 'button', class: 'head-action', title: 'Cerca mail e ticket', 'aria-label': 'Cerca mail e ticket', onclick: () => openPalette() }, icon(ICONS.search)),
                 accountMenu());
         }
         if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, h('span', { class: 'brand' }, 'Magus'),
@@ -4125,7 +4125,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         } catch (error) {
             flow.run = { error: error?.message || String(error), result: error?.data || null };
         }
-        if (inPanel && !flow.run.error && !(flow.run.result?.steps || []).some(step => step.ok === false)) await logUtilityOnTicket(operation, flow, params);
+        if (inPanel && !flow.run.error && !(flow.run.result?.steps || []).some(step => step.ok === false)) {
+            await logUtilityOnTicket(operation, flow, params);
+            // a buon fine il pannello si chiude, come per le altre azioni; con un errore resta aperto (Indietro / Riprova)
+            const item = selectedItem();
+            if (item && !flow.logError) {
+                state.sideCards.delete(item.key);
+                state.threadUtility = null;
+                showStatus(`${operation.name} · esito su ${flow.ticket}`, 'success', null, ICONS.utility);
+                return;
+            }
+        }
         render();
     }
     // Esito della Utility nelle note del ticket (come un commento) e una riga nella cronologia del thread.
@@ -4921,7 +4931,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const found = needle.length >= 2 ? allItems().filter(item => [item.subject, item.from?.name, item.from?.email, item.number, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
             .some(text => String(text || '').toLowerCase().includes(needle))).slice(0, 8)
             .map(item => [item.subject, item.number || item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
-        const list = [...found, ...paletteActions().filter(([label]) => !needle || label.toLowerCase().includes(needle))];
+        const list = found; // solo mail e ticket, niente comandi
         const index = Math.min(state.palette.index, Math.max(0, list.length - 1));
         const runAt = position => { const chosen = list[position]; const inline = state.palette.inline; state.palette = null; if (inline) { state.search = ''; document.activeElement?.blur(); } render(); chosen?.[2](); };
         return { list, index, runAt };
@@ -4935,15 +4945,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return h('ul', { class: 'palette-list' }, list.length ? list.map(([label, keys, , kind], position) => h('li', {},
             h('button', { type: 'button', class: `palette-item${kind ? ' result' : ''}`, 'aria-current': String(position === index), onclick: () => runAt(position) },
                 kind ? icon(ICONS[kind === 'ticket' ? 'ticket' : 'mail']) : null, h('span', { class: 'palette-label' }, label), kind ? h('span', { class: 'palette-hint' }, keys) : keys ? h('kbd', {}, keys) : null)))
-            : h('li', { class: 'hint' }, 'Niente trovato'));
+            : h('li', { class: 'hint' }, state.palette?.text.trim().length >= 2 ? 'Niente trovato' : 'Scrivi almeno due lettere'));
     }
     // Una sola ricerca, in alto: scrivendo filtra la lista della cartella e sotto propone mail, ticket e comandi (Ctrl K).
     function topSearch() {
-        const open = state.palette?.inline;
+        const open = state.palette?.inline && state.palette.text.trim().length >= 2; // i risultati da due lettere in su
         const menu = open ? paletteEntries() : null;
         return h('div', { class: 'top-search' },
             h('label', { class: 'search' }, icon(ICONS.search),
-                h('input', { id: 'top-search', type: 'search', placeholder: 'Cerca o comando', value: state.search, 'aria-label': 'Cerca o comando', autocomplete: 'off',
+                h('input', { id: 'top-search', type: 'search', placeholder: 'Cerca mail e ticket', value: state.search, 'aria-label': 'Cerca mail e ticket', autocomplete: 'off',
                     onclick: () => { if (!state.palette) { state.palette = { text: state.search, index: 0, inline: true }; render(); } },
                     oninput: event => { state.search = event.target.value; state.palette = { text: state.search, index: 0, inline: true }; render(); },
                     onkeydown: event => { if (menu) paletteKeys(event, menu.list, menu.index, menu.runAt); else if (event.key === 'ArrowDown') { state.palette = { text: state.search, index: 0, inline: true }; render(); } } }),
@@ -4954,9 +4964,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (!state.palette || state.palette.inline) return null;
         const { list, index, runAt } = paletteEntries();
         return h('div', { class: `palette-backdrop${state.palette.opening ? ' opening' : ''}`, onclick: event => { if (event.target === event.currentTarget) { state.palette = null; render(); } } },
-            h('div', { class: 'command-palette', role: 'dialog', 'aria-label': 'Comandi' },
+            h('div', { class: 'command-palette', role: 'dialog', 'aria-label': 'Cerca mail e ticket' },
                 h('label', { class: 'search' }, icon(ICONS.search),
-                    h('input', { id: 'palette-text', type: 'search', placeholder: 'Cerca una mail, un ticket o un comando', value: state.palette.text, 'aria-label': 'Cerca un comando',
+                    h('input', { id: 'palette-text', type: 'search', placeholder: 'Cerca mail e ticket', value: state.palette.text, 'aria-label': 'Cerca mail e ticket',
                         oninput: event => { state.palette.text = event.target.value; state.palette.index = 0; render(); },
                         onkeydown: event => paletteKeys(event, list, index, runAt) })),
                 paletteList(list, index, runAt)));
@@ -5253,7 +5263,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     // Scorciatoie (come Front e Help Scout), fuori dai campi di testo: frecce per cambiare thread, R / A rispondi (a tutti)
     // all'ultima mail ricevuta, T crea ticket, E etichetta, K task, P apre o chiude il pannello di destra.
-    const SHORTCUTS = [['Ctrl K', 'Comandi'], ['N', 'Nota interna'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Apri ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Lista / pannello di destra']];
+    const SHORTCUTS = [['Ctrl K', 'Cerca mail e ticket'], ['N', 'Nota interna'], ['↑ ↓', 'Thread precedente / successivo'], ['R', 'Rispondi'], ['A', 'Rispondi a tutti'], ['T', 'Apri ticket'], ['E', 'Etichetta'], ['K', 'Task dalla mail'], ['P', 'Lista / pannello di destra']];
     document.addEventListener('keydown', event => {
         if (state.user && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && document.documentElement.dataset.layout === 'wide') {
             event.preventDefault();
