@@ -127,102 +127,6 @@
   --seg-edge: rgba(255, 255, 255, .75);
   --track-in-card: rgba(197, 214, 238, .6);
 }
-/* Flat scuro (come Outlook scuro): niente trasparenze, sfocature e bagliori */
-:root[data-style="flat"] {
-  --btn-fill: #0078d4;
-  --btn-line: transparent;
-  --btn-highlight: 0 0 transparent;
-  --btn-hover: brightness(.92);
-  --bg: #141312;
-  --glow-a: transparent;
-  --glow-b: transparent;
-  --surface: #21201f;
-  --surface-strong: #3b3a39;
-  --hover: #3b3a39;
-  --line: #545250;
-  --line-strong: #6e6c6a;
-  --text: #f3f2f1;
-  --muted: #d4d2d0;
-  --subtle: #b0aeac;
-  --accent: #6cb8f6;
-  --accent-fill: #0078d4;
-  --accent-line: #3a6a8f;
-  --selected: #19344a;
-  --working: #f0d257;
-  --danger: #ffb3b8;
-  --success: #6ccb5f;
-  --forward: #a58be6;
-  --warning: #f0c36a;
-  --track: #252423;
-  --field-bg: #252423;
-  --option-bg: #2d2c2b;
-  --menu-bg: #2d2c2b;
-  --toast-bg: #2d2c2b;
-  --message-bg: #2d2c2b;
-  --message-service-bg: #173350;
-  --panel-bg: #292827;
-  --card-shadow: 0 1px 2px rgba(0, 0, 0, .3);
-  --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .3);
-  --menu-shadow: 0 8px 24px rgba(0, 0, 0, .4);
-  --highlight: 0 0 transparent;
-  --blur: none;
-  --glow-rest: 0 0 transparent;
-  --glow-hover: 0 0 transparent;
-  --glow-left: 0 0 transparent;
-  --glow-right: 0 0 transparent;
-  --message-service-text: #f3f2f1;
-  --message-service-line: var(--line);
-  --seg-track: #2d2c2b;
-  --seg-thumb: #19344a;
-  --seg-line: transparent;
-  --seg-shadow: 0 0 transparent;
-  --seg-blur: none;
-  --seg-edge: var(--line);
-  --track-in-card: var(--track);
-}
-/* Flat chiaro (come Outlook) */
-:root[data-style="flat"][data-mode="light"] {
-  --btn-fill: #0078d4;
-  --btn-line: transparent;
-  --btn-highlight: 0 0 transparent;
-  --bg: #f5f5f5;
-  --surface: #fff;
-  --surface-strong: #fff;
-  --hover: #faf9f8;
-  --line: #d2d0ce;
-  --line-strong: #b3b1af;
-  --text: #242424;
-  --muted: #4d4b49;
-  --subtle: #6e6c6a;
-  --accent: #106ebe;
-  --accent-fill: #0078d4;
-  --accent-line: #c7e0f4;
-  --selected: #eff6fc;
-  --working: #8a5a00;
-  --danger: #a4262c;
-  --success: #107c10;
-  --forward: #6b47b0;
-  --warning: #8a5300;
-  --track: #edebe9;
-  --field-bg: #fff;
-  --option-bg: #fff;
-  --menu-bg: #fff;
-  --toast-bg: #fff;
-  --message-bg: #fff;
-  --message-service-bg: #deecf9;
-  --panel-bg: #faf9f8;
-  --card-shadow: 0 1px 2px rgba(0, 0, 0, .06);
-  --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .1);
-  --menu-shadow: 0 8px 24px rgba(0, 0, 0, .14);
-  --message-service-text: #242424;
-  --message-service-line: var(--line);
-  --seg-track: #fff;
-  --seg-thumb: #eff6fc;
-  --seg-line: transparent;
-  --seg-shadow: 0 0 transparent;
-  --seg-edge: var(--line);
-  --track-in-card: var(--track);
-}
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 html { background: var(--bg); } /* sotto la zona del gesto dell'iPhone, niente fascia di un altro colore */
@@ -979,17 +883,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .avatar.small { width: 22px; height: 22px; font-size: 9px; align-self: center; }
 .message-head .avatar.small { margin-right: -2px; }
 
-/* Tema chiaro (vetro): cornice tinta. Lo sfondo azzurro-lilla fa da cornice, i pannelli sono bianchi e ci galleggiano sopra;
-   le cartelle stanno direttamente sullo sfondo, senza riquadro. */
-:root[data-mode="light"]:not([data-style="flat"]) { --bg: #dbe7f8; --glow-a: rgba(150, 196, 250, .55); --glow-b: rgba(206, 190, 248, .55); --message-bg: #f4f8fd; }
-:root[data-mode="light"]:not([data-style="flat"]) body { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
-:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(16, 110, 190, .18); background: #fff; box-shadow: 0 4px 14px rgba(16, 80, 160, .08); -webkit-backdrop-filter: none; backdrop-filter: none; }
-:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > .folders { border-color: transparent; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-:root[data-mode="light"]:not([data-style="flat"]) .folder .icon { color: var(--accent); }
-:root[data-mode="light"]:not([data-style="flat"]) .folder:hover { background: rgba(255, 255, 255, .45); }
-:root[data-mode="light"]:not([data-style="flat"]) .folder[aria-current="true"] { border-color: transparent; background: rgba(255, 255, 255, .75); color: #0c447c; box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
-:root[data-mode="light"]:not([data-style="flat"]) .item[aria-current="true"] { border-color: transparent; background: #e8f2fc; }
-:root[data-mode="light"]:not([data-style="flat"]) .message:not(.service) { border-color: #e1eaf5; }
 
 /* Telefono, allineato al computer: niente scorciatoie da tastiera, intestazione della mail su una riga,
    cornice tinta anche nel cassetto delle cartelle, attività con l'aggiunta sempre in vista */
@@ -997,8 +890,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .message-picked { flex: none; white-space: nowrap; }
 :root[data-layout="mobile"] .message-picked { padding: 0 6px; }
 :root[data-layout="mobile"] .message-head { gap: 6px; }
-:root[data-mode="light"]:not([data-style="flat"]) .drawer { background: linear-gradient(160deg, #cfe3fa 0%, #dfe8fb 60%, #e6defa 100%); border-right-color: rgba(16, 110, 190, .18); }
-:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2.compact > :is(.v2-list, .v2-main) { border-color: rgba(16, 110, 190, .18); background: #fff; }
 .compact-thread > .v2-right.zoned { padding: 0; }
 .compact-thread .zone-tickets { max-height: 42%; }
 
@@ -1012,6 +903,48 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .utility-logged .icon { width: 14px; height: 14px; }
 
 .tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--danger); vertical-align: 2px; }
+
+/* Flat: gli stessi colori dei temi a vetro, senza l'effetto vetro (niente sfocature, bagliori, riflessi, sfumature). */
+:root[data-style="flat"] {
+  --blur: none; --seg-blur: none; --glow-a: transparent; --glow-b: transparent;
+  --glow-rest: 0 0 transparent; --glow-hover: 0 0 transparent; --glow-left: 0 0 transparent; --glow-right: 0 0 transparent;
+  --highlight: 0 0 transparent; --btn-highlight: 0 0 transparent; --btn-line: transparent;
+  --card-shadow: none; --thumb-shadow: 0 1px 2px rgba(0, 0, 0, .12); --seg-shadow: 0 0 transparent;
+}
+
+/* Cornice tinta, per tutti i temi: lo sfondo fa da cornice, le cartelle ci stanno sopra senza riquadro, lista e thread
+   sono card piene che staccano. Vetro: sfondo sfumato e card in rilievo; flat: sfondo pieno e card con il solo bordo. */
+.workspace.v2 > .folders { border-color: transparent; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.folder .icon { color: var(--accent); }
+.workspace.v2 > :is(.v2-list, .v2-main) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* chiaro */
+:root[data-mode="light"] { --bg: #dbe7f8; --message-bg: #f4f8fd; }
+:root[data-mode="light"] .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(16, 110, 190, .18); background: #fff; }
+:root[data-mode="light"] .folder:hover { background: rgba(255, 255, 255, .45); }
+:root[data-mode="light"] .folder[aria-current="true"] { border-color: transparent; background: rgba(255, 255, 255, .78); color: #0c447c; }
+:root[data-mode="light"] .item[aria-current="true"] { border-color: transparent; background: #e8f2fc; }
+:root[data-mode="light"] .message:not(.service) { border-color: #e1eaf5; }
+:root[data-mode="light"] .drawer { border-right-color: rgba(16, 110, 190, .18); }
+:root[data-mode="light"]:not([data-style="flat"]) body, :root[data-mode="light"]:not([data-style="flat"]) .drawer { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
+:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 4px 14px rgba(16, 80, 160, .08); }
+:root[data-mode="light"]:not([data-style="flat"]) .folder[aria-current="true"] { box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
+:root[data-mode="light"][data-style="flat"] { --bg: #e3ecf7; }
+:root[data-mode="light"][data-style="flat"] body, :root[data-mode="light"][data-style="flat"] .drawer { background: var(--bg); }
+:root[data-mode="light"][data-style="flat"] .workspace.v2 > :is(.v2-list, .v2-main) { border-color: #cddbec; box-shadow: none; }
+:root[data-mode="light"][data-style="flat"] .folder[aria-current="true"] { border-color: #cddbec; background: #fff; }
+/* scuro (definito): sfondo quasi nero, card blu notte più chiare con il bordo azzurro */
+:root:not([data-mode="light"]) { --bg: #070c19; --message-bg: #202c47; }
+:root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(124, 180, 255, .26); background: #18223a; }
+:root:not([data-mode="light"]) .folder:hover { background: rgba(255, 255, 255, .06); }
+:root:not([data-mode="light"]) .folder[aria-current="true"] { border-color: rgba(124, 180, 255, .26); background: #18223a; color: #e3efff; }
+:root:not([data-mode="light"]) .item[aria-current="true"] { border-color: rgba(124, 180, 255, .3); background: rgba(124, 180, 255, .16); }
+:root:not([data-mode="light"]) .message:not(.service) { border-color: rgba(124, 180, 255, .12); }
+:root:not([data-mode="light"]) .drawer { border-right-color: rgba(124, 180, 255, .26); }
+:root:not([data-mode="light"]):not([data-style="flat"]) body, :root:not([data-mode="light"]):not([data-style="flat"]) .drawer { background: linear-gradient(135deg, #060b18 0%, #0a1022 55%, #120c22 100%) fixed; }
+:root:not([data-mode="light"]):not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08); }
+:root:not([data-mode="light"]):not([data-style="flat"]) .folder[aria-current="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+:root:not([data-mode="light"])[data-style="flat"] body, :root:not([data-mode="light"])[data-style="flat"] .drawer { background: var(--bg); }
+:root:not([data-mode="light"])[data-style="flat"] .workspace.v2 > :is(.v2-list, .v2-main) { border-color: #2a3a5a; box-shadow: none; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
