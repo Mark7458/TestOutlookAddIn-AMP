@@ -872,6 +872,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .ticket-picked .ao-ticket-card { border-color: var(--accent-line) !important; box-shadow: var(--glow-rest); }
 .head-button.tone-warning[aria-pressed="true"] { border-color: color-mix(in srgb, var(--warning) 55%, transparent); background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
 .head-button.tone-success[aria-pressed="true"] { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.composer-close { display: flex; align-items: center; gap: 8px; padding: 8px 0 2px; color: var(--muted); font-size: var(--fs-sm); cursor: pointer; } .composer-close input { width: 16px; height: 16px; accent-color: var(--accent-fill); }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -2285,7 +2286,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         await exitCard([...document.querySelectorAll(`[data-card="${CSS.escape(item.key)}"]`)].find(node => node.offsetParent));
         closeSelected();
         await loadLists();
-        showStatus('Ignorata', 'success', null, ICONS.cardIgnore);
+        showStatus('Spostata nelle Ignorate', 'success', { label: 'Annulla', onclick: async () => { await run(() => Data.thread({ ...item, status: 'Ignored' }, 'restore'), null); await loadLists(); } }, ICONS.cardIgnore);
     }
 
     // Inoltro in quattro passi: ticket, risposta con la sigla del gruppo, inoltro, chiusura del ticket. Al primo passo
@@ -2406,6 +2407,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             ...(ticket ? { ticketId: ticket.number, reference: ticket.ampReference || ticket.number } : {})
         }), 'Risposta inviata');
         if (!done) return;
+        const closing = draft.closeTicket && state.lists.tickets.find(ticket => ticket.number === draft.closeTicket);
+        if (closing) { const update = updateDraft(closing); Object.assign(update, { type: 'resolve', text: draft.text.trim() }); await updateTicket(closing); }
         state.drafts.delete(item.parentItemId);
         state.composing.delete(item.parentItemId);
         state.threads.delete(item.parentItemId);
@@ -2645,13 +2648,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     function v2Message(entry, thread, item, body, service, compact) {
         const picked = !service && pickedMessage(item)?.id === entry.id;
         const kind = service ? (FORWARD_SUBJECT.test(entry.subject) ? ' service forwarded' : ' service') : '';
-        const choose = () => { if (service) toggleMessage(item, entry.id); else pickMessage(item, entry); };
+        const action = state.sideCards.get(item.key)?.choice;
+        const takesText = ['close', 'hold'].includes(action);
+        const choose = () => {
+            if (takesText) return useMessageText(item, entry);
+            if (service) toggleMessage(item, entry.id); else pickMessage(item, entry);
+        };
         const keys = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } };
         if (compact) return h('article', { class: `message compact${kind}`, 'data-message': entry.id, role: 'button', tabindex: '0', onclick: choose, onkeydown: keys },
             h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
             h('span', { class: 'message-snippet' }, body?.text ? body.text.replace(/\s+/g, ' ').slice(0, 140) : ''),
             h('span', { class: 'message-time' }, shortWhen(entry.receivedAt)));
-        return h('article', { class: `message${kind}${service ? '' : ' pickable'}${picked ? ' picked' : ''}`, 'data-message': entry.id, 'aria-selected': service ? null : String(picked), tabindex: service ? null : '0',
+        return h('article', { class: `message${kind}${service && !takesText ? '' : ' pickable'}${picked && !takesText ? ' picked' : ''}`, 'data-message': entry.id, 'aria-selected': service ? null : String(picked), tabindex: service && !takesText ? null : '0',
             onclick: event => { if (!event.target.closest('a, button') && !window.getSelection()?.toString()) choose(); }, onkeydown: service ? null : keys },
             h('div', { class: 'message-head' },
                 h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
@@ -2709,6 +2717,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             draft.bccOpen ? field('bcc', 'Ccn') : null,
             field('subject', 'Oggetto'),
             h('textarea', { id: `reply-text-${id}`, placeholder: 'Scrivi la risposta', 'aria-label': 'Testo della risposta', oninput: event => change('text', event.target.value) }, draft.text),
+            isV2() && openThreadTicket(item) ? h('label', { class: 'composer-close' },
+                h('input', { type: 'checkbox', checked: Boolean(draft.closeTicket), onchange: event => change('closeTicket', event.target.checked ? openThreadTicket(item).number : '') }),
+                h('span', {}, `Chiudi anche ${openThreadTicket(item).number} con questa risposta`)) : null,
             h('div', { class: 'composer-actions' },
                 responses.length ? h('label', { class: 'link responses' }, icon(ICONS.responses), 'Risposte',
                     h('select', { 'aria-label': 'Risposte utili', onchange: event => { const chosen = state.settings.usefulResponses[event.target.value]; if (chosen) { change('text', chosen.response || ''); render(); } } },
@@ -4304,13 +4315,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         opened.add(entry.id);
         state.expanded.set(item.parentItemId, opened);
         const thread = state.threads.get(item.parentItemId);
-        const hold = state.sideCards.get(item.key);
-        if (hold?.choice === 'hold' && hold.ticket) {
-            const ticket = state.lists.tickets.find(other => other.number === hold.ticket);
-            const text = thread?.bodies.get(entry.id);
-            if (ticket && text) updateDraft(ticket).text = (text.newText || text.text || '').trim();
-            return render();
-        }
         if (!changed) return render();
         const draft = state.drafts.get(item.parentItemId);
         if (draft && state.composing.has(item.parentItemId) && thread) state.drafts.set(item.parentItemId, { ...replyDraft(item, thread, entry.id, draft.mode), text: draft.text });
@@ -4357,7 +4361,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('div', { class: 'segmented hold-chips', role: 'group', 'aria-label': 'Fino a' }, quick('Tra 1 ora', '1h'), quick('Alle 14', '14'), quick('Domani 9', 'tomorrow')),
                 h('input', { class: 'ao-input', type: 'datetime-local', 'aria-label': 'Fino a', value: local, onchange: event => setUntil(event.target.value ? new Date(event.target.value) : null) })),
             h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, closing ? 'Testo della chiusura' : 'Messaggio'),
-                h('textarea', { class: 'ao-input', id: `action-text-${ticket.number}`, rows: '4', placeholder: closing ? '' : 'Scrivilo o scegli una mail nel thread', oninput: event => { draft.text = event.target.value; const button = document.querySelector('.action-card .ao-primary'); if (button) button.disabled = !(draft.text.trim() && (closing || draft.holdUntil)); } }, draft.text)),
+                h('textarea', { class: 'ao-input', id: `action-text-${ticket.number}`, rows: '4', placeholder: 'Scrivilo o scegli una mail nel thread', oninput: event => { draft.text = event.target.value; const button = document.querySelector('.action-card .ao-primary'); if (button) button.disabled = !(draft.text.trim() && (closing || draft.holdUntil)); } }, draft.text)),
             h('div', { class: 'ao-actions' },
                 h('button', { type: 'button', class: `ao-button ao-primary${closing ? TICKET_FILLS.resolve : TICKET_FILLS.hold}`, disabled: !ready || state.busy, onclick: () => updateTicket(ticket) }, closing ? 'Chiudi ticket' : 'Rimanda'))));
     }
@@ -4440,6 +4444,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 closedSection(item.parentItemId)),
             item.parentItemId ? remindersSection(item) : null);
     }
+    // Chiudi ticket / Rimanda: il testo si scrive o si prende da una mail del thread (per esempio la risposta appena mandata).
+    function useMessageText(item, entry) {
+        const card = state.sideCards.get(item.key);
+        const ticket = state.lists.tickets.find(other => other.number === card?.ticket);
+        const body = state.threads.get(item.parentItemId)?.bodies.get(entry.id);
+        if (!ticket || !body) return;
+        updateDraft(ticket).text = (body.newText || body.text || '').trim();
+        render();
+        document.getElementById(`action-text-${ticket.number}`)?.focus({ preventScroll: true });
+    }
     function pickableTicket(item, ticket, node) {
         const card = state.sideCards.get(item.key);
         if (!card || !['close', 'hold'].includes(card.choice) || !OPEN_TICKET_STATUSES.includes(ticket.status)) return node;
@@ -4507,7 +4521,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             if (item.section === 'active') {
                 forwardGroups().forEach(group => actions.push([`Inoltra a ${group.tag} · ${group.name}`, '', () => { makeRoom(); openCard(item, received?.id || null, 'forward'); sideCardFor(item).group = group.id; render(); }]));
                 actions.push([isMe(item.assignedTo) ? 'Togli la mia etichetta' : 'Metti la mia etichetta', 'E', () => toggleTag(item)]);
-                actions.push(['Ignora', '', () => { makeRoom(); openCard(item, received?.id || null, 'ignore'); }]);
+                actions.push(['Ignora (sposta nelle Ignorate)', '', () => ignoreThread(item)]);
             }
             if (openThreadTicket(item)) { actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['Rimanda', '', () => startTicketAction(item, 'hold')]); }
         }
