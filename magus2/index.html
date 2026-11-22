@@ -1002,6 +1002,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .compact-thread > .v2-right.zoned { padding: 0; }
 .compact-thread .zone-tickets { max-height: 42%; }
 
+/* Utility sul ticket: indirizzi cliccabili nelle mail (arancione = casella, azzurro = membro), riga del ticket, esito */
+.mail-address { display: inline; padding: 0 4px; border: 1px dashed var(--accent-line); border-radius: 6px; background: var(--selected); color: var(--accent); font: inherit; cursor: pointer; }
+.mail-address:hover { border-style: solid; }
+.mail-address.chosen { border: 1px solid var(--warning); background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+.mail-address.member { border-style: solid; }
+.utility-ticket { margin: 0 0 6px; font-weight: 500; }
+.utility-logged { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); font-size: var(--fs-sm); }
+.utility-logged .icon { width: 14px; height: 14px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1547,7 +1556,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     103: [['Sara Gialli <sara.gialli@agenzia.it>', 260, 'Aggiungo: serve anche l\'accesso ai file condivisi del canale.', false], ['Sara Gialli <sara.gialli@agenzia.it>', 200, 'Buongiorno,\n\nserve abilitare la chat Teams con un consulente esterno.\n\nSara', false], [BOX, 150, 'Salve,\n\nci indica l\'indirizzo del consulente?\n\nSaluti,\nLuigi Verdi', false], ['Sara Gialli <sara.gialli@agenzia.it>', 95, 'È consulente@studio-esterno.it, grazie.', false]],
     104: [['Marco Blu <marco.blu@agenzia.it>', 160, 'Buongiorno,\n\nvanno aggiunti alla lista uffici-roma@agenzia.it i colleghi in allegato.\n\nGrazie', true]],
     105: [['Elena Viola <elena.viola@agenzia.it>', 1560, 'Ho cambiato telefono e non riesco più ad approvare l\'accesso.', false], [BOX, 1500, 'Salve,\n\nprocediamo con il reset del metodo di autenticazione.\n\nSaluti,\nLuigi Verdi', false]],
-    106: [['Giorgio Rosa <giorgio.rosa@agenzia.it>', 260, 'La casella protocollo non compare più in Outlook.', false], [BOX, 200, 'Salve,\n\nsi prende in carico la richiesta, riferimento INC0123456.\n\nSaluti,\nMario Rossi', false], ['Giorgio Rosa <giorgio.rosa@agenzia.it>', 30, 'Ora la vedo ma non riesco a inviare per conto della casella.', false]],
+    106: [['Giorgio Rosa <giorgio.rosa@agenzia.it>', 260, 'La casella protocollo non compare più in Outlook.', false], [BOX, 200, 'Salve,\n\nsi prende in carico la richiesta, riferimento INC0123456.\n\nSaluti,\nMario Rossi', false], ['Giorgio Rosa <giorgio.rosa@agenzia.it>', 30, 'Ora la vedo ma non riesco a inviare per conto della casella protocollo@agenzia.it. Potete dare il permesso anche a marco.rossi@agenzia.it e giulia.ferri@agenzia.it? In copia luca.neri@agenzia.it.', false]],
     107: [['Chiara Verdi <chiara.verdi@agenzia.it>', 3100, 'Dobbiamo importare un archivio PST di 30 GB nella nuova casella.', true], [BOX, 3000, 'Salve,\n\nattendiamo il caricamento del file nella cartella condivisa.\n\nSaluti,\nMario Rossi', false]],
     201: [['Notifiche <noreply@fornitore.it>', 300, 'Novità del mese sui servizi cloud.', false]]
   };
@@ -2135,6 +2144,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         closedOpen: null, // parentItemId con la sezione dei ticket chiusi aperta
         tagEntering: null,
         utility: { step: 0, operation: '', agency: '', values: {}, run: null }, // Utility: passo e dati dell'attività
+        threadUtility: null, utilityEvents: new Map(), // Utility aperta sul ticket del thread; righe "Utility su …" nella cronologia
         toolsTab: 'diagnostics', health: null, refreshDraft: null, // riga della coda con l'etichetta appena messa (piccolo rimbalzo)
         panel: null, // azione aperta nella colonna dei dettagli: take | forward | update
         forms: new Map(), // chiave → bozza dei moduli (presa in carico, aggiornamento, nuovo ticket)
@@ -2817,7 +2827,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
                 picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Mail scelta') : null,
                 h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
-            !body ? h('p', { class: 'message-body loading' }, 'Caricamento…') : body.error ? h('p', { class: 'message-body loading' }, body.error) : h('p', { class: 'message-body' }, body.text),
+            !body ? h('p', { class: 'message-body loading' }, 'Caricamento…') : body.error ? h('p', { class: 'message-body loading' }, body.error) : h('p', { class: 'message-body' }, utilityPicking(item) ? addressText(body.text) : body.text),
             entry.hasAttachment || body?.hasAttachments ? h('div', { class: 'attachments' }, h('span', { class: 'attachment' }, icon(ICONS.attach), 'Allegati')) : null);
     }
     // Gestisci (sotto ogni mail ricevuta): Prendi in carico e, in coda, Inoltra. Il ticket nasce da questa mail.
@@ -3388,6 +3398,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             }[item.status];
             if (text) events.push({ at: item.statusAt, text, iconName: item.status === 'Forwarded' ? 'cardForward' : item.status === 'Ignored' ? 'ignored' : 'tag' });
         }
+        (state.utilityEvents.get(item.parentItemId) || []).forEach(event => events.push(event));
         state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && ticket.openedAt)
             .forEach(ticket => events.push({ at: ticket.openedAt, text: `Aperto ${ticket.number}${ticket.operator ? ` · ${who(ticket.operator)}` : ''}`, iconName: 'ticket' }));
         return events;
@@ -3965,26 +3976,32 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (!thread) return null;
         return pickedMessage(item) || [...(thread.messages || [])].reverse().find(entry => !sameEmail(entry.from.email, serviceMailbox())) || null;
     }
-    function utilityDefault(field) {
+    function utilityDefault(field, flow = state.utility) {
         if (field.source === 'selectedMail') {
             const thread = state.threads.get(selectedItem()?.parentItemId);
             const mail = utilitySourceMail();
-            return mailAddresses(mail ? thread.bodies.get(mail.id)?.text : '').join('\n');
+            const operation = utilityCatalog().operations.find(entry => entry.id === flow?.operation);
+            const taken = (operation?.fields || []).filter(other => other.type === 'email').map(other => String(flow?.values?.[other.id] || '').toLowerCase()).filter(Boolean);
+            return mailAddresses(mail ? thread.bodies.get(mail.id)?.text : '').filter(address => !taken.includes(address.toLowerCase()) && !sameEmail(address, serviceMailbox())).join('\n');
         }
         if (field.default !== undefined) return Array.isArray(field.default) ? [...field.default] : field.default;
         return field.type === 'choice' && field.multiple ? [] : field.type === 'switch' ? false : '';
     }
     // Ricompila i campi che leggono dalla mail (Utility aperta dal thread, dopo un clic su una mail).
     function refillUtilityFromMail() {
-        const operation = utilityCatalog().operations.find(entry => entry.id === state.utility.operation);
-        (operation?.fields || []).filter(field => field.source === 'selectedMail').forEach(field => { state.utility.values[field.id] = utilityDefault(field); });
+        const flow = state.threadUtility;
+        if (!flow) return;
+        const operation = utilityCatalog().operations.find(entry => entry.id === flow.operation);
+        (operation?.fields || []).filter(field => field.source === 'selectedMail').forEach(field => { flow.values[field.id] = utilityDefault(field, flow); });
     }
     function utilityView(inPanel = false) {
-        const flow = state.utility;
-        const { operations } = utilityCatalog();
+        // Nel pannello del thread: il flusso del ticket scelto, senza il passo Agenzia (è quella del ticket) e solo con
+        // le attività abilitate su quell'agenzia.
+        const flow = inPanel ? state.threadUtility : state.utility;
+        const operations = utilityCatalog().operations.filter(item => !inPanel || item.agencies.some(([id]) => id === flow.agency));
         const operation = operations.find(item => item.id === flow.operation) || null;
         const delegated = operation?.auth === 'delegated';
-        const steps = delegated ? [0, 1, 2, 3, 4] : [0, 1, 2, 4]; // con il certificato il passo Accesso non c'è
+        const steps = inPanel ? (delegated ? [0, 2, 3, 4] : [0, 2, 4]) : delegated ? [0, 1, 2, 3, 4] : [0, 1, 2, 4]; // con il certificato il passo Accesso non c'è
         const at = Math.max(0, steps.indexOf(flow.step));
         const go = step => { flow.step = step; render(); };
         const next = () => go(steps[at + 1]);
@@ -4001,10 +4018,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (flow.step === 0) {
             body = [h('section', { class: 'ao-card' }, operations.length
                 ? operations.map(item => pick(item.id === flow.operation, item.icon || '⚙', item.name, item.service, () => {
-                    if (flow.operation !== item.id) Object.assign(flow, { operation: item.id, agency: '', values: Object.fromEntries(item.fields.map(field => [field.id, utilityDefault(field)])) });
+                    if (flow.operation !== item.id) Object.assign(flow, { operation: item.id, agency: inPanel ? flow.agency : '', values: {} }, { values: Object.fromEntries(item.fields.map(field => [field.id, field.source === 'selectedMail' ? '' : utilityDefault(field)])) });
+                    if (inPanel) refillUtilityFromMail(); else item.fields.filter(field => field.source === 'selectedMail').forEach(field => { flow.values[field.id] = utilityDefault(field, flow); });
                     render();
                 }))
-                : h('p', { class: 'ao-hint' }, 'Nessuna attività configurata.')), nav('Avanti', Boolean(operation))];
+                : h('p', { class: 'ao-hint' }, inPanel ? "Nessuna attività abilitata sull'agenzia del ticket." : 'Nessuna attività configurata.')), nav('Avanti', Boolean(operation))];
         } else if (flow.step === 1) {
             body = [h('section', { class: 'ao-card' }, operation.agencies.length
                 ? [operation.agencies.map(([id, agency]) => pick(id === flow.agency, '🏛', `${agency.shortName || id} · ${agency.displayName || ''}`, null, () => { flow.agency = id; render(); })),
@@ -4014,7 +4032,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             const values = flow.values;
             const missing = operation.fields.find(field => field.required && emptyValue(values[field.id]));
             const hint = h('p', { class: 'ao-hint' }, missing ? `Manca: ${missing.label}` : '');
-            const actions = nav(delegated ? 'Avanti' : 'Avvia', !missing, () => { if (delegated) next(); else runUtility(operation); });
+            const actions = nav(delegated ? 'Avanti' : 'Avvia', !missing, () => { if (delegated) next(); else runUtility(operation, flow, inPanel); });
             const refreshNav = () => {
                 const gap = operation.fields.find(item => item.required && emptyValue(values[item.id]));
                 actions.querySelector('.ao-primary').disabled = Boolean(gap);
@@ -4022,7 +4040,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             };
             const field = item => {
                 const source = item.source === 'selectedMail' ? utilitySourceMail() : null;
-                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, source ? ` · dalla mail di ${source.from.name || source.from.email} · ${shortWhen(source.receivedAt)}` : ' · dalla mail selezionata')] : item.label;
+                const label = item.source === 'selectedMail' ? [item.label, h('span', { class: 'ao-text-accent' }, source ? ` · dalla mail di ${source.from.name || source.from.email} · ${shortWhen(source.receivedAt)}` : ' · dalla mail selezionata')]
+                    : inPanel && item.type === 'email' ? [item.label, h('span', { class: 'ao-text-accent' }, ' · clicca un indirizzo nella mail')] : item.label;
                 if (item.type === 'switch') return h('label', { class: 'ao-switch-row' }, h('span', {}, item.label),
                     h('input', { type: 'checkbox', class: 'ao-switch', checked: Boolean(values[item.id]), onchange: event => { values[item.id] = event.target.checked; } }));
                 if (item.type === 'choice') return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
@@ -4037,7 +4056,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 return h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label),
                     h(multiline ? 'textarea' : 'input', {
                         class: 'ao-input', id: `utility-${item.id}`, ...(multiline ? { rows: '3' } : { type: item.type === 'number' ? 'number' : item.type === 'email' ? 'email' : 'text', value: String(values[item.id] ?? '') }),
-                        placeholder: item.placeholder || '', oninput: event => { values[item.id] = event.target.value; refreshNav(); }
+                        placeholder: item.placeholder || '', oninput: event => { values[item.id] = event.target.value; if (inPanel && item.type === 'email') { refillUtilityFromMail(); render(); } else refreshNav(); }
                     }, multiline ? String(values[item.id] ?? '') : null));
             };
             body = [h('section', { class: 'ao-card' }, operation.fields.map(field), hint), actions];
@@ -4061,12 +4080,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 run?.error ? h('p', { class: 'ao-text-danger' }, run.error) : null),
             run?.pending ? null : h('div', { class: 'ao-actions ao-step-nav' },
                 failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => { flow.step = 2; render(); } }, 'Indietro') : null,
-                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => runUtility(operation) }, 'Riprova') : null,
-                h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => { Object.assign(flow, { step: 0, operation: '', agency: '', values: {}, run: null }); render(); } }, 'Nuova attività'))];
+                failed ? h('button', { type: 'button', class: 'ao-button', onclick: () => runUtility(operation, flow, inPanel) }, 'Riprova') : null,
+                inPanel ? null : h('button', { type: 'button', class: 'ao-button ao-primary', onclick: () => { Object.assign(flow, { step: 0, operation: '', agency: '', values: {}, run: null }); render(); } }, 'Nuova attività')),
+            inPanel && flow.logged ? h('p', { class: 'utility-logged' }, icon(ICONS.check), `Esito registrato su ${flow.ticket}`) : null,
+            inPanel && flow.logError ? h('p', { class: 'ao-text-danger' }, `Esito non registrato sul ticket: ${flow.logError}`) : null];
         }
         // Su computer a tutto schermo: in alto i passi con il nome, a sinistra il riepilogo, al centro il passo;
         // su telefono come nel pannello (barra dei passi, titolo, contenuto).
-        if (inPanel) return aoHost(h('div', { class: 'ao-tools utility-panel' }, progress, head, body));
+        if (inPanel) {
+            const agencyInfo = Object.entries(state.config?.agencies || {}).find(([id]) => id === flow.agency)?.[1];
+            const ticketLine = h('p', { class: 'ao-hint utility-ticket' }, `${flow.ticket}${agencyInfo ? ` · ${agencyInfo.shortName || flow.agency}` : ''}`);
+            return aoHost(h('div', { class: 'ao-tools utility-panel' }, ticketLine, progress, head, body));
+        }
         const wide = document.documentElement.dataset.layout !== 'mobile';
         if (!wide) return h('main', { class: 'workspace single' }, h('section', { class: 'column' }, h('div', { class: 'card' }, h('div', { class: 'scroll', 'data-scroll': 'utility' },
             aoHost(h('div', { class: 'ao-tools' }, progress, head, body))))));
@@ -4084,8 +4109,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             aoHost(h('div', { class: 'u-wide' }, stepper, h('div', { class: 'u-layout' }, summary, h('div', { class: `ao-tools u-main u-step-${flow.step}` }, head, body))))))));
     }
     // Esecuzione: parte da sola dopo i Dati (o l'Accesso). I passi si colorano con l'esito di RunUtility.
-    async function runUtility(operation) {
-        const flow = state.utility;
+    async function runUtility(operation, flow = state.utility, inPanel = false) {
         const params = Object.fromEntries(operation.fields.map(field => {
             const value = flow.values[field.id];
             return [field.id, field.type === 'emailList' ? mailAddresses(value) : field.type === 'number' ? Number(value) : value];
@@ -4098,7 +4122,27 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         } catch (error) {
             flow.run = { error: error?.message || String(error), result: error?.data || null };
         }
+        if (inPanel && !flow.run.error && !(flow.run.result?.steps || []).some(step => step.ok === false)) await logUtilityOnTicket(operation, flow, params);
         render();
+    }
+    // Esito della Utility nelle note del ticket (come un commento) e una riga nella cronologia del thread.
+    async function logUtilityOnTicket(operation, flow, params) {
+        const ticket = state.lists.tickets.find(entry => entry.number === flow.ticket);
+        if (!ticket) return;
+        const items = flow.run.result?.items || [];
+        const target = operation.fields.filter(field => field.type === 'email').map(field => params[field.id]).filter(Boolean).join(', ');
+        const done = items.filter(item => item.ok !== false).map(item => item.name);
+        const text = `${operation.name}${target ? ` (${target})` : ''}${done.length ? `: ${done.join(', ')}` : ''}`;
+        try {
+            await Data.updateTicket(ticket, 'utility', `Utility · ${text}`);
+            flow.logged = text;
+            const item = selectedItem();
+            if (item?.parentItemId) {
+                const list = state.utilityEvents.get(item.parentItemId) || [];
+                list.push({ at: new Date().toISOString(), text: `Utility su ${ticket.number} · ${operation.name}${state.user?.name ? ` · ${surname(state.user.name)}` : ''}`, iconName: 'utility' });
+                state.utilityEvents.set(item.parentItemId, list);
+            }
+        } catch (error) { flow.logError = error?.message || String(error); }
     }
 
     // ------------------------------------------------------------------
@@ -4506,11 +4550,47 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     const openThreadTicket = item => threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)))[0] || null;
     // Chiudi ticket e In attesa lavorano su un ticket del thread: si parte dal principale aperto, un clic su un altro ticket
     // a destra lo cambia; il pannello chiede il testo (e per In attesa fino a quando) e conferma.
-    // Utility dal thread: stesso pannello di lato; i campi che leggono gli indirizzi prendono quelli della mail scelta.
+    // Con la Utility aperta al passo Dati, gli indirizzi nelle mail diventano cliccabili (un clic = la casella).
+    function utilityPicking(item) {
+        const flow = state.threadUtility;
+        if (state.sideCards.get(item.key)?.choice !== 'utility' || flow?.step !== 2) return false;
+        return Boolean(utilityCatalog().operations.find(entry => entry.id === flow.operation)?.fields.some(field => field.type === 'email'));
+    }
+    function addressText(text) {
+        const flow = state.threadUtility;
+        const operation = utilityCatalog().operations.find(entry => entry.id === flow.operation);
+        const chosen = (operation?.fields || []).filter(field => field.type === 'email').map(field => String(flow.values[field.id] || '').toLowerCase());
+        const members = (operation?.fields || []).filter(field => field.source === 'selectedMail').flatMap(field => mailAddresses(flow.values[field.id]).map(address => address.toLowerCase()));
+        const parts = String(text || '').split(/([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g);
+        return parts.map((part, index) => index % 2 === 0 ? part : h('button', {
+            type: 'button', class: `mail-address${chosen.includes(part.toLowerCase()) ? ' chosen' : members.includes(part.toLowerCase()) ? ' member' : ''}`,
+            title: chosen.includes(part.toLowerCase()) ? 'Togli dalla casella' : 'Usa come casella',
+            onclick: event => { event.stopPropagation(); pickUtilityAddress(part); }
+        }, part));
+    }
+    // Utility sul ticket scelto (stesso pannello di lato): l'agenzia è quella del ticket, i dati si prendono dalle mail
+    // (un clic su un indirizzo = la casella, i membri sono gli altri indirizzi della mail scelta), l'esito va nelle note del ticket.
+    function ticketAgencyId(ticket) {
+        const agencies = Object.entries(state.config?.agencies || {});
+        const code = String(ticket?.agency || '').toLowerCase();
+        return agencies.find(([id, agency]) => id.toLowerCase() === code || String(agency.shortName || '').toLowerCase() === code)?.[0] || '';
+    }
     function openUtilityPanel(item) {
         if (state.sideCards.get(item.key)?.choice === 'utility') return closeTicketPanel(item);
+        const ticket = pickedTicket(item);
+        if (!ticket) return;
         makeRoom();
-        state.sideCards.set(item.key, { messageId: pickedMessage(item)?.id || null, choice: 'utility', group: null });
+        state.sideCards.set(item.key, { messageId: pickedMessage(item)?.id || null, choice: 'utility', group: null, ticket: ticket.number });
+        state.threadUtility = { ticket: ticket.number, step: 0, operation: '', agency: ticketAgencyId(ticket), values: {}, run: null };
+        render();
+    }
+    // Indirizzo cliccato in una mail (Utility aperta, passo Dati): va nel campo della casella; i membri si ricalcolano.
+    function pickUtilityAddress(address) {
+        const flow = state.threadUtility;
+        const operation = utilityCatalog().operations.find(entry => entry.id === flow?.operation);
+        const target = operation?.fields.find(field => field.type === 'email');
+        if (!target) return;
+        flow.values[target.id] = flow.values[target.id] === address ? '' : address;
         refillUtilityFromMail();
         render();
     }
@@ -4565,7 +4645,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
             hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
             hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null,
-            item.parentItemId ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
+            hasTicket ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
     }
     // Rimanda (come Later di Help Scout): il thread esce dalle cartelle e torna all'ora scelta. Per ora resta in
     // questo browser (serve un campo su MailEvents per condividerlo col team).
@@ -4792,8 +4872,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 actions.push([isMe(item.assignedTo) ? 'Togli la mia etichetta' : 'Metti la mia etichetta', 'E', () => toggleTag(item)]);
                 actions.push(['Ignora (sposta nelle Ignorate)', '', () => ignoreThread(item)]);
             }
-            actions.push(['Utility sul thread', '', () => openUtilityPanel(item)]);
-            if (openThreadTicket(item)) { actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['In attesa', '', () => startTicketAction(item, 'hold')]); }
+            if (openThreadTicket(item)) { actions.push(['Utility sul ticket', '', () => openUtilityPanel(item)]); actions.push(['Chiudi ticket', '', () => startTicketAction(item, 'close')]); actions.push(['In attesa', '', () => startTicketAction(item, 'hold')]); }
         }
         [...FOLDERS, ...TOOLS].forEach(([id, label]) => actions.push([`Vai a ${label}`, '', () => goTo(id)]));
         actions.push(['Impostazioni', '', () => { state.settingsOpen = true; render(); }]);
