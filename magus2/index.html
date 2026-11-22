@@ -919,6 +919,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .drawer .folders { min-height: 100%; border: 0; border-radius: 0; padding-top: max(14px, env(safe-area-inset-top, 0px)); }
 .reminder-alert { max-width: calc(100vw - 24px); right: 12px; bottom: 12px; }
 :root[data-layout="mobile"] .command-button { display: none; }
+/* Testata del thread allineata al corpo: le azioni stanno sopra la colonna Ticket e promemoria, larghe quanto lei */
+.v2-head.with-actions { display: grid; grid-template-columns: minmax(0, 1fr) 373px; gap: 0; padding: 0; }
+.v2-head-main { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px 14px 10px; }
+.v2-head.with-actions .head-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); align-items: stretch; gap: 4px; padding: 8px 10px; border-left: 1px solid var(--line); }
+.v2-head.with-actions .head-button { flex-direction: column; justify-content: center; gap: 4px; height: auto; min-height: 52px; padding: 6px 4px; font-size: var(--fs-xs); white-space: normal; text-align: center; line-height: 1.15; }
+.v2-head.with-actions .head-button .icon { width: 19px; height: 19px; }
+/* Promemoria: quando (4 scelte su tutta la larghezza), poi ora a mano e Aggiungi sulla stessa riga */
+.reminder-chips { display: flex; }
+.reminder-chips .segment { flex: 1; min-width: 0; padding: 0 4px; }
+.reminder-when { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.reminder-time { width: 100%; min-width: 0; box-sizing: border-box; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -4463,14 +4474,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const isTicket = item.newTicket || item.key.startsWith('ticket:');
         const listToggle = state.listHidden ? h('button', { type: 'button', class: 'head-action', title: 'Mostra la lista', 'aria-label': 'Mostra la lista', onclick: () => { state.listHidden = false; render(); } }, icon(ICONS.panelLeft)) : null;
         const status = item.key.startsWith('thread:') ? h('span', { class: `tag tone-${THREAD_TONE[item.status] || 'neutral'}` }, item.status === 'Forwarded' ? 'Inoltrata' : THREAD_CHIP[item.status] || 'Con ticket') : null;
-        const head = h('div', { class: 'v2-head' },
-            listToggle,
-            h('div', { class: 'v2-title' },
-                h('h1', { class: 'thread-title' }, item.subject),
-                h('div', { class: 'thread-sub' }, isTicket ? (item.number || '') : threadSubtitle(thread))),
-            status,
-            item.key.startsWith('thread:') ? h('span', { class: 'v2-tag' }, queueTag(item)) : null,
-            isSnoozed(item) ? h('span', { class: 'tag working' }, `fino a ${shortWhenLong(state.snoozed.get(String(item.parentItemId)))}`) : null,
+        // Testata a due celle come il corpo: a sinistra titolo, stato ed etichetta sopra la conversazione; a destra le
+        // azioni, larghe e allineate quanto la colonna Ticket e promemoria sotto.
+        const head = h('div', { class: `v2-head${isTicket ? '' : ' with-actions'}` },
+            h('div', { class: 'v2-head-main' },
+                listToggle,
+                h('div', { class: 'v2-title' },
+                    h('h1', { class: 'thread-title' }, item.subject),
+                    h('div', { class: 'thread-sub' }, isTicket ? (item.number || '') : threadSubtitle(thread))),
+                status,
+                item.key.startsWith('thread:') ? h('span', { class: 'v2-tag' }, queueTag(item)) : null),
             isTicket ? null : headActions(item));
         if (isTicket) return h('section', { class: 'v2-main' }, isCompact() ? null : head, h('div', { class: 'scroll v2-ticket-only', 'data-scroll': `v2ticket:${item.key}` }, h('div', { class: 'side' }, sideContent(item))));
         loadNotes(item.parentItemId);
@@ -4576,10 +4589,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 : sorted.length ? h('ul', { class: 'task-list' }, sorted.map(task => taskRow(task))) : null,
             h('div', { class: 'task-add' },
                 h('input', { id: 'task-title', placeholder: 'Nuovo promemoria', value: draft.title, 'aria-label': 'Nuovo promemoria', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
+                h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('30m', 'Tra 30 min'), chip('1h', 'Tra 1 ora'), chip('14', 'Alle 14'), chip('tomorrow', 'Domani 9')),
                 h('div', { class: 'reminder-when' },
-                    h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('30m', 'Tra 30 min'), chip('1h', 'Tra 1 ora'), chip('14', 'Alle 14'), chip('tomorrow', 'Domani 9')),
-                    h('input', { type: 'time', class: 'reminder-time', 'aria-label': 'A che ora', value: custom, onchange: event => { draft.when = event.target.value || '30m'; render(); } })),
-                h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi promemoria')));
+                    h('input', { type: 'time', class: 'reminder-time', 'aria-label': 'A che ora', value: custom, onchange: event => { draft.when = event.target.value || '30m'; render(); } }),
+                    h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi promemoria'))));
     }
     // Menu dei comandi (Ctrl+K, come Help Scout): azioni cercabili sul thread aperto e salti alle cartelle.
     function paletteActions() {
