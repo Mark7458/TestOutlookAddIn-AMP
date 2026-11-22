@@ -921,15 +921,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 :root[data-mode="light"] body, :root[data-mode="light"] .drawer { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
 :root[data-mode="light"] .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 4px 14px rgba(16, 80, 160, .08); }
 :root[data-mode="light"] .folder[aria-current="true"] { box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
-/* scuro (definito): sfondo quasi nero, card blu notte più chiare con il bordo azzurro */
-:root:not([data-mode="light"]) { --bg: #070c19; --message-bg: #202c47; }
-:root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(124, 180, 255, .26); background: #18223a; }
+/* scuro (definito): sfondo nero, card grafite più chiare con il bordo chiaro */
+:root:not([data-mode="light"]) { --bg: #08080a; --message-bg: #1f2025; --field-bg: #111215; --track: #0e0f12; --seg-track: #0e0f12; --option-bg: #1c1d22; --menu-bg: rgba(28, 29, 34, .97); --toast-bg: rgba(28, 29, 34, .95); }
+:root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(255, 255, 255, .13); background: #16171b; }
 :root:not([data-mode="light"]) .folder:hover { background: rgba(255, 255, 255, .06); }
-:root:not([data-mode="light"]) .folder[aria-current="true"] { border-color: rgba(124, 180, 255, .26); background: #18223a; color: #e3efff; }
+:root:not([data-mode="light"]) .folder[aria-current="true"] { border-color: rgba(255, 255, 255, .13); background: #16171b; color: #f2f4f8; }
 :root:not([data-mode="light"]) .item[aria-current="true"] { border-color: rgba(124, 180, 255, .3); background: rgba(124, 180, 255, .16); }
-:root:not([data-mode="light"]) .message:not(.service) { border-color: rgba(124, 180, 255, .12); }
-:root:not([data-mode="light"]) .drawer { border-right-color: rgba(124, 180, 255, .26); }
-:root:not([data-mode="light"]) body, :root:not([data-mode="light"]) .drawer { background: linear-gradient(135deg, #060b18 0%, #0a1022 55%, #120c22 100%) fixed; }
+:root:not([data-mode="light"]) .message:not(.service) { border-color: rgba(255, 255, 255, .08); }
+:root:not([data-mode="light"]) .drawer { border-right-color: rgba(255, 255, 255, .13); }
+:root:not([data-mode="light"]) body, :root:not([data-mode="light"]) .drawer { background: linear-gradient(135deg, #0b0c10 0%, #060607 55%, #0d0b11 100%) fixed; }
 :root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08); }
 :root:not([data-mode="light"]) .folder[aria-current="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 
