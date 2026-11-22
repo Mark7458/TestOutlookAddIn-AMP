@@ -874,6 +874,42 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .head-button.tone-success[aria-pressed="true"] { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
 .composer-close { display: flex; align-items: center; gap: 8px; padding: 8px 0 2px; color: var(--muted); font-size: var(--fs-sm); cursor: pointer; } .composer-close input { width: 16px; height: 16px; accent-color: var(--accent-fill); }
 
+/* =====================================================================================================================
+   Magus v2 su telefono e tablet (layout compatto): una cosa alla volta, menu ☰, azioni in basso, pannello dal basso
+   ===================================================================================================================== */
+.compact-bar { gap: 6px; }
+.compact-title { flex: 1; min-width: 0; margin: 0; overflow: hidden; font-size: var(--fs-md); font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.workspace.v2.compact { display: flex; flex-direction: column; min-height: 0; }
+.workspace.v2.compact > :is(.v2-list, .v2-main, .v2-tool) { flex: 1; min-height: 0; }
+.compact .v2-list-head .head-action { display: none; }
+.compact-thread { display: flex; flex-direction: column; }
+.compact-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 0; }
+.compact-head .thread-sub { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.compact-tags { flex: none; display: flex; align-items: center; gap: 6px; }
+.compact-tabs { flex: none; margin: 10px 12px 0; }
+.compact-tabs .segment { flex: 1; height: 32px; font-size: var(--fs-sm); }
+.compact-thread > .v2-conversation-wrap, .compact-thread > .v2-right { flex: 1; min-height: 0; }
+.compact-thread > .v2-right { border-left: 0; padding: 12px; }
+.compact-thread .editor { margin: 10px 12px 0; }
+.compact-thread .v2-conversation { padding: 10px 12px; }
+.compact-actions { flex: none; padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.compact-actions .head-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 2px; padding: 0; border: 0; }
+.compact-actions .head-button { flex-direction: column; justify-content: center; gap: 3px; height: 52px; padding: 0 2px; font-size: 11px; white-space: normal; text-align: center; line-height: 1.1; }
+.compact-actions .head-button .icon { width: 20px; height: 20px; }
+/* Pannello dell'azione: sale dal basso */
+.sheet-backdrop { position: fixed; inset: 0; z-index: 55; display: flex; align-items: flex-end; background: rgba(0, 0, 0, .4); animation: fade-in .15s linear; }
+.v2-panel.sheet { width: 100%; max-height: 82vh; border: 1px solid var(--line-strong); border-bottom: 0; border-left: 1px solid var(--line-strong); border-radius: 18px 18px 0 0; background: var(--bg); padding-bottom: env(safe-area-inset-bottom, 0px); animation: sheet-up .28s var(--ease) both; }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
+.sheet-grab { flex: none; width: 38px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--line-strong); }
+.v2-panel.sheet .side { padding: 0 12px 14px; }
+/* Menu delle cartelle (☰) */
+.drawer-backdrop { position: fixed; inset: 0; z-index: 56; background: rgba(0, 0, 0, .4); animation: fade-in .15s linear; }
+.drawer { width: min(290px, 84vw); height: 100%; overflow-y: auto; background: var(--bg); border-right: 1px solid var(--line-strong); animation: drawer-in .25s var(--ease) both; }
+@keyframes drawer-in { from { transform: translateX(-30px); opacity: 0; } }
+.drawer .folders { min-height: 100%; border: 0; border-radius: 0; padding-top: max(14px, env(safe-area-inset-top, 0px)); }
+.reminder-alert { max-width: calc(100vw - 24px); right: 12px; bottom: 12px; }
+:root[data-layout="mobile"] .command-button { display: none; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1578,6 +1614,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return node;
     }
     const ICONS = {
+        menu: '<path d="M3.5 6h13M3.5 10h13M3.5 14h13"/>',
         user: '<circle cx="10" cy="7" r="3"/><path d="M4.5 16.5c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5"/>',
         users: '<circle cx="7.5" cy="7.5" r="2.6"/><path d="M2.8 16c.6-2.6 2.5-3.9 4.7-3.9s4.1 1.3 4.7 3.9"/><path d="M12.5 5a2.6 2.6 0 0 1 0 5M14 12.3c1.6.4 2.8 1.6 3.2 3.7"/>',
         clock: '<circle cx="10" cy="10" r="6.5"/><path d="M10 6.5V10l2.5 1.5"/>',
@@ -1979,6 +2016,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         view: 'free', // free | mine | others | tickets | later | attention | ignored | mailless | tasks | teams | utility | tools
         listHidden: false, listAuto: false, // lista richiusa a mano, o da sola mentre c'è il pannello del ticket
         reminder: null, // promemoria scaduto da mostrare (avviso in Magus)
+        drawerOpen: false, mobileTab: 'mail', // telefono: menu delle cartelle; scheda del thread (mail | tickets)
         snoozed: (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem('magus_snooze_v1') || '{}'))); } catch { return new Map(); } })(),
         picked: new Map(), // v2: parentItemId → mail scelta nel thread
         notes: new Map(), noteDraft: '', mentions: [], editorMode: 'reply', // editor in cima al thread: reply | note // note interne del thread (anche sul canale Teams) e menzioni non lette
@@ -2449,6 +2487,16 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 
     function topbar() {
         const counts = { work: state.lists.active.length + state.lists.threads.length };
+        if (isCompact()) {
+            const item = state.tab === 'work' && !['tasks', 'teams', 'utility', 'tools'].includes(state.view) ? selectedItem() : null;
+            const title = item ? item.subject : [...FOLDERS, ...TOOLS].find(([id]) => id === state.view)?.[1] || 'Magus';
+            return h('header', { class: 'topbar compact-bar' },
+                item ? h('button', { type: 'button', class: 'head-action', title: 'Indietro', 'aria-label': 'Indietro', onclick: () => { state.selected = null; state.mobileTab = 'mail'; render(); } }, icon(ICONS.back))
+                    : h('button', { type: 'button', class: 'head-action', title: 'Cartelle', 'aria-label': 'Cartelle', onclick: () => { state.drawerOpen = true; render(); } }, icon(ICONS.menu)),
+                h('h1', { class: 'compact-title' }, title),
+                h('button', { type: 'button', class: 'head-action', title: 'Cerca o comando', 'aria-label': 'Cerca o comando', onclick: () => openPalette() }, icon(ICONS.search)),
+                accountMenu());
+        }
         if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, h('span', { class: 'brand' }, 'Magus'),
             h('button', { type: 'button', class: 'command-button', onclick: () => openPalette() }, icon(ICONS.search), h('span', {}, 'Cerca o comando'), h('kbd', {}, 'Ctrl K')),
             h('span', { class: 'ao-spacer' }), accountMenu());
@@ -2731,7 +2779,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const list = button.closest('.messages');
         return { left: button.getBoundingClientRect().left - list.getBoundingClientRect().left, width: button.offsetWidth, height: button.offsetHeight, radius: getComputedStyle(button).borderTopLeftRadius };
     }
-    const isV2 = () => document.documentElement.dataset.layout === 'wide';
+    const isV2 = () => true; // questo branch è la v2 su tutti gli schermi
+    const isCompact = () => document.documentElement.dataset.layout !== 'wide'; // telefono e tablet: una cosa alla volta
     async function openComposer(item, thread, mode, button, messageId) {
         const id = item.parentItemId;
         if (isV2()) {
@@ -4413,7 +4462,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             item.key.startsWith('thread:') ? h('span', { class: 'v2-tag' }, queueTag(item)) : null,
             isSnoozed(item) ? h('span', { class: 'tag working' }, `fino a ${shortWhenLong(state.snoozed.get(String(item.parentItemId)))}`) : null,
             isTicket ? null : headActions(item));
-        if (isTicket) return h('section', { class: 'v2-main' }, head, h('div', { class: 'scroll v2-ticket-only', 'data-scroll': `v2ticket:${item.key}` }, h('div', { class: 'side' }, sideContent(item))));
+        if (isTicket) return h('section', { class: 'v2-main' }, isCompact() ? null : head, h('div', { class: 'scroll v2-ticket-only', 'data-scroll': `v2ticket:${item.key}` }, h('div', { class: 'side' }, sideContent(item))));
         loadNotes(item.parentItemId);
         if (state.mentions.some(note => Number(note.parentItemId) === item.parentItemId)) {
             state.mentions = state.mentions.filter(note => Number(note.parentItemId) !== item.parentItemId);
@@ -4421,16 +4470,33 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         }
         const conversation = !thread || thread.loading ? empty('mail', 'Caricamento…') : thread.error ? empty('mail', thread.error) : h('div', { class: 'messages' }, timeline(item, thread));
         const panel = ticketPanelOpen(item);
+        const mails = h('div', { class: 'v2-conversation-wrap' }, item.parentItemId ? threadEditor(item, thread) : null, h('div', { class: 'scroll v2-conversation', 'data-scroll': `thread:${item.key}` }, conversation));
+        if (isCompact()) {
+            // Telefono: schede Mail | Ticket e promemoria, azioni nella barra in basso, pannello dell'azione dal basso.
+            const tab = state.mobileTab || 'mail';
+            const tickets = state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId && OPEN_TICKET_STATUSES.includes(ticket.status)).length;
+            const tabButton = (id, label) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(tab === id), onclick: () => { state.mobileTab = id; render(); } }, label);
+            return h('section', { class: 'v2-main compact-thread' },
+                h('div', { class: 'compact-head' },
+                    h('div', { class: 'thread-sub' }, threadSubtitle(thread)),
+                    h('div', { class: 'compact-tags' }, status, item.key.startsWith('thread:') ? h('span', { class: 'v2-tag' }, queueTag(item)) : null)),
+                h('div', { class: 'segmented compact-tabs', role: 'group', 'aria-label': 'Vista' }, tabButton('mail', 'Mail'), tabButton('tickets', tickets ? `Ticket e promemoria · ${tickets}` : 'Ticket e promemoria')),
+                tab === 'mail' ? mails : rightColumn(item),
+                h('nav', { class: 'compact-actions', 'aria-label': 'Azioni' }, headActions(item)),
+                panel ? h('div', { class: 'sheet-backdrop', onclick: event => { if (event.target === event.currentTarget) closeTicketPanel(item); } },
+                    h('aside', { class: 'v2-panel sheet', 'aria-label': 'Azione' }, h('span', { class: 'sheet-grab' }), panelHead(item), panelBody(item))) : null);
+        }
         return h('section', { class: `v2-main${panel ? ' with-panel' : ''} with-contact` },
             head,
             h('div', { class: 'v2-body' },
-                h('div', { class: 'v2-conversation-wrap' }, item.parentItemId ? threadEditor(item, thread) : null, h('div', { class: 'scroll v2-conversation', 'data-scroll': `thread:${item.key}` }, conversation)),
-                panel ? h('aside', { class: 'v2-panel', 'aria-label': 'Ticket' },
-                    h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'Rimanda' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
-                        h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close))),
-                    h('div', { class: 'scroll side', 'data-scroll': `side:thread:${item.key}` }, ['close', 'hold'].includes(state.sideCards.get(item.key).choice) ? ticketActionPanel(item) : linkedThread(item) ? extraTicketCard(item) : h('div', { class: 'ticket-stack' }, threadCard(item)))) : null,
+                mails,
+                panel ? h('aside', { class: 'v2-panel', 'aria-label': 'Ticket' }, panelHead(item), panelBody(item)) : null,
                 rightColumn(item)));
     }
+    const panelHead = item => h('div', { class: 'v2-panel-head' }, h('h2', {}, { take: 'Apri ticket', forward: 'Inoltra', ignore: 'Ignora', close: 'Chiudi ticket', hold: 'Rimanda' }[state.sideCards.get(item.key).choice] || 'Apri ticket'),
+        h('button', { type: 'button', class: 'head-action', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: () => closeTicketPanel(item) }, icon(ICONS.close)));
+    const panelBody = item => h('div', { class: 'scroll side', 'data-scroll': `side:thread:${item.key}` },
+        ['close', 'hold'].includes(state.sideCards.get(item.key).choice) ? ticketActionPanel(item) : linkedThread(item) ? extraTicketCard(item) : h('div', { class: 'ticket-stack' }, threadCard(item)));
     // Colonna di destra: i ticket del thread (le card del pannello, uno aperto alla volta, poi i chiusi) e i promemoria.
     function rightColumn(item) {
         const tickets = threadOrder(state.lists.tickets.filter(ticket => item.parentItemId && ticket.parentItemId === item.parentItemId));
@@ -4565,10 +4631,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         else if (!item) content = v2List(true);
         else content = [state.listHidden ? null : v2List(), v2Thread(item)];
         const single = Boolean(tool) || !item || state.listHidden;
+        if (isCompact()) {
+            // Telefono: una cosa alla volta (lista o thread); cartelle e strumenti nel menu ☰.
+            const body = tool ? content : item ? v2Thread(item) : v2List(false);
+            return h('main', { class: 'workspace v2 compact' }, body,
+                state.drawerOpen ? h('div', { class: 'drawer-backdrop', onclick: event => { if (event.target === event.currentTarget || event.target.closest('.folder')) { state.drawerOpen = false; render(); } } }, h('div', { class: 'drawer' }, folderNav())) : null,
+                palette());
+        }
         return h('main', { class: `workspace v2${single ? ' no-list' : ''}${tool ? ' tool' : ''}` }, folderNav(), content, palette());
     }
     function workspace() {
-        if (document.documentElement.dataset.layout === 'wide') return v2Workspace();
+        return v2Workspace();
         if (state.tab === 'tools') return toolsView();
         if (state.tab === 'utility') return utilityView();
         const item = selectedItem();
@@ -4867,6 +4940,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (event.key !== 'Escape') return;
         if (state.menuOpen) { state.menuOpen = false; render(); }
         else if (state.palette) { state.palette = null; render(); }
+        else if (state.drawerOpen) { state.drawerOpen = false; render(); }
         else if (state.snoozeMenu) { state.snoozeMenu = null; render(); }
         else if (state.manageMenu) { state.manageMenu = null; render(); }
         else if (document.querySelector('.ao-select-menu')) closeAoSelects();
