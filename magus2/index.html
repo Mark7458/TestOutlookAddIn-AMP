@@ -967,6 +967,30 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .timeline-task { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .zone-activities .reminder-chips { display: flex; } .zone-activities .reminder-chips .segment { flex: 1 1 auto; min-width: 0; padding: 0 4px; }
 
+/* Avatar colorati (il colore viene dal nome) */
+.avatar.tone-1 { background: #b5d4f4; color: #0c447c; } .avatar.tone-2 { background: #cecbf6; color: #3c3489; } .avatar.tone-3 { background: #9fe1cb; color: #085041; }
+.avatar.tone-4 { background: #f5c4b3; color: #712b13; } .avatar.tone-5 { background: #f4c0d1; color: #72243e; }
+:root:not([data-mode="light"]) .avatar.tone-1 { background: rgba(55, 138, 221, .3); color: #b5d4f4; } :root:not([data-mode="light"]) .avatar.tone-2 { background: rgba(127, 119, 221, .32); color: #cecbf6; }
+:root:not([data-mode="light"]) .avatar.tone-3 { background: rgba(29, 158, 117, .3); color: #9fe1cb; } :root:not([data-mode="light"]) .avatar.tone-4 { background: rgba(216, 90, 48, .3); color: #f5c4b3; }
+:root:not([data-mode="light"]) .avatar.tone-5 { background: rgba(212, 83, 126, .3); color: #f4c0d1; }
+.item.with-avatar { grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; }
+.item.with-avatar > .avatar { grid-row: 1 / span 3; align-self: start; width: 28px; height: 28px; margin-top: 1px; }
+.item.with-avatar > :not(.avatar) { grid-column: 2; }
+.avatar.small { width: 22px; height: 22px; font-size: 9px; align-self: center; }
+.message-head .avatar.small { margin-right: -2px; }
+
+/* Tema chiaro (vetro): cornice tinta. Lo sfondo azzurro-lilla fa da cornice, i pannelli sono bianchi e ci galleggiano sopra;
+   le cartelle stanno direttamente sullo sfondo, senza riquadro. */
+:root[data-mode="light"]:not([data-style="flat"]) { --bg: #dbe7f8; --glow-a: rgba(150, 196, 250, .55); --glow-b: rgba(206, 190, 248, .55); --message-bg: #f4f8fd; }
+:root[data-mode="light"]:not([data-style="flat"]) body { background: linear-gradient(135deg, #cfe3fa 0%, #dfe8fb 55%, #e6defa 100%) fixed; }
+:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > :is(.v2-list, .v2-main) { border-color: rgba(16, 110, 190, .18); background: #fff; box-shadow: 0 4px 14px rgba(16, 80, 160, .08); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-mode="light"]:not([data-style="flat"]) .workspace.v2 > .folders { border-color: transparent; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-mode="light"]:not([data-style="flat"]) .folder .icon { color: var(--accent); }
+:root[data-mode="light"]:not([data-style="flat"]) .folder:hover { background: rgba(255, 255, 255, .45); }
+:root[data-mode="light"]:not([data-style="flat"]) .folder[aria-current="true"] { border-color: transparent; background: rgba(255, 255, 255, .75); color: #0c447c; box-shadow: 0 1px 2px rgba(16, 110, 190, .15); }
+:root[data-mode="light"]:not([data-style="flat"]) .item[aria-current="true"] { border-color: transparent; background: #e8f2fc; }
+:root[data-mode="light"]:not([data-style="flat"]) .message:not(.service) { border-color: #e1eaf5; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2610,11 +2634,20 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         parts.push(value.slice(from));
         return parts;
     }
+    // Avatar colorato: il colore viene dal nome, così la stessa persona ha sempre lo stesso colore.
+    function avatarTone(name) {
+        let hash = 0;
+        for (const char of String(name || '')) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+        return `tone-${hash % 5 + 1}`;
+    }
+    const personAvatar = (name, extra = '') => h('span', { class: `avatar ${avatarTone(name)}${extra}`, 'aria-hidden': 'true' }, initials(name));
     function listItem(item) {
         const ticket = item.key.startsWith('ticket:');
         const pick = () => select(item);
+        const person = ticket ? '' : item.from?.name || item.from?.email || '';
         return h('li', {},
-            h('div', { class: `item${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
+            h('div', { class: `item${person ? ' with-avatar' : ''}${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
+                person ? personAvatar(person) : null,
                 h('span', { class: 'item-top' },
                     h('span', { class: 'item-title' }, markText(item.subject, state.search)),
                     h('span', { class: 'item-time' }, shortWhen(ticket ? item.lastAt : item.receivedAt))),
@@ -2769,6 +2802,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         return h('article', { class: `message${kind}${service && !takesText ? '' : ' pickable'}${picked && !takesText ? ' picked' : ''}`, 'data-message': entry.id, 'aria-selected': service ? null : String(picked), tabindex: service && !takesText ? null : '0',
             onclick: event => { if (!event.target.closest('a, button') && !window.getSelection()?.toString()) choose(); }, onkeydown: service ? null : keys },
             h('div', { class: 'message-head' },
+                service ? null : personAvatar(entry.from.name || entry.from.email, ' small'),
                 h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
                 picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Mail scelta') : null,
                 h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
