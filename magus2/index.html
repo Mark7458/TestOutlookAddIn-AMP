@@ -1538,6 +1538,7 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
 <body>
 <div class="app" id="app"></div>
 <script>
+window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
 // Anteprima: risposte finte delle Function e dell'accesso, nello stesso formato di quelle vere.
 (() => {
   const ME = 'utente@esempio.it', BOX = 'servizio@esempio.it';
@@ -2016,6 +2017,9 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
         };
     }
 
+    // Collegamenti ancora da attivare (il codice resta): Planner per le attività.
+    const plannerLinked = () => Boolean(window.MagusLinks?.planner);
+    const LocalTasks = [];
     const Data = {
         session: () => window.MagusAuth.start(),
         // Task del thread (Planner, piano del team) e i miei task (To Do + Planner assegnati a me). Function da creare:
@@ -2026,10 +2030,12 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
         addNote: (parentItemId, text, mentions, link) => call('ThreadNotes', { action: 'create', parentItemId, text, mentions, link }, 'POST'),
         mentions: async () => (await call('ThreadNotes', { mentions: 'me' }))?.notes || [],
         readMentions: parentItemId => call('ThreadNotes', { action: 'read', parentItemId }, 'POST'),
-        threadTasks: async parentItemId => (await call('ThreadTasks', { parentItemId }))?.tasks || [],
-        addThreadTask: (parentItemId, task) => call('ThreadTasks', { action: 'create', parentItemId, ...task }, 'POST'),
-        setTask: (task, done) => call(task.source === 'todo' ? 'MyTasks' : 'ThreadTasks', { action: 'update', taskId: task.id, done }, 'POST'),
-        myTasks: async () => (await call('MyTasks'))?.tasks || [],
+        // Planner scollegato: le attività restano solo in questa sessione e le Function non si chiamano.
+        threadTasks: async parentItemId => plannerLinked() ? (await call('ThreadTasks', { parentItemId }))?.tasks || [] : LocalTasks.filter(task => task.parentItemId === parentItemId),
+        addThreadTask: (parentItemId, task) => plannerLinked() ? call('ThreadTasks', { action: 'create', parentItemId, ...task }, 'POST')
+            : (LocalTasks.push({ id: `L${Date.now()}`, parentItemId, ...task, done: false, source: 'local', created: new Date().toISOString() }), { status: 'ok' }),
+        setTask: (task, done) => plannerLinked() ? call(task.source === 'todo' ? 'MyTasks' : 'ThreadTasks', { action: 'update', taskId: task.id, done }, 'POST') : Promise.resolve({ status: 'ok' }),
+        myTasks: async () => plannerLinked() ? (await call('MyTasks'))?.tasks || [] : LocalTasks.filter(task => isMe(task.assignedTo)),
         sendMail: mail => call('SendMail', mail, 'POST'),
         saveAdmin: changes => call('PluginConfig', { action: 'update', ...changes }, 'POST'),
         async config() {
