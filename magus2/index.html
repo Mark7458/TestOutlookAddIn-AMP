@@ -934,6 +934,17 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 :root:not([data-mode="light"]) .workspace.v2 > :is(.v2-list, .v2-main) { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08); }
 :root:not([data-mode="light"]) .folder[aria-current="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 
+/* Modulo del ticket: con il modulo aperto l'ora delle mail si clicca per usarla come data e ora di arrivo */
+#ao-root .ao-input.ao-invalid { border-color: var(--danger); }
+.message-time.pick-time { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 1px 6px; border: 1px dashed var(--accent-line); border-radius: 6px; background: transparent; color: var(--accent); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.message-time.pick-time:hover { border-style: solid; background: var(--selected); }
+.message-time.pick-time .icon { width: 12px; height: 12px; }
+
+/* Ricerca in alto sopra la colonna della lista (posizione e larghezza calcolate dalla lista) */
+.topbar { position: relative; }
+.top-search.aligned { position: absolute; top: 50%; left: var(--search-left); width: var(--search-width); margin: 0; transform: translateY(-50%); }
+.top-search.aligned .top-search-menu { width: max(100%, 480px); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1979,7 +1990,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             const counted = ['tag', 'acquire', 'ignore', 'restore'].includes(action) && item.messageCount;
             return call('ManageThread', { action, parentItemId: item.parentItemId, ...(counted ? { knownCount: item.messageCount } : {}), ...extra }, 'POST');
         },
-        async createTicket(item, { agency, shortDescription, description, minutes, forwardGroup }) {
+        async createTicket(item, { agency, shortDescription, description, minutes, forwardGroup, reportedOn }) {
             const result = await call('ManageTicket', {
                 action: 'createTicket',
                 ...(item ? { parentItemId: item.parentItemId, messageId: item.messageId } : {}),
@@ -1989,6 +2000,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 description: String(description || '').slice(0, 4000),
                 agency: agency || '',
                 elapsedTime: String(Number(minutes) || 0),
+                ...(reportedOn ? { reportedOn } : {}),
                 ...(forwardGroup ? { forwardGroup } : {})
             }, 'POST');
             return toTicket(result.ticket);
@@ -2261,6 +2273,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         draft.activityId = top || (draft.activityProposed ? '' : draft.activityId);
         draft.activityProposed = Boolean(top);
     }
+    // Data e ora di arrivo del ticket (Reported): dalla mail scelta, modificabili a mano o con un clic sull'ora di un'altra mail.
+    function setReported(draft, value) {
+        const at = value ? parseDate(value) : new Date();
+        if (!at) return;
+        draft.reportedDate = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+        draft.reportedTime = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+    }
+    function reportedOn(draft) {
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.reportedTime || '') || !/^\d{4}-\d{2}-\d{2}$/.test(draft.reportedDate || '')) return null;
+        const at = new Date(`${draft.reportedDate}T${draft.reportedTime}:00`);
+        return Number.isNaN(at.getTime()) ? null : at.toISOString();
+    }
     function takeDraft(item) {
         const key = `take:${item?.key || 'new'}`;
         if (!state.forms.has(key)) {
@@ -2319,6 +2343,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const fields = ticketFields(draft);
         if (!fields) return showStatus('Scegli Agenzia e Attività.', 'danger');
         if (!item && !String(draft.subject || '').trim()) return showStatus('Scrivi la Short description.', 'danger');
+        const reported = reportedOn(draft);
+        if (!reported) return showStatus("Scrivi l'ora come hh:mm (per esempio 09:30).", 'danger');
         const company = state.settings.companies[draft.companyId];
         const thread = item && state.threads.get(item.parentItemId);
         // Su un thread che ha già un ticket se ne apre un altro (SHP-<thread>-<n>): niente tag né presa del thread.
@@ -2329,7 +2355,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 await Data.thread({ ...item, messageCount: thread?.messages?.length || item.messageCount }, 'acquire');
             }
             return Data.createTicket(item ? { parentItemId: item.parentItemId, messageId: draft.messageId || thread?.messages?.[0]?.id } : null,
-                { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes });
+                { agency: company.name, shortDescription: fields.shortDescription, description: fields.description, minutes: fields.minutes, reportedOn: reported });
         }, null);
         if (!ticket) return;
         await exitCard([...document.querySelectorAll(`[data-card="${CSS.escape(source?.key || '')}"]`)].find(node => node.offsetParent));
@@ -2749,7 +2775,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 service ? null : personAvatar(entry.from.name || entry.from.email, ' small'),
                 h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
                 picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Mail scelta') : null,
-                h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
+                action === 'take' && !service ? h('button', { type: 'button', class: 'message-time pick-time', title: 'Usa questa data e ora di arrivo', onclick: event => { event.stopPropagation(); useMessageTime(item, entry); } }, icon(ICONS.clock), fullWhen(entry.receivedAt))
+                    : h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
             !body ? h('p', { class: 'message-body loading' }, 'Caricamento…') : body.error ? h('p', { class: 'message-body loading' }, body.error) : h('p', { class: 'message-body' }, utilityPicking(item) ? addressText(body.text) : body.text),
             entry.hasAttachment || body?.hasAttachments ? h('div', { class: 'attachments' }, h('span', { class: 'attachment' }, icon(ICONS.attach), 'Allegati')) : null);
     }
@@ -3164,6 +3191,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         draft.messageId = messageId;
         const text = thread?.bodies.get(messageId)?.text;
         if (text) draft.description = text;
+        setReported(draft, thread?.messages?.find(entry => entry.id === messageId)?.receivedAt);
         render();
         changing().forEach(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.swap, easing: 'ease-in' }));
         const next = card()?.querySelector('.ao-mail-preview');
@@ -3192,7 +3220,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             aoSelect('Agenzia', companies, draft.companyId, value => { draft.companyId = value; draft.activityProposed = draft.activityProposed || !draft.activityId; if (draft.activityProposed) draft.activityId = ''; render(); },
                 { tag: draft.suggestion && draft.suggestion.id === draft.companyId ? { text: 'suggerita', title: `Suggerita ${draft.suggestion.reason}` } : null }),
             aoSelect('Attività', activities, draft.activityId, value => { draft.activityId = value; draft.activityProposed = false; render(); },
-                { tag: draft.activityProposed && draft.activityId ? { text: 'suggerita' } : null })),
+                { tag: draft.activityProposed && draft.activityId ? { text: 'suggerita' } : null }),
+            reportedFields(item, draft)),
         h('div', { class: `ao-details${detailsBody ? ' ao-open' : ''}` },
             h('button', {
                 type: 'button', class: 'ao-details-toggle', disabled: !details, 'aria-expanded': String(Boolean(detailsBody)),
@@ -3204,6 +3233,25 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             }, h('span', {}, 'Dettagli'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾')),
             detailsBody),
         h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary', disabled: !details || state.busy, onclick: () => takeCharge(item) }, label), extra)];
+    }
+    function reportedFields(item, draft) {
+        if (draft.reportedDate === undefined) {
+            const thread = item && !item.newTicket ? state.threads.get(item.parentItemId) : null;
+            const source = thread?.messages?.find(entry => entry.id === draft.messageId) || (item && !item.newTicket ? pickedMessage(item) : null);
+            setReported(draft, source?.receivedAt || null);
+        }
+        const valid = Boolean(reportedOn(draft));
+        return h('div', { class: 'ao-field-row' },
+            h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'Ricevuta il'),
+                h('input', { class: 'ao-input', type: 'date', id: `reported-date-${item?.key || 'new'}`, value: draft.reportedDate, oninput: event => { draft.reportedDate = event.target.value; } })),
+            h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'alle (hh:mm)'),
+                h('input', { class: `ao-input${valid ? '' : ' ao-invalid'}`, id: `reported-time-${item?.key || 'new'}`, placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric', value: draft.reportedTime,
+                    oninput: event => { draft.reportedTime = event.target.value; event.target.classList.toggle('ao-invalid', !reportedOn(draft)); } })));
+    }
+    // Clic sull'ora di una mail con il modulo del ticket aperto: data e ora di arrivo prese da quella mail.
+    function useMessageTime(item, entry) {
+        setReported(takeDraft(item), entry.receivedAt);
+        showStatus(`Ricevuta il ${fullWhen(entry.receivedAt)}`, 'success');
     }
     function forwardZone(item, win) {
         const groups = forwardGroups();
@@ -3285,6 +3333,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const text = thread?.bodies.get(messageId)?.text;
         if (text) draft.description = text;
         draft.messageId = messageId;
+        setReported(draft, thread?.messages?.find(entry => entry.id === messageId)?.receivedAt);
         const opening = !state.sideCards.has(item.key);
         Object.assign(sideCardFor(item), { messageId, choice: 'take' });
         render();
@@ -5144,6 +5193,21 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         else if (top === 'thread') { state.selected = null; state.mobileTab = 'mail'; }
         render();
     });
+    // La ricerca in alto sta sopra la colonna della lista, larga quanto lei e a filo; se la lista è nascosta resta dov'era.
+    let searchSpot = null;
+    function alignSearch() {
+        const box = document.querySelector('.top-search');
+        const bar = box?.closest('.topbar');
+        if (!box || !bar) return;
+        const list = document.querySelector('.workspace.v2 > .v2-list');
+        const barRect = bar.getBoundingClientRect();
+        if (list) { const rect = list.getBoundingClientRect(); searchSpot = { left: rect.left - barRect.left, width: rect.width }; }
+        if (!searchSpot) { box.style.removeProperty('--search-left'); box.style.removeProperty('--search-width'); return; }
+        box.classList.add('aligned');
+        box.style.setProperty('--search-left', `${Math.round(searchSpot.left)}px`);
+        box.style.setProperty('--search-width', `${Math.round(searchSpot.width)}px`);
+    }
+    window.addEventListener('resize', () => requestAnimationFrame(alignSearch));
     // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
     function render() {
         if (!state.user) return;
@@ -5154,6 +5218,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
         root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '', reminderAlert() || '');
         syncHistory();
+        alignSearch();
         animate();
         root.querySelectorAll('[data-scroll]').forEach(node => { if (scrolls.has(node.dataset.scroll)) node.scrollTop = scrolls.get(node.dataset.scroll); });
         const field = focus && document.getElementById(focus.id);
