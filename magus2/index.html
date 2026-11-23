@@ -1046,7 +1046,28 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
 .folder-pill.state-mine{ color: var(--success, #1d8a4e); border-color: color-mix(in srgb, var(--success, #1d8a4e) 40%, transparent); }
 .folder-pill.state-forwarded{ color: var(--forward); border-color: color-mix(in srgb, var(--forward) 40%, transparent); }
 .folder-pill.state-ignored{ color: var(--subtle); }
-.folder-pill.inline{ margin: 0 0 0 auto; }
+.folder-pill.inline{ margin: 0; }
+
+/* Posta in arrivo: filtro nel titolo (menu) */
+.v2-list-head h2{ position: relative; }
+.inbox-menu{ position: relative; display: inline-flex; margin-left: 8px; }
+.inbox-filter{ display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 999px; padding: 2px 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.inbox-caret{ font-size: 10px; }
+.inbox-options{ position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 170px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--menu-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); animation: menu-in .2s var(--ease) both; }
+.inbox-option{ display: flex; justify-content: space-between; width: 100%; padding: 6px 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: 13px; font-weight: 400; text-align: left; cursor: pointer; }
+.inbox-option:hover{ background: var(--field-bg); }
+.inbox-option.on{ background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.inbox-option-count{ color: var(--subtle); font-size: 12px; }
+
+/* Etichette: un solo stile per tutte (bordo sottile, testo normale, senza fondo) */
+.tag, .tag.mine, .tag.working, .tag.tone-success, .tag.tone-accent, .tag.tone-forward, button.tag, button.tag.mine,
+.folder-pill, .folder-pill.closed, .folder-pill.state-free, .folder-pill.state-mine, .folder-pill.state-forwarded, .folder-pill.state-ignored{
+  height: 18px; padding: 0 7px; border: .5px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--text); font-size: 11px; font-weight: 400; line-height: 17px; }
+button.tag.mine:hover{ background: var(--field-bg); }
+.folder-pill{ display: inline-flex; align-items: center; }
+
+/* In copia: sigla piena e grigia accanto al mittente, diversa dalle etichette */
+.cc-badge{ flex: none; display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .03em; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -2882,7 +2903,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
     // Pillola "Cc" quando il servizio è solo in copia nell'ultima mail (nessuna azione richiesta).
-    const ccPill = item => item.addressed === 'cc' ? h('span', { class: 'tag cc-pill', title: 'Siamo in copia' }, 'Cc') : null;
+    const ccPill = item => item.addressed === 'cc' ? h('span', { class: 'cc-badge', title: 'Siamo in copia' }, 'CC') : null;
     function itemExtra(item) {
         const waited = item.section === 'active' && !item.lastFromService ? minutesSince(item.receivedAt) : null;
         const late = waited !== null && waited >= WAIT_LATE_MINUTES;
@@ -4624,9 +4645,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // Stato del thread sulla riga della Posta in arrivo.
     function inboxLabel(item) {
         if (item.section === 'ignored') return 'Ignorata';
-        if (item.section === 'forwarded') return `Inoltrata${item.assignedTo ? ` · ${forwardGroups().find(group => [group.name, group.id, group.tag].includes(item.assignedTo))?.tag || item.assignedTo}` : ''}`;
+        if (item.section === 'forwarded') return forwardGroups().find(group => [group.name, group.id, group.tag].includes(item.assignedTo))?.tag || item.assignedTo || 'Inoltrata'; // la sigla del gruppo
         if (item.section === 'others') return surname(operatorName(item.assignedTo)); // in carico a un collega
-        if (item.section === 'active' && !item.assignedTo) return 'Libera';
         return ''; // il tag dell'operatore o il ticket sulla riga dicono già di chi è
     }
     const FOLDERS = [
@@ -4666,7 +4686,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // Cartella in cui sta un risultato della ricerca (pillola sulla riga, come Outlook).
     function folderLabel(item) {
         if (item.key.startsWith('ticket:')) return OPEN_TICKET_STATUSES.includes(item.status) ? (item.parentItemId ? 'Con ticket' : 'Ticket senza mail') : 'Chiuso';
-        if (item.key.startsWith('thread:')) return inboxLabel(item);
+        if (item.key.startsWith('thread:')) return (INBOX_FILTERS.find(([id]) => id === inboxFilterOf(item)) || [, ''])[1]; // il filtro della Posta in arrivo in cui sta
         return '';
     }
     // Ricerca come Outlook: dalla seconda lettera la colonna della lista mostra i risultati di tutte le cartelle (e dalla
@@ -4698,18 +4718,23 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const title = mailless ? 'Ticket senza mail' : folder?.[1] || '';
         return h('section', { class: `v2-list${wide ? ' wide' : ''}`, 'aria-label': title, 'data-list': '' },
             h('div', { class: 'v2-list-head' },
-                h('h2', {}, title, h('span', { class: 'count' }, String(items.length))),
+                h('h2', {}, title, state.view === 'inbox' ? inboxMenu() : null, h('span', { class: 'count' }, String(items.length))),
                 wide ? null : h('button', { type: 'button', class: 'head-action', title: 'Richiudi la lista', 'aria-label': 'Richiudi la lista', onclick: () => { state.listHidden = true; render(); } }, icon(ICONS.panelLeft))),
-            state.view === 'inbox' ? inboxChips() : null,
             h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}:${state.view === 'inbox' ? state.inboxFilter : ''}` },
                 mailless ? h('button', { type: 'button', class: `new-ticket${state.selected === 'new-ticket' ? ' active' : ''}`, onclick: () => { state.selected = 'new-ticket'; state.panel = null; render(); } }, icon(ICONS.cardTake), 'Nuovo ticket') : null,
                 !state.loaded ? empty('queue', 'Caricamento…') : state.error ? empty('queue', state.error)
                     : items.length ? h('ul', { class: 'list' }, items.map(item => listItem(item, state.view === 'inbox' ? inboxLabel(item) || false : false))) : empty(mailless ? 'ticket' : 'queue', needle ? 'Nessun risultato' : 'Niente qui')));
     }
-    function inboxChips() {
-        return h('div', { class: 'inbox-chips', role: 'group', 'aria-label': 'Filtri' }, INBOX_FILTERS.map(([id, label]) =>
-            h('button', { type: 'button', class: `inbox-chip${state.inboxFilter === id ? ' on' : ''}`, 'aria-pressed': String(state.inboxFilter === id),
-                onclick: () => { state.inboxFilter = id; render(); } }, label)));
+    // Filtro della Posta in arrivo: un pulsante nel titolo con il filtro attivo, che apre l'elenco.
+    function inboxMenu() {
+        const current = INBOX_FILTERS.find(([id]) => id === state.inboxFilter) || INBOX_FILTERS[0];
+        return h('span', { class: 'inbox-menu' },
+            h('button', { type: 'button', class: 'inbox-filter', 'aria-haspopup': 'listbox', 'aria-expanded': String(Boolean(state.inboxMenu)),
+                onclick: event => { event.stopPropagation(); state.inboxMenu = !state.inboxMenu; render(); } }, current[1], h('span', { class: 'inbox-caret', 'aria-hidden': 'true' }, '▾')),
+            state.inboxMenu ? h('div', { class: 'inbox-options', role: 'listbox' }, INBOX_FILTERS.map(([id, label]) =>
+                h('button', { type: 'button', role: 'option', class: `inbox-option${id === current[0] ? ' on' : ''}`, 'aria-selected': String(id === current[0]),
+                    onclick: event => { event.stopPropagation(); state.inboxFilter = id; state.inboxMenu = false; render(); } },
+                    label, h('span', { class: 'inbox-option-count' }, String(inboxItems(id).length))))) : null);
     }
     function searchList(wide) {
         const needle = state.search.trim().toLowerCase();
@@ -5611,10 +5636,12 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         if (state.manageMenu && !event.target.closest('.manage')) { state.manageMenu = null; render(); }
         if (state.palette?.inline && !event.target.closest('.top-search')) { state.palette = null; render(); }
         if (state.picker && !event.target.closest('.date-pop, .date-field')) { state.picker = null; render(); }
+        if (state.inboxMenu && !event.target.closest('.inbox-menu')) { state.inboxMenu = false; render(); }
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
         if (state.menuOpen) { state.menuOpen = false; render(); }
+        else if (state.inboxMenu) { state.inboxMenu = false; render(); }
         else if (state.palette) { state.palette = null; render(); }
         else if (state.drawerOpen) { state.drawerOpen = false; render(); }
         else if (state.snoozeMenu) { state.snoozeMenu = null; render(); }
