@@ -1026,6 +1026,18 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
 .composer textarea{ min-height: min(40vh, 340px); }
 .ao-menu-empty{ padding: 10px 12px; font-size: 13px; color: var(--muted); }
 
+/* Inoltro: interruttori dei passi */
+.forward-switches{ display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.forward-switch{ display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--field-bg); color: var(--subtle); font: inherit; font-size: 13px; cursor: pointer; }
+.forward-switch svg{ width: 15px; height: 15px; }
+.forward-switch.on{ background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+
+/* Mail: destinatari come in Outlook; la casella del servizio è una mail come le altre */
+.message-rcpts{ margin: -2px 0 8px 28px; }
+.message-rcpt{ font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcpt-label{ color: var(--subtle); margin-right: 4px; }
+.rcpt-name{ color: var(--text); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1939,7 +1951,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         catch (error) { ActionLog.add('function', name, `rete non raggiungibile${logContext(params)} — ${error.message || error}`); throw error; }
         if (response.status === 401 && !retried) return call(name, params, method, true);
         const data = await response.json().catch(() => null);
-        const reading = ['PluginConfig', 'ListQueue', 'ListThreadMessages', 'GetMailBody', 'SearchTicketRecords', 'Health'].includes(name);
+        const reading = method === 'GET' || ['SearchTicketRecords'].includes(name); // le letture vanno nel registro solo se non riescono
         const failed = !response.ok || data?.status === 'error';
         if (!reading || failed) // registro: tutte le azioni, e gli errori anche delle letture, con su cosa e perché
             ActionLog.add('function', name, `${response.status}${params.action ? ` ${params.action}` : ''}${data?.reason ? ` ${data.reason}` : ''}${logContext(params)}${failed && data?.message ? ` — ${String(data.message).slice(0, 300)}` : ''}`);
@@ -2032,6 +2044,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             resolutionNotes: record.resolutionNotes || '',
             forwardGroup: record.forwardGroup || '',
             repliedAt: record.repliedAt || '',
+            messageId: record.messageId || '',
             unseen: unseen?.unseenCount || 0,
             threadInfo: unseen || null,
             lastAt: unseen?.lastReceived || record.modified || record.created
@@ -2138,7 +2151,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             if (Number(addMinutes)) changes.elapsedTime = String(Math.max(0, ticket.minutes + Number(addMinutes)));
             return Object.keys(changes).length ? Data.editTicket(ticket.number, changes) : ticket;
         },
-        forward: (item, group) => call('ForwardConversation', { parentItemId: item.parentItemId, groupName: group.id }, 'POST'),
+        forward: (item, group, keepThread = false) => call('ForwardConversation', { parentItemId: item.parentItemId, groupName: group.id, ...(keepThread ? { keepThread: true } : {}) }, 'POST'),
         // Risposta a tutti dalla casella del servizio. Senza destinatari e oggetto: quelli della risposta a tutti
         // (presa in carico, inoltro con la sigla del gruppo).
         reply: (parentItemId, options) => call('ReplyAll', { parentItemId, ...options }, 'POST')
@@ -2555,21 +2568,46 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         showStatus('Spostata nelle Ignorate', 'success', { label: 'Annulla', onclick: async () => { await run(() => Data.thread({ ...item, status: 'Ignored' }, 'restore'), null); await loadLists(); } }, ICONS.cardIgnore);
     }
 
-    // Inoltro in quattro passi: ticket, risposta con la sigla del gruppo, inoltro, chiusura del ticket. Al primo passo
-    // che non riesce si ferma; il ticket resta tra gli aperti con la striscia dei passi e si riprende da lì.
-    const FORWARD_STEPS = [['ticket', 'Ticket'], ['reply', 'Risposta'], ['forward', 'Inoltro'], ['close', 'Chiusura']];
+    // Inoltro: passi scelti con gli interruttori (di base tutti): ticket, risposta con la sigla del gruppo, assegnazione
+    // del gruppo su SharePoint, chiusura del ticket. Il ticket è quello della mail inoltrata se c'è già (aperto o chiuso),
+    // altrimenti nasce ora; il suo riferimento va nella risposta. Il thread esce dalla coda quando parte la risposta.
+    // Al primo passo che non riesce si ferma; il ticket resta tra gli aperti con la striscia dei passi e si riprende da lì.
+    const FORWARD_STEPS = [['ticket', 'Ticket'], ['reply', 'Risposta'], ['forward', 'SharePoint'], ['close', 'Chiusura']];
+    const FORWARD_ICONS = { ticket: 'cardTake', reply: 'replyAll', forward: 'forward', close: 'actResolve' };
+    const FORWARD_DEFAULT = { ticket: true, reply: true, forward: true, close: true };
+    // Ticket già aperto su quella mail (in qualunque stato), dalla lista dei ticket del thread.
+    async function ticketOfMessage(parentItemId, messageId) {
+        if (!messageId) return null;
+        const result = await call('SearchTicketRecords', { parentItemId, statuses: [...OPEN_TICKET_STATUSES, 'Resolved', 'Canceled'], resultSize: 50 }, 'POST');
+        return (result?.records || []).map(record => toTicket(record)).find(ticket => ticket.messageId === messageId) || null;
+    }
     const FORWARD_ACTIONS = {
         ticket: async job => {
-            await ensureTag(job.item);
+            const existing = await ticketOfMessage(job.item.parentItemId, job.messageId);
+            if (existing) {
+                job.ticket = existing;
+                job.reused = true;
+                ActionLog.add('inoltro', 'Ticket', `già presente sulla mail · ${existing.number} (${existing.status}) · thread ${job.item.parentItemId}`);
+                return;
+            }
             job.ticket = await Data.createTicket({ ...job.item, messageId: job.messageId },
                 { agency: '', shortDescription: cleanSubject(job.item.subject), description: job.description, minutes: 0, forwardGroup: job.group.name || job.group.tag });
         },
-        reply: job => Data.reply(job.item.parentItemId, { tag: job.group.tag, reference: job.ticket.ampReference || job.ticket.number, ticketId: job.ticket.number }),
-        forward: job => Data.forward(job.item, job.group),
-        close: async job => { job.ticket = await Data.updateTicket(job.ticket, 'resolve', `Inoltrato a ${job.group.tag}`); }
+        reply: job => Data.reply(job.item.parentItemId, {
+            messageId: job.messageId, tag: job.group.tag, forwardGroup: job.group.id,
+            ...(job.ticket ? { reference: job.ticket.ampReference || job.ticket.number, ticketId: job.ticket.number } : {})
+        }),
+        forward: job => Data.forward(job.item, job.group, !(job.chosen?.reply ?? true)),
+        close: async job => {
+            if (!job.ticket || !OPEN_TICKET_STATUSES.includes(job.ticket.status)) return; // nessun ticket, o già chiuso
+            job.ticket = await Data.updateTicket(job.ticket, 'resolve', `Inoltrato a ${job.group.tag}`);
+        }
     };
     async function runForward(job, from) {
+        if (from === 0) await ensureTag(job.item).catch(error => { job.error = error; });
+        if (job.error && from === 0) { ActionLog.add('inoltro', 'Tag', `non riuscito · thread ${job.item.parentItemId} — ${job.error.message || job.error}`); return false; }
         for (let index = from; index < FORWARD_STEPS.length; index += 1) {
+            if (job.steps[index] === 'skip') continue;
             job.steps[index] = 'run';
             render();
             try {
@@ -2588,18 +2626,30 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         render();
         return true;
     }
-    async function forwardThread(item, group) {
+    async function forwardThread(item, group, chosen = FORWARD_DEFAULT, messageId = null) {
         const thread = state.threads.get(item.parentItemId);
-        const first = thread?.messages?.[0];
-        const job = { item, group, messageId: first?.id, description: first ? thread.bodies.get(first.id)?.text || '' : '', ticket: null, steps: FORWARD_STEPS.map(() => 'wait') };
+        const source = thread?.messages?.find(entry => entry.id === messageId) || thread?.messages?.[0];
+        const job = {
+            item, group, chosen, messageId: source?.id, description: source ? thread.bodies.get(source.id)?.text || '' : '', ticket: null,
+            steps: FORWARD_STEPS.map(([key]) => (chosen[key] ? 'wait' : 'skip'))
+        };
         state.panel = { type: 'forwarding', job };
         state.busy = true;
         const ok = await runForward(job, 0);
         state.busy = false;
-        if (!job.ticket) {
+        if (ok && !chosen.reply) {
+            // senza risposta il thread resta dov'è
+            state.panel = null;
+            state.sideCards.delete(item.key);
+            await loadLists();
+            showStatus(`Passi eseguiti per ${group.tag}${job.ticket ? ` · ${job.ticket.number}` : ''}`, 'success', null, ICONS.cardForward);
+            return;
+        }
+        if (!ok && (!job.ticket || job.reused)) {
             state.panel = null;
             if (CHANGED[job.error?.reason]) { showStatus(CHANGED[job.error.reason], 'warning'); reloadAll(); }
-            else showStatus('Inoltro non riuscito', 'danger');
+            else showStatus(`Inoltro non riuscito: ${job.error?.message || 'errore'}`, 'danger');
+            await loadLists();
             return;
         }
         if (ok) {
@@ -2891,12 +2941,28 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     // Mail nella v2: nessun comando sotto (le azioni stanno in alto a destra e nell'editor in cima); un clic su una mail
     // ricevuta la sceglie come riferimento (bordo dell'accento), su una compatta la apre e la sceglie.
+    // Destinatari come in Outlook: "A:" e "Cc:" con i nomi (l'indirizzo al passaggio del mouse). Il nome viene da come è
+    // scritto nella mail, dai mittenti del thread o dagli operatori; altrimenti resta l'indirizzo.
+    function knownName(email, thread) {
+        const sent = thread?.messages?.find(entry => sameEmail(entry.from.email, email) && entry.from.name && !entry.from.name.includes('@'));
+        if (sent) return sent.from.name;
+        const operator = operators().find(entry => sameEmail(entry?.email, email));
+        return operator?.displayName || email;
+    }
+    function recipientsLine(label, list, thread) {
+        const people = (Array.isArray(list) ? list : String(list || '').split(/[;,](?![^<]*>)/)).map(value => sender(value?.emailAddress?.address || value?.address || value))
+            .filter(person => person.email || person.name);
+        if (!people.length) return null;
+        return h('div', { class: 'message-rcpt' }, h('span', { class: 'rcpt-label' }, `${label}:`),
+            people.flatMap((person, index) => [index ? '; ' : null, h('span', { class: 'rcpt-name', title: person.email || person.name },
+                person.name && person.name !== person.email ? person.name : knownName(person.email, thread))]));
+    }
     function v2Message(entry, thread, item, body, service, compact) {
         // Nessuna mail evidenziata di default: solo quella cliccata, o quella su cui lavora il pannello aperto (Apri ticket,
         // Inoltra, Utility). Le azioni senza una scelta usano comunque l'ultima mail ricevuta.
         const card = state.sideCards.get(item.key);
         const picked = !service && (state.picked.get(item.parentItemId) === entry.id || (Boolean(card) && !['close', 'hold'].includes(card.choice) && card.messageId === entry.id));
-        const kind = service ? (FORWARD_SUBJECT.test(entry.subject) ? ' service forwarded' : ' service') : '';
+        const kind = ''; // la casella del servizio si vede come le altre mail (non si sceglie per aprire un ticket)
         const action = state.sideCards.get(item.key)?.choice;
         const takesText = ['close', 'hold'].includes(action);
         const choose = () => {
@@ -2905,17 +2971,18 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         };
         const keys = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } };
         if (compact) return h('article', { class: `message compact${kind}`, 'data-message': entry.id, role: 'button', tabindex: '0', onclick: choose, onkeydown: keys },
-            h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
+            h('span', { class: 'message-from' }, entry.from.name || entry.from.email),
             h('span', { class: 'message-snippet' }, body?.text ? body.text.replace(/\s+/g, ' ').slice(0, 140) : ''),
             h('span', { class: 'message-time' }, shortWhen(entry.receivedAt)));
         return h('article', { class: `message${kind}${service && !takesText ? '' : ' pickable'}${picked && !takesText ? ' picked' : ''}`, 'data-message': entry.id, 'aria-selected': service ? null : String(picked), tabindex: service && !takesText ? null : '0',
             onclick: event => { if (!event.target.closest('a, button') && !window.getSelection()?.toString()) choose(); }, onkeydown: service ? null : keys },
             h('div', { class: 'message-head' },
-                service ? null : personAvatar(entry.from.name || entry.from.email, ' small'),
-                h('span', { class: 'message-from' }, service ? 'Servizio' : entry.from.name),
+                personAvatar(entry.from.name || entry.from.email, ' small'),
+                h('span', { class: 'message-from', title: entry.from.email || null }, entry.from.name || entry.from.email),
                 picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Mail scelta') : null,
                 action === 'take' && !service ? h('button', { type: 'button', class: 'message-time pick-time', title: 'Usa questa data e ora di arrivo', onclick: event => { event.stopPropagation(); useMessageTime(item, entry); } }, icon(ICONS.clock), fullWhen(entry.receivedAt))
                     : h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
+            body && !body.error ? h('div', { class: 'message-rcpts' }, recipientsLine('A', body.to, thread), recipientsLine('Cc', body.cc, thread)) : null,
             !body ? h('p', { class: 'message-body loading' }, 'Caricamento…') : body.error ? h('p', { class: 'message-body loading' }, body.error) : h('p', { class: 'message-body' }, utilityPicking(item) ? addressText(body.text) : body.text),
             entry.hasAttachment || body?.hasAttachments ? h('div', { class: 'attachments' }, h('span', { class: 'attachment' }, icon(ICONS.attach), 'Allegati')) : null);
     }
@@ -3417,7 +3484,16 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const groups = forwardGroups();
         const group = groups.find(entry => entry.id === win.group);
         return [groups.length ? aoChoiceBar(`group:${item.key}`, groups.map(entry => ({ value: entry.id, label: entry.tag, sub: entry.name })), win.group, value => { win.group = value; render(); }, 'forward') : h('p', { class: 'ao-hint' }, 'Nessun gruppo nella config'),
-            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy, onclick: () => forwardThread(item, group) }, 'Inoltra'))];
+            forwardSwitches(win),
+            h('div', { class: 'ao-actions' }, h('button', { type: 'button', class: 'ao-button ao-primary ao-fill-forward', disabled: !group || state.busy || !Object.values(win.steps || FORWARD_DEFAULT).some(Boolean),
+                onclick: () => forwardThread(item, group, { ...(win.steps || FORWARD_DEFAULT) }, win.messageId || pickedMessage(item)?.id) }, 'Inoltra'))];
+    }
+    // Interruttori dei passi dell'inoltro: si accendono e spengono con un clic, anche più di uno.
+    function forwardSwitches(win) {
+        win.steps ||= { ...FORWARD_DEFAULT };
+        return h('div', { class: 'forward-switches', role: 'group', 'aria-label': 'Passi dell’inoltro' }, FORWARD_STEPS.map(([key, label]) =>
+            h('button', { type: 'button', class: `forward-switch${win.steps[key] ? ' on' : ''}`, 'aria-pressed': String(Boolean(win.steps[key])),
+                onclick: () => { win.steps[key] = !win.steps[key]; render(); } }, icon(ICONS[FORWARD_ICONS[key]]), label)));
     }
     // Ticket chiusi del thread (come nel pannello): una sezione chiusa, con un clic si vedono (solo da consultare).
     function closedSection(parentItemId) {
@@ -3513,7 +3589,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // Sotto l'oggetto: chi partecipa e quante mail.
     function threadSubtitle(thread) {
         if (!thread?.messages?.length) return '';
-        const names = [...new Set(thread.messages.map(entry => sameEmail(entry.from.email, serviceMailbox()) ? 'Servizio' : entry.from.name || entry.from.email))];
+        const names = [...new Set(thread.messages.map(entry => entry.from.name || entry.from.email))];
         return `${names.join(', ')} · ${thread.messages.length} mail`;
     }
     // Il thread dal più recente: le mail con in mezzo gli eventi (etichetta, presa in carico, inoltro, ticket aperti).
@@ -3614,6 +3690,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     function forwardStrip(job, retry = null) {
         return aoHost(h('div', { class: 'ao-steps', role: 'list' }, FORWARD_STEPS.map(([, label], index) => {
             const status = job.steps[index];
+            if (status === 'skip') return null; // passo non scelto
             const mark = status === 'ok' ? icon(ICONS.check) : status === 'ko' ? icon(ICONS.close) : status === 'run' ? h('span', { class: 'ao-spinner' }) : null;
             const dot = status === 'ko' && retry
                 ? h('button', { type: 'button', class: 'ao-step-dot', title: `Riprova: ${label}`, 'aria-label': `Riprova: ${label}`, onclick: event => { event.stopPropagation(); retry(index); } }, mark)
