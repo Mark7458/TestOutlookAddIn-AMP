@@ -1018,14 +1018,29 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
   padding: 2px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .v2-panel #ao-root .ao-inline-form.ao-inline-form, .sheet #ao-root .ao-inline-form.ao-inline-form { padding-top: 4px; border-top: 0; }
 .v2-panel #ao-root .ao-mail-preview.ao-mail-preview, .sheet #ao-root .ao-mail-preview.ao-mail-preview { min-height: 0; padding: 2px 0 2px 10px; border-left: 3px solid var(--line-strong); border-radius: 0; background: transparent; color: var(--muted); }
-.v2-right #ao-root .ticket-tile.ao-item { padding: 10px 10px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.v2-right #ao-root .ticket-tile.ao-item.ticket-picked { border-bottom-color: transparent; border-radius: 10px; background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
-.v2-right #ao-root .ticket-tile.ao-item:hover:not(.ticket-picked) { background: color-mix(in srgb, var(--selected) 50%, transparent); }
+.v2-right #ao-root .ticket-tile.ao-item { margin-bottom: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.v2-right #ao-root .ticket-tile.ao-item.ticket-picked { border-color: var(--accent-line); background: transparent; box-shadow: var(--glow-rest); } /* come la mail scelta */
+.v2-right #ao-root .ticket-tile.ao-item:hover:not(.ticket-picked) { border-color: var(--accent-line); }
 .v2-right #ao-root .ao-closed-toggle.ao-closed-toggle { padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
 .v2-right #ao-root .ao-closed-toggle.ao-closed-toggle:hover { background: var(--selected); }
 .v2-right #ao-root .ao-closed-item.ao-closed-item { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
 /* Selettore di data dentro le card: stesse misure e colori dei campi del pannello */
 #ao-root .date-field.date-field { height: auto; min-height: var(--ao-control-height); padding: 5px 8px; border-color: var(--ao-line-strong); border-radius: var(--ao-radius-base); background: var(--ao-surface); color: var(--ao-text); font: inherit; }
+
+/* Mail a blocchi piatti, a tutta larghezza: cliente su sfondo leggero senza bordo, servizio senza sfondo con il
+   contorno tratteggiato; la mail scelta ha solo lo sfondo azzurro (come le righe della lista e i ticket). */
+.message, .message.service, :root[data-layout="mobile"] .message, :root[data-layout="mobile"] .message.service { margin-left: 0; margin-right: 0; }
+.message, :root[data-mode="light"] .message:not(.service), :root:not([data-mode="light"]) .message:not(.service) { border: 1px solid transparent; border-radius: 10px; background: var(--message-bg); box-shadow: none; }
+.message.service { border: 1px dashed var(--line-strong); background: transparent; color: var(--text); }
+.message.service .message-snippet, .message.service .message-action { color: var(--muted); }
+.message.service.forwarded { border: 1px dashed var(--forward); background: transparent; }
+.message.service.forwarded .message-from { color: var(--forward); }
+:root .message.pickable.pickable:not(.service):hover { border-color: transparent; background: color-mix(in srgb, var(--selected) 45%, var(--message-bg)); }
+:root .message.picked.picked:not(.service), :root .message.picked.picked:not(.service):hover { border-color: transparent; background: var(--selected); box-shadow: none; }
+.message.compact:hover { border-color: transparent; }
+:root[data-mode="light"] { --message-bg: #f4f7fb; }
+/* Ticket: stessa regola, solo sfondo */
+.v2-right #ao-root .ticket-tile.ao-item.ticket-picked { border-color: transparent; background: var(--selected); box-shadow: none; }
 
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
@@ -1858,7 +1873,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const dark = theme === 'dark' || (theme === 'auto' && (darkQuery ? darkQuery.matches : true));
         document.documentElement.dataset.mode = dark ? 'dark' : 'light';
         document.documentElement.dataset.style = 'glass'; // un solo stile (il flat è stato tolto)
-        document.documentElement.dataset.mail = settings.preferences.mailView === 'classic' ? 'classic' : 'chat'; // mail: a chat leggera o classiche
+        document.documentElement.dataset.mail = 'blocks'; // mail a blocchi piatti a tutta larghezza (niente più fumetti)
         document.documentElement.style.setProperty('--label', LABELS[settings.profile.label] || LABELS.azzurro);
         applyLayout(settings);
     }
@@ -2458,10 +2473,12 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         await loadLists();
         // si resta sul thread (ora con il ticket nel pannello di destra); il ticket senza mail si apre da solo
         state.selected = ticket.parentItemId ? `thread:${ticket.parentItemId}` : ticket.key; // senza mail: il ticket nuovo, in Ticket
+        const moved = item && !linked && state.view !== 'mine'; // preso dalla coda: il thread passa in Mie e la lista lo segue
+        if (moved) state.view = 'mine';
         state.lists.tickets.filter(entry => entry.parentItemId === ticket.parentItemId).forEach(entry => state.openTicket.set(entry.number, entry.number === ticket.number));
         render();
         openThread(ticket.parentItemId);
-        showStatus(`Ticket ${ticket.number} aperto e assegnato a te.`, 'success', null, ICONS.cardTake);
+        showStatus(moved ? `Ticket ${ticket.number} aperto · spostato in Mie` : `Ticket ${ticket.number} aperto e assegnato a te.`, 'success', null, ICONS.cardTake);
     }
     async function ignoreThread(item) {
         const done = await run(async () => { await ensureTag(item); await Data.thread(item, 'ignore'); }, null);
@@ -4468,9 +4485,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Tema' },
                     [['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']].map(([id, label]) => iconSegment(label, id, (state.settings.preferences.theme || 'auto') === id, () => setPreference('theme', id)))),
                 h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Vista' },
-                    [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => iconSegment(label, iconName, (state.settings.preferences.view || 'auto') === id, () => setPreference('view', id)))),
-                h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Mail' },
-                    [['chat', 'Chat', 'chat'], ['classic', 'Classica', 'mail']].map(([id, label, iconName]) => iconSegment(label, iconName, (state.settings.preferences.mailView === 'classic' ? 'classic' : 'chat') === id, () => setPreference('mailView', id))))),
+                    [['auto', 'Automatica', 'auto'], ['desktop', 'Computer', 'desktop'], ['mobile', 'Mobile', 'mobile']].map(([id, label, iconName]) => iconSegment(label, iconName, (state.settings.preferences.view || 'auto') === id, () => setPreference('view', id))))),
             h('section', { class: 'tool' },
                 h('h2', {}, 'Copia di sicurezza'),
                 h('div', { class: 'link-actions' }, importFile,
