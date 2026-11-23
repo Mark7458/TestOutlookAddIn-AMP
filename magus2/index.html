@@ -1079,6 +1079,16 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
 .item:not(.with-avatar) > .folder-pill { grid-column: 1; }
 .folder-pill.closed { background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); }
 
+/* Marchio in alto a sinistra */
+.brand { display: inline-flex; align-items: center; gap: 10px; }
+.brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: linear-gradient(135deg, #106ebe, #7a4bb5); box-shadow: 0 2px 8px rgba(16, 80, 160, .25); }
+.brand-mark svg { width: 21px; height: 17px; }
+.brand-name { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; background: linear-gradient(90deg, #106ebe, #7a4bb5); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root:not([data-mode="light"]) .brand-name { background-image: linear-gradient(90deg, #7cb4ff, #b79cf0); }
+:root[data-layout="mobile"] .brand-mark { width: 28px; height: 28px; border-radius: 8px; }
+:root[data-layout="mobile"] .brand-mark svg { width: 17px; height: 14px; }
+:root[data-layout="mobile"] .brand-name { font-size: 21px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2759,11 +2769,11 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
                 h('button', { type: 'button', class: 'head-action', title: 'Cerca mail e ticket', 'aria-label': 'Cerca mail e ticket', onclick: () => openPalette() }, icon(ICONS.search)),
                 accountMenu());
         }
-        if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, h('span', { class: 'brand' }, 'Magus'),
+        if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, brandMark(),
             topSearch(),
             h('span', { class: 'ao-spacer' }), accountMenu());
         return h('header', { class: 'topbar' },
-            h('span', { class: 'brand' }, 'Magus'),
+            brandMark(),
             h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sezioni' },
                 TABS.map(tab => h('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(state.tab === tab.id), onclick: () => { state.tab = tab.id; render(); } },
                     icon(ICONS[tab.icon]), h('span', { class: 'tab-label' }, tab.label), counts[tab.id] !== undefined && state.loaded ? h('span', { class: 'count' }, String(counts[tab.id])) : null))),
@@ -5618,6 +5628,12 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             h('div', { class: 'date-pop-foot' },
                 h('button', { type: 'button', class: 'date-link', onclick: () => { const now = new Date(); now.setSeconds(0, 0); if (!time) now.setHours(0, 0, 0, 0); state.picker.month = new Date(now.getFullYear(), now.getMonth(), 1); commit(now, !time); } }, time ? 'Adesso' : 'Oggi'),
                 time ? h('button', { type: 'button', class: 'date-done', onclick: () => { state.picker = null; render(); } }, 'Fatto') : null));
+    }
+    // Marchio: busta a forma di M in un riquadro sfumato azzurro-viola, con il nome sfumato accanto.
+    function brandMark() {
+        const mark = h('span', { class: 'brand-mark', 'aria-hidden': 'true' });
+        mark.innerHTML = '<svg viewBox="0 0 34 28"><path d="M3 25V4l14 12L31 4v21H3" fill="none" stroke="#fff" stroke-width="3.8" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+        return h('span', { class: 'brand' }, mark, h('span', { class: 'brand-name' }, 'Magus'));
     }
     // La ricerca in alto sta sopra la colonna della lista, larga quanto lei e a filo; se la lista è nascosta resta dov'era.
     let searchSpot = null;
