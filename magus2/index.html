@@ -965,6 +965,52 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .reply-ticket .segmented .segment { padding: 0 10px; font-size: var(--fs-xs); }
 .composer-hint { margin-right: auto; color: var(--muted); font-size: var(--fs-xs); }
 
+/* Impostazioni: Salva a destra */
+.actions-row.end { justify-content: flex-end; }
+.actions-row.end .btn { flex: none; }
+/* Ignora: il secondo clic conferma */
+.head-button.tone-danger[aria-pressed="true"] { border-color: color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+/* Colonna di destra: separazione fissa (Ticket sopra, Attività sotto), ognuna scorre per conto suo */
+.v2-right.zoned { display: grid; grid-template-rows: minmax(0, 58fr) minmax(0, 42fr); }
+.zone-tickets { max-height: none; overflow-y: auto; }
+.zone-activities { min-height: 0; }
+/* Attività: elenco da spuntare */
+.check-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.check-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-radius: 8px; }
+.check-row:hover { background: var(--hover, rgba(127, 127, 127, .06)); }
+.check-row .timeline-task { flex: 1; }
+.check-row.done .task-title { color: var(--subtle); text-decoration: line-through; }
+.check-row.late .task-meta { color: var(--danger); }
+.check-row.hold .hold-mark { display: inline-flex; width: 20px; justify-content: center; color: var(--warning); }
+.check-row.hold .hold-mark .icon { width: 15px; height: 15px; }
+.zone-activities .task-add { display: grid; gap: 6px; }
+/* Selettore di data e ora, nello stile del pannello */
+.date-field, #ao-root .date-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; height: 36px; padding: 0 10px 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field-bg); color: var(--text); font: var(--fs-sm) var(--font); text-align: left; cursor: pointer; }
+.date-field:hover, #ao-root .date-field:hover { border-color: var(--accent-line); }
+.date-field.open, #ao-root .date-field.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.date-field.empty span { color: var(--subtle); }
+.date-field .icon { width: 15px; height: 15px; color: var(--accent); flex: none; }
+.date-pop { position: fixed; z-index: 120; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--option-bg); color: var(--text); box-shadow: 0 12px 32px rgba(0, 0, 0, .22); font: var(--fs-sm) var(--font); }
+.date-pop-head { display: flex; align-items: center; justify-content: space-between; }
+.date-month { font-weight: 600; text-transform: capitalize; }
+.date-nav { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.date-nav:hover { background: var(--selected); color: var(--accent); }
+.date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.date-dow { padding: 2px 0 4px; color: var(--subtle); font-size: var(--fs-xs); }
+.date-day { height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.date-day:hover { background: var(--selected); color: var(--accent); }
+.date-day.other { color: var(--subtle); }
+.date-day.today { box-shadow: inset 0 0 0 1px var(--accent-line); color: var(--accent); }
+.date-day.chosen { background: var(--btn-fill); color: #fff; box-shadow: none; }
+.date-time { display: flex; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); }
+.date-time-input { width: 64px; height: 30px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field-bg); color: var(--text); font: inherit; text-align: center; }
+.date-time-input.invalid { border-color: var(--danger); }
+.date-chip { height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: var(--fs-xs) var(--font); cursor: pointer; }
+.date-chip:hover { border-color: var(--accent); color: var(--accent); }
+.date-pop-foot { display: flex; align-items: center; justify-content: space-between; }
+.date-link { border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; padding: 4px 2px; }
+.date-done { height: 30px; padding: 0 14px; border: 0; border-radius: 8px; background: var(--btn-fill); color: #fff; font: 600 var(--fs-sm) var(--font); cursor: pointer; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1608,7 +1654,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }
     // Concept: task (Planner del team + To Do personale) e Teams (colleghi, presenza, chat)
     if (name === 'ThreadTasks') {
-      if (body.action === 'create') { const task = { id: 'P' + Date.now(), parentItemId: Number(body.parentItemId), title: body.title, assignedTo: body.assignedTo || ME, due: body.due || '', done: false, source: 'planner' }; planner.push(task); return json({ status: 'ok', task }); }
+      if (body.action === 'create') { const task = { id: 'P' + Date.now(), parentItemId: Number(body.parentItemId), title: body.title, assignedTo: body.assignedTo || ME, due: body.due || '', done: false, source: 'planner', created: new Date().toISOString() }; planner.push(task); return json({ status: 'ok', task }); }
       if (body.action === 'update') { const task = planner.find(x => x.id === body.taskId); if (task) task.done = Boolean(body.done); return json({ status: 'ok' }); }
       return json({ tasks: planner.filter(task => task.parentItemId === Number(q.get('parentItemId'))) });
     }
@@ -1688,6 +1734,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         keys: '<rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><path d="M5.5 8.5h.01M8.5 8.5h.01M11.5 8.5h.01M14.5 8.5h.01M6.5 11.5h7"/>',
         plus: '<path d="M10 4.5v11M4.5 10h11"/>',
         send: '<path d="M3.5 10l13-6-4.5 13-2.5-5.5z"/><path d="M9.5 11.5l7-7.5"/>',
+        calendar: '<rect x="3.5" y="4.5" width="13" height="12" rx="2"/><path d="M3.5 8.5h13M7 3v3M13 3v3"/>',
         compose: '<path d="M4 16h3l8.5-8.5-3-3L4 13z"/><path d="M11 6l3 3"/><path d="M14 14h3M15.5 12.5v3"/>',
         admin: '<path d="M10 3l6 2.5v4.5c0 3.5-2.6 6.2-6 7-3.4-.8-6-3.5-6-7V5.5z"/><path d="M7.5 10l1.8 1.8L12.8 8.3"/>',
         queue: '<path d="M3 10.5h4l1.5 2h3l1.5-2h4"/><path d="M5 4.5h10l2 6v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-4z"/>',
@@ -2115,7 +2162,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         busy: false,
         menuOpen: false, // menu a tendina dell'utente
         settingsOpen: false, // finestra delle impostazioni
-        newMail: null, responsesOpen: null, // nuova mail da zero; elenco delle Risposte utili aperto (chiave del compositore)
+        newMail: null, responsesOpen: null, picker: null, // selettore di data aperto // nuova mail da zero; elenco delle Risposte utili aperto (chiave del compositore)
         settingsTab: 'profile',
         editing: null, // voce aperta nelle impostazioni { kind, id } (id null = nuova)
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
@@ -3292,7 +3339,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const valid = Boolean(reportedOn(draft));
         return h('div', { class: 'ao-field-row' },
             h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'Ricevuta il'),
-                h('input', { class: 'ao-input', type: 'date', id: `reported-date-${item?.key || 'new'}`, value: draft.reportedDate, oninput: event => { draft.reportedDate = event.target.value; } })),
+                datePicker({ key: `reported:${item?.key || 'new'}`, value: draft.reportedDate ? new Date(`${draft.reportedDate}T00:00:00`) : null, label: 'Ricevuta il',
+                    onchange: value => { draft.reportedDate = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`; } })),
             h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'alle (hh:mm)'),
                 h('input', { class: `ao-input${valid ? '' : ' ao-invalid'}`, id: `reported-time-${item?.key || 'new'}`, placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric', value: draft.reportedTime,
                     oninput: event => { draft.reportedTime = event.target.value; event.target.classList.toggle('ao-invalid', !reportedOn(draft)); } })));
@@ -3875,7 +3923,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                     h('div', { class: 'task-add-row' },
                         h('select', { 'aria-label': 'Assegnato a', onchange: event => { draft.assignedTo = event.target.value; } },
                             people.map(person => h('option', { value: person.email, selected: sameEmail(person.email, draft.assignedTo || state.user.email) }, person.displayName || person.email))),
-                        h('input', { type: 'date', 'aria-label': 'Scadenza', value: draft.due, onchange: event => { draft.due = event.target.value; } }),
+                        datePicker({ key: 'task-due', value: draft.due ? new Date(`${draft.due}T00:00:00`) : null, label: 'Scadenza', onchange: value => { draft.due = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`; } }),
                         h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.plus), 'Aggiungi')))) : null,
             h('section', { class: 'tool tasks-mine' },
                 h('h2', {}, 'I miei task', h('span', { class: 'hint' }, 'To Do e Planner')),
@@ -4394,7 +4442,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                         type: 'button', class: 'swatch', style: `--swatch: ${color}`, title: key, 'aria-label': key, 'aria-pressed': String(key === state.settings.profile.label),
                         onclick: () => { state.settings.profile.label = key; saveSettings(state.settings); applyAppearance(state.settings); render(); }
                     }, key === state.settings.profile.label ? surname(currentUser().displayValue) : '')))),
-                h('div', { class: 'actions-row start' }, button('Salva', () => {
+                h('div', { class: 'actions-row end' }, button('Salva', () => {
                     state.settings.profile.assignedTo = { displayValue: draft.name.trim(), value: draft.sysId.trim() };
                     saveSettings(state.settings);
                     showStatus('Salvato');
@@ -4668,7 +4716,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const until = draft.holdUntil ? new Date(draft.holdUntil) : null;
         const setUntil = date => { draft.holdUntil = date ? date.toISOString() : ''; render(); };
         const quick = (label, choice) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(Boolean(until && Math.abs(until - reminderTime(choice)) < 60000)), onclick: () => setUntil(reminderTime(choice)) }, label);
-        const local = until ? new Date(until.getTime() - until.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
         const ready = draft.text.trim() && (closing || draft.holdUntil);
         return aoHost(h('section', { class: 'ao-card action-card', 'data-action-card': card.choice },
             h('div', { class: 'action-target' },
@@ -4677,7 +4724,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             several ? h('p', { class: 'ao-hint' }, 'Un altro ticket? Sceglilo a destra.') : null,
             closing ? null : h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, 'Fino a'),
                 h('div', { class: 'segmented hold-chips', role: 'group', 'aria-label': 'Fino a' }, quick('Tra 1 ora', '1h'), quick('Alle 14', '14'), quick('Domani 9', 'tomorrow')),
-                h('input', { class: 'ao-input', type: 'datetime-local', 'aria-label': 'Fino a', value: local, onchange: event => setUntil(event.target.value ? new Date(event.target.value) : null) })),
+                datePicker({ key: `hold:${ticket.number}`, value: until, time: true, label: 'Fino a', onchange: value => { draft.holdUntil = value.toISOString(); } })),
             h('label', { class: 'ao-field' }, h('span', { class: 'ao-label' }, closing ? 'Testo della chiusura' : 'Messaggio'),
                 h('textarea', { class: 'ao-input', id: `action-text-${ticket.number}`, rows: '4', placeholder: 'Scrivilo o scegli una mail nel thread', oninput: event => { draft.text = event.target.value; const button = document.querySelector('.action-card .ao-primary'); if (button) button.disabled = !(draft.text.trim() && (closing || draft.holdUntil)); } }, draft.text)),
             h('div', { class: 'ao-actions' },
@@ -4697,7 +4744,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             // (Apri ticket resta per un altro ticket da un'altra mail del thread).
             item.section !== 'ignored' && received ? action('Apri ticket', 'cardTake', open('take'), { pressed: choice === 'take', tone: 'accent' }) : null,
             queue ? action('Inoltra', 'cardForward', open('forward'), { pressed: choice === 'forward', tone: 'forward' }) : null,
-            queue ? action('Ignora', 'ignored', () => ignoreThread(item)) : null,
+            queue ? (state.armed === `ignore:${item.key}`
+                ? action('Conferma', 'ignored', () => { state.armed = null; ignoreThread(item); }, { tone: 'danger', pressed: true })
+                : action('Ignora', 'ignored', () => { state.armed = `ignore:${item.key}`; render(); setTimeout(() => { if (state.armed === `ignore:${item.key}`) { state.armed = null; render(); } }, 4000); })) : null,
             !queue && hasTicket ? action('Chiudi ticket', 'actResolve', () => startTicketAction(item, 'close'), { pressed: choice === 'close', tone: 'success' }) : null,
             !queue && hasTicket ? action('In attesa', 'actHold', () => startTicketAction(item, 'hold'), { pressed: choice === 'hold', tone: 'warning' }) : null,
             !queue && hasTicket ? action('Utility', 'utility', () => openUtilityPanel(item), { pressed: choice === 'utility' }) : null);
@@ -4907,26 +4956,26 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         };
         const chip = (id, label) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(when === id), onclick: () => { draft.when = id; render(); } }, label);
         // Personalizzato: giorno e ora (proposta: tra un'ora, arrotondata al quarto d'ora).
-        if (when === 'custom' && !draft.customAt) { const date = new Date(Date.now() + 3600000); date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0); draft.customAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
-        // Attività: i promemoria e la fine dell'attesa dei ticket In attesa, in ordine di tempo; i fatti in fondo.
+        if (when === 'custom' && !draft.customAt) { const date = new Date(Date.now() + 3600000); date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0); draft.customAt = date.toISOString().slice(0, 16); }
+        // Attività: elenco da spuntare in ordine fisso, dalla meno recente alla più recente; la spunta la segna fatta e
+        // la lascia al suo posto. In cima la fine dell'attesa dei ticket In attesa.
         const holds = tickets.filter(ticket => ticket.status === 'On Hold' && ticket.holdUntil).map(ticket => ({ hold: ticket, due: ticket.holdUntil }));
-        const entries = [...(list || []), ...holds].sort((a, b) => Number(Boolean(a.done)) - Number(Boolean(b.done)) || String(a.due || '9').localeCompare(String(b.due || '9')));
+        const created = entry => Date.parse(entry.created || entry.createdAt || '') || 0;
+        const entries = [...holds, ...(list || []).map((entry, index) => ({ entry, index })).sort((a, b) => (created(a.entry) - created(b.entry)) || a.index - b.index).map(({ entry }) => entry)];
         const now = Date.now();
-        const row = entry => h('li', { class: `timeline-row${entry.done ? ' done' : ''}${entry.due && !entry.done && new Date(entry.due).getTime() < now ? ' late' : ''}${entry.hold ? ' hold' : ''}` },
-            h('span', { class: 'timeline-time' }, timelineTime(entry.due)),
-            h('span', { class: 'timeline-dot' }),
-            entry.hold ? h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, `${entry.hold.number} torna attivo`), h('span', { class: 'task-meta' }, `Fine attesa · ${dueText(entry.due)}`))
+        const row = entry => h('li', { class: `check-row${entry.done ? ' done' : ''}${entry.due && !entry.done && new Date(entry.due).getTime() < now ? ' late' : ''}${entry.hold ? ' hold' : ''}` },
+            entry.hold ? [h('span', { class: 'hold-mark' }, icon(ICONS.actHold)), h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, `${entry.hold.number} torna attivo`), h('span', { class: 'task-meta' }, dueText(entry.due)))]
                 : h('div', { class: 'timeline-task' }, h('button', { type: 'button', class: 'task-check', 'aria-pressed': String(Boolean(entry.done)), title: entry.done ? 'Da fare' : 'Fatto', 'aria-label': entry.done ? 'Da fare' : 'Fatto', onclick: () => toggleTask(entry) }, entry.done ? icon(ICONS.check) : null),
-                    h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, entry.title), h('span', { class: 'task-meta' }, entry.assignedTo ? surname(operatorName(entry.assignedTo)) : ''))));
+                    h('span', { class: 'task-text' }, h('span', { class: 'task-title' }, entry.title), h('span', { class: 'task-meta' }, [entry.assignedTo ? surname(operatorName(entry.assignedTo)) : '', entry.due ? dueText(entry.due) : ''].filter(Boolean).join(' · ')))));
         return h('section', { class: 'right-section right-zone zone-activities' },
             h('h2', { class: 'right-title' }, 'Attività', h('span', { class: 'count' }, String(entries.filter(entry => !entry.done).length))),
             h('div', { class: 'scroll', 'data-scroll': `activities:${item.key}` },
                 list === undefined ? h('p', { class: 'hint' }, 'Caricamento…') : list === null && !holds.length ? h('p', { class: 'hint' }, 'Attività non disponibili')
-                    : entries.length ? h('ul', { class: 'timeline' }, entries.map(row)) : h('p', { class: 'hint' }, 'Nessuna attività')),
+                    : entries.length ? h('ul', { class: 'check-list' }, entries.map(row)) : h('p', { class: 'hint' }, 'Nessuna attività')),
             h('div', { class: 'task-add' },
                 h('input', { id: 'task-title', placeholder: 'Nuova attività', value: draft.title, 'aria-label': 'Nuova attività', oninput: event => { draft.title = event.target.value; }, onkeydown: event => { if (event.key === 'Enter') add(); } }),
                 h('div', { class: 'segmented reminder-chips', role: 'group', 'aria-label': 'Quando' }, chip('15m', 'Tra 15 min'), chip('1h', 'Tra 1 ora'), chip('3h', 'Tra 3 ore'), chip('custom', 'Personalizzato')),
-                when === 'custom' ? h('input', { type: 'datetime-local', id: 'reminder-at', class: 'reminder-time', 'aria-label': 'Giorno e ora', value: draft.customAt || '', onchange: event => { draft.customAt = event.target.value; } }) : null,
+                when === 'custom' ? datePicker({ key: 'reminder-at', value: draft.customAt ? new Date(draft.customAt) : null, time: true, label: 'Giorno e ora', onchange: value => { draft.customAt = value.toISOString(); } }) : null,
                 h('button', { type: 'button', class: 'btn primary', disabled: state.busy, onclick: add }, icon(ICONS.clock), 'Aggiungi')));
     }
     // Menu dei comandi (Ctrl+K, come Help Scout): azioni cercabili sul thread aperto e salti alle cartelle.
@@ -5303,6 +5352,72 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         else if (top === 'newmail') state.newMail = null;
         render();
     });
+    // Selettore di data (e ora) nello stile del pannello, al posto di quello del browser. Il riquadro si apre sopra tutto
+    // (posizione fissa vicino al campo), così non viene tagliato dalle colonne che scorrono.
+    const pickerHandlers = new Map();
+    const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+    const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    function pickerText(value, time) {
+        if (!value) return time ? 'Scegli giorno e ora' : 'Scegli il giorno';
+        const day = `${pad(value.getDate())}/${pad(value.getMonth() + 1)}/${value.getFullYear()}`;
+        return time ? `${day}  ${pad(value.getHours())}:${pad(value.getMinutes())}` : day;
+    }
+    function datePicker({ key, value, time = false, onchange, label = '' }) {
+        pickerHandlers.set(key, { onchange, time });
+        const open = state.picker?.key === key;
+        return h('button', { type: 'button', class: `date-field${open ? ' open' : ''}${value ? '' : ' empty'}`, 'data-picker': key, 'aria-label': label || (time ? 'Giorno e ora' : 'Giorno'), 'aria-expanded': String(open),
+            onclick: event => {
+                if (open) { state.picker = null; return render(); }
+                const base = value || new Date();
+                state.picker = { key, value: value ? new Date(value) : null, month: new Date(base.getFullYear(), base.getMonth(), 1), rect: event.currentTarget.getBoundingClientRect() };
+                render();
+            } }, h('span', {}, pickerText(value, time)), icon(ICONS.calendar || ICONS.clock));
+    }
+    function pickerPopover() {
+        const picker = state.picker;
+        const handler = picker && pickerHandlers.get(picker.key);
+        if (!picker || !handler) return null;
+        const { time, onchange } = handler;
+        const anchor = document.querySelector(`[data-picker="${CSS.escape(picker.key)}"]`)?.getBoundingClientRect() || picker.rect;
+        const height = time ? 372 : 318, width = 284;
+        const top = anchor.bottom + height + 8 < window.innerHeight ? anchor.bottom + 6 : Math.max(8, anchor.top - height - 6);
+        const left = Math.min(Math.max(8, anchor.left), window.innerWidth - width - 8);
+        const month = picker.month;
+        const start = new Date(month); start.setDate(1 - ((month.getDay() + 6) % 7)); // dal lunedì
+        const days = Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day; });
+        const today = new Date();
+        const commit = (value, close) => { onchange(value); if (close) state.picker = null; else state.picker.value = value; render(); };
+        const choose = day => {
+            const value = new Date(day.getFullYear(), day.getMonth(), day.getDate(), picker.value ? picker.value.getHours() : time ? Math.min(23, today.getHours() + 1) : 0, picker.value && time ? picker.value.getMinutes() : 0);
+            commit(value, !time);
+        };
+        const shift = delta => { state.picker.month = new Date(month.getFullYear(), month.getMonth() + delta, 1); render(); };
+        const setTime = text => {
+            const match = /^([01]?\d|2[0-3])[:.]?([0-5]\d)$/.exec(text.trim());
+            if (!match) return false;
+            const base = picker.value || new Date();
+            commit(new Date(base.getFullYear(), base.getMonth(), base.getDate(), Number(match[1]), Number(match[2])), false);
+            return true;
+        };
+        const hhmm = picker.value ? `${pad(picker.value.getHours())}:${pad(picker.value.getMinutes())}` : '';
+        return h('div', { class: 'date-pop', role: 'dialog', 'aria-label': time ? 'Giorno e ora' : 'Giorno', style: `top:${Math.round(top)}px;left:${Math.round(left)}px;width:${width}px` },
+            h('div', { class: 'date-pop-head' },
+                h('button', { type: 'button', class: 'date-nav', 'aria-label': 'Mese precedente', onclick: () => shift(-1) }, '‹'),
+                h('span', { class: 'date-month' }, `${MONTHS[month.getMonth()]} ${month.getFullYear()}`),
+                h('button', { type: 'button', class: 'date-nav', 'aria-label': 'Mese successivo', onclick: () => shift(1) }, '›')),
+            h('div', { class: 'date-grid' },
+                ['lu', 'ma', 'me', 'gi', 've', 'sa', 'do'].map(day => h('span', { class: 'date-dow' }, day)),
+                days.map(day => h('button', { type: 'button', class: `date-day${day.getMonth() !== month.getMonth() ? ' other' : ''}${sameDay(day, today) ? ' today' : ''}${sameDay(day, picker.value) ? ' chosen' : ''}`,
+                    onclick: () => choose(day) }, String(day.getDate())))),
+            time ? h('div', { class: 'date-time' }, h('span', {}, 'Ora'),
+                h('input', { id: 'date-pop-time', class: 'date-time-input', value: hhmm, placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric', 'aria-label': 'Ora (hh:mm)',
+                    onchange: event => { if (!setTime(event.target.value)) event.target.classList.add('invalid'); },
+                    onkeydown: event => { if (event.key === 'Enter') { event.preventDefault(); if (setTime(event.target.value)) { state.picker = null; render(); } } } }),
+                [['09:00'], ['14:00'], ['17:00']].map(([text]) => h('button', { type: 'button', class: 'date-chip', onclick: () => setTime(text) }, text))) : null,
+            h('div', { class: 'date-pop-foot' },
+                h('button', { type: 'button', class: 'date-link', onclick: () => { const now = new Date(); now.setSeconds(0, 0); if (!time) now.setHours(0, 0, 0, 0); state.picker.month = new Date(now.getFullYear(), now.getMonth(), 1); commit(now, !time); } }, time ? 'Adesso' : 'Oggi'),
+                time ? h('button', { type: 'button', class: 'date-done', onclick: () => { state.picker = null; render(); } }, 'Fatto') : null));
+    }
     // La ricerca in alto sta sopra la colonna della lista, larga quanto lei e a filo; se la lista è nascosta resta dov'era.
     let searchSpot = null;
     function alignSearch() {
@@ -5326,7 +5441,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const scrolls = new Map([...root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll, node.scrollTop]));
         const active = document.activeElement;
         const focus = active?.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
-        root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '', reminderAlert() || '');
+        root.replaceChildren(topbar(), workspace(), state.settingsOpen ? settingsView() : '', toast() || '', reminderAlert() || '', pickerPopover() || '');
         syncHistory();
         alignSearch();
         animate();
@@ -5407,10 +5522,11 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Il menu dell'utente si chiude con un clic fuori o con Esc.
     document.addEventListener('click', event => {
         if (state.menuOpen && !event.target.closest('.account')) { state.menuOpen = false; render(); }
-        if (state.armed && !event.target.closest('.tag.swap, .ao-tag-swap')) { state.armed = null; render(); }
+        if (state.armed && !event.target.closest('.tag.swap, .ao-tag-swap, .head-button')) { state.armed = null; render(); }
         if (state.snoozeMenu && !event.target.closest('.snooze')) { state.snoozeMenu = null; render(); }
         if (state.manageMenu && !event.target.closest('.manage')) { state.manageMenu = null; render(); }
         if (state.palette?.inline && !event.target.closest('.top-search')) { state.palette = null; render(); }
+        if (state.picker && !event.target.closest('.date-pop, .date-field')) { state.picker = null; render(); }
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
