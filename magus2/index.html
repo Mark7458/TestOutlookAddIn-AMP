@@ -2866,7 +2866,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Mail nella v2: nessun comando sotto (le azioni stanno in alto a destra e nell'editor in cima); un clic su una mail
     // ricevuta la sceglie come riferimento (bordo dell'accento), su una compatta la apre e la sceglie.
     function v2Message(entry, thread, item, body, service, compact) {
-        const picked = !service && pickedMessage(item)?.id === entry.id;
+        // Nessuna mail evidenziata di default: solo quella cliccata, o quella su cui lavora il pannello aperto (Apri ticket,
+        // Inoltra, Utility). Le azioni senza una scelta usano comunque l'ultima mail ricevuta.
+        const card = state.sideCards.get(item.key);
+        const picked = !service && (state.picked.get(item.parentItemId) === entry.id || (Boolean(card) && !['close', 'hold'].includes(card.choice) && card.messageId === entry.id));
         const kind = service ? (FORWARD_SUBJECT.test(entry.subject) ? ' service forwarded' : ' service') : '';
         const action = state.sideCards.get(item.key)?.choice;
         const takesText = ['close', 'hold'].includes(action);
