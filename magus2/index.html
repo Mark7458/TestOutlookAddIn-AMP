@@ -1050,6 +1050,25 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 :root:not([data-mode="light"]) .new-mail-button { border-color: rgba(255, 255, 255, .16); background: #16171b; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 :root:not([data-mode="light"]) .new-mail-button:hover { background: #1c1d22; border-color: rgba(124, 180, 255, .4); }
 
+/* Selettore dell'ora: ore e minuti come due scelte; le opzioni in griglia al posto del calendario */
+.time-select { display: inline-flex; align-items: center; gap: 4px; }
+.time-part { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field-bg); color: var(--text); font: 600 var(--fs-sm) var(--font); font-variant-numeric: tabular-nums; cursor: pointer; }
+.time-part:hover { border-color: var(--accent-line); }
+.time-part .caret { color: var(--subtle); font-size: 10px; font-weight: 400; }
+.time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.time-grid.hours { grid-template-columns: repeat(6, 1fr); }
+.time-grid .date-day { font-variant-numeric: tabular-nums; }
+/* Fuoco: niente riquadro blu spesso; i campi con bordo cambiano solo colore del bordo, quelli senza bordo (righe del
+   compositore, testo della risposta) non mostrano nulla. Il riquadro resta solo per la tastiera sui pulsanti. */
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
+.top-search .search input:focus { border-color: var(--accent-line); box-shadow: none; }
+.compose-field input:focus, .composer textarea:focus, .editor textarea:focus { outline: none; box-shadow: none; }
+button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+
+/* Contatori delle cartelle allineati: stessa larghezza e centrati, così il numero normale e il pallino stanno in colonna */
+.folder-count { min-width: 20px; text-align: center; }
+.folder.hot .folder-count { min-width: 20px; padding: 0 5px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2731,7 +2750,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     const personAvatar = (name, extra = '') => h('span', { class: `avatar ${avatarTone(name)}${extra}`, 'aria-hidden': 'true' }, initials(name));
     function listItem(item) {
         const ticket = item.key.startsWith('ticket:');
-        const pick = () => select(item);
+        const pick = () => (state.selected === item.key && !isCompact() ? closeSelected() : select(item)); // secondo clic: deseleziona
         const person = ticket ? '' : item.from?.name || item.from?.email || '';
         return h('li', {},
             h('div', { class: `item${person ? ' with-avatar' : ''}${item.addressed ? ` addr-${item.addressed}` : ''}`, 'data-key': item.key, role: 'button', tabindex: '0', 'aria-current': String(item.key === state.selected), onclick: pick, onkeydown: event => { if (event.key === 'Enter' && event.target === event.currentTarget) pick(); } },
@@ -4672,6 +4691,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     }
     function pickMessage(item, entry) {
         if (sameEmail(entry.from.email, serviceMailbox())) return;
+        // secondo clic sulla mail scelta: la deseleziona (se nessun pannello la sta usando)
+        if (state.picked.get(item.parentItemId) === entry.id && !state.sideCards.has(item.key)) { state.picked.delete(item.parentItemId); return render(); }
         const changed = pickedMessage(item)?.id !== entry.id;
         state.picked.set(item.parentItemId, entry.id);
         const opened = state.expanded.get(item.parentItemId) || new Set();
@@ -5061,9 +5082,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const needle = state.palette.text.trim().toLowerCase();
         // Con almeno due lettere cerca anche nelle mail e nei ticket (oggetto, mittente, numero, AMP): prima i risultati,
         // poi i comandi.
-        const found = needle.length >= 2 ? allItems().filter(item => [item.subject, item.from?.name, item.from?.email, item.number, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
+        const seen = new Set();
+        const found = needle.length >= 2 ? allItems().filter(item => !seen.has(item.key) && seen.add(item.key)).filter(item => [item.subject, item.from?.name, item.from?.email, item.number, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
             .some(text => String(text || '').toLowerCase().includes(needle))).slice(0, 8)
-            .map(item => [item.subject, item.number || item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
+            .map(item => [item.subject, item.number ? `${item.number}${OPEN_TICKET_STATUSES.includes(item.status) ? '' : ' · chiuso'}` : item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
         const list = found; // solo mail e ticket, niente comandi
         const index = Math.min(state.palette.index, Math.max(0, list.length - 1));
         const runAt = position => { const chosen = list[position]; const inline = state.palette.inline; state.palette = null; if (inline) { state.search = ''; document.activeElement?.blur(); } render(); chosen?.[2](); };
@@ -5080,6 +5102,19 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 kind ? icon(ICONS[kind === 'ticket' ? 'ticket' : 'mail']) : null, h('span', { class: 'palette-label' }, label), kind ? h('span', { class: 'palette-hint' }, keys) : keys ? h('kbd', {}, keys) : null)))
             : h('li', { class: 'hint' }, state.palette?.text.trim().length >= 2 ? 'Niente trovato' : 'Scrivi almeno due lettere'));
     }
+    // Dalla terza lettera cerca anche fra i ticket registrati, chiusi compresi (SearchTicketRecords), dopo una breve pausa.
+    let ticketSearchTimer = null;
+    function searchTicketsSoon(text) {
+        clearTimeout(ticketSearchTimer);
+        const needle = text.trim();
+        if (needle.length < 3) { state.found = null; return; }
+        ticketSearchTimer = setTimeout(async () => {
+            const found = await Data.searchTickets(needle).catch(() => null);
+            if (state.search.trim() !== needle) return;
+            state.found = found;
+            if (state.palette?.inline) render();
+        }, 350);
+    }
     // Una sola ricerca, in alto: scrivendo filtra la lista della cartella e sotto propone mail, ticket e comandi (Ctrl K).
     function topSearch() {
         const open = state.palette?.inline && state.palette.text.trim().length >= 2; // i risultati da due lettere in su
@@ -5088,7 +5123,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             h('label', { class: 'search' }, icon(ICONS.search),
                 h('input', { id: 'top-search', type: 'search', placeholder: 'Cerca mail e ticket', value: state.search, 'aria-label': 'Cerca mail e ticket', autocomplete: 'off',
                     onclick: () => { if (!state.palette) { state.palette = { text: state.search, index: 0, inline: true }; render(); } },
-                    oninput: event => { state.search = event.target.value; state.palette = { text: state.search, index: 0, inline: true }; render(); },
+                    oninput: event => { state.search = event.target.value; state.palette = { text: state.search, index: 0, inline: true }; searchTicketsSoon(state.search); render(); },
                     onkeydown: event => { if (menu) paletteKeys(event, menu.list, menu.index, menu.runAt); else if (event.key === 'ArrowDown') { state.palette = { text: state.search, index: 0, inline: true }; render(); } } }),
                 h('kbd', {}, 'Ctrl K')),
             menu ? h('div', { class: 'command-palette top-search-menu', role: 'listbox', 'aria-label': 'Risultati e comandi' }, paletteList(menu.list, menu.index, menu.runAt)) : null);
@@ -5421,7 +5456,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (!picker || !handler) return null;
         const { time, onchange } = handler;
         const anchor = document.querySelector(`[data-picker="${CSS.escape(picker.key)}"]`)?.getBoundingClientRect() || picker.rect;
-        const height = time ? 372 : 318, width = 284;
+        const width = Math.max(264, Math.round(anchor.width)); // largo quanto il campo
+        const height = time ? 360 : 318;
         const top = anchor.bottom + height + 8 < window.innerHeight ? anchor.bottom + 6 : Math.max(8, anchor.top - height - 6);
         const left = Math.min(Math.max(8, anchor.left), window.innerWidth - width - 8);
         const month = picker.month;
@@ -5441,7 +5477,21 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             commit(new Date(base.getFullYear(), base.getMonth(), base.getDate(), Number(match[1]), Number(match[2])), false);
             return true;
         };
-        const hhmm = picker.value ? `${pad(picker.value.getHours())}:${pad(picker.value.getMinutes())}` : '';
+        const mode = picker.mode || 'date';
+        const base = picker.value || new Date();
+        const setPart = (hours, minutes) => { const value = new Date(base.getFullYear(), base.getMonth(), base.getDate(), hours, minutes); state.picker.mode = 'date'; commit(value, false); };
+        if (time && mode !== 'date') {
+            // Selettore dell'ora: griglia delle ore (00-23) o dei minuti (ogni 5), al posto del calendario.
+            const hours = mode === 'hour';
+            const options = hours ? Array.from({ length: 24 }, (_, index) => index) : Array.from({ length: 12 }, (_, index) => index * 5);
+            const current = hours ? base.getHours() : Math.round(base.getMinutes() / 5) * 5 % 60;
+            return h('div', { class: 'date-pop', role: 'dialog', 'aria-label': hours ? 'Ora' : 'Minuti', style: `top:${Math.round(top)}px;left:${Math.round(left)}px;width:${width}px` },
+                h('div', { class: 'date-pop-head' },
+                    h('button', { type: 'button', class: 'date-nav', 'aria-label': 'Indietro', onclick: () => { state.picker.mode = 'date'; render(); } }, '‹'),
+                    h('span', { class: 'date-month' }, hours ? 'Ora' : 'Minuti'), h('span', { class: 'date-nav' })),
+                h('div', { class: `time-grid${hours ? ' hours' : ''}` }, options.map(value => h('button', { type: 'button', class: `date-day${value === current ? ' chosen' : ''}`,
+                    onclick: () => (hours ? setPart(value, base.getMinutes()) : setPart(base.getHours(), value)) }, pad(value)))));
+        }
         return h('div', { class: 'date-pop', role: 'dialog', 'aria-label': time ? 'Giorno e ora' : 'Giorno', style: `top:${Math.round(top)}px;left:${Math.round(left)}px;width:${width}px` },
             h('div', { class: 'date-pop-head' },
                 h('button', { type: 'button', class: 'date-nav', 'aria-label': 'Mese precedente', onclick: () => shift(-1) }, '‹'),
@@ -5452,10 +5502,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
                 days.map(day => h('button', { type: 'button', class: `date-day${day.getMonth() !== month.getMonth() ? ' other' : ''}${sameDay(day, today) ? ' today' : ''}${sameDay(day, picker.value) ? ' chosen' : ''}`,
                     onclick: () => choose(day) }, String(day.getDate())))),
             time ? h('div', { class: 'date-time' }, h('span', {}, 'Ora'),
-                h('input', { id: 'date-pop-time', class: 'date-time-input', value: hhmm, placeholder: 'hh:mm', maxlength: '5', inputmode: 'numeric', 'aria-label': 'Ora (hh:mm)',
-                    onchange: event => { if (!setTime(event.target.value)) event.target.classList.add('invalid'); },
-                    onkeydown: event => { if (event.key === 'Enter') { event.preventDefault(); if (setTime(event.target.value)) { state.picker = null; render(); } } } }),
-                [['09:00'], ['14:00'], ['17:00']].map(([text]) => h('button', { type: 'button', class: 'date-chip', onclick: () => setTime(text) }, text))) : null,
+                h('div', { class: 'time-select' },
+                    h('button', { type: 'button', class: 'time-part', 'aria-label': 'Ora', onclick: () => { state.picker.mode = 'hour'; render(); } }, pad(base.getHours()), h('span', { class: 'caret' }, '▾')),
+                    h('span', {}, ':'),
+                    h('button', { type: 'button', class: 'time-part', 'aria-label': 'Minuti', onclick: () => { state.picker.mode = 'minute'; render(); } }, pad(base.getMinutes()), h('span', { class: 'caret' }, '▾')))) : null,
             h('div', { class: 'date-pop-foot' },
                 h('button', { type: 'button', class: 'date-link', onclick: () => { const now = new Date(); now.setSeconds(0, 0); if (!time) now.setHours(0, 0, 0, 0); state.picker.month = new Date(now.getFullYear(), now.getMonth(), 1); commit(now, !time); } }, time ? 'Adesso' : 'Oggi'),
                 time ? h('button', { type: 'button', class: 'date-done', onclick: () => { state.picker = null; render(); } }, 'Fatto') : null));
