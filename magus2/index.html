@@ -1022,6 +1022,10 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
 .brand.aligned{ position: absolute; top: 50%; left: var(--brand-left); width: var(--brand-width); justify-content: center; transform: translateY(-50%); }
 .brand-name{ line-height: 1.25; padding-bottom: .08em; } /* il piede della g non viene tagliato */
 
+/* Risposta: più spazio per scrivere */
+.composer textarea{ min-height: min(40vh, 340px); }
+.ao-menu-empty{ padding: 10px 12px; font-size: 13px; color: var(--muted); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1907,6 +1911,19 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // ------------------------------------------------------------------
     const FUNCTIONS_URL = 'https://jakfunction-bzh9g2e6amhtdgff.italynorth-01.azurewebsites.net/api/';
     // Token rifiutato dalla Function (401): se ne chiede uno nuovo e si riprova una volta.
+    // Su cosa ha agito la chiamata, per il registro: thread, ticket, gruppo, sigla, destinatari.
+    function logContext(params = {}) {
+        const parts = [];
+        if (params.parentItemId) parts.push(`thread ${params.parentItemId}`);
+        const ticket = params.ticketId || params.ticket?.ticketId || params.ticket?.number;
+        if (ticket) parts.push(`ticket ${ticket}`);
+        if (params.groupName) parts.push(`gruppo ${params.groupName}`);
+        if (params.tag) parts.push(`sigla ${params.tag}`);
+        const to = Array.isArray(params.to) ? params.to.join(', ') : params.to;
+        if (to) parts.push(`a ${String(to).slice(0, 120)}`);
+        if (params.section) parts.push(params.section);
+        return parts.length ? ` · ${parts.join(' · ')}` : '';
+    }
     async function call(name, params = {}, method = 'GET', retried = false) {
         let url = FUNCTIONS_URL + name;
         const request = { method, headers: { Accept: 'application/json', Authorization: `Bearer ${await window.MagusAuth.token({ fresh: retried })}` } };
@@ -1917,11 +1934,15 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             request.headers['Content-Type'] = 'application/json';
             request.body = JSON.stringify(params);
         }
-        const response = await fetch(url, request);
+        let response;
+        try { response = await fetch(url, request); }
+        catch (error) { ActionLog.add('function', name, `rete non raggiungibile${logContext(params)} — ${error.message || error}`); throw error; }
         if (response.status === 401 && !retried) return call(name, params, method, true);
         const data = await response.json().catch(() => null);
         const reading = ['PluginConfig', 'ListQueue', 'ListThreadMessages', 'GetMailBody', 'SearchTicketRecords', 'Health'].includes(name);
-        if (!reading || !response.ok) ActionLog.add('function', name, `${response.status}${params.action ? ` ${params.action}` : ''}${data?.reason ? ` ${data.reason}` : ''}`); // registro: azioni ed errori
+        const failed = !response.ok || data?.status === 'error';
+        if (!reading || failed) // registro: tutte le azioni, e gli errori anche delle letture, con su cosa e perché
+            ActionLog.add('function', name, `${response.status}${params.action ? ` ${params.action}` : ''}${data?.reason ? ` ${data.reason}` : ''}${logContext(params)}${failed && data?.message ? ` — ${String(data.message).slice(0, 300)}` : ''}`);
         if (!response.ok || data?.status === 'error') {
             const error = new Error(data?.message || `${name}: errore ${response.status}`);
             error.reason = data?.reason || data?.error || null;
@@ -2207,6 +2228,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             return result ?? true;
         } catch (error) {
             console.error('[Magus]', error);
+            if (!error.data) ActionLog.add('errore', 'Magus', String(error.message || error).slice(0, 300)); // gli errori delle Function sono già nel registro
             if (CHANGED[error.reason]) {
                 showStatus(CHANGED[error.reason], 'warning');
                 if (error.reason !== 'not_tagged') reloadAll();
@@ -2553,8 +2575,10 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             try {
                 await FORWARD_ACTIONS[FORWARD_STEPS[index][0]](job);
                 job.steps[index] = 'ok';
+                ActionLog.add('inoltro', FORWARD_STEPS[index][1], `ok · thread ${job.item.parentItemId} · ${job.group.tag}${job.ticket ? ` · ticket ${job.ticket.number}` : ''}`);
             } catch (error) {
                 console.error('[Magus]', error);
+                ActionLog.add('inoltro', FORWARD_STEPS[index][1], `non riuscito · thread ${job.item.parentItemId} · ${job.group.tag}${job.ticket ? ` · ticket ${job.ticket.number}` : ''} — ${error.message || error}`);
                 job.steps[index] = 'ko';
                 job.error = error;
                 render();
@@ -3169,7 +3193,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const current = options.find(option => Array.isArray(option) && option[0] === value);
         const field = h('div', {
             class: 'ao-input ao-select', role: 'button', tabindex: '0', 'aria-haspopup': 'listbox', 'aria-label': label,
-            onclick: event => { event.stopPropagation(); if (!event.target.closest('.ao-select-search')) toggleAoSelect(field, options, value, onchange); },
+            onclick: event => { event.stopPropagation(); if (!event.target.closest('.ao-select-search')) toggleAoSelect(field, options, value, onchange, field, label); },
             onkeydown: event => { if (event.target.closest('.ao-select-search')) return; if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); field.click(); } }
         }, h('span', { class: `ao-select-value${current ? '' : ' ao-select-placeholder'}` }, current ? current[1] : 'Seleziona…'), h('span', { class: 'ao-select-caret', 'aria-hidden': 'true' }, '▾'));
         return h('div', { class: 'ao-field' }, h('span', { class: 'ao-label' }, label, tag ? h('span', { class: 'ao-suggest-tag', title: tag.title || '' }, tag.text) : null), field);
@@ -3180,7 +3204,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         host.querySelectorAll('.ao-select.ao-open, .ao-menu-anchor.ao-open').forEach(field => field.classList.remove('ao-open'));
         if (renderPending && !renderHolds) { renderPending = false; setTimeout(render); } // il ridisegno rimandato mentre era aperta
     }
-    function toggleAoSelect(field, options, value, onchange, wide = field) {
+    function toggleAoSelect(field, options, value, onchange, wide = field, label = '') {
         const host = field.closest('#ao-root');
         const wasOpen = field.classList.contains('ao-open');
         closeAoSelects(document);
@@ -3189,6 +3213,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const rect = wide.getBoundingClientRect();
         const choose = id => { closeAoSelects(document); onchange(id); };
         const menu = h('div', { class: 'ao-menu ao-select-menu', role: 'listbox' },
+            !options.length ? h('div', { class: 'ao-menu-empty' }, label === 'Agenzia' ? 'Nessuna agenzia: aggiungile in Impostazioni › Agenzie' : 'Nessuna voce') : null,
             options.map(option => (!Array.isArray(option) ? h('div', { class: 'ao-menu-group' }, option.group)
                 : h('button', {
                     type: 'button', role: 'option', 'aria-selected': String(option[0] === value), class: `ao-menu-item${option[0] === value ? ' ao-active' : ''}`,
@@ -4161,7 +4186,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     const ActionLog = {
         read() { try { return JSON.parse(localStorage.getItem(ACTION_LOG_KEY) || '[]') || []; } catch { return []; } },
         add(kind, name, details = '') {
-            const list = [...ActionLog.read(), { at: new Date().toISOString(), kind, name, details }].slice(-300);
+            const list = [...ActionLog.read(), { at: new Date().toISOString(), kind, name, details }].slice(-1000);
             try { localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(list)); } catch { /* memoria del browser non disponibile */ }
         },
         clear() { try { localStorage.removeItem(ACTION_LOG_KEY); } catch { /* niente */ } },
