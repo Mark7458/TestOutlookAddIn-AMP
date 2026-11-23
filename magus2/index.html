@@ -1038,6 +1038,16 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
 .rcpt-label{ color: var(--subtle); margin-right: 4px; }
 .rcpt-name{ color: var(--text); }
 
+/* Posta in arrivo: filtri in cima alla lista e stato su ogni riga */
+.inbox-chips{ display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.inbox-chip{ border: 0; border-radius: 999px; padding: 4px 11px; background: var(--field-bg); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.inbox-chip.on{ background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.folder-pill.state-free{ color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.folder-pill.state-mine{ color: var(--success, #1d8a4e); border-color: color-mix(in srgb, var(--success, #1d8a4e) 40%, transparent); }
+.folder-pill.state-forwarded{ color: var(--forward); border-color: color-mix(in srgb, var(--forward) 40%, transparent); }
+.folder-pill.state-ignored{ color: var(--subtle); }
+.folder-pill.inline{ margin: 0 0 0 auto; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1645,6 +1655,9 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
       const days = Number(q.get('days')) || 0; const recent = list => days ? list.filter(entry => { const item = toItem(entry); const at = Date.parse(item.lastMessage?.receivedAt || item.lastReceived || item.receivedAt || ''); return !at || Date.now() - at <= days * 86400000; }) : list;
       if (section === 'active') return json({ threads: recent(threads).map(toItem) });
       if (section === 'ignored') return json({ threads: ignored.map(toItem) });
+      if (section === 'all') return json({ threads: [...recent(threads), ...ignored].map(toItem).concat([
+        { parentItemId: 301, subject: 'Spam da dominio esterno', from: 'Mario Piras <mario.piras@agenzia.it>', lastReceived: ago(400), messageCount: 2, lastMessage: { from: 'Servizio <' + BOX + '>', to: 'mario.piras@agenzia.it', cc: '' }, thread: { status: 'Forwarded', assignedTo: 'Email Security', statusBy: ME, statusAt: ago(390) } },
+        { parentItemId: 302, subject: 'Creazione casella consulente', from: 'Carmen Caniglia <carmen.caniglia@agenzia.it>', lastReceived: ago(130), messageCount: 3, lastMessage: { from: 'Carmen Caniglia <carmen.caniglia@agenzia.it>', to: BOX, cc: '' }, thread: { status: 'Acquired', assignedTo: 'luigi.verdi@esempio.it', statusAt: ago(120) } }]) });
       return json({ threads: [{ parentItemId: 106, subject: 'Casella protocollo non visibile', unseenCount: 1, lastReceived: ago(30), messageCount: (conversations[106] || []).length, hasAttachment: false, lastMessage: { from: 'Giorgio Rosa <giorgio.rosa@agenzia.it>', to: BOX, cc: '' }, thread: { status: 'Acquired', assignedTo: ME, statusAt: ago(205) } }] });
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
@@ -2174,7 +2187,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         ignoredOpen: false, // sezione delle ignorate aperta in fondo a Posta
         postaFilter: 'all', // filtri rapidi sopra Posta: all | mine | free | cc
         // Magus v2 (layout a cartelle, stile Help Scout): cartella o strumento aperto, lista e colonna del contatto
-        view: 'free', // free | mine | others | tickets | later | attention | ignored | mailless | tasks | teams | utility | tools
+        view: 'inbox', // inbox | mentions | tickets | later | attention | mailless | tasks | teams | utility | tools
+        inboxFilter: 'all', // all | free | mine | others | forwarded | ignored
         listHidden: false, listAuto: false, // lista richiusa a mano, o da sola mentre c'è il pannello del ticket
         reminder: null, // promemoria scaduto da mostrare (avviso in Magus)
         drawerOpen: false, mobileTab: 'mail', // telefono: menu delle cartelle; scheda del thread (mail | tickets)
@@ -2187,7 +2201,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         sideTab: 'thread', // pannello di destra: thread | tasks | teams
         sideCollapsed: (() => { try { return localStorage.getItem('magus_side_collapsed_v1') === '1'; } catch { return false; } })(),
         tasks: { thread: new Map(), mine: null, loading: new Set(), draft: { title: '', assignedTo: '', due: '' } }, // Task: Planner (del thread) e To Do
-        lists: { active: [], ignored: [], tickets: [], threads: [] },
+        lists: { active: [], ignored: [], tickets: [], threads: [], extra: [] },
         found: null, // risultati della ricerca nei ticket
         search: '',
         loaded: false,
@@ -2217,7 +2231,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
         toast: null
     };
-    const allItems = () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored, ...state.lists.tickets, ...(state.found || [])];
+    const allItems = () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored, ...state.lists.extra, ...state.lists.tickets, ...(state.found || [])];
     // Nuovo ticket senza mail (da Ticket): una voce finta, così centro e destra lo trattano come gli altri.
     const NEW_TICKET = { key: 'new-ticket', subject: 'Nuovo ticket', parentItemId: null, section: 'tickets', newTicket: true };
     const selectedItem = () => (state.selected === NEW_TICKET.key ? NEW_TICKET : allItems().find(item => item.key === state.selected) || null);
@@ -2270,8 +2284,13 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     async function loadLists() {
         try {
-            const [active, ignored, tickets] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets()]);
-            Object.assign(state.lists, { active, ignored, tickets, threads: ticketThreads(tickets, active) });
+            const [active, ignored, tickets, all] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets(), Data.queue('all').catch(() => [])]);
+            const threads = ticketThreads(tickets, active);
+            // Posta in arrivo: in più i thread inoltrati e quelli in carico (anche ai colleghi) che non sono già nelle altre liste
+            const known = new Set([...active, ...ignored, ...threads].map(item => item.parentItemId));
+            const extra = all.filter(item => !known.has(item.parentItemId) && ['Acquired', 'Forwarded'].includes(item.status))
+                .map(item => ({ ...item, section: item.status === 'Forwarded' ? 'forwarded' : isMe(item.assignedTo) ? 'mine' : 'others' }));
+            Object.assign(state.lists, { active, ignored, tickets, threads, extra });
             state.listsAt = new Date(); // "Aggiornato alle…" in fondo all'elenco, come la barra di stato del pannello
             state.error = '';
         } catch (error) {
@@ -2552,8 +2571,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         await loadLists();
         // si resta sul thread (ora con il ticket nel pannello di destra); il ticket senza mail si apre da solo
         state.selected = ticket.parentItemId ? `thread:${ticket.parentItemId}` : ticket.key; // senza mail: il ticket nuovo, in Ticket
-        const moved = item && !linked && state.view !== 'mine'; // preso dalla coda: il thread passa in Mie e la lista lo segue
-        if (moved) state.view = 'mine';
+        const moved = false; // si resta dove si è: con il filtro Libere la riga esce, il thread resta aperto
         state.lists.tickets.filter(entry => entry.parentItemId === ticket.parentItemId).forEach(entry => state.openTicket.set(entry.number, entry.number === ticket.number));
         render();
         openThread(ticket.parentItemId);
@@ -2840,7 +2858,9 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     const personAvatar = (name, extra = '') => h('span', { class: `avatar ${avatarTone(name)}${extra}`, 'aria-hidden': 'true' }, initials(name));
     function listItem(item, showFolder = false) {
+        const pillText = typeof showFolder === 'string' ? showFolder : showFolder ? folderLabel(item) : '';
         const ticket = item.key.startsWith('ticket:');
+        const inlinePill = typeof showFolder === 'string' && showFolder ? h('span', { class: `folder-pill inline state-${inboxFilterOf(item)}` }, showFolder) : null; // stato nella Posta in arrivo
         const pick = () => (state.selected === item.key && !isCompact() ? closeSelected() : select(item)); // secondo clic: deseleziona
         const person = ticket ? '' : item.from?.name || item.from?.email || '';
         return h('li', {},
@@ -2852,13 +2872,13 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
                 item.section === 'mine' ? h('span', { class: 'item-meta' },
                     h('span', {}, item.from?.name ? markText(item.from.name, state.search) : null), ccPill(item),
                     item.tickets.map(entry => h('span', { class: `tag${entry.status === 'On Hold' ? ' working' : ''}`, title: TICKET_STATUS[entry.status] || entry.status }, markText(entry.number, state.search))),
-                    null) :
+                    inlinePill) :
                 h('span', { class: 'item-meta' },
                     ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, markText(item.from.name, state.search)), ticket ? null : ccPill(item),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
-                    null),
+                    inlinePill),
                 ticket ? null : itemExtra(item),
-                showFolder && folderLabel(item) ? h('span', { class: `folder-pill${folderLabel(item) === 'Chiuso' ? ' closed' : ''}` }, folderLabel(item)) : null));
+                showFolder && pillText && typeof showFolder !== 'string' ? h('span', { class: `folder-pill${pillText === 'Chiuso' ? ' closed' : ''}` }, pillText) : null));
     }
     // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
     // Pillola "Cc" quando il servizio è solo in copia nell'ultima mail (nessuna azione richiesta).
@@ -4041,7 +4061,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         if (!id) return;
         const item = allItems().find(entry => entry.parentItemId === id && entry.key.startsWith('thread:'));
         if (!item) return showStatus('Thread non trovato', 'danger');
-        state.view = item.section === 'ignored' ? 'ignored' : item.section === 'mine' ? (state.lists.threads.includes(item) ? 'tickets' : 'mine') : !item.assignedTo ? 'free' : isMe(item.assignedTo) ? 'mine' : 'others';
+        state.view = 'inbox';
+        state.inboxFilter = inboxFilterOf(item);
         history.replaceState(null, '', location.pathname + location.search);
         select(item);
     }
@@ -4582,15 +4603,38 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const stuck = state.lists.tickets.filter(ticket => ticket.parentItemId && ticket.forwardGroup && OPEN_TICKET_STATUSES.includes(ticket.status) && forwardJobFor(ticket)?.steps.includes('ko'));
         return state.lists.threads.filter(item => stuck.some(ticket => ticket.parentItemId === item.parentItemId));
     }
+    // Posta in arrivo: tutti i thread (non i risolti), con i filtri in cima; gli ignorati solo con il loro filtro.
+    const inboxAll = () => {
+        const seen = new Set();
+        return [...state.lists.active, ...state.lists.threads, ...state.lists.extra, ...state.lists.ignored].filter(item => !seen.has(item.key) && seen.add(item.key));
+    };
+    const INBOX_FILTERS = [
+        ['all', 'Tutte', item => item.section !== 'ignored'],
+        ['free', 'Libere', item => item.section === 'active' && !item.assignedTo],
+        ['mine', 'Mie', item => item.section === 'mine' || (item.section === 'active' && isMe(item.assignedTo))],
+        ['others', 'Colleghi', item => (item.section === 'active' || item.section === 'others') && item.assignedTo && !isMe(item.assignedTo)],
+        ['forwarded', 'Inoltrate', item => item.section === 'forwarded'],
+        ['ignored', 'Ignorate', item => item.section === 'ignored']
+    ];
+    const inboxFilterOf = item => (INBOX_FILTERS.slice(1).find(([, , test]) => test(item)) || ['all'])[0];
+    function inboxItems(filter = state.inboxFilter) {
+        const test = (INBOX_FILTERS.find(([id]) => id === filter) || INBOX_FILTERS[0])[2];
+        return inboxAll().filter(test).filter(item => !isSnoozed(item));
+    }
+    // Stato del thread sulla riga della Posta in arrivo.
+    function inboxLabel(item) {
+        if (item.section === 'ignored') return 'Ignorata';
+        if (item.section === 'forwarded') return `Inoltrata${item.assignedTo ? ` · ${forwardGroups().find(group => [group.name, group.id, group.tag].includes(item.assignedTo))?.tag || item.assignedTo}` : ''}`;
+        if (item.section === 'others') return surname(operatorName(item.assignedTo)); // in carico a un collega
+        if (item.section === 'active' && !item.assignedTo) return 'Libera';
+        return ''; // il tag dell'operatore o il ticket sulla riga dicono già di chi è
+    }
     const FOLDERS = [
-        ['free', 'Libere', 'queue', () => state.lists.active.filter(item => !item.assignedTo && !isSnoozed(item))],
-        ['mine', 'Mie', 'user', () => [...state.lists.active.filter(item => isMe(item.assignedTo)), ...state.lists.threads].filter(item => !isSnoozed(item))],
+        ['inbox', 'Posta in arrivo', 'queue', () => inboxItems()],
         ['mentions', 'Menzioni', 'at', () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored].filter(item => state.mentions.some(note => Number(note.parentItemId) === item.parentItemId)), true],
-        ['others', 'Dei colleghi', 'users', () => state.lists.active.filter(item => item.assignedTo && !isMe(item.assignedTo) && !isSnoozed(item))],
         ['tickets', 'Con ticket', 'ticket', () => state.lists.threads.filter(item => !isSnoozed(item))],
         ['later', 'In attesa', 'actHold', () => state.lists.threads.filter(item => item.tickets?.some(ticket => ticket.status === 'On Hold'))],
-        ['attention', 'Da guardare', 'alert', () => attentionItems(), true],
-        ['ignored', 'Ignorate', 'ignored', () => state.lists.ignored]
+        ['attention', 'Da guardare', 'alert', () => attentionItems(), true]
     ];
     const TOOLS = [['mailless', 'Ticket senza mail', 'cardTake'], ['tasks', 'Task', 'tasks'], ['utility', 'Utility', 'utility'], ['tools', 'Tools', 'tools']];
     function goTo(view) {
@@ -4611,7 +4655,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             h('button', { type: 'button', class: 'new-mail-button', 'aria-pressed': String(Boolean(state.newMail)), onclick: () => openNewMail() }, icon(ICONS.compose), 'Nuova mail'),
             h('span', { class: 'folders-group' }, 'Posta'),
             FOLDERS.map(([id, label, iconName, list, warn]) => {
-                const count = state.loaded ? list().length : 0;
+                const count = state.loaded ? (id === 'inbox' ? inboxItems('free').length : list().length) : 0;
                 return warn && !count ? null : entry(id, label, iconName, count, warn);
             }),
             h('span', { class: 'folders-group' }, 'Strumenti'),
@@ -4622,9 +4666,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // Cartella in cui sta un risultato della ricerca (pillola sulla riga, come Outlook).
     function folderLabel(item) {
         if (item.key.startsWith('ticket:')) return OPEN_TICKET_STATUSES.includes(item.status) ? (item.parentItemId ? 'Con ticket' : 'Ticket senza mail') : 'Chiuso';
-        if (item.section === 'ignored') return 'Ignorate';
-        if (item.section === 'mine' || isMe(item.assignedTo)) return 'Mie';
-        if (item.section === 'active') return item.assignedTo ? 'Dei colleghi' : 'Libere';
+        if (item.key.startsWith('thread:')) return inboxLabel(item);
         return '';
     }
     // Ricerca come Outlook: dalla seconda lettera la colonna della lista mostra i risultati di tutte le cartelle (e dalla
@@ -4658,10 +4700,16 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             h('div', { class: 'v2-list-head' },
                 h('h2', {}, title, h('span', { class: 'count' }, String(items.length))),
                 wide ? null : h('button', { type: 'button', class: 'head-action', title: 'Richiudi la lista', 'aria-label': 'Richiudi la lista', onclick: () => { state.listHidden = true; render(); } }, icon(ICONS.panelLeft))),
-            h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}` },
+            state.view === 'inbox' ? inboxChips() : null,
+            h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}:${state.view === 'inbox' ? state.inboxFilter : ''}` },
                 mailless ? h('button', { type: 'button', class: `new-ticket${state.selected === 'new-ticket' ? ' active' : ''}`, onclick: () => { state.selected = 'new-ticket'; state.panel = null; render(); } }, icon(ICONS.cardTake), 'Nuovo ticket') : null,
                 !state.loaded ? empty('queue', 'Caricamento…') : state.error ? empty('queue', state.error)
-                    : items.length ? h('ul', { class: 'list' }, items.map(item => listItem(item))) : empty(mailless ? 'ticket' : 'queue', needle ? 'Nessun risultato' : 'Niente qui')));
+                    : items.length ? h('ul', { class: 'list' }, items.map(item => listItem(item, state.view === 'inbox' ? inboxLabel(item) || false : false))) : empty(mailless ? 'ticket' : 'queue', needle ? 'Nessun risultato' : 'Niente qui')));
+    }
+    function inboxChips() {
+        return h('div', { class: 'inbox-chips', role: 'group', 'aria-label': 'Filtri' }, INBOX_FILTERS.map(([id, label]) =>
+            h('button', { type: 'button', class: `inbox-chip${state.inboxFilter === id ? ' on' : ''}`, 'aria-pressed': String(state.inboxFilter === id),
+                onclick: () => { state.inboxFilter = id; render(); } }, label)));
     }
     function searchList(wide) {
         const needle = state.search.trim().toLowerCase();
@@ -5048,7 +5096,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const seen = new Set();
         const found = needle.length >= 2 ? allItems().filter(item => !seen.has(item.key) && seen.add(item.key)).filter(item => [item.subject, item.from?.name, item.from?.email, item.number, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
             .some(text => String(text || '').toLowerCase().includes(needle))).slice(0, 8)
-            .map(item => [item.subject, item.number ? `${item.number}${OPEN_TICKET_STATUSES.includes(item.status) ? '' : ' · chiuso'}` : item.from?.name || '', () => { state.view = item.section === 'ignored' ? 'ignored' : item.key.startsWith('ticket:') && !item.parentItemId ? 'mailless' : item.section === 'mine' ? 'mine' : state.view; select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
+            .map(item => [item.subject, item.number ? `${item.number}${OPEN_TICKET_STATUSES.includes(item.status) ? '' : ' · chiuso'}` : item.from?.name || '', () => { if (item.key.startsWith('ticket:') && !item.parentItemId) state.view = 'mailless'; else if (item.key.startsWith('thread:')) { state.view = 'inbox'; state.inboxFilter = inboxFilterOf(item); } select(item); }, item.key.startsWith('ticket:') ? 'ticket' : 'mail']) : [];
         const list = found; // solo mail e ticket, niente comandi
         const index = Math.min(state.palette.index, Math.max(0, list.length - 1));
         const runAt = position => { const chosen = list[position]; const inline = state.palette.inline; state.palette = null; if (inline) { state.search = ''; document.activeElement?.blur(); } render(); chosen?.[2](); };
@@ -5181,7 +5229,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             h('div', { class: 'reminder-alert-text' }, task.title),
             thread ? h('div', { class: 'hint' }, thread.subject) : null,
             h('div', { class: 'reminder-alert-actions' },
-                thread ? h('button', { type: 'button', class: 'btn primary', onclick: () => { close('done'); state.view = 'mine'; select(thread); } }, 'Apri il thread') : null,
+                thread ? h('button', { type: 'button', class: 'btn primary', onclick: () => { close('done'); state.view = 'inbox'; state.inboxFilter = inboxFilterOf(thread); select(thread); } }, 'Apri il thread') : null,
                 h('button', { type: 'button', class: 'btn', onclick: () => close(new Date(Date.now() + 10 * 60000).toISOString()) }, 'Tra 10 min'),
                 h('button', { type: 'button', class: 'btn', onclick: () => { close('done'); toggleTask(task); } }, 'Fatto')));
     }
