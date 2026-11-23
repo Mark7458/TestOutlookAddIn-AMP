@@ -2038,13 +2038,13 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
         },
         async queue(section) {
             const days = Number(state.config?.queue?.days) || 0; // filtro temporale scelto dall'amministratore (0 = tutti)
-            const result = await call('ListQueue', { section, ...(days ? { days } : {}) });
+            const result = await call('ListQueue', { section, ...(section === 'mine' ? { caller: state.user?.email } : {}), ...(days ? { days } : {}) });
             return (result?.threads || []).map(item => toThread(item, section));
         },
         async tickets() {
             const [found, mine] = await Promise.all([
                 call('SearchTicketRecords', { statuses: OPEN_TICKET_STATUSES }, 'POST'),
-                call('ListQueue', { section: 'mine' }).catch(() => null)
+                call('ListQueue', { section: 'mine', caller: state.user?.email }).catch(() => null)
             ]);
             const unseen = new Map((mine?.threads || []).map(item => [Number(item.parentItemId), item]));
             return (found?.records || []).map(record => toTicket(record, unseen.get(Number(record.parentItemId))));
@@ -4159,7 +4159,7 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
             try { localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(list)); } catch { /* memoria del browser non disponibile */ }
         },
         clear() { try { localStorage.removeItem(ACTION_LOG_KEY); } catch { /* niente */ } },
-        text() { return ActionLog.read().map(entry => `${entry.at} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n'); }
+        text() { return ActionLog.read().map(entry => `${new Date(entry.at).toLocaleString('it-IT')} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n'); }
     };
     const REFRESH_KEY = 'magus_refresh_v1';
     const REFRESH_LIMITS = [15, 900];
@@ -4187,7 +4187,7 @@ button:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 1px
         let cards;
         if (tab === 'diagnostics') {
             const health = state.health;
-            const output = h('pre', { class: 'ao-tools-log' }, ActionLog.read().slice().reverse().map(entry => `${entry.at.slice(11, 19)} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n') || 'Nessuna azione registrata.');
+            const output = h('pre', { class: 'ao-tools-log' }, ActionLog.read().slice().reverse().map(entry => `${new Date(entry.at).toLocaleTimeString('it-IT')} [${entry.kind}] ${entry.name}${entry.details ? ` ${entry.details}` : ''}`).join('\n') || 'Nessuna azione registrata.');
             cards = [
                 h('section', { class: 'ao-card' },
                     h('h3', { class: 'ao-card-title' }, 'Connessione'),
