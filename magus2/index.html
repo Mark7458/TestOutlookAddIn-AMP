@@ -1069,6 +1069,8 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
 .folder-count { min-width: 20px; text-align: center; }
 .folder.hot .folder-count { min-width: 20px; padding: 0 5px; }
 
+.statusbar-sync.live { color: var(--success); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1667,6 +1669,7 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
     if (!path.startsWith('/api/')) return realFetch(input, init);
     await delay(250 + Math.random() * 300);
     const name = path.slice(5), q = url.searchParams;
+    if (name === 'negotiate') return json({ url: 'https://mock.signalr/client/?hub=queue', accessToken: 'mock' });
     if (name === 'PluginConfig' && init?.method !== 'POST') return json(config);
     if (name === 'Health') return json({ status: 'ok' });
     if (name === 'ListQueue') {
@@ -2220,6 +2223,7 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
         busy: false,
         menuOpen: false, // menu a tendina dell'utente
         settingsOpen: false, // finestra delle impostazioni
+        live: 'off', // SignalR: off, connecting, on
         newMail: null, responsesOpen: null, picker: null, // selettore di data aperto // nuova mail da zero; elenco delle Risposte utili aperto (chiave del compositore)
         settingsTab: 'profile',
         editing: null, // voce aperta nelle impostazioni { kind, id } (id null = nuova)
@@ -2311,6 +2315,63 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             catch (error) { thread.bodies.set(message.id, { error: error.message }); }
             render();
         }));
+    }
+    // Ricarica un thread già aperto senza svuotarlo: solo le mail nuove (testo compreso).
+    async function refreshThread(parentItemId) {
+        const thread = state.threads.get(parentItemId);
+        if (!thread || thread.loading) return openThread(parentItemId);
+        let messages;
+        try { messages = await Data.messages(parentItemId); } catch { return; }
+        const known = new Set(thread.messages.map(message => message.id));
+        const fresh = messages.filter(message => !known.has(message.id));
+        if (!fresh.length) return;
+        thread.messages = messages;
+        render();
+        await Promise.all(fresh.map(async message => {
+            try { thread.bodies.set(message.id, await Data.body(message.id)); }
+            catch (error) { thread.bodies.set(message.id, { error: error.message }); }
+        }));
+        render();
+    }
+    // Aggiornamenti in tempo reale con SignalR (negotiate di jakwebhook, evento queueChanged): a ogni avviso si ricaricano
+    // gli elenchi e il thread aperto. Il controllo a tempo resta come riserva, più rado quando la connessione è attiva.
+    const NEGOTIATE_URL = 'https://jakwebhook-cufmbyheh0hpdthv.italynorth-01.azurewebsites.net/api/negotiate';
+    let liveTimer = null;
+    function liveChanged() {
+        clearTimeout(liveTimer);
+        liveTimer = setTimeout(() => {
+            if (state.busy) return liveChanged();
+            loadLists();
+            loadMentions();
+            const item = selectedItem();
+            if (item?.parentItemId) refreshThread(item.parentItemId);
+        }, 400); // più avvisi ravvicinati = un solo aggiornamento
+    }
+    async function startLive() {
+        if (!window.signalR || state.live === 'on' || state.live === 'connecting') return;
+        state.live = 'connecting';
+        try {
+            const response = await fetch(state.config.signalr?.negotiateUrl || NEGOTIATE_URL);
+            if (!response.ok) throw new Error(`negotiate ${response.status}`);
+            const info = await response.json();
+            if (!info.url || !info.accessToken) throw new Error('negotiate incompleta');
+            const connection = new window.signalR.HubConnectionBuilder()
+                .withUrl(info.url, { accessTokenFactory: () => info.accessToken })
+                .withAutomaticReconnect()
+                .configureLogging(window.signalR.LogLevel.Warning)
+                .build();
+            connection.on('queueChanged', liveChanged);
+            const set = value => { state.live = value; scheduleRefresh(); render(); };
+            connection.onreconnecting(() => set('connecting'));
+            connection.onreconnected(() => { set('on'); liveChanged(); }); // al rientro si recupera quello che è cambiato
+            connection.onclose(() => { set('off'); setTimeout(startLive, 30000); });
+            await connection.start();
+            set('on');
+        } catch (error) {
+            state.live = 'off';
+            render();
+            setTimeout(startLive, 60000); // riprova; intanto resta il controllo a tempo
+        }
     }
     function select(item) {
         state.selected = item.key;
@@ -2790,7 +2851,8 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
         return h('div', { class: `list-foot statusbar-${tone}` },
             h('span', { class: 'statusbar-dot', 'aria-hidden': 'true' }),
             h('span', { class: 'statusbar-text', title: text }, text),
-            state.listsAt ? h('span', { class: 'statusbar-sync', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato ${shortWhen(state.listsAt.toISOString())}`) : null,
+            state.live === 'on' ? h('span', { class: 'statusbar-sync live', title: state.listsAt ? `In tempo reale · ultimo aggiornamento ${shortWhen(state.listsAt.toISOString())}` : 'In tempo reale' }, 'In tempo reale')
+                : state.listsAt ? h('span', { class: 'statusbar-sync', title: 'Ultimo aggiornamento degli elenchi' }, `Aggiornato ${shortWhen(state.listsAt.toISOString())}`) : null,
             h('span', { class: 'statusbar-keys', title: SHORTCUTS.map(([keys, label]) => `${keys}  ${label}`).join('\n'), 'aria-label': 'Scorciatoie da tastiera' }, icon(ICONS.keys)));
     }
     // Elenco come in Outlook: solo le mail (un thread per riga, dal più recente); i ticket del thread stanno nel pannello
@@ -5558,7 +5620,8 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
     let refreshTimer = null, refreshWatching = false;
     function scheduleRefresh() {
         clearInterval(refreshTimer);
-        refreshTimer = setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) { loadLists(); loadMyTasks(true); loadMentions(); } }, refreshSettings().listsSeconds * 1000);
+        const seconds = state.live === 'on' ? Math.max(300, refreshSettings().listsSeconds) : refreshSettings().listsSeconds; // con SignalR attivo: riserva ogni 5 minuti
+        refreshTimer = setInterval(() => { if (document.visibilityState === 'visible' && !state.busy) { loadLists(); loadMyTasks(true); loadMentions(); } }, seconds * 1000);
         if (!refreshWatching) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !state.busy) loadLists(); });
         refreshWatching = true;
     }
@@ -5645,6 +5708,7 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
         loadMentions();
         loadMyTasks();
         scheduleRefresh();
+        startLive();
     })();
 })();
 
