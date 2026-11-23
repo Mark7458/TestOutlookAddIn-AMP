@@ -1069,6 +1069,117 @@ button.tag.mine:hover{ background: var(--field-bg); }
 /* In copia: sigla piena e grigia accanto al mittente, diversa dalle etichette */
 .cc-badge{ flex: none; display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .03em; }
 
+/* ===== Riorganizzazione 23/11 (dal riferimento visivo) ===== */
+/* Colori del tema chiaro più freschi */
+:root[data-mode="light"]{ --text: #202124; --accent: #1a73e8; --accent-fill: rgba(26, 115, 232, .9); --accent-line: rgba(26, 115, 232, .35); --selected: #e8f0fe;
+  --danger: #c5221f; --success: #137333; --warning: #b06000; --field-bg: #f8fafd; --panel-bg: rgba(255, 255, 255, .66); --seg-thumb: rgba(255, 255, 255, .92); }
+
+/* Barra in alto: marchio più grande, strumenti accanto alla ricerca */
+.brand-mark{ width: 38px; height: 38px; border-radius: 11px; }
+.brand-mark svg{ width: 23px; height: 19px; }
+.brand-name{ font-size: 29px; }
+.top-main-bar{ position: absolute; top: 50%; left: var(--tools-left, 640px); right: 0; display: flex; align-items: center; gap: 8px; min-width: 0; transform: translateY(-50%); }
+.top-main-bar .account{ margin-left: 0; }
+.top-tools{ display: flex; align-items: center; gap: 3px; min-width: 0; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); }
+.top-tool-btn{ display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; cursor: pointer; flex: 0 0 auto; transition: background-color .2s, color .2s, box-shadow .2s; }
+.top-tool-btn:hover{ background: var(--hover); color: var(--text); }
+.top-tool-btn[aria-pressed="true"]{ background: var(--surface-strong, var(--option-bg)); color: var(--accent); font-weight: 600; box-shadow: var(--thumb-shadow); }
+.top-tool-btn .icon{ width: 15px; height: 15px; }
+.top-tool-badge{ padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 11px; font-weight: 600; }
+.top-tool-sep{ width: 1px; height: 18px; margin: 0 2px; background: var(--line); flex: 0 0 auto; }
+@media (max-width: 1360px){ .top-tool-btn .tool-label{ display: none; } .top-tool-btn{ padding: 0 8px; gap: 4px; } .top-main-bar .account-button .name{ display: none; } }
+
+/* Colonna sinistra: gruppi in maiuscoletto, cartella attiva piena, modulo a schede */
+.folders-group{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--subtle); }
+:root[data-mode="light"] .folder[aria-current="true"]{ background: rgba(255, 255, 255, .88); color: #0c447c; font-weight: 600; box-shadow: 0 1px 3px rgba(16, 110, 190, .12); }
+.sidebar-switcher-wrap{ display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.sidebar-switcher-wrap.is-slim{ flex: 0 0 auto; }
+.sidebar-switcher-wrap.is-slim + .list-foot{ margin-top: auto; }
+.sidebar-mode-bar{ display: flex; flex: 0 0 auto; gap: 2px; margin-bottom: 8px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .48); }
+:root:not([data-mode="light"]) .sidebar-mode-bar{ background: rgba(255, 255, 255, .05); }
+.sb-mode-btn{ display: grid; flex: 1 1 0; place-items: center; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; transition: all .18s; }
+.sb-mode-btn:hover{ background: rgba(255, 255, 255, .45); color: var(--text); }
+:root:not([data-mode="light"]) .sb-mode-btn:hover{ background: rgba(255, 255, 255, .08); }
+.sb-mode-btn[aria-pressed="true"]{ background: var(--seg-thumb); color: var(--accent); box-shadow: var(--thumb-shadow); }
+.sb-mode-btn .icon{ width: 14px; height: 14px; }
+.sb-widget{ display: flex; flex: 1 1 0; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.sb-widget-head{ display: flex; align-items: center; justify-content: space-between; padding: 0 6px; color: var(--subtle); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.sb-widget-badge{ color: var(--accent); font-size: 10.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.sb-subhead{ padding: 4px 6px 0; color: var(--subtle); font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.sb-empty{ margin: 0; padding: 2px 8px; color: var(--subtle); font-size: 12px; }
+.sb-search{ position: relative; display: block; margin: 0 2px; }
+.sb-search input{ width: 100%; height: 28px; padding: 0 8px 0 26px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .65); color: var(--text); font: inherit; font-size: 12px; }
+:root:not([data-mode="light"]) .sb-search input{ background: rgba(255, 255, 255, .06); }
+.sb-search input:focus{ outline: none; border-color: var(--accent-line); }
+.sb-search .icon{ position: absolute; top: 7px; left: 8px; width: 13px; height: 13px; color: var(--subtle); }
+.person{ display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.person:hover{ border-color: var(--line); background: rgba(255, 255, 255, .65); }
+:root:not([data-mode="light"]) .person:hover{ background: rgba(255, 255, 255, .07); }
+.person .avatar{ width: 24px; height: 24px; font-size: 10px; }
+.person-info{ flex: 1 1 0; min-width: 0; }
+.person-name{ display: block; overflow: hidden; font-size: 12.5px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.person-role{ display: block; overflow: hidden; color: var(--subtle); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.sla-item, .quick-tpl{ display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .58); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s; }
+:root:not([data-mode="light"]) .sla-item, :root:not([data-mode="light"]) .quick-tpl, :root:not([data-mode="light"]) .pin-row{ background: rgba(255, 255, 255, .05); }
+.sla-item:hover, .quick-tpl:hover, .pin-row:hover{ border-color: var(--accent-line); }
+.sla-item-title{ overflow: hidden; font-size: 12px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.sla-item-meta{ display: flex; align-items: center; justify-content: space-between; gap: 6px; color: var(--muted); font-size: 11px; }
+.sla-item-meta > span:first-child{ min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sla-pill-warn{ flex: none; color: var(--warning); font-weight: 600; }
+.sla-pill-danger{ flex: none; color: var(--danger); font-weight: 600; }
+.quick-tpl b{ font-size: 12px; font-weight: 600; }
+.quick-tpl span{ overflow: hidden; color: var(--subtle); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.pin-row{ display: flex; align-items: center; gap: 4px; width: 100%; padding: 4px 6px 4px 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .52); }
+.pin-open{ display: flex; flex: 1 1 0; align-items: center; min-width: 0; padding: 2px 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.pin-open span{ overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pin-toggle-btn{ display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--subtle); cursor: pointer; }
+.pin-toggle-btn:hover, .pin-toggle-btn[aria-pressed="true"]{ color: var(--accent); }
+.pin-toggle-btn .icon{ width: 13px; height: 13px; }
+
+/* Lista: titolo con conteggio a bolla e filtro a destra; righe più ariose */
+.v2-list-head{ gap: 8px; }
+.v2-list-head-left{ display: flex; align-items: center; gap: 8px; min-width: 0; }
+.v2-list-head h2{ margin: 0; font-size: 16px; font-weight: 600; }
+.v2-list-head .count{ display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--field-bg); color: var(--muted); font-size: 12px; font-weight: 600; }
+.inbox-menu{ margin-left: 0; }
+.inbox-options{ left: auto; right: 0; }
+.item-title{ font-weight: 600; font-size: 13.5px; }
+.item-meta > span:first-child{ font-weight: 500; }
+.item-extra{ gap: 10px; font-size: 11.5px; }
+.item-wait.late{ font-weight: 600; }
+/* In copia: avatar tratteggiato, oggetto spento, sigla grigia */
+.item.addr-cc .avatar{ border: 1.5px dashed var(--line-strong); background: transparent !important; color: var(--muted) !important; }
+.item.addr-cc .item-title{ color: var(--muted); font-weight: 400; }
+.item.addr-cc .item-meta > span:first-child{ color: var(--subtle); font-weight: 400; }
+
+/* Mail: destinatari a scomparsa */
+.message-rcpts{ margin: -2px 0 8px 28px; }
+.message-rcpts-inline{ display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.message-rcpts-inline:hover{ color: var(--text); }
+.rcpt-summary{ min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rcpt-caret{ flex: none; color: var(--subtle); font-size: 10px; transition: transform .18s; }
+.message-rcpts-inline[aria-expanded="true"] .rcpt-caret{ transform: rotate(180deg); }
+.message-rcpts-details{ display: grid; gap: 3px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+:root[data-layout="wide"] .topbar{ min-height: 42px; }
+.v2-list-head{ display: flex; align-items: center; }
+.v2-list-head .inbox-menu{ margin-left: auto; }
+
+/* Risposta e nota (dal riferimento): niente riquadro attorno, schede a pillola, campo più alto, scheda di scrittura evidenziata */
+.editor, .editor.note-mode{ margin: 12px 16px 0; padding: 0; border: 0; background: transparent; }
+.editor-tabs{ display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--field-bg); }
+.editor-tabs .segment{ display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.editor-tabs .segment:hover{ color: var(--text); }
+.editor-tabs .segment[aria-pressed="true"]{ background: var(--surface-strong); color: var(--accent); font-weight: 600; box-shadow: var(--thumb-shadow); }
+.editor-tabs .segment.note-tab[aria-pressed="true"]{ background: color-mix(in srgb, var(--warning) 14%, var(--surface-strong)); color: var(--warning); }
+.editor-tabs .icon{ width: 14px; height: 14px; }
+.editor-tabs kbd{ display: none; }
+.editor-start{ height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--field-bg); font-size: 13px; transition: all .18s; }
+.editor-start:hover:not(:disabled){ border-color: var(--accent-line); background: var(--surface-strong); color: var(--muted); }
+.editor .composer{ padding: 8px 14px 12px; border: 1px solid var(--accent-line); border-radius: 14px; background: var(--surface-strong); box-shadow: 0 4px 16px rgba(26, 115, 232, .08); }
+.editor .composer textarea{ font-size: 13.5px; line-height: 1.45; }
+.editor .composer-actions{ justify-content: flex-end; }
+.editor .note-box{ min-height: 40px; border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: color-mix(in srgb, var(--warning) 8%, var(--field-bg)); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1800,6 +1911,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         calendar: '<rect x="3.5" y="4.5" width="13" height="12" rx="2"/><path d="M3.5 8.5h13M7 3v3M13 3v3"/>',
         compose: '<path d="M4 16h3l8.5-8.5-3-3L4 13z"/><path d="M11 6l3 3"/><path d="M14 14h3M15.5 12.5v3"/>',
         admin: '<path d="M10 3l6 2.5v4.5c0 3.5-2.6 6.2-6 7-3.4-.8-6-3.5-6-7V5.5z"/><path d="M7.5 10l1.8 1.8L12.8 8.3"/>',
+        eye: '<path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z"/><circle cx="10" cy="10" r="2.3"/>',
+        bolt: '<path d="M11 2.5 4.5 11H10l-1 6.5 6.5-8.5H10z"/>',
         queue: '<path d="M3 10.5h4l1.5 2h3l1.5-2h4"/><path d="M5 4.5h10l2 6v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-4z"/>',
         ignored: '<rect x="3" y="4" width="14" height="3.5" rx="1"/><path d="M4.5 7.5v7A1.5 1.5 0 0 0 6 16h8a1.5 1.5 0 0 0 1.5-1.5v-7M8.5 10.5h3"/>',
         ticket: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h11A1.5 1.5 0 0 1 17 6.5v2a1.5 1.5 0 0 0 0 3v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5v-2a1.5 1.5 0 0 0 0-3z"/><path d="M8 8.5h4M8 11.5h4"/>',
@@ -2405,6 +2518,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         }
     }
     function select(item) {
+        rememberRecent(item);
         state.selected = item.key;
         state.panel = null;
         state.armed = null;
@@ -2819,13 +2933,25 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         }
         if (document.documentElement.dataset.layout === 'wide') return h('header', { class: 'topbar' }, brandMark(),
             topSearch(),
-            h('span', { class: 'ao-spacer' }), accountMenu());
+            h('div', { class: 'top-main-bar' }, topTools(), h('span', { class: 'ao-spacer' }), accountMenu()));
         return h('header', { class: 'topbar' },
             brandMark(),
             h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sezioni' },
                 TABS.map(tab => h('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(state.tab === tab.id), onclick: () => { state.tab = tab.id; render(); } },
                     icon(ICONS[tab.icon]), h('span', { class: 'tab-label' }, tab.label), counts[tab.id] !== undefined && state.loaded ? h('span', { class: 'count' }, String(counts[tab.id])) : null))),
             accountMenu());
+    }
+    // Strumenti nella barra in alto, accanto alla ricerca: Posta e gli strumenti (con i loro numeri).
+    function topTools() {
+        const myOpen = (state.tasks.mine || []).filter(task => !task.done).length;
+        const counts = { inbox: state.loaded ? inboxItems('free').length : 0, mailless: state.lists.tickets.filter(ticket => !ticket.parentItemId).length, tasks: myOpen };
+        const mailViews = FOLDERS.map(([id]) => id);
+        const tool = (id, label, iconName, pressed) => h('button', { type: 'button', class: 'top-tool-btn', title: label, 'aria-pressed': String(pressed), onclick: () => goTo(id) },
+            icon(ICONS[iconName]), h('span', { class: 'tool-label' }, label), counts[id] ? h('span', { class: 'top-tool-badge' }, String(counts[id])) : null);
+        return h('nav', { class: 'top-tools', 'aria-label': 'Strumenti' },
+            tool('inbox', 'Posta in arrivo', 'queue', mailViews.includes(state.view)),
+            h('span', { class: 'top-tool-sep', 'aria-hidden': 'true' }),
+            TOOLS.map(([id, label, iconName]) => tool(id, label, iconName, state.view === id)));
     }
     // Utente: un clic apre il menu a tendina con Impostazioni ed Esci.
     function accountMenu() {
@@ -2909,7 +3035,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const late = waited !== null && waited >= WAIT_LATE_MINUTES;
         if (!item.messageCount && !item.hasAttachment && waited === null) return null;
         return h('span', { class: 'item-extra' },
-            item.messageCount ? h('span', { title: 'Mail del thread' }, icon(ICONS.mail), String(item.messageCount)) : null,
+            item.messageCount ? h('span', { title: 'Mail del thread' }, `${item.messageCount} mail`) : null,
             item.hasAttachment ? h('span', { title: 'Allegati' }, icon(ICONS.attach)) : null,
             waited !== null ? h('span', { class: `item-wait${late ? ' late' : ''}`, title: 'Da quanto aspetta una risposta' }, `aspetta da ${duration(waited)}`) : null);
     }
@@ -2990,6 +3116,21 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const operator = operators().find(entry => sameEmail(entry?.email, email));
         return operator?.displayName || email;
     }
+    // Destinatari a scomparsa (come Gmail): una riga "a … · cc …"; la freccia apre A e Cc per esteso.
+    function recipientsBlock(entry, body, thread) {
+        const names = list => (Array.isArray(list) ? list : String(list || '').split(/[;,](?![^<]*>)/)).map(value => sender(value?.emailAddress?.address || value?.address || value))
+            .filter(person => person.email || person.name).map(person => (person.name && person.name !== person.email ? person.name : knownName(person.email, thread)));
+        const to = names(body.to);
+        const cc = names(body.cc);
+        if (!to.length && !cc.length) return null;
+        const open = state.rcptOpen?.has(entry.id);
+        const toggle = event => { event.stopPropagation(); state.rcptOpen ||= new Set(); if (open) state.rcptOpen.delete(entry.id); else state.rcptOpen.add(entry.id); render(); };
+        return h('div', { class: 'message-rcpts' },
+            h('button', { type: 'button', class: 'message-rcpts-inline', 'aria-expanded': String(Boolean(open)), title: open ? 'Nascondi i destinatari' : 'Mostra i destinatari', onclick: toggle },
+                h('span', { class: 'rcpt-summary' }, [to.length ? `a ${to.join(', ')}` : '', cc.length ? `cc ${cc.join(', ')}` : ''].filter(Boolean).join(' · ')),
+                h('span', { class: 'rcpt-caret', 'aria-hidden': 'true' }, '▾')),
+            open ? h('div', { class: 'message-rcpts-details' }, recipientsLine('A', body.to, thread), recipientsLine('Cc', body.cc, thread)) : null);
+    }
     function recipientsLine(label, list, thread) {
         const people = (Array.isArray(list) ? list : String(list || '').split(/[;,](?![^<]*>)/)).map(value => sender(value?.emailAddress?.address || value?.address || value))
             .filter(person => person.email || person.name);
@@ -3023,7 +3164,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
                 picked ? h('span', { class: 'message-picked' }, icon(ICONS.check), 'Mail scelta') : null,
                 action === 'take' && !service ? h('button', { type: 'button', class: 'message-time pick-time', title: 'Usa questa data e ora di arrivo', onclick: event => { event.stopPropagation(); useMessageTime(item, entry); } }, icon(ICONS.clock), fullWhen(entry.receivedAt))
                     : h('span', { class: 'message-time' }, fullWhen(entry.receivedAt))),
-            body && !body.error ? h('div', { class: 'message-rcpts' }, recipientsLine('A', body.to, thread), recipientsLine('Cc', body.cc, thread)) : null,
+            body && !body.error ? recipientsBlock(entry, body, thread) : null,
             !body ? h('p', { class: 'message-body loading' }, 'Caricamento…') : body.error ? h('p', { class: 'message-body loading' }, body.error) : h('p', { class: 'message-body' }, utilityPicking(item) ? addressText(body.text) : body.text),
             entry.hasAttachment || body?.hasAttachments ? h('div', { class: 'attachments' }, h('span', { class: 'attachment' }, icon(ICONS.attach), 'Allegati')) : null);
     }
@@ -3709,7 +3850,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     function threadEditor(item, thread) {
         const mode = state.editorMode || 'reply';
         const received = pickedMessage(item);
-        const tab = (id, label, iconName, keyHint) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(mode === id), onclick: () => { state.editorMode = id; render(); document.getElementById(id === 'note' ? 'note-text' : `reply-text-${item.parentItemId}`)?.focus(); } },
+        const tab = (id, label, iconName, keyHint) => h('button', { type: 'button', class: `segment${id === 'note' ? ' note-tab' : ''}`, 'aria-pressed': String(mode === id), onclick: () => { state.editorMode = id; render(); document.getElementById(id === 'note' ? 'note-text' : `reply-text-${item.parentItemId}`)?.focus(); } },
             icon(ICONS[iconName]), label, h('kbd', {}, keyHint));
         let body;
         if (mode === 'note') body = noteBox(item);
@@ -4635,9 +4776,10 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         ['mine', 'Mie', item => item.section === 'mine' || (item.section === 'active' && isMe(item.assignedTo))],
         ['others', 'Colleghi', item => (item.section === 'active' || item.section === 'others') && item.assignedTo && !isMe(item.assignedTo)],
         ['forwarded', 'Inoltrate', item => item.section === 'forwarded'],
+        ['later', 'In attesa', item => Boolean(item.tickets?.some(ticket => ticket.status === 'On Hold'))],
         ['ignored', 'Ignorate', item => item.section === 'ignored']
     ];
-    const inboxFilterOf = item => (INBOX_FILTERS.slice(1).find(([, , test]) => test(item)) || ['all'])[0];
+    const inboxFilterOf = item => (INBOX_FILTERS.slice(1).filter(([id]) => id !== 'later').find(([, , test]) => test(item)) || ['all'])[0];
     function inboxItems(filter = state.inboxFilter) {
         const test = (INBOX_FILTERS.find(([id]) => id === filter) || INBOX_FILTERS[0])[2];
         return inboxAll().filter(test).filter(item => !isSnoozed(item));
@@ -4653,7 +4795,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         ['inbox', 'Posta in arrivo', 'queue', () => inboxItems()],
         ['mentions', 'Menzioni', 'at', () => [...state.lists.active, ...state.lists.threads, ...state.lists.ignored].filter(item => state.mentions.some(note => Number(note.parentItemId) === item.parentItemId)), true],
         ['tickets', 'Con ticket', 'ticket', () => state.lists.threads.filter(item => !isSnoozed(item))],
-        ['later', 'In attesa', 'actHold', () => state.lists.threads.filter(item => item.tickets?.some(ticket => ticket.status === 'On Hold'))],
+        ['copy', 'Solo in copia (CC)', 'eye', () => inboxAll().filter(item => item.addressed === 'cc' && item.section !== 'ignored' && !isSnoozed(item))],
         ['attention', 'Da guardare', 'alert', () => attentionItems(), true]
     ];
     const TOOLS = [['mailless', 'Ticket senza mail', 'cardTake'], ['tasks', 'Task', 'tasks'], ['utility', 'Utility', 'utility'], ['tools', 'Tools', 'tools']];
@@ -4665,6 +4807,87 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         state.palette = null;
         render();
     }
+    // Modulo sotto le cartelle (scelto con le cinque schede, ricordato in questo browser).
+    const SIDE_MODULES = [['people', 'Rubrica', 'profile'], ['focus', 'Focus', 'clock'], ['pins', 'Fissati e recenti', 'bookmark'], ['responses', 'Risposte rapide', 'bolt'], ['slim', 'Solo cartelle', 'panelLeft']];
+    const readLocal = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+    const writeLocal = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* comodità */ } };
+    state.sideModule = readLocal('magus_side_module_v1', 'people');
+    state.pins = readLocal('magus_pins_v1', []);
+    state.recent = readLocal('magus_recent_v1', []);
+    function rememberRecent(item) {
+        if (!item?.key?.startsWith('thread:')) return;
+        state.recent = [item.key, ...state.recent.filter(key => key !== item.key)].slice(0, 10);
+        writeLocal('magus_recent_v1', state.recent);
+    }
+    function togglePin(key) {
+        state.pins = state.pins.includes(key) ? state.pins.filter(entry => entry !== key) : [key, ...state.pins];
+        writeLocal('magus_pins_v1', state.pins);
+        render();
+    }
+    function openFromSide(item) {
+        if (item.key.startsWith('thread:')) { state.view = 'inbox'; state.inboxFilter = inboxFilterOf(item); }
+        select(item);
+    }
+    function sideModule() {
+        const current = SIDE_MODULES.find(([id]) => id === state.sideModule) || SIDE_MODULES[0];
+        const bar = h('div', { class: 'sidebar-mode-bar', role: 'group', 'aria-label': 'Modulo della colonna' }, SIDE_MODULES.map(([id, label, iconName]) =>
+            h('button', { type: 'button', class: 'sb-mode-btn', title: label, 'aria-label': label, 'aria-pressed': String(id === current[0]),
+                onclick: () => { state.sideModule = id; writeLocal('magus_side_module_v1', id); render(); } }, icon(ICONS[iconName]))));
+        const head = (label, extra = null) => h('div', { class: 'sb-widget-head' }, h('span', {}, label), extra);
+        const sub = label => h('div', { class: 'sb-subhead' }, label);
+        const threadOf = key => allItems().find(item => item.key === key);
+        let body = null;
+        if (current[0] === 'people') {
+            const needle = (state.peopleSearch || '').trim().toLowerCase();
+            const people = operators().filter(entry => entry?.email && entry.enabled !== false && !isMe(entry.email))
+                .filter(entry => !needle || [entry.displayName, entry.email].some(text => String(text || '').toLowerCase().includes(needle)))
+                .sort((a, b) => String(a.displayName || a.email).localeCompare(String(b.displayName || b.email), 'it'));
+            body = [head('Rubrica', h('span', { class: 'sb-widget-badge' }, 'Clic = scrivi')),
+                h('label', { class: 'sb-search' }, icon(ICONS.search), h('input', { id: 'people-search', type: 'search', placeholder: 'Cerca collega…', value: state.peopleSearch || '', autocomplete: 'off', oninput: event => { state.peopleSearch = event.target.value; render(); } })),
+                people.map(entry => h('button', { type: 'button', class: 'person', title: entry.email, onclick: () => { openNewMail(); state.newMail.to = entry.email; render(); document.getElementById('new-mail-subject')?.focus(); } },
+                    personAvatar(entry.displayName || entry.email), h('span', { class: 'person-info' }, h('span', { class: 'person-name' }, entry.displayName || entry.email), h('span', { class: 'person-role' }, entry.email))))];
+        } else if (current[0] === 'focus') {
+            const waiting = state.lists.active.filter(item => !item.assignedTo && !item.lastFromService).map(item => ({ item, waited: minutesSince(item.receivedAt) || 0 })).sort((a, b) => b.waited - a.waited).slice(0, 5);
+            const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+            const holds = state.lists.tickets.filter(ticket => ticket.status === 'On Hold' && ticket.holdUntil && Date.parse(ticket.holdUntil) <= endOfDay.getTime());
+            const late = (state.tasks.mine || []).filter(task => !task.done && task.due && (String(task.due).includes('T') ? Date.parse(task.due) : Date.parse(`${String(task.due).slice(0, 10)}T23:59:59`)) <= Date.now()); // senza ora: scade a fine giornata
+            const card = (title, meta, right, tone, onclick) => h('button', { type: 'button', class: 'sla-item', onclick }, h('span', { class: 'sla-item-title' }, title), h('span', { class: 'sla-item-meta' }, h('span', {}, meta), h('span', { class: tone }, right)));
+            body = [head('Focus', h('span', { class: 'sb-widget-badge' }, 'Oggi')),
+                waiting.length ? [sub('Libere in attesa'), waiting.map(({ item, waited }) => card(item.subject, item.from?.name || '', `aspetta da ${duration(waited)}`, waited >= WAIT_LATE_MINUTES ? 'sla-pill-warn' : '', () => openFromSide(item)))] : null,
+                holds.length ? [sub('In attesa che scadono oggi'), holds.map(ticket => card(`${ticket.number} · ${ticket.subject}`, ticket.agency || '', Date.parse(ticket.holdUntil) <= Date.now() ? 'scaduto' : `alle ${new Date(ticket.holdUntil).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`, 'sla-pill-warn',
+                    () => { const thread = threadOf(`thread:${ticket.parentItemId}`); if (thread) openFromSide(thread); }))] : null,
+                late.length ? [sub('Attività scadute'), late.map(task => card(task.title, 'Attività', dueText(task.due), 'sla-pill-danger', () => { const thread = threadOf(`thread:${task.parentItemId}`); if (thread) openFromSide(thread); }))] : null,
+                !waiting.length && !holds.length && !late.length ? h('p', { class: 'sb-empty' }, 'Niente in sospeso') : null];
+        } else if (current[0] === 'pins') {
+            const row = key => {
+                const item = threadOf(key);
+                if (!item) return null;
+                const pinned = state.pins.includes(key);
+                return h('div', { class: 'pin-row' }, h('button', { type: 'button', class: 'pin-open', onclick: () => openFromSide(item) }, h('span', {}, item.subject)),
+                    h('button', { type: 'button', class: 'pin-toggle-btn', title: pinned ? 'Togli dai fissati' : 'Fissa', 'aria-label': pinned ? 'Togli dai fissati' : 'Fissa', 'aria-pressed': String(pinned), onclick: () => togglePin(key) }, icon(ICONS.bookmark)));
+            };
+            const pinned = state.pins.map(row).filter(Boolean);
+            const recent = state.recent.filter(key => !state.pins.includes(key)).slice(0, 5).map(row).filter(Boolean);
+            body = [head('Fissati e recenti'), sub(`Fissati (${pinned.length})`), pinned.length ? pinned : h('p', { class: 'sb-empty' }, 'Nessun thread fissato'),
+                sub('Ultimi aperti'), recent.length ? recent : h('p', { class: 'sb-empty' }, 'Ancora nessuno')];
+        } else if (current[0] === 'responses') {
+            const item = selectedItem();
+            const thread = item?.key?.startsWith('thread:') ? state.threads.get(item.parentItemId) : null;
+            const responses = Object.entries(state.settings.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
+            const insert = text => {
+                if (!item || !thread) return showStatus('Apri prima un thread', 'warning');
+                const draft = draftFor(item, thread);
+                state.drafts.set(item.parentItemId, { ...draft, text: draft.text ? `${draft.text}\n${text}` : text });
+                if (!state.composing.has(item.parentItemId)) openComposer(item, thread, draft.mode || 'all', null, draft.messageId);
+                else { render(); document.getElementById(`reply-text-${item.parentItemId}`)?.focus(); }
+            };
+            body = [head('Risposte rapide', h('span', { class: 'sb-widget-badge' }, 'Clic = inserisci')),
+                responses.length ? responses.map(([, entry]) => h('button', { type: 'button', class: 'quick-tpl', onclick: () => insert(entry.response || '') }, h('b', {}, entry.title), h('span', {}, entry.response || '')))
+                    : h('p', { class: 'sb-empty' }, 'Nessuna risposta salvata')];
+        }
+        return h('div', { class: `sidebar-switcher-wrap${current[0] === 'slim' ? ' is-slim' : ''}` }, bar, body ? h('div', { class: 'sb-widget', 'data-scroll': `side:${current[0]}` }, body) : null);
+    }
+    const toolsOnTop = () => document.documentElement.dataset.layout === 'wide' && !isCompact();
     function folderNav() {
         const entry = (id, label, iconName, count, warn = false) => h('button', {
             type: 'button', class: `folder${warn && count ? (id === 'mentions' ? ' hot' : ' warn') : ''}`, 'aria-current': String(state.view === id), onclick: () => goTo(id)
@@ -4678,9 +4901,9 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
                 const count = state.loaded ? (id === 'inbox' ? inboxItems('free').length : list().length) : 0;
                 return warn && !count ? null : entry(id, label, iconName, count, warn);
             }),
-            h('span', { class: 'folders-group' }, 'Strumenti'),
-            TOOLS.map(([id, label, iconName]) => entry(id, label, iconName, counts[id] || 0)),
-            h('span', { class: 'ao-spacer' }),
+            // su computer gli strumenti stanno nella barra in alto; sul telefono restano qui
+            toolsOnTop() ? null : [h('span', { class: 'folders-group' }, 'Strumenti'), TOOLS.map(([id, label, iconName]) => entry(id, label, iconName, counts[id] || 0))],
+            toolsOnTop() ? sideModule() : h('span', { class: 'ao-spacer' }),
             statusBar());
     }
     // Cartella in cui sta un risultato della ricerca (pillola sulla riga, come Outlook).
@@ -4718,7 +4941,9 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const title = mailless ? 'Ticket senza mail' : folder?.[1] || '';
         return h('section', { class: `v2-list${wide ? ' wide' : ''}`, 'aria-label': title, 'data-list': '' },
             h('div', { class: 'v2-list-head' },
-                h('h2', {}, title, state.view === 'inbox' ? inboxMenu() : null, h('span', { class: 'count' }, String(items.length))),
+                h('div', { class: 'v2-list-head-left' }, h('h2', {}, title), h('span', { class: 'count' }, String(items.length))),
+                h('span', { class: 'ao-spacer' }),
+                state.view === 'inbox' ? inboxMenu() : null,
                 wide ? null : h('button', { type: 'button', class: 'head-action', title: 'Richiudi la lista', 'aria-label': 'Richiudi la lista', onclick: () => { state.listHidden = true; render(); } }, icon(ICONS.panelLeft))),
             h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}:${state.view === 'inbox' ? state.inboxFilter : ''}` },
                 mailless ? h('button', { type: 'button', class: `new-ticket${state.selected === 'new-ticket' ? ' active' : ''}`, onclick: () => { state.selected = 'new-ticket'; state.panel = null; render(); } }, icon(ICONS.cardTake), 'Nuovo ticket') : null,
@@ -5540,6 +5765,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         box.classList.add('aligned');
         box.style.setProperty('--search-left', `${Math.round(searchSpot.left)}px`);
         box.style.setProperty('--search-width', `${Math.round(searchSpot.width)}px`);
+        bar.style.setProperty('--tools-left', `${Math.round(searchSpot.left + searchSpot.width + 12)}px`); // strumenti subito dopo la ricerca
     }
     window.addEventListener('resize', () => requestAnimationFrame(alignSearch));
     // Ridisegna tutto tenendo la posizione degli elenchi e il campo attivo.
