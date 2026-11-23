@@ -945,6 +945,26 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .top-search.aligned { position: absolute; top: 50%; left: var(--search-left); width: var(--search-width); margin: 0; transform: translateY(-50%); }
 .top-search.aligned .top-search-menu { width: max(100%, 480px); }
 
+/* Nuova mail (primo pulsante delle cartelle) e compositore al posto del thread */
+.new-mail-button { display: flex; align-items: center; justify-content: center; gap: 8px; height: 38px; margin: 0 0 10px; border: 0; border-radius: 10px; background: var(--btn-fill); color: #fff; font: 600 var(--fs-sm) var(--font); cursor: pointer; box-shadow: var(--btn-highlight), 0 2px 8px rgba(15, 95, 191, .25); }
+.new-mail-button:hover { filter: brightness(1.08); }
+.new-mail-button .icon { width: 17px; height: 17px; }
+.new-mail .v2-conversation { padding: 18px; }
+.new-mail-card { max-width: 820px; }
+/* Risposte utili: pulsante in cima al testo, elenco di pillole */
+.useful-responses { display: grid; gap: 6px; }
+.useful-toggle { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--accent-line); border-radius: 8px; background: var(--selected); color: var(--accent); font: 600 var(--fs-xs) var(--font); cursor: pointer; }
+.useful-toggle .icon { width: 14px; height: 14px; }
+.useful-toggle .caret { font-size: 10px; }
+.useful-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.useful-chip { padding: 3px 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--option-bg); color: var(--text); font: var(--fs-xs) var(--font); cursor: pointer; }
+.useful-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* Ticket con la risposta: scelta unica */
+.reply-ticket { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: var(--fs-sm); color: var(--muted); }
+.reply-ticket b { color: var(--text); font-weight: 600; }
+.reply-ticket .segmented .segment { padding: 0 10px; font-size: var(--fs-xs); }
+.composer-hint { margin-right: auto; color: var(--muted); font-size: var(--fs-xs); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1469,7 +1489,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     agencies: { 'AG-DEM': { shortName: 'DEM', displayName: 'Agenzia del Demanio' }, 'AG-BETA': { shortName: 'BETA', displayName: 'Agenzia Beta' } },
     utilities: { operations: [{ id: 'SharedMailboxAddMembers', name: 'Membri di una casella condivisa', service: 'Exchange Online', icon: '📬', auth: 'certificate', agencies: ['AG-DEM', 'AG-BETA'],
       fields: [{ id: 'mailbox', label: 'Casella condivisa', type: 'email', required: true }, { id: 'members', label: 'Membri', type: 'emailList', required: true, source: 'selectedMail' }, { id: 'rights', label: 'Permessi', type: 'choice', multiple: true, options: ['FullAccess', 'SendAs'], default: ['FullAccess'] }, { id: 'automap', label: 'Automapping', type: 'switch', default: true }],
-      steps: ['Connessione', 'Controllo della casella', 'Permessi', 'Verifica'] }] }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' }, 'OP-3': { email: 'sara.neri@esempio.it', displayName: 'Sara Neri', tag: 'Neri' } } } };
+      steps: ['Connessione', 'Controllo della casella', 'Permessi', 'Verifica'] }] }, roles: { R0: { role: 'owner', priority: 0 }, R1: { role: 'contributor', priority: 1 }, R2: { role: 'operator', priority: 2 } }, queue: { days: 30 }, operators: { 'OP-1': { email: ME, displayName: 'Mario Rossi', tag: 'Rossi', role: 'owner' }, 'OP-2': { email: 'luigi.verdi@esempio.it', displayName: 'Luigi Verdi', tag: 'Verdi' }, 'OP-3': { email: 'sara.neri@esempio.it', displayName: 'Sara Neri', tag: 'Neri' } } } };
   const threads = [
     { id: 101, subject: 'Errore accesso casella condivisa', from: 'Anna Bianchi <anna.bianchi@agenzia.it>', at: 22, count: 3, thread: { status: 'Working', assignedTo: ME, statusAt: ago(15) } },
     { id: 102, subject: 'Richiesta licenza Visio', from: 'Paolo Neri <paolo.neri@agenzia.it>', at: 48, count: 1, thread: { status: 'New' } },
@@ -1543,15 +1563,18 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     if (!path.startsWith('/api/')) return realFetch(input, init);
     await delay(250 + Math.random() * 300);
     const name = path.slice(5), q = url.searchParams;
-    if (name === 'PluginConfig') return json(config);
+    if (name === 'PluginConfig' && init?.method !== 'POST') return json(config);
     if (name === 'Health') return json({ status: 'ok' });
     if (name === 'ListQueue') {
       const section = q.get('section');
-      if (section === 'active') return json({ threads: threads.map(toItem) });
+      const days = Number(q.get('days')) || 0; const recent = list => days ? list.filter(entry => { const item = toItem(entry); const at = Date.parse(item.lastMessage?.receivedAt || item.lastReceived || item.receivedAt || ''); return !at || Date.now() - at <= days * 86400000; }) : list;
+      if (section === 'active') return json({ threads: recent(threads).map(toItem) });
       if (section === 'ignored') return json({ threads: ignored.map(toItem) });
       return json({ threads: [{ parentItemId: 106, subject: 'Casella protocollo non visibile', unseenCount: 1, lastReceived: ago(30), messageCount: (conversations[106] || []).length, hasAttachment: false, lastMessage: { from: 'Giorgio Rosa <giorgio.rosa@agenzia.it>', to: BOX, cc: '' }, thread: { status: 'Acquired', assignedTo: ME, statusAt: ago(205) } }] });
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
+    if (name === 'PluginConfig' && body.action === 'update') { Object.assign(config.payload, body.queue ? { queue: body.queue } : {}); return json({ status: 'ok' }); }
+    if (name === 'SendMail') { await new Promise(next => setTimeout(next, 300)); return json({ status: 'ok', mail: BOX, subject: body.subject, to: body.to }); }
     if (name === 'RunUtility') { await new Promise(next => setTimeout(next, 600)); const members = body?.params?.members || []; return json({ status: 'ok', steps: [{ ok: true }, { ok: true, detail: body?.params?.mailbox }, { ok: true }, { ok: true }], items: members.map(member => ({ name: member, result: 'Aggiunto' })) }); }
     if (name === 'SearchTicketRecords') {
       if (body.text) { const t = body.text.toLowerCase(); return json({ records: [...tickets, ...closed].filter(r => [r.ticketId, r.shortDescription, r.ampReference].some(v => String(v || '').toLowerCase().includes(t))) }); }
@@ -1665,6 +1688,8 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         keys: '<rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><path d="M5.5 8.5h.01M8.5 8.5h.01M11.5 8.5h.01M14.5 8.5h.01M6.5 11.5h7"/>',
         plus: '<path d="M10 4.5v11M4.5 10h11"/>',
         send: '<path d="M3.5 10l13-6-4.5 13-2.5-5.5z"/><path d="M9.5 11.5l7-7.5"/>',
+        compose: '<path d="M4 16h3l8.5-8.5-3-3L4 13z"/><path d="M11 6l3 3"/><path d="M14 14h3M15.5 12.5v3"/>',
+        admin: '<path d="M10 3l6 2.5v4.5c0 3.5-2.6 6.2-6 7-3.4-.8-6-3.5-6-7V5.5z"/><path d="M7.5 10l1.8 1.8L12.8 8.3"/>',
         queue: '<path d="M3 10.5h4l1.5 2h3l1.5-2h4"/><path d="M5 4.5h10l2 6v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-4z"/>',
         ignored: '<rect x="3" y="4" width="14" height="3.5" rx="1"/><path d="M4.5 7.5v7A1.5 1.5 0 0 0 6 16h8a1.5 1.5 0 0 0 1.5-1.5v-7M8.5 10.5h3"/>',
         ticket: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h11A1.5 1.5 0 0 1 17 6.5v2a1.5 1.5 0 0 0 0 3v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5v-2a1.5 1.5 0 0 0 0-3z"/><path d="M8 8.5h4M8 11.5h4"/>',
@@ -1949,12 +1974,15 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         people: async () => (await call('TeamsPeople'))?.people || [],
         chat: async email => (await call('TeamsChat', { with: email }))?.messages || [],
         sendChat: (email, text) => call('TeamsChat', { with: email, text }, 'POST'),
+        sendMail: mail => call('SendMail', mail, 'POST'),
+        saveAdmin: changes => call('PluginConfig', { action: 'update', ...changes }, 'POST'),
         async config() {
             const raw = await call('PluginConfig');
             return raw?.payload || raw || {};
         },
         async queue(section) {
-            const result = await call('ListQueue', { section });
+            const days = Number(state.config?.queue?.days) || 0; // filtro temporale scelto dall'amministratore (0 = tutti)
+            const result = await call('ListQueue', { section, ...(days ? { days } : {}) });
             return (result?.threads || []).map(item => toThread(item, section));
         },
         async tickets() {
@@ -2087,6 +2115,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         busy: false,
         menuOpen: false, // menu a tendina dell'utente
         settingsOpen: false, // finestra delle impostazioni
+        newMail: null, responsesOpen: null, // nuova mail da zero; elenco delle Risposte utili aperto (chiave del compositore)
         settingsTab: 'profile',
         editing: null, // voce aperta nelle impostazioni { kind, id } (id null = nuova)
         armed: null, // subentro sul tag di un collega: chiave in attesa del secondo clic
@@ -2498,8 +2527,9 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             ...(ticket ? { ticketId: ticket.number, reference: ticket.ampReference || ticket.number } : {})
         }), 'Risposta inviata');
         if (!done) return;
-        const closing = draft.closeTicket && state.lists.tickets.find(ticket => ticket.number === draft.closeTicket);
-        if (closing) { const update = updateDraft(closing); Object.assign(update, { type: 'resolve', text: draft.text.trim() }); await updateTicket(closing); }
+        const linked = openThreadTicket(item);
+        const action = linked ? draft.ticketAction || 'update' : 'none';
+        if (linked && action !== 'none') { const update = updateDraft(linked); Object.assign(update, { type: action === 'close' ? 'resolve' : 'comment', text: draft.text.trim() }); await updateTicket(linked); }
         state.drafts.delete(item.parentItemId);
         state.composing.delete(item.parentItemId);
         state.threads.delete(item.parentItemId);
@@ -2814,7 +2844,6 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const id = item.parentItemId;
         const draft = draftFor(item, thread);
         const change = (key, value) => { state.drafts.set(id, { ...draftFor(item, thread), [key]: value }); };
-        const responses = Object.entries(state.settings.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
         const field = (key, label) => h('label', { class: 'compose-field' },
             h('span', {}, label),
             h('input', { id: `reply-${key}-${id}`, value: draft[key], autocomplete: 'off', oninput: event => change(key, event.target.value) }),
@@ -2828,15 +2857,35 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
             field('cc', 'Cc'),
             draft.bccOpen ? field('bcc', 'Ccn') : null,
             field('subject', 'Oggetto'),
+            usefulResponsesPicker(`reply:${id}`, text => { change('text', text); render(); document.getElementById(`reply-text-${id}`)?.focus(); }),
             h('textarea', { id: `reply-text-${id}`, placeholder: 'Scrivi la risposta', 'aria-label': 'Testo della risposta', oninput: event => change('text', event.target.value) }, draft.text),
-            isV2() && openThreadTicket(item) ? h('label', { class: 'composer-close' },
-                h('input', { type: 'checkbox', checked: Boolean(draft.closeTicket), onchange: event => change('closeTicket', event.target.checked ? openThreadTicket(item).number : '') }),
-                h('span', {}, `Chiudi anche ${openThreadTicket(item).number} con questa risposta`)) : null,
+            isV2() && openThreadTicket(item) ? replyTicketChoice(item, draft, change) : null,
             h('div', { class: 'composer-actions' },
-                responses.length ? h('label', { class: 'link responses' }, icon(ICONS.responses), 'Risposte',
-                    h('select', { 'aria-label': 'Risposte utili', onchange: event => { const chosen = state.settings.usefulResponses[event.target.value]; if (chosen) { change('text', chosen.response || ''); render(); } } },
-                        h('option', { value: '' }, ''), responses.map(([key, entry]) => h('option', { value: key }, entry.title)))) : null,
+                isV2() && openThreadTicket(item) ? h('span', { class: 'composer-hint' }, replyTicketHint(openThreadTicket(item).number, draft.ticketAction || 'update')) : null,
                 button('Invia', () => sendReply(item, thread), { kind: 'primary', iconName: 'send' })));
+    }
+    // Risposte utili: un pulsante in cima al testo; aperto mostra le risposte salvate, un clic ne inserisce il testo.
+    function usefulResponsesPicker(key, onPick) {
+        const responses = Object.entries(state.settings.usefulResponses).sort(([, a], [, b]) => String(a.title).localeCompare(String(b.title), 'it'));
+        if (!responses.length) return null;
+        const open = state.responsesOpen === key;
+        return h('div', { class: 'useful-responses' },
+            h('button', { type: 'button', class: 'useful-toggle', 'aria-expanded': String(open), onclick: () => { state.responsesOpen = open ? null : key; render(); } },
+                icon(ICONS.responses), 'Risposte utili', h('span', { class: 'caret', 'aria-hidden': 'true' }, open ? '▴' : '▾')),
+            open ? h('div', { class: 'useful-list' }, responses.map(([, entry]) => h('button', { type: 'button', class: 'useful-chip', title: String(entry.response || '').slice(0, 200),
+                onclick: () => { state.responsesOpen = null; onPick(entry.response || ''); } }, entry.title))) : null);
+    }
+    // Ticket con la risposta: una sola scelta (non toccare / aggiorna / chiudi), di partenza Aggiorna.
+    function replyTicketHint(number, action) {
+        return { none: `${number} resta com'è`, update: `La risposta va nelle note di ${number}`, close: `La risposta chiude ${number}` }[action];
+    }
+    function replyTicketChoice(item, draft, change) {
+        const number = openThreadTicket(item).number;
+        const action = draft.ticketAction || 'update';
+        return h('div', { class: 'reply-ticket' }, h('span', {}, 'Ticket ', h('b', {}, number)),
+            h('div', { class: 'segmented', role: 'group', 'aria-label': `Ticket ${number}` },
+                [['none', 'Non toccare'], ['update', 'Aggiorna'], ['close', 'Chiudi']].map(([id, label]) =>
+                    h('button', { type: 'button', class: 'segment', 'aria-pressed': String(action === id), onclick: () => { change('ticketAction', id); render(); } }, label))));
     }
     // Forma del pulsante rispetto all'elenco delle mail: da lì cresce il modulo e lì torna.
     function shapeOf(button) {
@@ -4214,6 +4263,29 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     // Impostazioni (come nel pannello): Profilo, Agenzie, Attività, Risposte; copia di sicurezza in JSON.
     // ------------------------------------------------------------------
     const SETTINGS_TABS = [['profile', 'Profilo'], ['companies', 'Agenzie'], ['activities', 'Attività'], ['responses', 'Risposte']];
+    // Amministratore: operatore con un ruolo di priorità 0 o 1 (owner, contributor), come per i Developer Tools.
+    function isAdmin() {
+        const me = operators().find(operator => sameEmail(operator.email, state.user?.email));
+        const role = Object.values(state.config.roles || {}).find(entry => String(entry.role || '').toLowerCase() === String(me?.role || '').toLowerCase());
+        return Boolean(role) && Number(role.priority) <= 1;
+    }
+    const settingsTabs = () => isAdmin() ? [...SETTINGS_TABS, ['admin', 'Amministrazione']] : SETTINGS_TABS;
+    const QUEUE_DAYS = [[7, '7 giorni'], [14, '14 giorni'], [30, '30 giorni'], [60, '60 giorni'], [90, '90 giorni'], [0, 'Tutti']];
+    function adminSection() {
+        const days = Number(state.config.queue?.days) || 0;
+        return [h('section', { class: 'tool' },
+            h('h2', {}, 'Coda'),
+            h('div', { class: 'field-input' }, h('span', { class: 'field-label' }, 'Carica i thread degli ultimi'),
+                h('div', { class: 'segmented', role: 'group', 'aria-label': 'Carica i thread degli ultimi' },
+                    QUEUE_DAYS.map(([value, label]) => h('button', { type: 'button', class: 'segment', 'aria-pressed': String(days === value), onclick: () => saveQueueDays(value) }, label)))))];
+    }
+    async function saveQueueDays(days) {
+        const done = await run(() => Data.saveAdmin({ queue: { days } }), 'Salvato per tutti');
+        if (!done) return;
+        state.config.queue = { ...(state.config.queue || {}), days };
+        render();
+        loadLists();
+    }
     const EDITORS = {
         companies: {
             newLabel: 'Agenzia',
@@ -4271,14 +4343,14 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
     function settingsView() {
         const tab = state.settingsTab;
         const bar = h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Impostazioni' },
-            SETTINGS_TABS.map(([id, label]) => iconSegment(label, id === 'responses' ? 'responses' : id, tab === id, () => { state.settingsTab = id; state.editing = null; render(); },
-                id !== 'profile' ? Object.keys(state.settings[collectionOf(id)]).length : undefined)));
+            settingsTabs().map(([id, label]) => iconSegment(label, id === 'responses' ? 'responses' : id, tab === id, () => { state.settingsTab = id; state.editing = null; render(); },
+                !['profile', 'admin'].includes(id) ? Object.keys(state.settings[collectionOf(id)]).length : undefined)));
         return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeSettings(); } },
             h('section', { class: 'card modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Impostazioni' },
                 h('div', { class: 'modal-head' }, h('h2', {}, 'Impostazioni'),
                     h('button', { type: 'button', class: 'modal-close', title: 'Chiudi', 'aria-label': 'Chiudi', onclick: closeSettings }, icon(ICONS.close))),
                 h('div', { class: 'column-head settings-head' }, bar),
-                h('div', { class: 'scroll settings', 'data-scroll': `settings:${tab}` }, tab === 'profile' ? profileSection() : collectionSection(tab))));
+                h('div', { class: 'scroll settings', 'data-scroll': `settings:${tab}` }, tab === 'profile' ? profileSection() : tab === 'admin' ? adminSection() : collectionSection(tab))));
     }
     function closeSettings() {
         state.settingsOpen = false;
@@ -4460,6 +4532,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const myOpen = (state.tasks.mine || []).filter(task => !task.done).length;
         const counts = { mailless: state.lists.tickets.filter(ticket => !ticket.parentItemId).length, tasks: myOpen, teams: unread };
         return h('nav', { class: 'folders', 'aria-label': 'Cartelle' },
+            h('button', { type: 'button', class: 'new-mail-button', 'aria-pressed': String(Boolean(state.newMail)), onclick: () => openNewMail() }, icon(ICONS.compose), 'Nuova mail'),
             h('span', { class: 'folders-group' }, 'Posta'),
             FOLDERS.map(([id, label, iconName, list, warn]) => {
                 const count = state.loaded ? list().length : 0;
@@ -4947,18 +5020,53 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         let content;
         if (tool === 'utility' || tool === 'tools') content = h('div', { class: 'v2-tool' }, tool === 'utility' ? utilityView() : toolsView());
         else if (tool) content = h('section', { class: 'v2-main v2-pane' }, h('div', { class: 'scroll side', 'data-scroll': `pane:${tool}` }, tool === 'tasks' ? tasksPanel(null) : teamsPanel(null)));
+        else if (state.newMail && !item) content = [state.listHidden ? null : v2List(), newMailView()];
         // Senza un thread scelto: lista a colonna e pannelli vuoti (stessa struttura di quando è aperto).
         else if (!item) content = [state.listHidden ? null : v2List(), emptyThread()];
         else content = [state.listHidden ? null : v2List(), v2Thread(item)];
         const single = Boolean(tool) || state.listHidden;
         if (isCompact()) {
             // Telefono: una cosa alla volta (lista o thread); cartelle e strumenti nel menu ☰.
-            const body = tool ? content : item ? v2Thread(item) : v2List(false);
+            const body = tool ? content : state.newMail && !item ? newMailView() : item ? v2Thread(item) : v2List(false);
             return h('main', { class: 'workspace v2 compact' }, body,
                 state.drawerOpen ? h('div', { class: 'drawer-backdrop', onclick: event => { if (event.target === event.currentTarget || event.target.closest('.folder')) { state.drawerOpen = false; render(); } } }, h('div', { class: 'drawer' }, folderNav())) : null,
                 palette());
         }
         return h('main', { class: `workspace v2${single ? ' no-list' : ''}${tool ? ' tool' : ''}` }, folderNav(), content, palette());
+    }
+    // Nuova mail da zero, dalla casella del servizio: stesso compositore della risposta, al posto del thread.
+    function openNewMail() {
+        state.selected = null;
+        state.newMail ||= { to: '', cc: '', bcc: '', subject: '', text: '', bccOpen: false };
+        state.drawerOpen = false;
+        render();
+        document.getElementById('new-mail-to')?.focus();
+    }
+    function closeNewMail() { state.newMail = null; render(); }
+    async function sendNewMail() {
+        const draft = state.newMail;
+        if (!addresses(draft.to).length) return showStatus('Manca il destinatario', 'danger');
+        if (!draft.subject.trim()) return showStatus("Scrivi l'oggetto", 'danger');
+        if (!draft.text.trim()) return showStatus('Scrivi il testo', 'danger');
+        const done = await run(() => Data.sendMail({ to: addresses(draft.to), cc: addresses(draft.cc), bcc: addresses(draft.bcc), subject: draft.subject.trim(), text: draft.text.trim() }), 'Mail inviata');
+        if (!done) return;
+        state.newMail = null;
+        render();
+    }
+    function newMailView() {
+        const draft = state.newMail;
+        const field = (key, label) => h('label', { class: 'compose-field' }, h('span', {}, label),
+            h('input', { id: `new-mail-${key}`, value: draft[key], autocomplete: 'off', oninput: event => { draft[key] = event.target.value; } }),
+            key === 'cc' && !draft.bccOpen ? h('button', { type: 'button', class: 'link', onclick: () => { draft.bccOpen = true; render(); document.getElementById('new-mail-bcc')?.focus(); } }, 'Ccn') : null);
+        return h('section', { class: 'v2-main new-mail' },
+            h('div', { class: 'scroll v2-conversation', 'data-scroll': 'new-mail' },
+                h('div', { class: 'composer new-mail-card' },
+                    h('div', { class: 'composer-head' }, icon(ICONS.compose), 'Nuova mail', h('span', { class: 'composer-ref' }, `da ${serviceMailbox()}`),
+                        h('button', { type: 'button', class: 'modal-close', title: 'Scarta', 'aria-label': 'Scarta', onclick: closeNewMail }, icon(ICONS.trash))),
+                    field('to', 'A'), field('cc', 'Cc'), draft.bccOpen ? field('bcc', 'Ccn') : null, field('subject', 'Oggetto'),
+                    usefulResponsesPicker('new-mail', text => { draft.text = text; render(); document.getElementById('new-mail-text')?.focus(); }),
+                    h('textarea', { id: 'new-mail-text', placeholder: 'Scrivi la mail', 'aria-label': 'Testo della mail', oninput: event => { draft.text = event.target.value; } }, draft.text),
+                    h('div', { class: 'composer-actions' }, h('span', { class: 'ao-spacer' }), button('Invia', sendNewMail, { kind: 'primary', iconName: 'send' })))));
     }
     function workspace() {
         return v2Workspace();
@@ -5173,6 +5281,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         const item = state.tab === 'work' ? selectedItem() : null;
         const layers = [];
         if (item) layers.push('thread');
+        else if (state.newMail) layers.push('newmail');
         if (item && state.sideCards.has(item.key)) layers.push('panel');
         if (state.drawerOpen) layers.push('drawer');
         return layers;
@@ -5191,6 +5300,7 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
         if (top === 'drawer') state.drawerOpen = false;
         else if (top === 'panel' && item) { state.sideCards.delete(item.key); state.forms.delete(`take:${item.key}`); }
         else if (top === 'thread') { state.selected = null; state.mobileTab = 'mail'; }
+        else if (top === 'newmail') state.newMail = null;
         render();
     });
     // La ricerca in alto sta sopra la colonna della lista, larga quanto lei e a filo; se la lista è nascosta resta dov'era.
