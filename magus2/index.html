@@ -751,9 +751,10 @@ button.tag.mine:hover { background: color-mix(in srgb, var(--label) 34%, transpa
 .menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 /* Cerca o comando (Ctrl K) nella barra in alto */
 .top-search { position: relative; width: 340px; margin-left: 18px; }
-.top-search .search input { height: 34px; padding-right: 58px; }
-.top-search .search .icon { top: 9px; }
-.top-search kbd { position: absolute; right: 8px; top: 7px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--subtle); font: var(--fs-xs) var(--font); pointer-events: none; }
+.top-search .search { display: flex; align-items: center; height: 34px; }
+.top-search .search input { display: block; height: 34px; padding-right: 58px; line-height: 32px; }
+.top-search .search .icon { top: 50%; transform: translateY(-50%); }
+.top-search kbd { position: absolute; top: 50%; right: 8px; display: flex; align-items: center; height: 20px; padding: 0 6px; transform: translateY(-50%); border: 1px solid var(--line-strong); border-radius: 5px; color: var(--subtle); font: var(--fs-xs)/1 var(--font); pointer-events: none; }
 .top-search-menu { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 480px; background: var(--option-bg); }
 .top-search .search input:not(:placeholder-shown) { padding-right: 10px; }
 .top-search .search input:not(:placeholder-shown) + kbd { display: none; }
