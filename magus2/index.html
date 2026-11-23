@@ -1071,6 +1071,14 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
 
 .statusbar-sync.live { color: var(--success); }
 
+/* Ricerca nel pannello della lista: intestazione Risultati con Chiudi ricerca, pillola della cartella su ogni riga */
+.search-close { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: transparent; color: var(--muted); font: 600 var(--fs-xs) var(--font); cursor: pointer; }
+.search-close:hover { border-color: var(--accent-line); color: var(--accent); }
+.search-close .icon { width: 13px; height: 13px; }
+.folder-pill { grid-column: 2; justify-self: start; margin-top: 2px; padding: 0 7px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: var(--fs-xs); font-weight: 500; }
+.item:not(.with-avatar) > .folder-pill { grid-column: 1; }
+.folder-pill.closed { background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2351,7 +2359,10 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
         if (!window.signalR || state.live === 'on' || state.live === 'connecting') return;
         state.live = 'connecting';
         try {
-            const response = await fetch(state.config.signalr?.negotiateUrl || NEGOTIATE_URL);
+            const url = state.config.signalr?.negotiateUrl || NEGOTIATE_URL;
+            // negotiate nella Function App principale: stesso accesso Microsoft delle altre chiamate
+            const headers = url.startsWith(FUNCTIONS_URL) ? { Authorization: `Bearer ${await window.MagusAuth.token()}` } : {};
+            const response = await fetch(url, { headers });
             if (!response.ok) throw new Error(`negotiate ${response.status}`);
             const info = await response.json();
             if (!info.url || !info.accessToken) throw new Error('negotiate incompleta');
@@ -2809,7 +2820,7 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
         return `tone-${hash % 5 + 1}`;
     }
     const personAvatar = (name, extra = '') => h('span', { class: `avatar ${avatarTone(name)}${extra}`, 'aria-hidden': 'true' }, initials(name));
-    function listItem(item) {
+    function listItem(item, showFolder = false) {
         const ticket = item.key.startsWith('ticket:');
         const pick = () => (state.selected === item.key && !isCompact() ? closeSelected() : select(item)); // secondo clic: deseleziona
         const person = ticket ? '' : item.from?.name || item.from?.email || '';
@@ -2827,7 +2838,8 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
                     ticket ? h('span', {}, markText([item.number, item.agency].filter(Boolean).join(' · '), state.search)) : h('span', {}, markText(item.from.name, state.search)), ticket ? null : ccPill(item),
                     ticket ? h('span', { class: `tag${item.status === 'On Hold' ? ' working' : ''}` }, TICKET_STATUS[item.status] || item.status) : queueTag(item),
                     null),
-                ticket ? null : itemExtra(item)));
+                ticket ? null : itemExtra(item),
+                showFolder && folderLabel(item) ? h('span', { class: `folder-pill${folderLabel(item) === 'Chiuso' ? ' closed' : ''}` }, folderLabel(item)) : null));
     }
     // Sotto la riga: quante mail, se ci sono allegati, da quanto aspetta una risposta (se l'ultima non è nostra).
     // Pillola "Cc" quando il servizio è solo in copia nell'ultima mail (nessuna azione richiesta).
@@ -2894,7 +2906,7 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             state.section === 'mail' ? h('div', { class: 'segmented filters', role: 'group', 'aria-label': 'Filtri' },
                 [['all', 'Tutte'], ['mine', 'Mie'], ['free', 'Libere'], ['cc', 'Cc']].map(([id, label]) =>
                     h('button', { type: 'button', class: 'segment', 'aria-pressed': String(state.postaFilter === id), onclick: () => { state.postaFilter = id; render(); } }, label))) : null);
-        const list = items => h('ul', { class: 'list' }, items.map(listItem));
+        const list = items => h('ul', { class: 'list' }, items.map(item => listItem(item)));
         let body;
         if (!state.loaded) body = empty('queue', 'Caricamento…');
         else if (state.error) body = empty('queue', state.error);
@@ -4714,7 +4726,34 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             h('span', { class: 'ao-spacer' }),
             statusBar());
     }
+    // Cartella in cui sta un risultato della ricerca (pillola sulla riga, come Outlook).
+    function folderLabel(item) {
+        if (item.key.startsWith('ticket:')) return OPEN_TICKET_STATUSES.includes(item.status) ? (item.parentItemId ? 'Con ticket' : 'Ticket senza mail') : 'Chiuso';
+        if (item.section === 'ignored') return 'Ignorate';
+        if (item.section === 'mine' || isMe(item.assignedTo)) return 'Mie';
+        if (item.section === 'active') return item.assignedTo ? 'Dei colleghi' : 'Libere';
+        return '';
+    }
+    // Ricerca come Outlook: dalla seconda lettera la colonna della lista mostra i risultati di tutte le cartelle (e dalla
+    // terza anche i ticket registrati, chiusi compresi); "Chiudi ricerca" torna alla cartella.
+    function searchResults(needle) {
+        const seen = new Set();
+        const threads = new Set();
+        const match = item => [item.subject, item.number, item.agency, item.from?.name, item.from?.email, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)]
+            .some(text => String(text || '').toLowerCase().includes(needle));
+        const list = allItems().filter(item => !seen.has(item.key) && seen.add(item.key)).filter(match);
+        list.filter(item => item.key.startsWith('thread:')).forEach(item => threads.add(item.parentItemId));
+        // un ticket aperto di un thread già nei risultati non si ripete; i chiusi restano (non sono sulla riga del thread)
+        return list.filter(item => !(item.key.startsWith('ticket:') && OPEN_TICKET_STATUSES.includes(item.status) && threads.has(item.parentItemId)));
+    }
+    function closeSearch() {
+        state.search = '';
+        state.found = null;
+        render();
+    }
     function v2List(wide = false) {
+        const searching = state.search.trim().length >= 2;
+        if (searching) return searchList(wide);
         const folder = FOLDERS.find(([id]) => id === state.view);
         const needle = state.search.trim().toLowerCase();
         const match = item => !needle || [item.subject, item.number, item.agency, item.from?.name, item.ampReference, ...(item.tickets || []).map(ticket => ticket.number)].some(text => String(text || '').toLowerCase().includes(needle));
@@ -4729,7 +4768,19 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             h('div', { class: 'scroll', 'data-scroll': `v2list:${state.view}` },
                 mailless ? h('button', { type: 'button', class: `new-ticket${state.selected === 'new-ticket' ? ' active' : ''}`, onclick: () => { state.selected = 'new-ticket'; state.panel = null; render(); } }, icon(ICONS.cardTake), 'Nuovo ticket') : null,
                 !state.loaded ? empty('queue', 'Caricamento…') : state.error ? empty('queue', state.error)
-                    : items.length ? h('ul', { class: 'list' }, items.map(listItem)) : empty(mailless ? 'ticket' : 'queue', needle ? 'Nessun risultato' : 'Niente qui')));
+                    : items.length ? h('ul', { class: 'list' }, items.map(item => listItem(item))) : empty(mailless ? 'ticket' : 'queue', needle ? 'Nessun risultato' : 'Niente qui')));
+    }
+    function searchList(wide) {
+        const needle = state.search.trim().toLowerCase();
+        const byDate = (a, b) => (parseDate(b.lastAt || b.receivedAt)?.getTime() || 0) - (parseDate(a.lastAt || a.receivedAt)?.getTime() || 0);
+        const items = searchResults(needle).sort(byDate);
+        return h('section', { class: `v2-list search-results${wide ? ' wide' : ''}`, 'aria-label': 'Risultati della ricerca', 'data-list': '' },
+            h('div', { class: 'v2-list-head' },
+                h('h2', {}, 'Risultati', h('span', { class: 'count' }, String(items.length))),
+                h('button', { type: 'button', class: 'search-close', onclick: closeSearch }, icon(ICONS.close), 'Chiudi ricerca')),
+            h('div', { class: 'scroll', 'data-scroll': 'v2list:search' },
+                items.length ? h('ul', { class: 'list' }, items.map(item => listItem(item, true)))
+                    : empty('search', state.search.trim().length >= 3 && state.found === null ? 'Cerco…' : 'Nessun risultato')));
     }
     // Il pannello del ticket accanto alla conversazione: aperto con Crea ticket / Inoltra (scheda del thread) o, sui
     // thread con ticket, i ticket del thread (chiudibile). Quando entra, la lista si fa da parte; quando esce torna.
@@ -5129,8 +5180,6 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
     }
     function openPalette() {
         if (document.documentElement.dataset.layout === 'wide') {
-            state.palette = { text: state.search, index: 0, inline: true };
-            render();
             const field = document.getElementById('top-search');
             field?.focus(); field?.select();
             return;
@@ -5174,19 +5223,17 @@ button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1p
             const found = await Data.searchTickets(needle).catch(() => null);
             if (state.search.trim() !== needle) return;
             state.found = found;
-            if (state.palette?.inline) render();
+            render();
         }, 350);
     }
     // Una sola ricerca, in alto: scrivendo filtra la lista della cartella e sotto propone mail, ticket e comandi (Ctrl K).
     function topSearch() {
-        const open = state.palette?.inline && state.palette.text.trim().length >= 2; // i risultati da due lettere in su
-        const menu = open ? paletteEntries() : null;
+        const menu = null; // i risultati stanno nella colonna della lista, non in un elenco a discesa
         return h('div', { class: 'top-search' },
             h('label', { class: 'search' }, icon(ICONS.search),
                 h('input', { id: 'top-search', type: 'search', placeholder: 'Cerca mail e ticket', value: state.search, 'aria-label': 'Cerca mail e ticket', autocomplete: 'off',
-                    onclick: () => { if (!state.palette) { state.palette = { text: state.search, index: 0, inline: true }; render(); } },
-                    oninput: event => { state.search = event.target.value; state.palette = { text: state.search, index: 0, inline: true }; searchTicketsSoon(state.search); render(); },
-                    onkeydown: event => { if (menu) paletteKeys(event, menu.list, menu.index, menu.runAt); else if (event.key === 'ArrowDown') { state.palette = { text: state.search, index: 0, inline: true }; render(); } } }),
+                    oninput: event => { state.search = event.target.value; if (!state.search.trim()) state.found = null; searchTicketsSoon(state.search); render(); },
+                    onkeydown: event => { if (event.key === 'Escape') { event.preventDefault(); event.target.blur(); closeSearch(); } } }),
                 h('kbd', {}, 'Ctrl K')),
             menu ? h('div', { class: 'command-palette top-search-menu', role: 'listbox', 'aria-label': 'Risultati e comandi' }, paletteList(menu.list, menu.index, menu.runAt)) : null);
     }
