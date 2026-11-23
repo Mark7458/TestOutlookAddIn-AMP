@@ -2284,7 +2284,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     async function loadLists() {
         try {
-            const [active, ignored, tickets, all] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets(), Data.queue('all').catch(() => [])]);
+            const [active, ignored, tickets, all] = await Promise.all([Data.queue('active'), Data.queue('ignored'), Data.tickets(), (state.noAllSection ? Promise.resolve([]) : Data.queue('all').catch(error => { if (error.reason === 'invalid_parameter') state.noAllSection = true; return []; }))]);
             const threads = ticketThreads(tickets, active);
             // Posta in arrivo: in più i thread inoltrati e quelli in carico (anche ai colleghi) che non sono già nelle altre liste
             const known = new Set([...active, ...ignored, ...threads].map(item => item.parentItemId));
