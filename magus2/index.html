@@ -1193,6 +1193,16 @@ button.tag.mine:hover{ background: var(--field-bg); }
 .compose-field .address-field input{ width: 100%; }
 .address-suggest{ min-width: 280px; }
 
+/* Impostazioni: agenzie e attività dal file di config, con l'interruttore */
+.catalog-face{ display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.catalog-text{ display: flex; flex: 1 1 0; flex-direction: column; gap: 4px; min-width: 0; }
+.catalog-item.off .catalog-text{ opacity: .55; }
+.switch{ flex: none; position: relative; width: 36px; height: 20px; margin: 0; border-radius: 999px; background: var(--line-strong); -webkit-appearance: none; appearance: none; cursor: pointer; transition: background-color .2s; }
+.switch::after{ content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s var(--ease); }
+.switch:checked{ background: var(--accent); }
+.switch:checked::after{ transform: translateX(16px); }
+.switch:focus-visible{ outline: 2px solid var(--accent-line); outline-offset: 2px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2055,7 +2065,20 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         return { value: value.value || '', displayValue: value.displayValue || '' };
     }
     // Agenzie e attività: dal file di config (PluginConfig); le impostazioni del browser solo se la config non le ha.
-    const catalog = kind => { const fromConfig = state.config?.[kind]; return fromConfig && typeof fromConfig === 'object' && Object.keys(fromConfig).length ? fromConfig : state.settings[kind]; };
+    // Nelle impostazioni ognuno le accende o le spegne per sé (state.settings.disabled).
+    const configCatalog = kind => { const fromConfig = state.config?.[kind]; return fromConfig && typeof fromConfig === 'object' && Object.keys(fromConfig).length ? fromConfig : null; };
+    const isDisabled = (kind, id) => (state.settings.disabled?.[kind] || []).includes(id);
+    const catalog = kind => {
+        const fromConfig = configCatalog(kind);
+        if (!fromConfig) return state.settings[kind];
+        return Object.fromEntries(Object.entries(fromConfig).filter(([id, entry]) => entry?.enabled !== false && !isDisabled(kind, id)));
+    };
+    function toggleCatalog(kind, id) {
+        const list = state.settings.disabled?.[kind] || [];
+        state.settings.disabled = { ...(state.settings.disabled || {}), [kind]: list.includes(id) ? list.filter(entry => entry !== id) : [...list, id] };
+        saveSettings(state.settings);
+        render();
+    }
     function normalizeSettings(data) {
         const object = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
         const companies = object(data?.companies);
@@ -4624,7 +4647,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const tab = state.settingsTab;
         const bar = h('div', { class: 'segmented icons', role: 'group', 'aria-label': 'Impostazioni' },
             settingsTabs().map(([id, label]) => iconSegment(label, id === 'responses' ? 'responses' : id, tab === id, () => { state.settingsTab = id; state.editing = null; render(); },
-                !['profile', 'admin'].includes(id) ? Object.keys(state.settings[collectionOf(id)]).length : undefined)));
+                !['profile', 'admin'].includes(id) ? Object.keys(configCatalog(id) ? catalog(id) : state.settings[collectionOf(id)]).length : undefined)));
         return h('div', { class: 'modal-backdrop', onclick: event => { if (event.target === event.currentTarget) closeSettings(); } },
             h('section', { class: 'card modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Impostazioni' },
                 h('div', { class: 'modal-head' }, h('h2', {}, 'Impostazioni'),
@@ -4694,6 +4717,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     // Agenzie, Attività, Risposte: schede che si leggono chiuse; un clic apre il modulo per modificarle.
     function collectionSection(tab) {
+        if (configCatalog(tab)) return catalogSection(tab);
         const editor = EDITORS[tab];
         const nameKey = editor.nameKey || 'name';
         const items = Object.entries(state.settings[collectionOf(tab)]).sort(([, a], [, b]) => String(a[nameKey] || '').localeCompare(String(b[nameKey] || ''), 'it'));
@@ -4711,6 +4735,22 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
                 : h('button', { type: 'button', class: 'btn primary new-item', onclick: () => { state.editing = { kind: tab, id: null }; render(); } }, icon(ICONS.plus), editor.newLabel),
             items.length ? h('ul', { class: 'list config-list' }, items.map(([id, item]) => card(id, item))) : (editing ? null : empty(tab === 'responses' ? 'responses' : tab, 'Nessuna voce'))
         ];
+    }
+    // Agenzie e attività dal file di config: si leggono e si accendono o spengono con l'interruttore.
+    function catalogSection(tab) {
+        const editor = EDITORS[tab];
+        const items = Object.entries(configCatalog(tab)).filter(([, item]) => item?.enabled !== false).sort(([, a], [, b]) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
+        if (!items.length) return empty(tab, 'Nessuna voce');
+        return h('ul', { class: 'list config-list' }, items.map(([id, item]) => {
+            const on = !isDisabled(tab, id);
+            return h('li', { class: `config-item catalog-item${on ? '' : ' off'}` },
+                h('label', { class: 'config-face catalog-face' },
+                    h('span', { class: 'catalog-text' },
+                        h('span', { class: 'item-top' }, h('span', { class: 'item-title' }, item.name || id)),
+                        editor.summary(item) ? h('span', { class: 'config-summary' }, editor.summary(item)) : null,
+                        editor.footer?.(item).length ? h('span', { class: 'config-footer' }, editor.footer(item).map(text => chip(text))) : null),
+                    h('input', { type: 'checkbox', class: 'switch', role: 'switch', checked: on, 'aria-label': `${on ? 'Spegni' : 'Accendi'} ${item.name || id}`, onchange: () => toggleCatalog(tab, id) })));
+        }));
     }
     function editorForm(tab, id, item) {
         const editor = EDITORS[tab];
