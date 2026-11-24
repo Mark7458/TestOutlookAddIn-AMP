@@ -1817,6 +1817,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
     if (name === 'PluginConfig' && body.action === 'update') { Object.assign(config.payload, body.queue ? { queue: body.queue } : {}); return json({ status: 'ok' }); }
+    if (name === 'ForwardConversation') return body.conversationId ? json({ status: 'ok', conversationId: body.conversationId, groupName: body.groupName }) : json({ status: 'error', reason: 'missing_parameter', message: 'Parametro conversationId mancante' }, 400);
     if (name === 'AddressBook') return json({ status: 'ok', contacts: [{ email: 'anna.bianchi@agenzia.it', name: '' }, { email: 'paolo.neri@agenzia.it', name: '' }, { email: 'ufficio.protocollo@agenzia.it', name: '' }, { email: 'annalisa.ferri@agenzia.it', name: '' }, { email: 'giorgio.rosa@agenzia.it', name: '' }] });
     if (name === 'SendMail') { await new Promise(next => setTimeout(next, 300)); return json({ status: 'ok', mail: BOX, subject: body.subject, to: body.to }); }
     if (name === 'RunUtility') { await new Promise(next => setTimeout(next, 600)); const members = body?.params?.members || []; return json({ status: 'ok', steps: [{ ok: true }, { ok: true, detail: body?.params?.mailbox }, { ok: true }, { ok: true }], items: members.map(member => ({ name: member, result: 'Aggiunto' })) }); }
@@ -2198,6 +2199,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         return {
             key: `thread:${item.parentItemId}`,
             parentItemId: Number(item.parentItemId),
+            conversationId: item.conversationId || last.conversationId || '',
             section,
             subject: item.subject || last.subject || '(senza oggetto)',
             from: sameEmail(sender(last.from).email, serviceMailbox()) || !last.from ? sender(item.from || last.from) : sender(last.from), // l'ultima nostra: si mostra chi ha scritto
@@ -2288,7 +2290,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         async messages(parentItemId) {
             const result = await call('ListThreadMessages', { parentItemId });
             return (result?.messages || [])
-                .map(message => ({ id: message.messageId, subject: message.subject || '', from: sender(message.from), receivedAt: message.receivedDate, hasAttachment: Boolean(message.hasAttachment), status: message.status }))
+                .map(message => ({ id: message.messageId, conversationId: message.conversationId || '', subject: message.subject || '', from: sender(message.from), receivedAt: message.receivedDate, hasAttachment: Boolean(message.hasAttachment), status: message.status }))
                 .sort((a, b) => (parseDate(a.receivedAt) || 0) - (parseDate(b.receivedAt) || 0));
         },
         async body(messageId) {
@@ -2338,7 +2340,11 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             if (Number(addMinutes)) changes.elapsedTime = String(Math.max(0, ticket.minutes + Number(addMinutes)));
             return Object.keys(changes).length ? Data.editTicket(ticket.number, changes) : ticket;
         },
-        forward: (item, group, keepThread = false) => call('ForwardConversation', { parentItemId: item.parentItemId, groupName: group.id, ...(keepThread ? { keepThread: true } : {}) }, 'POST'),
+        // ForwardConversation cerca il record degli inoltri per conversationId: dalla lista o, se manca, dalle mail del thread
+        forward: (item, group, keepThread = false) => {
+            const conversationId = item.conversationId || state.threads.get(item.parentItemId)?.messages?.find(message => message.conversationId)?.conversationId || '';
+            return call('ForwardConversation', { parentItemId: item.parentItemId, conversationId, groupName: group.id, ...(keepThread ? { keepThread: true } : {}) }, 'POST');
+        },
         // Risposta a tutti dalla casella del servizio. Senza destinatari e oggetto: quelli della risposta a tutti
         // (presa in carico, inoltro con la sigla del gruppo).
         reply: (parentItemId, options) => call('ReplyAll', { parentItemId, ...options }, 'POST')
