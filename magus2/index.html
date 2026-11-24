@@ -1180,6 +1180,19 @@ button.tag.mine:hover{ background: var(--field-bg); }
 .editor .composer-actions{ justify-content: flex-end; }
 .editor .note-box{ min-height: 40px; border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: color-mix(in srgb, var(--warning) 8%, var(--field-bg)); }
 
+/* Suggerimenti degli indirizzi (rubrica) nei campi A, Cc, Ccn */
+.address-field{ position: relative; display: flex; flex: 1 1 0; min-width: 0; }
+.address-field input{ flex: 1 1 0; min-width: 0; }
+.address-suggest{ position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40; max-width: 420px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--menu-bg); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--menu-shadow); }
+.address-option{ display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: 0; border-radius: 7px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.address-option.on, .address-option:hover{ background: var(--selected); }
+.address-option-text{ display: flex; flex-direction: column; min-width: 0; }
+.address-option-name{ overflow: hidden; font-size: 13px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.address-option-mail{ overflow: hidden; color: var(--muted); font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
+.compose-field .address-field{ align-self: stretch; align-items: center; width: 100%; }
+.compose-field .address-field input{ width: 100%; }
+.address-suggest{ min-width: 280px; }
+
 /* Componenti del pannello AMP (schede, Utility, Tools): CSS originale del pannello, estratto.
    Colori e misure sono ricondotti alla mappa degli stili in style-map.css, che si carica dopo. */
 #ao-root { --ao-accent: #0078d4; --ao-text-accent: #106ebe; --ao-accent-border: #c7e0f4; --ao-accent-bg: #eff6fc; --ao-progress: #5e7bd1; --ao-white: #fff; --ao-surface: #fff; --ao-text: #242424; --ao-text-muted: #605e5c; --ao-text-subtle: #8a8886; --ao-bg: #f5f5f5; --ao-bg-soft: #faf9f8; --ao-hover: #faf9f8; --ao-line-light: #edebe9; --ao-line: #e1dfdd; --ao-line-strong: #c8c6c4; --ao-success: #107c10; --ao-success-bg: #dff6dd; --ao-warning: #8a5a00; --ao-warning-bg: #fff4ce; --ao-danger: #a4262c; --ao-danger-bg: #fde7e9; --ao-hold: #8a6d00; --ao-hold-bg: #fbf3cc; --ao-forward: #7c5bbf; --ao-choice-forward-bg: #f1ecf9; --ao-choice-forward-text: #6b47b0; --ao-choice-danger-bg: #fde7e9; --ao-choice-danger-text: #a4262c; --ao-choice-resolve-bg: #e3f1e9; --ao-choice-resolve-text: #22693f; --ao-choice-hold-bg: #fbf3cc; --ao-choice-hold-text: #8a6d00; --ao-backdrop: #f5f5f5; --ao-blur: none; --ao-hover-filter: none; --ao-nav-ink: #fff; --ao-nav-ink-soft: rgba(255, 255, 255, .72); --ao-nav-band: linear-gradient(135deg, #005a9e, #0078d4); --ao-nav-edge: none; --ao-chip-line: transparent; --ao-hover-glow: 0 0 transparent; --ao-raised-shadow: 0 6px 16px rgba(0, 0, 0, .12), 0 1px 3px rgba(0, 0, 0, .08); --ao-open-shadow: var(--ao-raised-shadow); --ao-item-hover: var(--ao-surface); --ao-item-hover-edge: color-mix(in srgb, var(--ao-accent) 35%, transparent); --ao-item-hover-glow: 0 0 transparent; --ao-tag-hover-edge: var(--ao-item-hover-edge); --ao-open-edge: var(--ao-item-hover-edge); --ao-quote-bg: var(--ao-bg); --ao-segment-track: var(--ao-surface); --ao-choice-track: var(--ao-bg); --ao-selection: var(--ao-accent-bg); --ao-selection-line: transparent; --ao-selection-shadow: 0 0 transparent; --ao-selection-tone: 100%; --ao-selection-motion: .32s cubic-bezier(.3, .8, .2, 1); --ao-menu-bg: var(--ao-surface); --ao-call-border: 1px solid color-mix(in srgb, var(--ao-accent) 30%, transparent); --ao-call-open-border: var(--ao-accent); --ao-call-glow: 0 0 transparent; --ao-call-glow-rest: 0 0 transparent; --ao-call-glow-hover: 0 0 transparent; --ao-call-glow-left: 0 0 transparent; --ao-call-glow-right: 0 0 transparent; --ao-call-edge-hover: var(--ao-accent); --ao-search-bg: var(--ao-surface); --ao-search-lens-bg: var(--ao-accent-bg); --ao-search-line: var(--ao-accent-border); --ao-search-focus-line: var(--ao-accent); --ao-notify-ink: var(--ao-surface); --ao-field-focus-line: var(--ao-accent); --ao-field-focus-glow: var(--ao-shadow-focus); --ao-search-lens-line: var(--ao-accent-border); --ao-tone-take: var(--ao-accent); --ao-tone-forward: var(--ao-forward); --ao-tone-ignore: #d13438; --ao-tone-resolve: #2e8b57; --ao-tone-hold: #d4ac0d; --ao-tone-fill: 100%; --ao-tone-line: transparent; --ao-tone-hover-filter: brightness(.92); --ao-btn-highlight: 0 0 transparent; --ao-spinner-track: 45%; --ao-tag-fill: 14%; --ao-tag-base: #fff; --ao-tag-ink: 80%; --ao-tag-ink-base: #000; --ao-tag-line: transparent; --ao-fs-xs: 10px; --ao-fs-sm: 11px; --ao-fs-md: 12px; --ao-fs-base: 13px; --ao-fs-lg: 14px; --ao-fs-xl: 16px; --ao-fw-normal: 400; --ao-fw-medium: 600; --ao-fw-bold: 700; --ao-radius-base: 12px; --ao-radius-pill: 999px; --ao-radius-badge: 5px; --ao-shadow-card: 0 1px 2px rgba(0,0,0,.06); --ao-shadow-focus: 0 0 0 2px rgba(0,120,212,.25); --ao-disabled-opacity: .45; --ao-control-height: 32px; --ao-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1794,6 +1807,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     }
     const body = (() => { try { return JSON.parse(init?.body || '{}'); } catch { return {}; } })();
     if (name === 'PluginConfig' && body.action === 'update') { Object.assign(config.payload, body.queue ? { queue: body.queue } : {}); return json({ status: 'ok' }); }
+    if (name === 'AddressBook') return json({ status: 'ok', contacts: [{ email: 'anna.bianchi@agenzia.it', name: '' }, { email: 'paolo.neri@agenzia.it', name: '' }, { email: 'ufficio.protocollo@agenzia.it', name: '' }, { email: 'annalisa.ferri@agenzia.it', name: '' }, { email: 'giorgio.rosa@agenzia.it', name: '' }] });
     if (name === 'SendMail') { await new Promise(next => setTimeout(next, 300)); return json({ status: 'ok', mail: BOX, subject: body.subject, to: body.to }); }
     if (name === 'RunUtility') { await new Promise(next => setTimeout(next, 600)); const members = body?.params?.members || []; return json({ status: 'ok', steps: [{ ok: true }, { ok: true, detail: body?.params?.mailbox }, { ok: true }, { ok: true }], items: members.map(member => ({ name: member, result: 'Aggiunto' })) }); }
     if (name === 'SearchTicketRecords') {
@@ -2217,6 +2231,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             : (LocalTasks.push({ id: `L${Date.now()}`, parentItemId, ...task, done: false, source: 'local', created: new Date().toISOString() }), { status: 'ok' }),
         setTask: (task, done) => plannerLinked() ? call(task.source === 'todo' ? 'MyTasks' : 'ThreadTasks', { action: 'update', taskId: task.id, done }, 'POST') : Promise.resolve({ status: 'ok' }),
         myTasks: async () => plannerLinked() ? (await call('MyTasks'))?.tasks || [] : LocalTasks.filter(task => isMe(task.assignedTo)),
+        contacts: async () => (await call('AddressBook'))?.contacts || [],
         sendMail: mail => call('SendMail', mail, 'POST'),
         saveAdmin: changes => call('PluginConfig', { action: 'update', ...changes }, 'POST'),
         async config() {
@@ -3204,7 +3219,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         const change = (key, value) => { state.drafts.set(id, { ...draftFor(item, thread), [key]: value }); };
         const field = (key, label) => h('label', { class: 'compose-field' },
             h('span', {}, label),
-            h('input', { id: `reply-${key}-${id}`, value: draft[key], autocomplete: 'off', oninput: event => change(key, event.target.value) }),
+            ['to', 'cc', 'bcc'].includes(key) ? addressInput(`reply-${key}-${id}`, draft[key], value => change(key, value))
+                : h('input', { id: `reply-${key}-${id}`, value: draft[key], autocomplete: 'off', oninput: event => change(key, event.target.value) }),
             key === 'cc' && !draft.bccOpen ? h('button', { type: 'button', class: 'link', onclick: () => { change('bccOpen', true); render(); document.getElementById(`reply-bcc-${id}`)?.focus(); } }, 'Ccn') : null);
         return h('div', { class: 'composer' },
             h('div', { class: 'composer-head' }, icon(ICONS[draft.mode === 'one' ? 'reply' : 'replyAll']), draft.mode === 'one' ? 'Rispondi' : 'Rispondi a tutti',
@@ -5438,10 +5454,82 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         state.newMail = null;
         render();
     }
+    // Rubrica (lista SharePoint, via AddressBook) + operatori + chi scrive nel thread aperto: suggerimenti mentre si
+    // scrive un indirizzo nei campi A, Cc e Ccn. Si carica una volta, al primo campo usato.
+    async function loadContacts() {
+        if (state.contactsLoading || state.contacts) return;
+        state.contactsLoading = true;
+        try { state.contacts = await Data.contacts(); } catch { state.contacts = []; } // senza rubrica restano operatori e thread
+        state.contactsLoading = false;
+        if (state.suggest) render();
+    }
+    function addressBook() {
+        const seen = new Map();
+        const add = (email, name) => {
+            const key = String(email || '').trim().toLowerCase();
+            if (!key || !key.includes('@')) return;
+            const known = seen.get(key);
+            if (!known) seen.set(key, { email: String(email).trim(), name: name || '' });
+            else if (!known.name && name) known.name = name;
+        };
+        (state.contacts || []).forEach(entry => add(entry.email, entry.name));
+        operators().forEach(entry => add(entry?.email, entry?.displayName));
+        const thread = state.threads.get(selectedItem()?.parentItemId);
+        (thread?.messages || []).forEach(entry => add(entry.from?.email, entry.from?.name && !entry.from.name.includes('@') ? entry.from.name : ''));
+        return [...seen.values()];
+    }
+    function contactMatches(query) {
+        const needle = query.trim().toLowerCase();
+        if (needle.length < 2) return [];
+        const score = entry => {
+            const name = entry.name.toLowerCase(), email = entry.email.toLowerCase();
+            if (email.startsWith(needle) || name.startsWith(needle) || name.split(/\s+/).some(word => word.startsWith(needle))) return 0;
+            return email.includes(needle) || name.includes(needle) ? 1 : 2;
+        };
+        return addressBook().map(entry => ({ entry, rank: score(entry) })).filter(({ rank }) => rank < 2)
+            .sort((a, b) => a.rank - b.rank || (a.entry.name || a.entry.email).localeCompare(b.entry.name || b.entry.email, 'it')).slice(0, 6).map(({ entry }) => entry);
+    }
+    // Campo indirizzi: si scrive come in Outlook (separati da ;); l'ultimo pezzo scritto apre i suggerimenti.
+    function addressInput(id, value, onValue) {
+        const open = state.suggest?.id === id ? state.suggest : null;
+        const lastPart = text => (String(text).split(/[;,]/).pop() || '');
+        const pick = entry => {
+            const parts = String(document.getElementById(id)?.value ?? value).split(/[;,]/).map(part => part.trim());
+            parts.pop();
+            const next = [...parts.filter(Boolean), entry.email].join('; ') + '; ';
+            onValue(next);
+            state.suggest = null;
+            render();
+            const field = document.getElementById(id);
+            if (field) { field.value = next; field.focus(); field.setSelectionRange(next.length, next.length); }
+        };
+        const update = text => {
+            const items = contactMatches(lastPart(text));
+            state.suggest = items.length ? { id, items, index: 0 } : null;
+            render();
+        };
+        return h('span', { class: 'address-field' },
+            h('input', { id, value, autocomplete: 'off', spellcheck: 'false', 'aria-autocomplete': 'list', 'aria-expanded': String(Boolean(open)),
+                onfocus: () => loadContacts(),
+                oninput: event => { onValue(event.target.value); update(event.target.value); },
+                onblur: () => setTimeout(() => { if (state.suggest?.id === id && document.activeElement?.id !== id) { state.suggest = null; render(); } }, 150), // il campo ridisegnato riprende il fuoco: si chiude solo uscendo davvero
+                onkeydown: event => {
+                    if (!open) return;
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); open.index = (open.index + (event.key === 'ArrowDown' ? 1 : -1) + open.items.length) % open.items.length; render(); }
+                    else if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); pick(open.items[open.index]); }
+                    else if (event.key === 'Escape') { event.stopPropagation(); state.suggest = null; render(); }
+                } }),
+            open ? h('div', { class: 'address-suggest', role: 'listbox' }, open.items.map((entry, index) =>
+                h('button', { type: 'button', role: 'option', class: `address-option${index === open.index ? ' on' : ''}`, 'aria-selected': String(index === open.index),
+                    onmousedown: event => { event.preventDefault(); pick(entry); } },
+                    personAvatar(entry.name || entry.email, ' small'),
+                    h('span', { class: 'address-option-text' }, h('span', { class: 'address-option-name' }, entry.name || entry.email), entry.name ? h('span', { class: 'address-option-mail' }, entry.email) : null)))) : null);
+    }
     function newMailView() {
         const draft = state.newMail;
         const field = (key, label) => h('label', { class: 'compose-field' }, h('span', {}, label),
-            h('input', { id: `new-mail-${key}`, value: draft[key], autocomplete: 'off', oninput: event => { draft[key] = event.target.value; } }),
+            ['to', 'cc', 'bcc'].includes(key) ? addressInput(`new-mail-${key}`, draft[key], value => { draft[key] = value; })
+                : h('input', { id: `new-mail-${key}`, value: draft[key], autocomplete: 'off', oninput: event => { draft[key] = event.target.value; } }),
             key === 'cc' && !draft.bccOpen ? h('button', { type: 'button', class: 'link', onclick: () => { draft.bccOpen = true; render(); document.getElementById('new-mail-bcc')?.focus(); } }, 'Ccn') : null);
         return h('section', { class: 'v2-main new-mail' },
             h('div', { class: 'scroll v2-conversation', 'data-scroll': 'new-mail' },
