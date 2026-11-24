@@ -1793,7 +1793,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     await delay(250 + Math.random() * 300);
     const name = path.slice(5), q = url.searchParams;
     if (name === 'negotiate') return json({ url: 'https://mock.signalr/client/?hub=queue', accessToken: 'mock' });
-    if (name === 'PluginConfig' && init?.method !== 'POST') return json(config);
+    if (name === 'PluginConfig' && init?.method !== 'POST') return json({ ...config, payload: { ...config.payload, companies: { dem: { name: 'Agenzia del Demanio', domains: ['agenzia.it'], company: { displayValue: 'Agenzia del Demanio', value: 'c1' }, assignmentGroup: { displayValue: 'M365 Service Desk', value: 'g1' } }, ag1: { name: 'Agenzia Uno', domains: ['agenziauno.it'], company: { displayValue: 'Agenzia Uno', value: 'c2' }, assignmentGroup: { displayValue: 'M365 Service Desk', value: 'g1' } } }, activities: { a1: { name: 'Casella condivisa', category: { displayValue: 'Exchange', value: 'k1' }, impact: '3', urgency: '3', timeWorked: 15 }, a2: { name: 'Licenze', category: { displayValue: 'Licensing', value: 'k2' }, impact: '3', urgency: '3', timeWorked: 10 } } } }); // agenzie e attività dal file di config
     if (name === 'Health') return json({ status: 'ok' });
     if (name === 'ListQueue') {
       const section = q.get('section');
@@ -2054,6 +2054,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         if (typeof value === 'string') return { value: '', displayValue: value };
         return { value: value.value || '', displayValue: value.displayValue || '' };
     }
+    // Agenzie e attività: dal file di config (PluginConfig); le impostazioni del browser solo se la config non le ha.
+    const catalog = kind => { const fromConfig = state.config?.[kind]; return fromConfig && typeof fromConfig === 'object' && Object.keys(fromConfig).length ? fromConfig : state.settings[kind]; };
     function normalizeSettings(data) {
         const object = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
         const companies = object(data?.companies);
@@ -2588,7 +2590,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     // Agenzia suggerita (come nel pannello): dal dominio del mittente, altrimenti dal nome nel testo; con il motivo.
     function suggestCompany(from, subject) {
         const domain = String(from?.email || '').split('@')[1]?.toLowerCase() || '';
-        const companies = Object.entries(state.settings.companies);
+        const companies = Object.entries(catalog('companies'));
         const byDomain = domain && companies.find(([, company]) => company.domains.some(item => domain === item || domain.endsWith(`.${item}`)));
         if (byDomain) return { id: byDomain[0], reason: `dal dominio @${domain}` };
         const text = String(subject || '').toLowerCase();
@@ -2614,7 +2616,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
             return Object.entries(Usage.load())
                 .filter(([key]) => key.startsWith(`${companyId}|`))
                 .map(([key, entry]) => ({ id: key.slice(companyId.length + 1), score: entry.n + 5 * words.reduce((sum, word) => sum + (entry.w[word] || 0), 0) }))
-                .filter(entry => state.settings.activities[entry.id])
+                .filter(entry => catalog('activities')[entry.id])
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 3)
                 .map(entry => entry.id);
@@ -2661,8 +2663,8 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     const SEVERITY = { '1': '1 - High', '2': '2 - Medium', '3': '3 - Low' };
     const AMP_LINK_MAX = 6000;
     function ticketFields(draft) {
-        const company = state.settings.companies[draft.companyId];
-        const activity = state.settings.activities[draft.activityId];
+        const company = catalog('companies')[draft.companyId];
+        const activity = catalog('activities')[draft.activityId];
         if (!company || !activity) return null;
         const prefix = activity.shortDescriptionPrefix || '';
         return {
@@ -2700,7 +2702,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         if (!item && !String(draft.subject || '').trim()) return showStatus('Scrivi la Short description.', 'danger');
         const reported = reportedOn(draft);
         if (!reported) return showStatus("Scrivi l'ora come hh:mm (per esempio 09:30).", 'danger');
-        const company = state.settings.companies[draft.companyId];
+        const company = catalog('companies')[draft.companyId];
         const thread = item && state.threads.get(item.parentItemId);
         // Su un thread che ha già un ticket se ne apre un altro (SHP-<thread>-<n>): niente tag né presa del thread.
         const linked = item ? linkedThread(item) : false;
@@ -3625,11 +3627,11 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     function takeZone(item, label, extra = null) {
         const draft = takeDraft(item);
         proposeActivity(draft);
-        const companies = Object.entries(state.settings.companies).sort(byName).map(([id, company]) => [id, company.name]);
+        const companies = Object.entries(catalog('companies')).sort(byName).map(([id, company]) => [id, company.name]);
         const suggested = draft.companyId ? Usage.suggest(draft.companyId, suggestText(draft)) : [];
-        const others = Object.entries(state.settings.activities).sort(byName).filter(([id]) => !suggested.includes(id)).map(([id, activity]) => [id, activity.name]);
+        const others = Object.entries(catalog('activities')).sort(byName).filter(([id]) => !suggested.includes(id)).map(([id, activity]) => [id, activity.name]);
         const activities = suggested.length
-            ? [{ group: "Suggerite per l'agenzia" }, ...suggested.map(id => [id, state.settings.activities[id].name, true]), { group: 'Tutte' }, ...others]
+            ? [{ group: "Suggerite per l'agenzia" }, ...suggested.map(id => [id, catalog('activities')[id].name, true]), { group: 'Tutte' }, ...others]
             : others;
         const details = ticketFields(draft);
         const detailsBody = details && draft.detailsOpen ? h('div', { class: 'ao-details-body' },
@@ -4788,7 +4790,7 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
     };
     const INBOX_FILTERS = [
         ['all', 'Tutte', item => item.section !== 'ignored'],
-        ['free', 'Libere', item => item.section === 'active' && !item.assignedTo],
+        ['free', 'Libere', item => item.section === 'active' && !item.assignedTo && !item.lastFromService], // l'ultima mail è nostra: non aspetta risposta
         ['mine', 'Mie', item => item.section === 'mine' || (item.section === 'active' && isMe(item.assignedTo))],
         ['others', 'Colleghi', item => (item.section === 'active' || item.section === 'others') && item.assignedTo && !isMe(item.assignedTo)],
         ['forwarded', 'Inoltrate', item => item.section === 'forwarded'],
@@ -5973,6 +5975,11 @@ window.MagusLinks = { planner: true }; // anteprima: attività dai dati di prova
         if (!state.user) { root.replaceChildren(loginScreen()); return; }
         render();
         try { state.config = await Data.config(); } catch { state.config = {}; }
+        // agenzie e attività dal file di config (come i domini nelle impostazioni: minuscoli, senza @)
+        Object.values(state.config?.companies || {}).forEach(company => {
+            const list = Array.isArray(company.domains) ? company.domains : String(company.domains || '').split(/[,;\s]+/);
+            company.domains = [...new Set(list.map(item => String(item).trim().toLowerCase().replace(/^@/, '')).filter(Boolean))];
+        });
         await loadLists();
         openFromLink();
         loadMentions();
